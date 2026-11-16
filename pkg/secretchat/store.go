@@ -26,6 +26,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/teamgram/teamgram-server/pkg/qtsqueue"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -49,19 +50,21 @@ const (
 	// changeSize is what a change of a chat takes in a difference, g_a and
 	// g_b apart.
 	changeSize = 64
-	// firstQts is the qts of an authorization with no events yet, the first
-	// event being the next one. It is not 0: at a local qts of 0 Android
-	// applies any update without looking for a gap and confirms it
-	// (MessagesController.java:18113, :18298), so a lost or late first event
-	// would be confirmed undelivered.
-	firstQts   = 1
+	// firstQts is the qts of an authorization with no events yet: the
+	// counter is the one of pkg/qtsqueue, which the queue of the other
+	// updates with qts shares.
+	firstQts   = qtsqueue.FirstQts
 	idAttempts = 16
 	sweepBatch = 1000
 )
 
 // Store keeps the chats, their queues and the encrypted files in MySQL.
+// The qts of an authorization is pkg/qtsqueue's: the queue of the chats
+// and the queue of the other updates with qts take their numbers from one
+// counter.
 type Store struct {
 	db  *sql.DB
+	qts *qtsqueue.Store
 	now func() time.Time
 }
 
@@ -85,7 +88,12 @@ var queueLimit = struct{ chatMessages, chatBytes, deviceMessages, deviceBytes in
 var changesBytes = 1 << 20
 
 // New returns the store on db.
-func New(db *sql.DB) *Store { return &Store{db: db, now: time.Now} }
+func New(db *sql.DB) *Store { return &Store{db: db, qts: qtsqueue.New(db), now: time.Now} }
+
+// Qts is the queue of the other updates with qts of the authorizations,
+// on the database of s: updates.getDifference merges it with the queue of
+// the chats by qts.
+func (s *Store) Qts() *qtsqueue.Store { return s.qts }
 
 // MustOpen connects to the database at dsn, at the start of a service.
 func MustOpen(dsn string) *Store {
@@ -472,7 +480,7 @@ func (s *Store) Send(ctx context.Context, in Send) (*Sent, error) {
 			in.ChatId, in.From.AuthKey, in.RandomId, now, f.Id, f.AccessHash, f.Size, f.DcId, f.KeyFingerprint); err != nil {
 			return err
 		}
-		qts, err := nextQts(ctx, tx, to)
+		qts, err := qtsqueue.Next(qtsqueue.SQLTx(ctx, tx), qtsqueue.Device(to))
 		if err != nil {
 			return err
 		}
@@ -507,15 +515,6 @@ func queueRoom(ctx context.Context, tx *sql.Tx, to Device, chatId int32, size in
 		return ErrQueueFull
 	}
 	return nil
-}
-
-func nextQts(ctx context.Context, tx *sql.Tx, d Device) (int32, error) {
-	if _, err := tx.ExecContext(ctx, "INSERT INTO encrypted_chat_devices (auth_key_id, user_id, qts) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE qts = qts + 1", d.AuthKey, d.UserId, firstQts+1); err != nil {
-		return 0, err
-	}
-	var qts int32
-	err := tx.QueryRowContext(ctx, "SELECT qts FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", d.AuthKey, d.UserId).Scan(&qts)
-	return qts, err
 }
 
 // ReadHistory records messages.readEncryptedHistory of d and returns the
@@ -597,12 +596,10 @@ func (s *Store) Ack(ctx context.Context, d Device, maxQts int32) ([]int64, error
 // State returns the qts of d for updates.getState and marks that d was given
 // a state.
 func (s *Store) State(ctx context.Context, d Device) (int32, error) {
-	if _, err := s.db.ExecContext(ctx, "INSERT INTO encrypted_chat_devices (auth_key_id, user_id, qts, state_given_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE state_given_at = VALUES(state_given_at)", d.AuthKey, d.UserId, firstQts, s.unix()); err != nil {
+	if err := s.MarkDifference(ctx, d); err != nil {
 		return 0, err
 	}
-	var qts int32
-	err := s.db.QueryRowContext(ctx, "SELECT qts FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", d.AuthKey, d.UserId).Scan(&qts)
-	return qts, err
+	return s.qts.Current(ctx, qtsqueue.Device(d))
 }
 
 // Difference is what updates.getDifference adds for one authorization.
@@ -915,7 +912,9 @@ func (s *Store) purgeDiscarded(ctx context.Context, cutoff int32) error {
 }
 
 // sweepDevices clears the state and queues of authorizations that are gone,
-// and what a later login on the same key cannot have been sent for.
+// and what a later login on the same key cannot have been sent for; the
+// queue of the other updates with qts loses what is past its retention too
+// (qtsqueue.Sweep).
 func (s *Store) sweepDevices(ctx context.Context) error {
 	gone, err := s.goneDevices(ctx)
 	if err != nil {
@@ -925,12 +924,15 @@ func (s *Store) sweepDevices(ctx context.Context) error {
 		if _, err = s.db.ExecContext(ctx, "DELETE FROM encrypted_chat_queue WHERE auth_key_id = ? AND user_id = ?", d.AuthKey, d.UserId); err != nil {
 			return err
 		}
-		if _, err = s.db.ExecContext(ctx, "DELETE FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", d.AuthKey, d.UserId); err != nil {
+		// The counter, with the queue of the other updates with qts.
+		if err = qtsqueue.Forget(ctx, s.db, qtsqueue.Device(d)); err != nil {
 			return err
 		}
 	}
-	_, err = s.db.ExecContext(ctx, "DELETE q FROM encrypted_chat_queue q JOIN auth_users a ON a.auth_key_id = q.auth_key_id AND a.user_id = q.user_id AND a.deleted = 0 WHERE q.date < a.date_created")
-	return err
+	if _, err = s.db.ExecContext(ctx, "DELETE q FROM encrypted_chat_queue q JOIN auth_users a ON a.auth_key_id = q.auth_key_id AND a.user_id = q.user_id AND a.deleted = 0 WHERE q.date < a.date_created"); err != nil {
+		return err
+	}
+	return qtsqueue.Sweep(ctx, s.db, s.now())
 }
 
 func (s *Store) goneDevices(ctx context.Context) ([]Device, error) {

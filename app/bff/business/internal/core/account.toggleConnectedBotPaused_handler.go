@@ -16,9 +16,9 @@
 package core
 
 import (
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/business"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // AccountToggleConnectedBotPaused
@@ -29,8 +29,8 @@ import (
 // buttons Pause and Resume of the bar over the chat call it (tdesktop
 // history/view/history_view_contact_status.cpp:1290-1298, Android
 // ui/Business/BusinessBotButton.java:116, 133). A paused bot cannot reply
-// there (business_bot_can_reply off) and gets nothing of the chat (part 7
-// of task 105).
+// there (business_bot_can_reply off) and gets nothing of the chat
+// (business.ServesTx); its connection is not changed, and it is not told.
 func (c *BusinessCore) AccountToggleConnectedBotPaused(in *mtproto.TLAccountToggleConnectedBotPaused) (*mtproto.Bool, error) {
 	const method = "account.toggleConnectedBotPaused"
 	if err := c.notBot(method); err != nil {
@@ -41,8 +41,8 @@ func (c *BusinessCore) AccountToggleConnectedBotPaused(in *mtproto.TLAccountTogg
 		return nil, err
 	}
 	paused := mtproto.FromBool(in.GetPaused())
-	if err = c.changeChat(method, peerID, func(tx *sqlx.Tx, conn *business.Connection, _ business.Peer, now int32) (*business.PeerBar, error) {
-		if err := business.SetPausedTx(tx, c.MD.UserId, peerID, paused, now); err != nil {
+	if err = c.changeChat(method, peerID, func(b *userbox.Box, conn *business.Connection, _ business.Peer, now int32) (*business.PeerBar, error) {
+		if err := business.SetPausedTx(b.Tx(), c.MD.UserId, peerID, paused, now); err != nil {
 			return nil, err
 		}
 		return &business.PeerBar{

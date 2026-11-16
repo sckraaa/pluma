@@ -109,6 +109,12 @@ func (c *MsgCore) editUserMessage(fromUserId, fromAuthKeyId, toUserId int64, edi
 	if err != nil {
 		return nil, err
 	}
+	// The connected bot of Telegram Business that serves the chat is told
+	// of the edit (task 105).
+	businessChat, err := c.svcCtx.Dao.BusinessChatOf(c.ctx, fromUserId, toUserId, users)
+	if err != nil {
+		return nil, err
+	}
 	editBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, editBox.Message, fromUserId, editBox.NoWebpage, func() bool {
 		hasBot := false
 		users.Visit(func(it *mtproto.ImmutableUser) {
@@ -128,6 +134,13 @@ func (c *MsgCore) editUserMessage(fromUserId, fromAuthKeyId, toUserId int64, edi
 		update = edited
 		if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
 			mtproto.MakeUpdatesByUpdatesUsersChats(users.GetUserListByIdList(fromUserId, idHelper.UserIdList...), nil, update)); err != nil {
+			return err
+		}
+		bot, err := c.svcCtx.Dao.BusinessBotTx(b, businessChat)
+		if err != nil {
+			return err
+		}
+		if err = c.svcCtx.Dao.EmitBusinessMessages(b, bot, toUserId, true, box.GetMessage()); err != nil {
 			return err
 		}
 		if toUserId == fromUserId || blocked {

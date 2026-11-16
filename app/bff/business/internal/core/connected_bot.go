@@ -20,8 +20,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/business"
@@ -34,9 +34,35 @@ import (
 // one bot per account that reads and answers the private chats the account
 // chooses, by the rights it gives
 // (core.telegram.org/api/bots/connected-business-bots). Here the account
-// sets it up; what the bot is told (updateBotBusinessConnect and the
-// messages, with qts) is part 7, and what it does through the connection
-// is part 8.
+// sets it up and the bot is told of its connection
+// (updateBotBusinessConnect, with qts); the messages of the chats it serves
+// are told by the service msg, and what it does through the connection is
+// part 8.
+
+// tellBot adds to b, the box transaction of the account of conn that
+// changed it, the event that tells the bot of conn of its connection:
+// updateBotBusinessConnect "with the new settings and connection_id", or
+// with disabled when it is gone (core.telegram.org/constructor/
+// updateBotBusinessConnect). The bot gets it with qts in its queue.
+func (c *BusinessCore) tellBot(b *userbox.Box, conn *business.Connection, disabled bool) error {
+	if conn == nil {
+		return nil
+	}
+	return inbox.EmitBotBusinessUpdate(b, c.svcCtx.Dao.InboxTopic, conn.BotID, conn.ConnectUpdate(disabled))
+}
+
+// runBox runs fn in a box transaction of the caller and wakes the relay
+// of the process for what it emitted.
+func (c *BusinessCore) runBox(fn func(b *userbox.Box) error) error {
+	res, err := userbox.Run(c.ctx, c.svcCtx.Dao.BoxDB, c.MD.UserId, fn)
+	if err != nil {
+		return err
+	}
+	if res.Emitted > 0 {
+		outbox.Notify()
+	}
+	return nil
+}
 
 // recipientUsers are the ids of the users of a list of recipients: people
 // other than the caller, at most business.RecipientsUsersMax of them
@@ -120,7 +146,7 @@ const connectionChangeAttempts = 3
 // 156-160). The user service is asked before the transaction, so that no
 // call to it waits under the lock.
 func (c *BusinessCore) changeChat(method string, peerID int64,
-	change func(tx *sqlx.Tx, conn *business.Connection, peer business.Peer, now int32) (*business.PeerBar, error)) error {
+	change func(b *userbox.Box, conn *business.Connection, peer business.Peer, now int32) (*business.PeerBar, error)) error {
 	settings, err := c.svcCtx.Dao.UserClient.UserGetPeerSettings(c.ctx, &userpb.TLUserGetPeerSettings{
 		UserId:   c.MD.UserId,
 		PeerType: mtproto.PEER_USER,
@@ -168,7 +194,7 @@ func (c *BusinessCore) changeChat(method string, peerID int64,
 			if !locked.Same(conn) {
 				return errConnectionChanged
 			}
-			bar, err := change(b.Tx(), locked, peer, int32(time.Now().Unix()))
+			bar, err := change(b, locked, peer, int32(time.Now().Unix()))
 			if err != nil {
 				return err
 			}

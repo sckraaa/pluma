@@ -45,11 +45,14 @@ import (
 // A private message from a person may trigger the automatic replies of
 // Telegram Business of the recipient (task 105): the transaction that
 // takes it queues them (autoReplies), and the worker of msg sends them.
+// The connected bot of the recipient that serves the chat is told of the
+// messages in the same transaction (dao.EmitBusinessMessages).
 func (c *InboxCore) InboxSendUserMessageToInboxV2(in *inbox.TLInboxSendUserMessageToInboxV2) error {
 	bot := isBot(in.UserId, in.Users)
 	var (
-		archive dao.IncomingArchive
-		auto    *autoReplyFacts
+		archive      dao.IncomingArchive
+		auto         *autoReplyFacts
+		businessChat *dao.BusinessChat
 	)
 	if in.PeerType == mtproto.PEER_USER && !bot {
 		var err error
@@ -57,6 +60,9 @@ func (c *InboxCore) InboxSendUserMessageToInboxV2(in *inbox.TLInboxSendUserMessa
 			return err
 		}
 		if auto, err = c.autoReplyFactsOf(in); err != nil {
+			return err
+		}
+		if businessChat, err = c.privateBusinessChat(in.UserId, in.FromId, in.PeerType, in.PeerId); err != nil {
 			return err
 		}
 		// The mute and the bar of an archived chat first: both are kept
@@ -87,6 +93,9 @@ func (c *InboxCore) InboxSendUserMessageToInboxV2(in *inbox.TLInboxSendUserMessa
 				return true, err
 			}
 		}
+		if err = c.businessMessages(b, businessChat, false, received.Boxes); err != nil {
+			return true, err
+		}
 		updates := received.Updates
 		switch {
 		case archive.New:
@@ -108,6 +117,30 @@ func (c *InboxCore) InboxSendUserMessageToInboxV2(in *inbox.TLInboxSendUserMessa
 		}
 		return true, c.svcCtx.Dao.EmitSeqUpdate(b, received.TTL, in.Users, in.Chats)
 	})
+}
+
+// businessMessages tells the connected bot of the box owner that serves
+// chat, if any, of the messages of boxes of that chat, new or edited.
+func (c *InboxCore) businessMessages(b *userbox.Box, chat *dao.BusinessChat, edit bool, boxes []*mtproto.MessageBox) error {
+	bot, err := c.svcCtx.Dao.BusinessBotTx(b, chat)
+	if err != nil || bot == nil {
+		return err
+	}
+	messages := make([]*mtproto.Message, len(boxes))
+	for i, box := range boxes {
+		messages[i] = box.GetMessage()
+	}
+	return c.svcCtx.Dao.EmitBusinessMessages(b, bot, chat.PeerId, edit, messages...)
+}
+
+// privateBusinessChat is the chat of the event in, of a private chat with
+// a person, as the connected bot of the recipient needs it
+// (dao.BusinessChatOf); nil for any other chat or when no bot serves it.
+func (c *InboxCore) privateBusinessChat(userId, fromId int64, peerType int32, peerId int64) (*dao.BusinessChat, error) {
+	if peerType != mtproto.PEER_USER || peerId != userId {
+		return nil, nil
+	}
+	return c.svcCtx.Dao.BusinessChatOf(c.ctx, userId, fromId, nil)
 }
 
 // autoReplyFacts is what the automatic replies of the recipient of a

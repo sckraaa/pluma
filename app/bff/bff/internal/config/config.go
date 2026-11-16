@@ -53,6 +53,12 @@ type Config struct {
 	SyncClient              SyncClientConf
 	DfsClient               zrpc.RpcClientConf
 	StatusClient            zrpc.RpcClientConf
+
+	// InboxTopic is the topic of the inbox events bff writes in box
+	// transactions (ADR 0012): what a connected bot of Telegram Business is
+	// told of its connection (task 105). It is the topic the inbox consumer
+	// of msg reads (topics.sh).
+	InboxTopic string `json:",default=Inbox-T"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// Calls is the media side of one-to-one calls (docs/ops/calls.md); calls
 	// are off without ICE servers.
 	Calls voipcalls_helper.CallsConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's

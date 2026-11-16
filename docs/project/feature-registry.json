@@ -4134,10 +4134,10 @@
   "name": "account.getBotBusinessConnection",
   "group": "account",
   "feature": "Бот запрашивает своё Business-подключение; человек не видит",
-  "used_by": "none found (A, I, D, W)",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Официальные клиенты не вызывают, но боты у нас аккаунты MTProto (ADR 0043) и библиотека бота может вызвать. Решить при проектировании Business-ботов."
+  "used_by": "none found (A, I, D, W); бот (MTProto-библиотека, ADR 0043)",
+  "decision": "implement",
+  "priority": "normal",
+  "why": "Задача 105, часть 7 (ADR 0067): бот получает своё подключение как updateBotBusinessConnect с текущим qts, чужое или неизвестное — BUSINESS_CONNECTION_INVALID. Официальные клиенты не вызывают."
  },
  {
   "name": "account.saveSecureValue",

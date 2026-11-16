@@ -344,19 +344,42 @@ func (s *Store) Paused(ctx context.Context, userID, peerID int64) (bool, error) 
 // row of the index (user_id, dialog_id1, dialog_id2, deleted,
 // user_message_box_id) instead of every message of the dialog.
 func (s *Store) ChatIsNew(ctx context.Context, userID, peerID int64, since int32) (bool, error) {
-	did := mtproto.MakeDialogId(userID, mtproto.PEER_USER, peerID)
-	var rows []struct {
-		Date2 int64 `db:"date2"`
-		BoxID int32 `db:"user_message_box_id"`
-	}
-	const first = "(SELECT date2, user_message_box_id FROM messages" +
-		" WHERE user_id = ? AND dialog_id1 = ? AND dialog_id2 = ? AND deleted = ? ORDER BY user_message_box_id LIMIT 1)"
-	if err := s.db.QueryRowsPartial(ctx, &rows, first+" UNION ALL "+first,
-		userID, did.A, did.B, 0, userID, did.A, did.B, 1); err != nil {
+	var rows []chatStartRow
+	if err := s.db.QueryRowsPartial(ctx, &rows, chatStartQuery, chatStartArgs(userID, peerID)...); err != nil {
 		return false, err
 	}
+	return chatIsNew(rows, since), nil
+}
+
+// ChatIsNewTx is ChatIsNew read in tx.
+func ChatIsNewTx(tx *sqlx.Tx, userID, peerID int64, since int32) (bool, error) {
+	var rows []chatStartRow
+	if err := tx.QueryRowsPartial(&rows, chatStartQuery, chatStartArgs(userID, peerID)...); err != nil {
+		return false, err
+	}
+	return chatIsNew(rows, since), nil
+}
+
+type chatStartRow struct {
+	Date2 int64 `db:"date2"`
+	BoxID int32 `db:"user_message_box_id"`
+}
+
+const chatStartFirst = "(SELECT date2, user_message_box_id FROM messages" +
+	" WHERE user_id = ? AND dialog_id1 = ? AND dialog_id2 = ? AND deleted = ? ORDER BY user_message_box_id LIMIT 1)"
+
+// chatStartQuery reads the first message of a private chat, of the live
+// ones and of the deleted ones (ChatIsNew).
+const chatStartQuery = chatStartFirst + " UNION ALL " + chatStartFirst
+
+func chatStartArgs(userID, peerID int64) []any {
+	did := mtproto.MakeDialogId(userID, mtproto.PEER_USER, peerID)
+	return []any{userID, did.A, did.B, 0, userID, did.A, did.B, 1}
+}
+
+func chatIsNew(rows []chatStartRow, since int32) bool {
 	if len(rows) == 0 {
-		return true, nil
+		return true
 	}
 	oldest := rows[0]
 	for _, r := range rows[1:] {
@@ -364,7 +387,7 @@ func (s *Store) ChatIsNew(ctx context.Context, userID, peerID int64, since int32
 			oldest = r
 		}
 	}
-	return oldest.Date2 >= int64(since), nil
+	return oldest.Date2 >= int64(since)
 }
 
 // WithoutPeer is r with the chat of p left out, as

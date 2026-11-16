@@ -133,6 +133,9 @@ var handlers = map[protoreflect.FullName]handler{
 	proto.MessageName((*inbox.TLInboxChannelAntispamToInbox)(nil)): on(
 		func() *inbox.TLInboxChannelAntispamToInbox { return new(inbox.TLInboxChannelAntispamToInbox) },
 		(*core.InboxCore).InboxChannelAntispamToInbox),
+	proto.MessageName((*inbox.TLInboxBotBusinessUpdateToInbox)(nil)): on(
+		func() *inbox.TLInboxBotBusinessUpdateToInbox { return new(inbox.TLInboxBotBusinessUpdateToInbox) },
+		(*core.InboxCore).InboxBotBusinessUpdateToInbox),
 }
 
 // errUndecodable marks an event whose row cannot be applied by any version
