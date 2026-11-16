@@ -29,6 +29,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/inlinemedia"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/urlauth"
 	"github.com/teamgram/teamgram-server/pkg/webappdata"
 	"github.com/teamgram/teamgram-server/pkg/webfetch"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
@@ -90,6 +91,10 @@ type ServiceContext struct {
 	// Ed25519 key (WEBAPP_SIGNING_KEY, ADR 0068 p. 3); nil without it, and
 	// then no mini app opens (BOT_WEBVIEW_DISABLED).
 	WebAppSigner *webappdata.Signer
+	// OAuth keeps the login requests of sites through oauth.pluma.chat
+	// (pkg/urlauth, task 106 part I) in the KV, where the provider in links
+	// makes them and reads their outcome.
+	OAuth *urlauth.Store
 }
 
 // BotKeys finds the keys of a bot's current token (*botkeys.Store).
@@ -149,6 +154,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		WebFileKey:      key,
 		BotKeys:         botkeys.NewStore(db, sealer),
 		WebAppSigner:    signer,
+		OAuth:           urlauth.NewStore(d.KV),
 	}
 }
 

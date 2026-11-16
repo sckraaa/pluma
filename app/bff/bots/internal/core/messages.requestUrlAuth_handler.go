@@ -30,8 +30,17 @@ import (
 // tdesktop opens (boxes/url_auth_box.cpp:302-305). Otherwise
 // urlAuthResultRequest asks the user, and messages.acceptUrlAuth logs in.
 // A login the server takes no part in is urlAuthResultDefault: the client
-// opens the link as it is.
+// opens the link as it is. A link of a login request of oauth.pluma.chat
+// asks the user with the site's visitor and the match codes (requestOAuth).
 func (c *BotsCore) MessagesRequestUrlAuth(in *mtproto.TLMessagesRequestUrlAuth) (*mtproto.UrlAuthResult, error) {
+	if token, ok := oauthTokenOf(in.GetPeer(), int32Of(in.GetMsgId()), int32Of(in.GetButtonId()), stringOf(in.GetUrl())); ok {
+		r, err := c.requestOAuth(token, stringOf(in.GetInAppOrigin()))
+		if err != nil {
+			c.logOAuthError("messages.requestUrlAuth", err)
+			return nil, err
+		}
+		return r, nil
+	}
 	t, err := c.urlAuthTarget(in.GetPeer(), int32Of(in.GetMsgId()), int32Of(in.GetButtonId()), stringOf(in.GetUrl()), stringOf(in.GetInAppOrigin()))
 	if err != nil {
 		return nil, err

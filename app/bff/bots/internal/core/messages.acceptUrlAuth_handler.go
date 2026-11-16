@@ -31,8 +31,17 @@ import (
 // core.telegram.org/method/messages.acceptUrlAuth); the first permission
 // posts messageActionBotAllowed with the domain in the chat with the bot.
 // A login button gives the site no phone number: share_phone_number belongs
-// to the logins of sites through oauth.pluma.chat.
+// to the logins of sites through oauth.pluma.chat, which need the right
+// match_code and answer without an address (acceptOAuth).
 func (c *BotsCore) MessagesAcceptUrlAuth(in *mtproto.TLMessagesAcceptUrlAuth) (*mtproto.UrlAuthResult, error) {
+	if token, ok := oauthTokenOf(in.GetPeer(), int32Of(in.GetMsgId()), int32Of(in.GetButtonId()), stringOf(in.GetUrl())); ok {
+		r, err := c.acceptOAuth(token, in)
+		if err != nil {
+			c.logOAuthError("messages.acceptUrlAuth", err)
+			return nil, err
+		}
+		return r, nil
+	}
 	t, err := c.urlAuthTarget(in.GetPeer(), int32Of(in.GetMsgId()), int32Of(in.GetButtonId()), stringOf(in.GetUrl()), nil)
 	if err != nil {
 		return nil, err

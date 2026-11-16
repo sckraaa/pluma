@@ -23,7 +23,8 @@ import (
 )
 
 // RPCSeamless (task 106, ADR 0068 p. 6): the logins on bots' sites by a
-// login button or a link of url_auth_domains, and the sites logged in on.
+// login button, a link of url_auth_domains or a login request of
+// oauth.pluma.chat, and the sites logged in on.
 
 // MessagesRequestUrlAuth
 // messages.requestUrlAuth#894cc99c flags:# peer:flags.1?InputPeer msg_id:flags.1?int button_id:flags.1?int url:flags.2?string in_app_origin:flags.3?string = UrlAuthResult;
@@ -65,17 +66,18 @@ func (s *Service) AccountResetWebAuthorizations(ctx context.Context, request *mt
 	return c.AccountResetWebAuthorizations(request)
 }
 
-// MessagesDeclineUrlAuth is not served yet: declining matters for the
-// logins of sites through oauth.pluma.chat, which come with the provider
-// (task 106, part I1). tdesktop sends it without waiting for the answer
-// when a login button is declined (boxes/url_auth_box.cpp:387-391) and
-// opens the link as it is either way.
+// MessagesDeclineUrlAuth
+// messages.declineUrlAuth#35436bbc url:string = Bool;
 func (s *Service) MessagesDeclineUrlAuth(ctx context.Context, request *mtproto.TLMessagesDeclineUrlAuth) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.declineUrlAuth - metadata: {%s}", c.MD)
+	return c.MessagesDeclineUrlAuth(request)
 }
 
-// MessagesCheckUrlAuthMatchCode is not served yet: the match codes belong
-// to the logins of sites through oauth.pluma.chat (task 106, part I1).
+// MessagesCheckUrlAuthMatchCode
+// messages.checkUrlAuthMatchCode#c9a47b0b url:string match_code:string = Bool;
 func (s *Service) MessagesCheckUrlAuthMatchCode(ctx context.Context, request *mtproto.TLMessagesCheckUrlAuthMatchCode) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.checkUrlAuthMatchCode - metadata: {%s}", c.MD)
+	return c.MessagesCheckUrlAuthMatchCode(request)
 }
