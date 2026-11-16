@@ -15,8 +15,9 @@
 
 // Package bots serves the methods of bot accounts at the MTProto level (task
 // 070, ADR 0043): commands, texts and the menu button of a bot, button
-// presses, inline queries and /start. The Bot API over HTTP and mini apps
-// are out of its scope.
+// presses, inline queries and /start, and the bot platform of task 106
+// (ADR 0068): logins on sites and mini apps. The Bot API over HTTP is out of
+// its scope.
 package bots
 
 import (

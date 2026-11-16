@@ -195,6 +195,14 @@ func (c *BotsCore) inlineResults(queryId int64, a *dao.InlineAnswer, botId int64
 	if err != nil {
 		return nil, err
 	}
+	if a.SwitchWebview != nil {
+		// The button's mini app opens only from results the user got
+		// (messages.requestSimpleWebView, from_switch_webview).
+		if err = c.svcCtx.RememberSwitchWebview(c.ctx, botId, c.MD.UserId, a.SwitchWebview.GetUrl(), a.CacheTime); err != nil {
+			c.Logger.Errorf("messages.getInlineBotResults - switch_webview: %v", err)
+			return nil, mtproto.ErrInternalServerError
+		}
+	}
 	r := &mtproto.Messages_BotResults{
 		Gallery:       a.Gallery,
 		QueryId:       queryId,

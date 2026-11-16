@@ -82,6 +82,8 @@ BFFProxyClients:
     "/mtproto.RPCBots": "bff.bff"
     "/mtproto.RPCBotMenuButton": "bff.bff"
     "/mtproto.RPCBotMenu": "bff.bff"
+    "/mtproto.RPCMiniBotApps": "bff.bff"
+    "/mtproto.RPCMainMiniBotApps": "bff.bff"
     #"/mtproto.RPCInternalBot": "bff.bff"
     "/mtproto.RPCContacts": "bff.bff"
     "/mtproto.RPCProfileLinks": "bff.bff"
