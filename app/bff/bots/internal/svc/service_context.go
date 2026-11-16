@@ -109,13 +109,16 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config:     c,
 		Dao:        d,
 		InlineBots: health,
-		// The providers of @gif (local, KLIPY) and @pic (SearXNG) are
-		// registered here by kind (task 099, parts D, E and G).
-		InlineProviders: map[inlinebots.Kind]inline.Provider{},
-		InlineMedia:     importer,
-		GifSends:        gifSends{media},
-		Limiter:         logincode.NewLimiter(d.KV),
-		WebFileKey:      key,
+		// The providers of the built-in bots by kind (task 099): @gif has
+		// the GIFs popular within the server (part D) until it has a
+		// search (part G); @pic searches pictures (part E).
+		InlineProviders: map[inlinebots.Kind]inline.Provider{
+			inlinebots.KindGif: inline.NewLocal(inline.NewGifCounts(db), d.MediaClient, d.KV),
+		},
+		InlineMedia: importer,
+		GifSends:    gifSends{media},
+		Limiter:     logincode.NewLimiter(d.KV),
+		WebFileKey:  key,
 	}
 }
 
