@@ -46,13 +46,37 @@ func geoMessageData(t *testing.T, id int32, media *mtproto.MessageMedia) string 
 	return string(data)
 }
 
+// clearGeoRows deletes the messages of user and of channelId (0: none)
+// before the test and after it: the tests of the package share one
+// database, and a test runs again with -count.
+func clearGeoRows(t *testing.T, user, channelId int64) {
+	t.Helper()
+	del := func() error {
+		if _, err := itRaw.Exec("DELETE FROM messages WHERE user_id = ?", user); err != nil {
+			return err
+		}
+		_, err := itRaw.Exec("DELETE FROM channel_messages WHERE channel_id = ?", channelId)
+		return err
+	}
+	if err := del(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := del(); err != nil {
+			t.Error(err)
+		}
+	})
+}
+
 // TestGeoLiveFilter: the migration gives the stored live locations of the
 // boxes and of the channels message_filter_type 14 and nothing else, and
 // running it again changes nothing; message.searchByMediaType(14) finds
 // them; an edit writes the media type of the new media.
 func TestGeoLiveFilter(t *testing.T) {
 	ctx := context.Background()
-	const user, peer, channelId = int64(3001), int64(3002), int64(3003)
+	// Ids of this test alone: boxTypes reads every message of user.
+	const user, peer, channelId = int64(4001), int64(4002), int64(4003)
+	clearGeoRows(t, user, channelId)
 	did := mtproto.MakeDialogId(user, mtproto.PEER_USER, peer)
 	geo := mtproto.MakeTLGeoPoint(&mtproto.GeoPoint{Lat: 55.75, Long: 37.62}).To_GeoPoint()
 	live := mtproto.MakeTLMessageMediaGeoLive(&mtproto.MessageMedia{Geo: geo, Period: 900}).To_MessageMedia()
@@ -159,7 +183,8 @@ func TestGeoLiveFilter(t *testing.T) {
 // isolation of the session as it found it.
 func TestGeoLiveFilterLocksNoOtherRow(t *testing.T) {
 	ctx := context.Background()
-	const user, peer = int64(3101), int64(3102)
+	const user, peer = int64(4101), int64(4102)
+	clearGeoRows(t, user, 0)
 	did := mtproto.MakeDialogId(user, mtproto.PEER_USER, peer)
 	geo := mtproto.MakeTLGeoPoint(&mtproto.GeoPoint{Lat: 55.75, Long: 37.62}).To_GeoPoint()
 	live := mtproto.MakeTLMessageMediaGeoLive(&mtproto.MessageMedia{Geo: geo, Period: 900}).To_MessageMedia()
