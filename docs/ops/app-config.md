@@ -153,6 +153,18 @@
 | `ringtone_saved_count_max` | `100` | I D | Сколько мелодий хранит аккаунт. Сервер проверяет. |
 | `contact_note_length_limit` | `128` | A I D | Длина личной заметки о контакте (задача 084). Сервер обрезает более длинную (`pkg/contactnotes`). |
 
+## Telegram Business
+
+Задача 105, ADR 0067. Telegram значений не публикует: взяты умолчания клиентов. Сервер проверяет те же числа (константы `pkg/business`, тест держит их равными этому файлу).
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `quick_replies_limit` | `100` | A D | Сколько ярлыков быстрых ответов, вместе с автоответами `hello` и `away`. Умолчание tdesktop (`settings_recipients_helper.cpp:397`); у Android 10 (`MessagesController.java:1719`). |
+| `quick_reply_messages_limit` | `20` | A D | Сколько сообщений в одном ярлыке. Умолчание A (`AppGlobalConfig.java:105`) и D (`settings_recipients_helper.cpp:409`). |
+| `business_chat_links_limit` | `100` | A D W | Сколько ссылок на чат у аккаунта. Умолчание A (`MessagesController.java:1775`). |
+| `intro_title_length_limit` | `32` | A D W | Длина заголовка вступления в UTF-16, как считают клиенты. Умолчание A и D (`settings_chat_intro.cpp:569`). Сервер отвечает `TITLE_INVALID`. |
+| `intro_description_length_limit` | `70` | A D W | Длина описания вступления. Меньшее из умолчаний D (70, `settings_chat_intro.cpp:574`) и A (72, `MessagesController.java:1774`). Сервер отвечает `DESCRIPTION_INVALID`. |
+
 ## Истории
 
 Истории работают (задача 084, ADR 0054). Лимиты — премиальные значения по умолчанию из клиентов (Android `MessagesController.java:1662-1709, 1781`), у всех одинаковые (ADR 0041); сервер проверяет их сам (`pkg/stories`), тест `pkg/stories` держит файл равным константам. Какие значения отдаёт сам Telegram, не сверено.

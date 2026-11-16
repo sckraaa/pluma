@@ -91,6 +91,12 @@
     "ringtone_saved_count_max": 100,
     "contact_note_length_limit": 128,
 
+    "quick_replies_limit": 100,
+    "quick_reply_messages_limit": 20,
+    "business_chat_links_limit": 100,
+    "intro_title_length_limit": 32,
+    "intro_description_length_limit": 70,
+
     "stories_posting": "enabled",
     "stories_entities": "enabled",
     "story_expiring_limit_default": 100,

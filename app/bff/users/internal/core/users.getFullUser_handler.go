@@ -19,6 +19,8 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/marmota/pkg/utils"
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
@@ -28,6 +30,7 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 
 	"github.com/zeromicro/go-zero/core/mr"
@@ -296,6 +299,16 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 
 	// TODO: FolderId:    0,
 
+	// The Business part of the profile (task 105): work hours, location
+	// and intro, which every client shows of any user (tdesktop
+	// data/data_user.cpp:1057-1061). Bots have none.
+	if !user.IsBot() && c.svcCtx.Dao.Business != nil {
+		if err = c.fillBusiness(userFull, peerId); err != nil {
+			c.Logger.Errorf("users.getFullUser - error: %v", err)
+			return nil, err
+		}
+	}
+
 	// The stories of the user (task 084): those in the feeds that the
 	// viewer may open, and whether the profile has any for it; the plugin
 	// applies the rules of each story.
@@ -354,5 +367,50 @@ func (c *UsersCore) fillBotInfo(userFull *mtproto.UserFull, botId int64) {
 	}
 	if texts.About != nil {
 		userFull.About = mtproto.MakeFlagsString(*texts.About)
+	}
+}
+
+// fillBusiness sets the Business part of the profile of userId in
+// userFull, with the document of the sticker of the intro.
+func (c *UsersCore) fillBusiness(userFull *mtproto.UserFull, userId int64) error {
+	p, err := c.svcCtx.Dao.Business.Profile(c.ctx, userId)
+	if err != nil {
+		return err
+	}
+	var sticker *mtproto.Document
+	if p.Intro != nil && p.Intro.StickerID != 0 {
+		if sticker, err = c.svcCtx.Dao.MediaClient.MediaGetDocument(c.ctx, &mediapb.TLMediaGetDocument{Id: p.Intro.StickerID}); err != nil {
+			return err
+		}
+	}
+	setBusinessProfile(userFull, p, sticker, time.Now(), func(err error) {
+		c.Logger.Errorf("users.getFullUser - the work hours of %d: %v", userId, err)
+	})
+	return nil
+}
+
+// setBusinessProfile sets p in userFull at now: business_work_hours with
+// open_now, which only the server sets (core.telegram.org/api/business),
+// business_location and business_intro with sticker, the document of its
+// sticker. A sticker whose document is gone leaves the intro without one.
+// Work hours whose time zone the server no longer knows (it was known when
+// they were set) are left out and reported to fail: open_now cannot be told,
+// and the rest of the profile is still answered.
+func setBusinessProfile(userFull *mtproto.UserFull, p business.Profile, sticker *mtproto.Document, now time.Time, fail func(error)) {
+	if p.Hours != nil {
+		if h, err := p.Hours.ToTL(now); err != nil {
+			fail(err)
+		} else {
+			userFull.BusinessWorkHours = h
+		}
+	}
+	if p.Location != nil {
+		userFull.BusinessLocation = p.Location.ToTL()
+	}
+	if p.Intro != nil {
+		if sticker.GetPredicateName() != mtproto.Predicate_document {
+			sticker = nil
+		}
+		userFull.BusinessIntro = p.Intro.ToTL(sticker)
 	}
 }
