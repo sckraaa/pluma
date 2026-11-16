@@ -153,6 +153,10 @@ type Story struct {
 	// Mentions are the users the caption mentions, who get a message with
 	// the story (messageMediaStory with via_mention).
 	Mentions []int64
+	// Albums are the albums the story is in, in the order of the albums
+	// (storyItem.albums). It is not a column: Create and Update fill it
+	// from story_album_items, the other reads leave it to SeenOf.
+	Albums []int32
 }
 
 // Active tells whether the story is in the feeds at now.

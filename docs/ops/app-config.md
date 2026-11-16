@@ -175,6 +175,8 @@
 | `stories_stealth_past_period` | `300` | A I W | Режим скрытого просмотра: за сколько секунд назад стираются просмотры. |
 | `stories_stealth_future_period` | `1500` | A I W | На сколько секунд вперёд просмотры скрыты. |
 | `stories_stealth_cooldown_period` | `3600` | A I | Через сколько секунд режим можно включить снова. |
+| `stories_albums_limit` | `100` | A I | Альбомов историй у пользователя или канала (задача 104, ADR 0069); сервер отвечает `ALBUMS_TOO_MANY`. Значение Telegram не прочитано. |
+| `stories_album_stories_limit` | `1000` | A I | Историй в одном альбоме (у iOS по умолчанию 1000, у Android 100); сервер отвечает `ALBUM_STORIES_TOO_MANY`. |
 
 ## Выключатели того, чего на сервере нет
 

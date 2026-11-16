@@ -197,9 +197,11 @@ func count(ctx context.Context, db *sqlx.DB, query string, args ...any) (int32, 
 }
 
 // Create stores the new story st of st.Peer posted by st.SenderId at
-// st.Date, under the next id of the peer. A repeat of the request (the same
-// random_id of the same sender) returns the story stored the first time,
-// with created false. ErrTooMany and *FloodError are the limits of the
+// st.Date, under the next id of the peer, at the end of those of the albums
+// st.Albums that exist and have room (the others are passed over, ADR 0069,
+// p. 6); stored.Albums are the albums it is in. A repeat of the request (the
+// same random_id of the same sender) returns the story stored the first
+// time, with created false. ErrTooMany and *FloodError are the limits of the
 // peer, counted in the same transaction as the new id, so two requests at
 // once do not pass them together.
 func (s *Store) Create(ctx context.Context, st *Story) (stored *Story, created bool, err error) {
@@ -223,7 +225,12 @@ func (s *Store) Create(ctx context.Context, st *Story) (stored *Story, created b
 		if err != nil {
 			return err
 		}
-		if stored, err = find(tx.QueryRowsPartial); err != nil || stored != nil {
+		if stored, err = find(tx.QueryRowsPartial); err != nil {
+			return err
+		}
+		if stored != nil {
+			albums, err := albumsOfTx(tx.QueryRowsPartial, st.Peer, []int32{stored.Id})
+			stored.Albums = albums[stored.Id]
 			return err
 		}
 		if err := limitsTx(tx, st.Peer, st.Date); err != nil {
@@ -245,8 +252,15 @@ func (s *Store) Create(ctx context.Context, st *Story) (stored *Story, created b
 				return err
 			}
 		}
+		if _, err := placeTx(tx, st.Peer, id, st.Albums); err != nil {
+			return err
+		}
+		albums, err := albumsOfTx(tx.QueryRowsPartial, st.Peer, []int32{id})
+		if err != nil {
+			return err
+		}
 		copied := *st
-		copied.Id, copied.PinnedToTop, copied.Edited, copied.ForwardsCount = id, 0, false, 0
+		copied.Id, copied.PinnedToTop, copied.Edited, copied.ForwardsCount, copied.Albums = id, 0, false, 0, albums[id]
 		stored, created = &copied, true
 		return nil
 	})
@@ -410,8 +424,8 @@ func (s *Store) Archive(ctx context.Context, peer Peer, offsetId, limit int32) (
 // caption with entities, privacy and music. The story becomes edited, and
 // its peer is marked changed (Dirty). Two edits at once each change only
 // what they set: the second applies its own to the story the first left.
-// It returns the story before and after the edit, both nil when it is
-// gone.
+// It returns the story before and after the edit, with its albums, both
+// nil when it is gone.
 func (s *Store) Update(ctx context.Context, peer Peer, id int32, at int32, edit func(st *Story)) (before, after *Story, err error) {
 	err = s.db.Transact(ctx, func(tx *sqlx.Tx) error {
 		before, after = nil, nil
@@ -444,6 +458,11 @@ func (s *Store) Update(ctx context.Context, peer Peer, id int32, at int32, edit 
 			return err
 		}
 		st.Edited = true
+		albums, err := albumsOfTx(tx.QueryRowsPartial, peer, []int32{id})
+		if err != nil {
+			return err
+		}
+		was.Albums, st.Albums = albums[id], albums[id]
 		before, after = was, st
 		return dirtyTx(tx, peer, at)
 	})
@@ -508,8 +527,9 @@ func (s *Store) ClearDirty(ctx context.Context, peer Peer, at int32) error {
 	return err
 }
 
-// Delete removes the stories ids of peer with their views, marks the peer
-// changed at the time at (Dirty) and returns the ones that were there.
+// Delete removes the stories ids of peer with their views, shares, places
+// in albums and rows of the search index, marks the peer changed at the
+// time at (Dirty) and returns the ones that were there.
 func (s *Store) Delete(ctx context.Context, peer Peer, ids []int32, at int32) (deleted []*Story, err error) {
 	if len(ids) == 0 {
 		return nil, nil
@@ -537,8 +557,10 @@ func (s *Store) Delete(ctx context.Context, peer Peer, ids []int32, at int32) (d
 		if _, err := tx.Exec("DELETE FROM story_views WHERE peer_type = ? AND peer_id = ? AND story_id IN ("+in(len(ids))+")", args...); err != nil {
 			return err
 		}
-		if _, err := tx.Exec("DELETE FROM story_shares WHERE peer_type = ? AND peer_id = ? AND story_id IN ("+in(len(ids))+")", args...); err != nil {
-			return err
+		for _, table := range []string{"story_shares", "story_album_items", "story_tags", "story_places"} {
+			if _, err := tx.Exec("DELETE FROM "+table+" WHERE peer_type = ? AND peer_id = ? AND story_id IN ("+in(len(ids))+")", args...); err != nil {
+				return err
+			}
 		}
 		return dirtyTx(tx, peer, at)
 	})
