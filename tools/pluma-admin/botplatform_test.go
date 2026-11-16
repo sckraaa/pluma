@@ -42,16 +42,15 @@ const testBotId = 136907800
 // fakePlatform is pkg/botstore in memory, for the commands of the bot
 // platform; writes counts every change.
 type fakePlatform struct {
-	bots     map[string]int64
-	domain   string
-	mainApp  string
-	apps     map[string]botstore.App
-	games    map[string]botstore.Game
-	menu     *botstore.AttachMenu
-	client   *botstore.LoginClient
-	secret   string
-	writes   int
-	nextFile int64
+	bots    map[string]int64
+	domain  string
+	mainApp string
+	apps    map[string]botstore.App
+	games   map[string]botstore.Game
+	menu    *botstore.AttachMenu
+	client  *botstore.LoginClient
+	secret  string
+	writes  int
 }
 
 func newFakePlatform() *fakePlatform {

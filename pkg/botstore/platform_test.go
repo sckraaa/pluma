@@ -153,7 +153,7 @@ func TestScoreChatOf(t *testing.T) {
 }
 
 func TestWidgetHelpers(t *testing.T) {
-	if WidgetDataHash("a") == WidgetDataHash("b") || WidgetDataHash("a") != WidgetDataHash("a") || WidgetDataHash("") == 0 {
+	if a := WidgetDataHash("a"); a == WidgetDataHash("b") || a != WidgetDataHash("a") || WidgetDataHash("") == 0 {
 		t.Error("data hash")
 	}
 	for in, want := range map[int32]int32{0: DefaultWidgetPeriod, -1: DefaultWidgetPeriod, 1: 5, 4: 5, 5: 5, 30: 30, 3600: 3600, 99999: 3600} {

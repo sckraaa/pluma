@@ -73,7 +73,7 @@ type botConfig struct {
 
 // noBotSecrets is printed after a token issued without
 // BOT_SECRET_ENCRYPTION_KEY.
-const noBotSecrets = "BOT_SECRET_ENCRYPTION_KEY is not set: the keys of the token are not stored, so the bot's mini apps and login stay off (docs/ops/bots.md)"
+const noBotSecrets = "BOT_SECRET_ENCRYPTION_KEY is not set: the keys of the token are not stored, so the bot's mini apps and login stay off (docs/ops/bots.md)" //nolint:gosec // G101: a message naming the variable, no credential
 
 // botCommand runs bot create, list, token and set (task 070, ADR 0043) and
 // the settings of the bot platform: app, attach, game, login and

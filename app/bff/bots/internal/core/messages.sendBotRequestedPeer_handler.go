@@ -374,7 +374,8 @@ func (c *BotsCore) requestedBasicGroup(chatId int64, pt *mtproto.RequestPeerType
 		}
 		steps = append(steps, func() (*mtproto.Updates, error) { return c.addBotToBasicGroup(chatId, bot) })
 	}
-	if pt.GetBotAdminRights() != nil && !(botIn && (botP.IsChatMemberAdmin() || botP.IsChatMemberCreator())) {
+	botAdmin := botIn && (botP.IsChatMemberAdmin() || botP.IsChatMemberCreator())
+	if pt.GetBotAdminRights() != nil && !botAdmin {
 		steps = append(steps, func() (*mtproto.Updates, error) {
 			if _, err := c.svcCtx.Chat.ChatEditChatAdmin(c.ctx, &chatpb.TLChatEditChatAdmin{
 				ChatId:          chatId,

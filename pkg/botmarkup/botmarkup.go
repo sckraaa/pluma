@@ -80,7 +80,8 @@ func Normalize(markup *mtproto.ReplyMarkup, env Env) (*mtproto.ReplyMarkup, erro
 	for r, row := range markup.GetRows() {
 		for i, button := range row.GetButtons() {
 			position++
-			if button.GetPredicateName() == mtproto.Predicate_keyboardButtonGame && !(inline && env.Game && r == 0 && i == 0) {
+			gameAllowed := inline && env.Game && r == 0 && i == 0
+			if button.GetPredicateName() == mtproto.Predicate_keyboardButtonGame && !gameAllowed {
 				return nil, mtproto.ErrButtonTypeInvalid
 			}
 			normal, err := normalizeButton(button, inline, position, env)

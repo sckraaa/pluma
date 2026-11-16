@@ -269,7 +269,7 @@ func (s *stub) picture(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	if _, err = w.Write(body); err != nil {
+	if _, err = w.Write(body); err != nil { //nolint:gosec // G705: a JPEG the server drew, sent as image/jpeg
 		log.Printf("fakeinline: write: %v", err)
 	}
 }
@@ -299,7 +299,7 @@ func pictureSize(v url.Values) (int, int, bool) {
 // same bytes (image/jpeg is deterministic).
 func pictureJPEG(name string, width, height int) ([]byte, error) {
 	sum := sha256.Sum256([]byte(name))
-	rng := rand.New(rand.NewPCG(binary.BigEndian.Uint64(sum[:8]), binary.BigEndian.Uint64(sum[8:16])))
+	rng := rand.New(rand.NewPCG(binary.BigEndian.Uint64(sum[:8]), binary.BigEndian.Uint64(sum[8:16]))) //nolint:gosec // the same noise for the same name
 	plain := color.NRGBA{R: sum[16], G: sum[17], B: sum[18], A: 0xff}
 	img := image.NewNRGBA(image.Rect(0, 0, width, height))
 	for y := 0; y < height; y++ {
