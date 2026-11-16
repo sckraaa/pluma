@@ -17,10 +17,29 @@ package bff_proxy_client
 
 import (
 	"testing"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 )
+
+// TestInvokeTimeout: a translation is given longer than bff waits for the
+// engine, so that bff answers FLOOD_WAIT_X before the deadline answers 500;
+// the other requests keep their deadlines.
+func TestInvokeTimeout(t *testing.T) {
+	for _, o := range []mtproto.TLObject{&mtproto.TLMessagesTranslateText{}, &mtproto.TLMessagesComposeMessageWithAI{}} {
+		if d := invokeTimeout(o); d <= translate.MaxSyncWait {
+			t.Errorf("%T: %v, not longer than the wait of a translation %v", o, d, translate.MaxSyncWait)
+		}
+	}
+	if d := invokeTimeout(&mtproto.TLMessagesSendMedia{}); d != time.Minute {
+		t.Errorf("messages.sendMedia: %v", d)
+	}
+	if d := invokeTimeout(&mtproto.TLHelpGetConfig{}); d != 5*time.Second {
+		t.Errorf("help.getConfig: %v", d)
+	}
+}
 
 // TestRewriteLegacyAndroidRequest: Android's old join constructors become
 // the ones whose reply it reads, messages.ChatInviteJoinResult; other

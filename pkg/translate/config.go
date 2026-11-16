@@ -72,9 +72,10 @@ const (
 	// minSlotContext is the least context of a slot: the prompt of an
 	// item of a few words and its answer.
 	minSlotContext = 512
-	// maxSyncWait stays under the 150 s the session gives a call to bff
-	// (teamgramd/etc2/session.yaml, BFF Timeout).
-	maxSyncWait = 120 * time.Second
+	// MaxSyncWait stays under the 150 s the session gives a translation
+	// in bff (teamgramd/etc2/session.yaml, BFF Timeout, and the deadline of
+	// app/bff/bff/client).
+	MaxSyncWait = 120 * time.Second
 	// maxItemLengthLimit is the longest item a client can send: a
 	// message or a caption of Premium.
 	maxItemLengthLimit = 4096
@@ -217,8 +218,8 @@ func (c Config) Validate() error {
 		return fmt.Errorf("translate: TRANSLATE_CTX must give each of the TRANSLATE_SLOTS at least %d tokens", minSlotContext)
 	}
 	switch {
-	case c.SyncWait <= 0, c.SyncWait > maxSyncWait,
-		c.SyncWaitSingle <= 0, c.SyncWaitSingle > maxSyncWait,
+	case c.SyncWait <= 0, c.SyncWait > MaxSyncWait,
+		c.SyncWaitSingle <= 0, c.SyncWaitSingle > MaxSyncWait,
 		c.Timeout < time.Second, c.TimeoutPerChar < 0,
 		c.FailedTTL < time.Second, c.CacheTTL < time.Hour:
 		return errors.New("translate: a time of the Translate block is out of range (docs/ops/translation.md)")
