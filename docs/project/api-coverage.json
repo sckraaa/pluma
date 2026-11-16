@@ -1,14 +1,14 @@
 {
   "layer": "233",
-  "total": 681,
-  "ok": 501,
+  "total": 689,
+  "ok": 597,
   "partial": 6,
   "areas": [
     {
       "key": "messages",
       "total": 188,
-      "ok": 151,
-      "partial": 1
+      "ok": 172,
+      "partial": 2
     },
     {
       "key": "channels",
@@ -24,14 +24,14 @@
     },
     {
       "key": "account",
-      "total": 115,
-      "ok": 93,
-      "partial": 1
+      "total": 117,
+      "ok": 105,
+      "partial": 0
     },
     {
       "key": "media",
-      "total": 8,
-      "ok": 7,
+      "total": 11,
+      "ok": 11,
       "partial": 0
     },
     {
@@ -55,7 +55,7 @@
     {
       "key": "stories",
       "total": 32,
-      "ok": 24,
+      "ok": 31,
       "partial": 0
     },
     {
@@ -67,13 +67,13 @@
     {
       "key": "bots",
       "total": 57,
-      "ok": 14,
+      "ok": 34,
       "partial": 0
     },
     {
       "key": "other",
-      "total": 67,
-      "ok": 21,
+      "total": 70,
+      "ok": 53,
       "partial": 2
     }
   ]
