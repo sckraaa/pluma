@@ -160,14 +160,20 @@ func TestQuickReplyMessages(t *testing.T) {
 	// Android reads no answer.
 	o, err = send(toBob, nil, nil)
 	updatesOf("messages.sendQuickReplyMessages", o, err)
-	for _, text := range []string{"Spring sale", "Free delivery", "Our address: Main St 1"} {
-		m, _ := waitNewMessage(ctx, t, bob, text)
+	// The three may come in one update: they are waited for together.
+	sent3 := []string{"Spring sale", "Free delivery", "Our address: Main St 1"}
+	got, _ := waitNewMessages(ctx, t, bob, sent3...)
+	for i, text := range sent3 {
+		m := got[text]
 		if m.GetOut() || m.GetPeerId().GetUserId() != alice.self.GetId() || m.GetQuickReplyShortcutId() != nil || m.GetFwdFrom() != nil {
 			t.Errorf("Bob's %q: %v", text, m)
 		}
-		waitNewMessage(ctx, t, alice, text)
-		waitNewMessage(ctx, t, laptop, text)
+		if i > 0 && m.GetId() <= got[sent3[i-1]].GetId() {
+			t.Errorf("Bob's %q is not after %q", text, sent3[i-1])
+		}
 	}
+	waitNewMessages(ctx, t, alice, sent3...)
+	waitNewMessages(ctx, t, laptop, sent3...)
 
 	// Android: the ids newest first, each with its random id.
 	ids := []int32{forwarded.GetId(), texts[1].GetId(), texts[0].GetId()}
