@@ -109,6 +109,9 @@ services:
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
       WEBAPP_SIGNING_KEY: ${WEBAPP_SIGNING_KEY:-}
+      # bff.yaml names the key of the zoom tokens of the statistics of
+      # channels (task 103); empty: the statistics are off.
+      STATS_GRAPH_TOKEN_KEY: ${STATS_GRAPH_TOKEN_KEY:-}
       # The built-in inline bots (task 099): @pic's SearXNG, empty: no
       # pictures; the daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}
@@ -352,6 +355,9 @@ services:
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
       WEBAPP_SIGNING_KEY: ${WEBAPP_SIGNING_KEY:-}
+      # bff.yaml names the key of the zoom tokens of the statistics of
+      # channels (task 103); empty: the statistics are off.
+      STATS_GRAPH_TOKEN_KEY: ${STATS_GRAPH_TOKEN_KEY:-}
       # The built-in inline bots (task 099): @pic's SearXNG, empty: no
       # pictures; the daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}

@@ -133,6 +133,9 @@ var secretNames = set(
 	"initdata", "getinitdata", "tgwebappdata", "webappkey", "loginkey",
 	"signingkey", "encryptionkey", "seed", "clientsecret", "getclientsecret",
 	"idtoken", "oauthtoken", "oauthcode", "matchcode", "getmatchcode", "matchcodes", "getmatchcodes",
+	// the statistics of channels (task 103, ADR 0066): the zoom tokens of
+	// the graphs, never printed whole, and the key that signs them
+	"statstoken", "zoomtoken", "getzoomtoken", "tokenkey", "gettokenkey",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )

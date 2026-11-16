@@ -176,6 +176,7 @@ func TestLoadsUserConfig(t *testing.T) {
 	t.Setenv("MAPS_PER_USER_PER_MINUTE", "")
 	t.Setenv("BOT_SECRET_ENCRYPTION_KEY", "")
 	t.Setenv("WEBAPP_SIGNING_KEY", "")
+	t.Setenv("STATS_GRAPH_TOKEN_KEY", "")
 	t.Setenv("SEARXNG_URL", "")
 	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")

@@ -42,6 +42,22 @@ func availableMinId(p *channelpb.ImmutableChannelParticipant) *wrapperspb.Int32V
 	return mtproto.MakeFlagsInt32(p.GetAvailableMinId() - 1)
 }
 
+// statsFlags are channelFull.can_view_stats and stats_dc for participant p
+// of ch (task 103, ADR 0066): both for whom channelperm.CanViewStats lets
+// see the statistics, neither while they are off (statsDc 0). stats_dc goes
+// with the flag: Web K offers the statistics only with both
+// (appProfileManager.ts:1444-1455 at the pinned release), and iOS without
+// it sends the requests to DC 0 (TelegramCore Statistics/
+// PeerStatistics.swift:318-319). Android and tdesktop read the flag alone
+// (StatisticActivity.java:133, ProfileActivity.java:12348;
+// window_peer_menu.cpp:1314-1333).
+func statsFlags(ch *channelpb.ImmutableChannel, p *channelpb.ImmutableChannelParticipant, statsDc int32) (bool, *wrapperspb.Int32Value) {
+	if statsDc <= 0 || !channelperm.CanViewStats(ch.Perm(), p.Perm()) {
+		return false, nil
+	}
+	return true, mtproto.MakeFlagsInt32(statsDc)
+}
+
 // ChannelsGetFullChannel
 // channels.getFullChannel#8736a09 channel:InputChannel = messages.ChatFull;
 //
@@ -112,6 +128,10 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		}
 	}
 	full.AvailableMinId = availableMinId(me)
+	// The statistics of the channel; a change of rights reaches the
+	// clients as updateChannel, on which they ask for the full channel
+	// again.
+	full.CanViewStats, full.StatsDc = statsFlags(ch, me, c.svcCtx.Config.StatsDc)
 	// The tab its profile opens on (task 078, channels.setMainProfileTab);
 	// none leaves it to the clients.
 	full.MainTab = mtproto.ToProfileTabByType(ch.GetMainTab())

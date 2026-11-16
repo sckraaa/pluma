@@ -54,6 +54,10 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"match code", `func f(in *mtproto.TLMessagesAcceptUrlAuth) { logx.Infof("code %s", in.GetMatchCode()) }`, []string{"secret"}},
 		{"client secret", `func f(clientSecret string) { logx.Errorf("client %q", clientSecret) }`, []string{"secret"}},
 		{"bot id ok", `func f(botId int64) { logx.Infof("bot %d", botId) }`, nil},
+		// the statistics of channels (task 103)
+		{"zoom token", `func f(g *mtproto.StatsGraph, statsToken string) { logx.Infof("%s %s", g.GetZoomToken(), statsToken) }`, []string{"secret", "secret"}},
+		{"stats token key", `func f(c struct{ Stats struct{ ThisDc int32; TokenKey string } }) error { return fmt.Errorf("dc %d key %s", c.Stats.ThisDc, c.Stats.TokenKey) }`, []string{"secret"}},
+		{"stats channel ok", `func f(channelId int64, method string) { logx.Infof("%s of %d", method, channelId) }`, nil},
 		// audit #8: handshake secrets
 		{"handshake state", `func f(ctx *HandshakeStateCtx) { logx.Infof("state: %s", ctx) }`, []string{"object"}},
 		{"new_nonce", `func f(ctx *HandshakeStateCtx) { logx.Infof("n: %x", ctx.NewNonce) }`, []string{"secret"}},

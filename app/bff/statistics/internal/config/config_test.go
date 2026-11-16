@@ -37,16 +37,22 @@ func TestStatsConfig(t *testing.T) {
 		c       StatsConfig
 		enabled bool
 		ok      bool
+		// dc is the stats_dc of the full channels.
+		dc int32
 	}{
-		{"off", StatsConfig{ThisDc: 1}, false, true},
-		{"on", StatsConfig{ThisDc: 1, TokenKey: good}, true, true},
-		{"short key", StatsConfig{ThisDc: 1, TokenKey: short}, true, false},
-		{"not base64", StatsConfig{ThisDc: 1, TokenKey: "%%%" + good}, true, false},
-		{"no dc", StatsConfig{TokenKey: good}, true, false},
+		{"off", StatsConfig{ThisDc: 1}, false, true, 0},
+		{"on", StatsConfig{ThisDc: 1, TokenKey: good}, true, true, 1},
+		{"on, another dc", StatsConfig{ThisDc: 2, TokenKey: good}, true, true, 2},
+		{"short key", StatsConfig{ThisDc: 1, TokenKey: short}, true, false, 1},
+		{"not base64", StatsConfig{ThisDc: 1, TokenKey: "%%%" + good}, true, false, 1},
+		{"no dc", StatsConfig{TokenKey: good}, true, false, 0},
 	} {
 		err := c.c.Validate()
 		if (err == nil) != c.ok || c.c.Enabled() != c.enabled {
 			t.Errorf("%s: enabled %v, %v", c.name, c.c.Enabled(), err)
+		}
+		if got := c.c.StatsDc(); got != c.dc {
+			t.Errorf("%s: stats_dc %d, want %d", c.name, got, c.dc)
 		}
 		if err != nil && (strings.Contains(err.Error(), good) || strings.Contains(err.Error(), short)) {
 			t.Errorf("%s: the error shows the key", c.name)

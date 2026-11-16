@@ -527,3 +527,36 @@ func TestMayListVoters(t *testing.T) {
 		}
 	}
 }
+
+// can_view_stats is in the creator's own results, also with the results
+// hidden until the poll closes, and it reaches the clients; others and the
+// min results never have it.
+func TestViewCanViewStats(t *testing.T) {
+	rows := votes(2, "a", 3, "b")
+	for _, c := range []struct {
+		name   string
+		rec    *Record
+		viewer int64
+		mode   Mode
+		want   bool
+	}{
+		{"creator", record(nil), 1, Full, true},
+		{"creator, hidden results", record(func(p *mtproto.Poll) { p.HideResultsUntilClose = true }), 1, Full, true},
+		{"voter", record(nil), 2, Full, false},
+		{"another reader", record(nil), 9, Full, false},
+		{"min for the creator", record(nil), 1, Min, false},
+	} {
+		_, r := c.rec.View(Tally(rows, c.viewer), c.viewer, c.mode, 100)
+		x := mtproto.NewEncodeBuf(512)
+		if err := r.Encode(x, 233); err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		got := &mtproto.PollResults{}
+		if err := got.Decode(mtproto.NewDecodeBuf(x.GetBuf())); err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got.GetCanViewStats() != c.want {
+			t.Errorf("%s: can_view_stats %v, want %v", c.name, got.GetCanViewStats(), c.want)
+		}
+	}
+}

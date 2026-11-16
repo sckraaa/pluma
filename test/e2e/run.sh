@@ -158,6 +158,7 @@ MAIL_FROM=Pluma <noreply@e2e.pluma.test>
 WEBFILE_HMAC_KEY=$(secret 32)
 BOT_SECRET_ENCRYPTION_KEY=$(secret 32)
 WEBAPP_SIGNING_KEY=$(secret 32)
+STATS_GRAPH_TOKEN_KEY=$(openssl rand -base64 32)
 AUTH_KEY_ENCRYPTION_KEY=$(secret 32)
 PUSH_SECRET_ENCRYPTION_KEY=$(secret 32)
 NTFY_TOPIC=$(secret 16)

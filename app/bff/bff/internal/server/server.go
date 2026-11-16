@@ -482,6 +482,9 @@ func (s *Server) Initialize() error {
 			MsgClient:     c.MsgClient,
 
 			AuthsessionClient: c.AuthSessionClient,
+			// can_view_stats and stats_dc of the full channel (task 103):
+			// 0 while the statistics are off.
+			StatsDc: c.Stats.StatsDc(),
 		})
 		mtproto.RegisterRPCChannelsServer(grpcServer, channels)
 		mtproto.RegisterRPCBoostsServer(grpcServer, channels)
