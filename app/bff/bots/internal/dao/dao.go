@@ -79,6 +79,9 @@ type Dao struct {
 	// StickerLists keeps the recent stickers an inline result sends
 	// (task 081).
 	StickerLists StickerLists
+	// UserSeq journals the updates with seq of a user's own state, such as
+	// updateAttachMenuBots, and pushes them to the user's sessions.
+	UserSeq SeqPusher
 
 	waitsMu sync.Mutex
 	waits   map[int64]int // requests of a user waiting for bots (EnterWait)
@@ -107,6 +110,7 @@ func New(c config.Config) *Dao {
 		KV:            kv.NewStore(c.KV),
 		SendAs:        sendas.New(db),
 		StickerLists:  stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
+		UserSeq:       BoxPush{DB: boxDB, Topic: c.SyncClient.Topic},
 		db:            db,
 		boxDB:         boxDB,
 		syncTopic:     c.SyncClient.Topic,
@@ -128,6 +132,32 @@ func (d *Dao) PushToBot(ctx context.Context, botId int64, u *mtproto.Update, use
 	})
 	if err != nil {
 		return fmt.Errorf("bots: update to bot %d: %w", botId, err)
+	}
+	return nil
+}
+
+// SeqPusher journals u, an update with seq (userbox.SeqUpdate), for an
+// account and pushes it to every session of the account (BoxPush).
+type SeqPusher interface {
+	PushSeq(ctx context.Context, userId int64, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error
+}
+
+// BoxPush is SeqPusher over the boxes of the accounts: the journal and the
+// push are one transaction of the account's box, so a session that misses
+// the push gets the update with its updates.getDifference.
+type BoxPush struct {
+	DB    *sql.DB
+	Topic string // the sync topic of the service
+}
+
+// PushSeq journals u for userId and pushes it to every session of the
+// account, the one of the request included (sync_client.EmitSeqUpdate).
+func (p BoxPush) PushSeq(ctx context.Context, userId int64, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error {
+	_, err := userbox.Run(ctx, p.DB, userId, func(b *userbox.Box) error {
+		return sync_client.EmitSeqUpdate(b, p.Topic, u, users, chats)
+	})
+	if err != nil {
+		return fmt.Errorf("bots: update to user %d: %w", userId, err)
 	}
 	return nil
 }

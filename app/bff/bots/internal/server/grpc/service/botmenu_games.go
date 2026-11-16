@@ -22,10 +22,10 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/core"
 )
 
-// RPCBotMenu and RPCGames (task 098): the attachment menu, empty until the
-// bots platform has attachment menu bots (task 106), and the dice game,
-// which is never available. Their other methods keep the 400 the session
-// proxy answered without a route: tgnet retries a 500.
+// RPCBotMenu and RPCGames (task 098): the attachment menu of the bots
+// platform (task 106) and the dice game, which is never available. Their
+// other methods keep the 400 the session proxy answered without a route:
+// tgnet retries a 500.
 
 // MessagesGetAttachMenuBots
 // messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
@@ -43,15 +43,20 @@ func (s *Service) MessagesGetEmojiGameInfo(ctx context.Context, request *mtproto
 	return c.MessagesGetEmojiGameInfo(request)
 }
 
-// MessagesGetAttachMenuBot is not served: there are no attachment menu
-// bots (task 106).
+// MessagesGetAttachMenuBot
+// messages.getAttachMenuBot#77216192 bot:InputUser = AttachMenuBotsBot;
 func (s *Service) MessagesGetAttachMenuBot(ctx context.Context, request *mtproto.TLMessagesGetAttachMenuBot) (*mtproto.AttachMenuBotsBot, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getAttachMenuBot - metadata: {%s}", c.MD)
+	return c.MessagesGetAttachMenuBot(request)
 }
 
-// MessagesToggleBotInAttachMenu is not served, see MessagesGetAttachMenuBot.
+// MessagesToggleBotInAttachMenu
+// messages.toggleBotInAttachMenu#69f59d69 flags:# write_allowed:flags.0?true bot:InputUser enabled:Bool = Bool;
 func (s *Service) MessagesToggleBotInAttachMenu(ctx context.Context, request *mtproto.TLMessagesToggleBotInAttachMenu) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.toggleBotInAttachMenu - metadata: {%s}", c.MD)
+	return c.MessagesToggleBotInAttachMenu(request)
 }
 
 // MessagesSetGameScore is not served: games of bots are task 106.
