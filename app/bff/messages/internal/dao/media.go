@@ -202,9 +202,10 @@ func GetMessageMedia(ctx context.Context, d MediaHelper, userId, ownerId int64, 
 		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
 	case mtproto.Predicate_inputMediaGame:
 		// inputMediaGame#d33f43f3 id:InputGame = InputMedia;
-
-		// TODO(@benqi): Not impl inputMediaGame
-		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
+		//
+		// pluma: a game is sent only by messages.sendMedia, which finds it
+		// in the games of bots (MessagesCore.makeGameMedia, task 106).
+		err = mtproto.ErrMediaInvalid
 	case mtproto.Predicate_inputMediaInvoice:
 		// inputMediaInvoice#d9799874 flags:# title:string description:string photo:flags.0?InputWebDocument invoice:Invoice payload:bytes provider:string provider_data:DataJSON start_param:flags.1?string = InputMedia;
 

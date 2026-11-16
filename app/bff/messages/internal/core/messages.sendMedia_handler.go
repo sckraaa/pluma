@@ -23,9 +23,11 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/botgames"
 
 	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/threading"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // MessagesSendMedia
@@ -73,10 +75,25 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		return nil, err
 	}
 
-	replyMarkup, err := c.botMarkup(in.ReplyMarkup)
+	// A game (task 106): its media, its bot and the button that starts it
+	// (botgames.Markup).
+	var game *gameSend
+	if in.Media.GetPredicateName() == mtproto.Predicate_inputMediaGame {
+		if game, err = c.makeGameMedia(peer, in.Media); err != nil {
+			c.Logger.Errorf("messages.sendMedia - game: %v", err)
+			return nil, err
+		}
+	}
+	replyMarkup, err := c.botMarkup(in.ReplyMarkup, game != nil)
 	if err != nil {
 		c.Logger.Errorf("messages.sendMedia - reply markup: %v", err)
 		return nil, err
+	}
+	if game != nil {
+		if replyMarkup, err = botgames.Markup(replyMarkup, game.title, c.MD.LangCode); err != nil {
+			c.Logger.Errorf("messages.sendMedia - reply markup of a game: %v", err)
+			return nil, err
+		}
 	}
 
 	outMessage := mtproto.MakeTLMessage(&mtproto.Message{
@@ -155,8 +172,12 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		}).To_MessageReplies()
 	}
 
-	outMessage.Media, err = c.makeMediaByInputMedia(in.Media)
-	if err != nil {
+	if game != nil {
+		outMessage.Media = game.media
+		if game.viaBot != 0 {
+			outMessage.ViaBotId = wrapperspb.Int64(game.viaBot)
+		}
+	} else if outMessage.Media, err = c.makeMediaByInputMedia(in.Media); err != nil {
 		c.Logger.Errorf("messages.sendMedia - error: %v", err)
 		return nil, err
 	}

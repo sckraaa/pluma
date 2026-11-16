@@ -22,10 +22,10 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/core"
 )
 
-// RPCBotMenu and RPCGames (task 098): the attachment menu of the bots
-// platform (task 106) and the dice game, which is never available. Their
-// other methods keep the 400 the session proxy answered without a route:
-// tgnet retries a 500.
+// RPCBotMenu and RPCGames (task 098): the attachment menu and the games of
+// the bots platform (task 106) and the dice game, which is never available.
+// Their other methods keep the 400 the session proxy answered without a
+// route: tgnet retries a 500.
 
 // MessagesGetAttachMenuBots
 // messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
@@ -59,22 +59,30 @@ func (s *Service) MessagesToggleBotInAttachMenu(ctx context.Context, request *mt
 	return c.MessagesToggleBotInAttachMenu(request)
 }
 
-// MessagesSetGameScore is not served: games of bots are task 106.
+// MessagesSetGameScore
+// messages.setGameScore#8ef8ecc0 flags:# edit_message:flags.0?true force:flags.1?true peer:InputPeer id:int user_id:InputUser score:int = Updates;
 func (s *Service) MessagesSetGameScore(ctx context.Context, request *mtproto.TLMessagesSetGameScore) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.setGameScore - metadata: {%s}", c.MD)
+	return c.MessagesSetGameScore(request)
 }
 
-// MessagesSetInlineGameScore is not served, see MessagesSetGameScore.
+// MessagesGetGameHighScores
+// messages.getGameHighScores#e822649d peer:InputPeer id:int user_id:InputUser = messages.HighScores;
+func (s *Service) MessagesGetGameHighScores(ctx context.Context, request *mtproto.TLMessagesGetGameHighScores) (*mtproto.Messages_HighScores, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getGameHighScores - metadata: {%s}", c.MD)
+	return c.MessagesGetGameHighScores(request)
+}
+
+// MessagesSetInlineGameScore is not served yet: the scores of games sent
+// via a bot come with the edits of inline messages (task 106, part G2).
 func (s *Service) MessagesSetInlineGameScore(ctx context.Context, request *mtproto.TLMessagesSetInlineGameScore) (*mtproto.Bool, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// MessagesGetGameHighScores is not served, see MessagesSetGameScore.
-func (s *Service) MessagesGetGameHighScores(ctx context.Context, request *mtproto.TLMessagesGetGameHighScores) (*mtproto.Messages_HighScores, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// MessagesGetInlineGameHighScores is not served, see MessagesSetGameScore.
+// MessagesGetInlineGameHighScores is not served yet, see
+// MessagesSetInlineGameScore.
 func (s *Service) MessagesGetInlineGameHighScores(ctx context.Context, request *mtproto.TLMessagesGetInlineGameHighScores) (*mtproto.Messages_HighScores, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }

@@ -69,7 +69,7 @@ func TestCallbackUpdateNamesTheBotsCopy(t *testing.T) {
 	c := testCore(&dao.Dao{MessageClient: messages}, user)
 	p := &pressed{peer: mtproto.MakeUserPeerUtil(bot), botId: bot}
 
-	u, chats, err := c.callbackUpdate(5, p, 33, []byte("go"))
+	u, chats, err := c.callbackUpdate(5, p, 33, []byte("go"), "")
 	if err != nil {
 		t.Fatal(err)
 	}

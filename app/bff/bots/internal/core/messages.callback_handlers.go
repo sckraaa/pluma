@@ -28,6 +28,8 @@ import (
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
+
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // maxCallbackText: core.telegram.org/bots/api#answercallbackquery, text.
@@ -136,11 +138,14 @@ func chatInstance(botId int64, p *pressed, userId int64) int64 {
 
 // MessagesGetBotCallbackAnswer
 // messages.getBotCallbackAnswer#9342ca07 flags:# game:flags.1?true peer:InputPeer msg_id:int data:flags.0?bytes password:flags.2?InputCheckPasswordSRP = messages.BotCallbackAnswer;
+//
+// With game the press is of the game's button (keyboardButtonGame: tdesktop
+// api_bot.cpp:76-82, iOS RequestMessageActionCallback.swift:42-43), which
+// carries no data: the bot gets the short name of the game in
+// game_short_name and answers with the address of the game, which the
+// clients open as the game (core.telegram.org/api/bots/games: "a callback
+// query that returns the game URL").
 func (c *BotsCore) MessagesGetBotCallbackAnswer(in *mtproto.TLMessagesGetBotCallbackAnswer) (*mtproto.Messages_BotCallbackAnswer, error) {
-	if in.Game {
-		// Games are not served.
-		return nil, mtproto.ErrDataInvalid
-	}
 	peer := c.chatPeer(in.Peer)
 	p, err := c.pressedMessage(peer, in.MsgId)
 	if err != nil {
@@ -148,7 +153,15 @@ func (c *BotsCore) MessagesGetBotCallbackAnswer(in *mtproto.TLMessagesGetBotCall
 		return nil, err
 	}
 	data := in.Data
-	if !hasCallback(p.message, data) {
+	gameShortName := ""
+	if in.Game {
+		// The press of a game has no data: an empty key of the cache, which
+		// no button with data has (botmarkup: 1 to 64 bytes).
+		data = nil
+		if gameShortName, err = c.pressedGame(p); err != nil {
+			return nil, err
+		}
+	} else if !hasCallback(p.message, data) {
 		return nil, mtproto.ErrDataInvalid
 	}
 	if _, err = c.botUser(p.botId); err != nil {
@@ -175,7 +188,7 @@ func (c *BotsCore) MessagesGetBotCallbackAnswer(in *mtproto.TLMessagesGetBotCall
 		c.Logger.Errorf("messages.getBotCallbackAnswer - error: %v", err)
 		return nil, mtproto.ErrInternalServerError
 	}
-	u, chats, err := c.callbackUpdate(queryId, p, in.MsgId, data)
+	u, chats, err := c.callbackUpdate(queryId, p, in.MsgId, data, gameShortName)
 	if err != nil {
 		return nil, err
 	}
@@ -205,9 +218,14 @@ func (c *BotsCore) MessagesGetBotCallbackAnswer(in *mtproto.TLMessagesGetBotCall
 
 // callbackUpdate makes the update of the press for the bot: of its message
 // by the bot's own id in private chats and groups, by inline message id for
-// a message sent via the bot (core.telegram.org/api/bots/buttons).
-func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data []byte) (*mtproto.Update, []*mtproto.Chat, error) {
+// a message sent via the bot (core.telegram.org/api/bots/buttons). A press
+// of a game's button has the game's short name instead of data.
+func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data []byte, gameShortName string) (*mtproto.Update, []*mtproto.Chat, error) {
 	instance := chatInstance(p.botId, p, c.MD.UserId)
+	var game *wrapperspb.StringValue
+	if gameShortName != "" {
+		game = wrapperspb.String(gameShortName)
+	}
 	if p.inline {
 		return mtproto.MakeTLUpdateInlineBotCallbackQuery(&mtproto.Update{
 			QueryId_INT64: queryId,
@@ -218,6 +236,7 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 			}).To_InputBotInlineMessageID(),
 			ChatInstance_INT64: instance,
 			Data_FLAGBYTES:     data,
+			GameShortName:      game,
 		}).To_Update(), nil, nil
 	}
 
@@ -257,6 +276,7 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 		MsgId_INT32:        p.botMsg,
 		ChatInstance_INT64: instance,
 		Data_FLAGBYTES:     data,
+		GameShortName:      game,
 	}).To_Update(), chats, nil
 }
 
