@@ -21,6 +21,7 @@ package config
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/mail"
 	"github.com/zeromicro/go-zero/core/stores/kv"
@@ -41,4 +42,8 @@ type Config struct {
 	StatusClient      zrpc.RpcClientConf
 	MsgClient         zrpc.RpcClientConf
 	SyncClient        sync_client.OutboxConf
+	// BotSecrets seals the keys a bot's login with its token stores
+	// (auth.importBotAuthorization, task 106, ADR 0068, p. 3); none are
+	// stored without a key.
+	BotSecrets botkeys.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

@@ -93,6 +93,10 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       # bff.yaml names the key of the web file proxy (task 099); empty: off.
       WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
+      # bff.yaml names the keys of the bot platform (task 106); empty: the
+      # mini apps and the login of bots are off.
+      BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
+      WEBAPP_SIGNING_KEY: ${WEBAPP_SIGNING_KEY:-}
       # The built-in inline bots (task 099): @pic's SearXNG, empty: no
       # pictures; the daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}
@@ -317,6 +321,10 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       # bff.yaml names the key of the web file proxy (task 099); empty: off.
       WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
+      # bff.yaml names the keys of the bot platform (task 106); empty: the
+      # mini apps and the login of bots are off.
+      BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
+      WEBAPP_SIGNING_KEY: ${WEBAPP_SIGNING_KEY:-}
       # The built-in inline bots (task 099): @pic's SearXNG, empty: no
       # pictures; the daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}

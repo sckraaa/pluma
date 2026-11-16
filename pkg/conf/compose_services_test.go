@@ -342,6 +342,11 @@ var optionalVars = map[string]bool{
 	// empty lists without SearXNG; the import budget is 1 GiB when empty.
 	"SEARXNG_URL":               true,
 	"INLINE_IMPORT_DAILY_BYTES": true,
+	// The bot platform (task 106, ADR 0068): the mini apps and the login of
+	// bots are off without the key the bot keys are sealed under, and no
+	// mini app opens without the key of the signature of initData.
+	"BOT_SECRET_ENCRYPTION_KEY": true,
+	"WEBAPP_SIGNING_KEY":        true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }

@@ -32,6 +32,7 @@ import (
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
@@ -43,13 +44,19 @@ import (
 
 // botConfig is the part of the bff config bot needs: the database of bots,
 // the user service for the flags (it owns the cache of users), authsession
-// and sync to end the sessions of a replaced token.
+// and sync to end the sessions of a replaced token, and the key the keys of
+// a new token are sealed under (task 106, ADR 0068, p. 3).
 type botConfig struct {
 	Mysql             sqlx.Config
 	BizServiceClient  zrpc.RpcClientConf
 	AuthSessionClient zrpc.RpcClientConf
 	SyncClient        struct{ Topic string }
+	BotSecrets        botkeys.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
+
+// noBotSecrets is printed after a token issued without
+// BOT_SECRET_ENCRYPTION_KEY.
+const noBotSecrets = "BOT_SECRET_ENCRYPTION_KEY is not set: the keys of the token are not stored, so the bot's mini apps and login stay off (docs/ops/bots.md)"
 
 // botCommand runs bot create, list, token and set (task 070, ADR 0043).
 func botCommand(args []string, configFile string, stdout io.Writer) error {
@@ -60,8 +67,12 @@ func botCommand(args []string, configFile string, stdout io.Writer) error {
 	if err := conf.Load(configFile, &c); err != nil {
 		return fmt.Errorf("config %s: %w", configFile, err)
 	}
+	sealer, err := c.BotSecrets.Sealer()
+	if err != nil {
+		return err
+	}
 	db := sqlx.NewMySQL(&c.Mysql)
-	store := botstore.New(db)
+	store := botstore.New(db).WithSecrets(sealer)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
@@ -72,7 +83,13 @@ func botCommand(args []string, configFile string, stdout io.Writer) error {
 		}
 		return listBots(ctx, store, stdout)
 	case "create":
-		return createBot(ctx, db, store, args[2:], stdout)
+		if err := createBot(ctx, db, store, args[2:], stdout); err != nil {
+			return err
+		}
+		if sealer == nil {
+			fmt.Fprintln(stdout, noBotSecrets)
+		}
+		return nil
 	case "token":
 		if len(args) != 3 {
 			return errUsage
@@ -88,6 +105,9 @@ func botCommand(args []string, configFile string, stdout io.Writer) error {
 		// Printed first: it cannot be shown again, and a failed revocation
 		// is repaired by running the command once more.
 		fmt.Fprintln(stdout, token)
+		if sealer == nil {
+			fmt.Fprintln(stdout, noBotSecrets)
+		}
 		runner := &effects.Runner{
 			Authsession: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthSessionClient)),
 			Sync:        sync_client.MustNewSyncOutboxClient(sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}),

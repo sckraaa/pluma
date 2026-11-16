@@ -23,11 +23,13 @@ import (
 	bots_helper "github.com/teamgram/teamgram-server/app/bff/bots"
 	groupcalls_helper "github.com/teamgram/teamgram-server/app/bff/groupcalls"
 	voipcalls_helper "github.com/teamgram/teamgram-server/app/bff/voipcalls"
+	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/mail"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/teamgram/teamgram-server/pkg/transcribe"
+	"github.com/teamgram/teamgram-server/pkg/webappdata"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -83,6 +85,19 @@ type Config struct {
 	// 0062, docs/ops/inline-bots.md): the providers that answer their
 	// queries and the daily budget of the media they import into dfs.
 	InlineBots bots_helper.InlineBotsConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// WebApp is the mini apps of bots (task 106, ADR 0068,
+	// docs/ops/bots.md): the tgWebAppVersion by platform and the Ed25519
+	// key of the signature of initData, WEBAPP_SIGNING_KEY.
+	WebApp webappdata.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// BotSecrets seals the keys of bots derived from their tokens
+	// (pkg/botkeys), BOT_SECRET_ENCRYPTION_KEY; shared by bots and
+	// authorization (auth.importBotAuthorization stores them). Without it
+	// the mini apps and the login of bots are off.
+	BotSecrets botkeys.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Avatars is the address of the public photos of users by username,
+	// https://pluma.chat/_l/avatar/ (ADR 0036, p. 4), for the photo_url
+	// bots are given.
+	Avatars string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 // SyncClientConf is where bff's pushes go: rows of mq_outbox for Topic in

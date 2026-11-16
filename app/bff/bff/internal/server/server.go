@@ -179,6 +179,9 @@ func (s *Server) Initialize() error {
 			DfsClient:     c.DfsClient,
 			WebFileKey:    c.WebFile.HMACKey,
 			InlineBots:    c.InlineBots,
+			WebApp:        c.WebApp,
+			BotSecrets:    c.BotSecrets,
+			Avatars:       c.Avatars,
 		})
 		mtproto.RegisterRPCBotsServer(grpcServer, bots)
 		mtproto.RegisterRPCBotMenuButtonServer(grpcServer, bots)
@@ -278,6 +281,7 @@ func (s *Server) Initialize() error {
 					StatusClient:      c.StatusClient,
 					SyncClient:        syncClient,
 					MsgClient:         c.MsgClient,
+					BotSecrets:        c.BotSecrets,
 				},
 				nil))
 

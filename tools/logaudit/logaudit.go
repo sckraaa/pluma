@@ -123,6 +123,13 @@ var secretNames = set(
 	// the business location of an account (task 105, ADR 0067): its street
 	// address
 	"address", "getaddress",
+	// the bot platform (task 106, ADR 0068): the initData of a mini app
+	// and its address, the keys of a bot and the server's keys, a site's
+	// client secret, the ID tokens, authorization codes and requests of the
+	// login on sites and the emoji code a user confirms one with
+	"initdata", "getinitdata", "tgwebappdata", "webappkey", "loginkey",
+	"signingkey", "encryptionkey", "seed", "clientsecret", "getclientsecret",
+	"idtoken", "oauthtoken", "oauthcode", "matchcode", "getmatchcode", "matchcodes", "getmatchcodes",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )

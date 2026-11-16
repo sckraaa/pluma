@@ -19,6 +19,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 )
 
@@ -32,5 +33,36 @@ func TestBuiltinBotsAreNotEditable(t *testing.T) {
 	}
 	if err := checkEditable(136907713); err != nil {
 		t.Errorf("a bot of an owner: %v", err)
+	}
+}
+
+// TestLoadsBotConfig: bot create and bot token find the key the keys of a
+// token are sealed under in both bff configs (task 106).
+func TestLoadsBotConfig(t *testing.T) {
+	for _, name := range []string{
+		"MYSQL_PASSWORD", "REDIS_PASSWORD", "LOGIN_REVIEW_PHONE", "LOGIN_REVIEW_CODE",
+		"LOGIN_CODES_SENDER_URL", "LOGIN_CODES_SENDER_TOKEN", "TELEGRAM_API_ID", "TELEGRAM_API_HASH",
+		"TELEGRAM_BOT_TOKEN", "PLUMA_RELEASES_URL", "PLUMA_IOS_UPDATE_SECRET", "CALLS_ICE_SERVERS",
+		"CALLS_TURN_SECRET", "CALLS_QUALITY", "STT_URL", "STT_TOKEN", "STT_MODEL", "STT_LANGUAGE",
+		"STT_TIMEOUT", "MAIL_API_KEY", "MAIL_FROM", "WEBFILE_HMAC_KEY", "WEBAPP_SIGNING_KEY",
+		"SEARXNG_URL", "INLINE_IMPORT_DAILY_BYTES", "GROUPCALLS_SFU_ENDPOINT",
+	} {
+		t.Setenv(name, "")
+	}
+	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
+	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
+	key := testHmacKey + testHmacKey // 64 hex digits
+	t.Setenv("BOT_SECRET_ENCRYPTION_KEY", key)
+	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
+		var c botConfig
+		if err := conf.Load(f, &c); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		if c.BotSecrets.EncryptionKey != key {
+			t.Errorf("%s: the bot secret encryption key is not read", f)
+		}
+		if s, err := c.BotSecrets.Sealer(); s == nil || err != nil {
+			t.Errorf("%s: sealer: %v", f, err)
+		}
 	}
 }

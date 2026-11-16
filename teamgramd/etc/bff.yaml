@@ -79,6 +79,29 @@ InlineBots:
   SearxngURL: "${SEARXNG_URL}"
   ImportDailyBytes: "${INLINE_IMPORT_DAILY_BYTES}"
 
+# The bot platform (task 106, ADR 0068, docs/ops/bots.md). WebApp: the
+# tgWebAppVersion given to a mini app by the platform of the client that
+# opens it, and WEBAPP_SIGNING_KEY, the Ed25519 seed (hex) of the signature
+# of initData; without it no mini app opens. BotSecrets: the keys of bots
+# derived from their tokens are sealed under BOT_SECRET_ENCRYPTION_KEY
+# (pkg/botkeys); without it no keys are stored, and the mini apps and the
+# login of bots are off. Avatars: the public photos of users by username
+# (ADR 0036, p. 4), the photo_url bots are given.
+WebApp:
+  Versions:
+    Android: "8.0"
+    IOS: "8.0"
+    MacOS: "8.0"
+    TDesktop: "8.0"
+    Web: "8.0"
+    WebA: "8.0"
+    WebK: "8.0"
+    Unknown: "8.0"
+  SigningKey: "${WEBAPP_SIGNING_KEY}"
+BotSecrets:
+  EncryptionKey: "${BOT_SECRET_ENCRYPTION_KEY}"
+Avatars: https://pluma.chat/_l/avatar/
+
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
 
