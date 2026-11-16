@@ -10,7 +10,12 @@
 
 - **Адрес сервера.**
   - Задаётся IPv4 (и при желании IPv6) и портом gnetway. Это адрес, а не имя: tgnet не ищет DC через DNS.
-  - После входа клиент держит вшитый адрес: сервер отдаёт в `help.getConfig` пустой `dc_options` (`teamgramd/bin/config.json`). Если его заполнить, клиенты переключатся на эти адреса.
+  - После первого `help.getConfig` клиенты берут адреса из его `dc_options`, если он не пуст. Список собирает bff из конфигурации (задача 102, ADR 0065 §7); в `teamgramd/bin/config.json` `dc_options` всегда пуст — иначе bff не стартует.
+    - DC 1 — `PLUMA_DC1_ADDRESSES` в `.env`: публичный `ip:port` Pluma для каждого порта шлюза через запятую, **вшитый в сборки порт первым**, например `195.201.252.126:10443,195.201.252.126:5222`. Только адреса (IPv6 — в квадратных скобках), не имена. У каждого адреса флаг `static`, как у вшитого адреса Desktop (D-002).
+    - CDN-DC (201) — из блока `Cdn` в `bff.yaml` (`CDN_DC_ID`, `CDN_DC_ADDRESS`, `CDN_DC_SECRET`, `docs/ops/cdn.md`), с флагами `cdn`, `tcpo_only` и секретом; попадает в список, только когда CDN включён (`CDN_NODE_CONTROL`).
+    - Пусто всё — `dc_options` пуст, клиенты держат вшитый адрес. CDN без `PLUMA_DC1_ADDRESSES`, имя вместо IP, порт 0, повтор адреса, секрет не `dd` + 32 hex — bff не стартует.
+  - **Ошибка в `PLUMA_DC1_ADDRESSES` отрезает Desktop.** Непустой `dc_options` заменяет у tdesktop весь список DC (`mtproto/mtproto_config.cpp:285-289` → `mtproto_dc_options.cpp:198-240`), и вернуть его можно только переустановкой; Android и iOS заменяют адреса каждого перечисленного DC (`ConnectionsManager.cpp:3486-3514`, `ManagedConfigurationUpdates.swift:22-38`). Поэтому в списке — все рабочие адреса DC 1, и перед выкладкой адрес и порты сверяются с вшитыми в сборки. При первом таком списке Desktop один раз переподключается к DC 1.
+  - Снять CDN — убрать `CDN_NODE_CONTROL`, `PLUMA_DC1_ADDRESSES` оставить: Desktop заменит список без DC 201, Android и iOS сохранят запись DC 201, но без редиректов туда не пойдут.
 - **Публичный RSA-ключ сервера** (PKCS#1). Получить его так:
   ```bash
   openssl rsa -in secrets/server_pkcs1.key -RSAPublicKey_out
