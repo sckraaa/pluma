@@ -1275,3 +1275,11 @@
 - [ ] Лог `maps` (`docker logs --tail 50 pluma-maps-1`) и лог bff в Grafana за время проверок — нет координат, размеров карт и URL вида `/styles/…/static/…`.
 - [ ] Android: интерактивная карта при отправке геопозиции (Google Maps SDK с ключом Telegram) — отображается или серая; записать результат (вне задачи 100, решает, нужен ли патч клиента).
 - [ ] iPhone после включения карт: геопозиция, место и трансляция в чате показываются картой MapKit, как раньше; в метриках bff `webmap_render_total` не растёт от просмотра с iPhone.
+
+## 099 — Встроенные боты @gif и @pic (часть I: документы эксплуатации)
+Выкатка по `docs/ops/inline-bots.md`, алерты группы `inline_bots` (`teamgramd/deploy/prometheus/server/rules/codes.yml`).
+- [ ] До выката дома: запрос из `docs/ops/inline-bots.md` («Выкатка», шаг 1) — у имён `gif` и `pic` нет чужих строк. После выката `pluma-admin migrate status` пишет `0 pending` (применены и `migrate-20261119-inline-bots.sql`, и `z_pluma-inline-bots.sql`), в Prometheus `inline_bot_misconfigured` = 0 у `gif` и `pic`.
+- [ ] Prometheus → Alerts: в группе `inline_bots` три правила (`InlineProviderFailing`, `InlineBotMisconfigured`, `InlineImportBudgetSpent`), все «inactive», ошибок разбора правил нет.
+- [ ] `docker compose … stop searxng`, затем 4–5 разных запросов `@pic` в течение 15 минут с телефона: клиент показывает «ничего не найдено», через несколько минут на телефон приходит пуш `InlineProviderFailing` для `pic`; после `start searxng` и новых запросов алерт гаснет («Resolved»).
+- [ ] Ручной запуск `z_pluma-inline-bots.sql` командой из раздела «Если имя бота занято» на работающем сервере проходит без ошибок и ничего не меняет: `@gif` и `@pic` работают, в логе bff нет `is not served`.
+- [ ] Вкладка GIF и `@pic кот` на Android, iOS, Desktop и Web после выката по документу: GIF уходит без «через @gif», фото с «через @pic»; в логе bff нет текста запроса «кот».

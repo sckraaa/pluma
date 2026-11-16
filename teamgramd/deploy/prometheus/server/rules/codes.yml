@@ -59,3 +59,53 @@ groups:
         annotations:
           summary: "Many wrong codes of the recovery email"
           description: "Someone may be guessing recovery codes; 'possible brute force' in the log of bff names the user. docs/ops/email.md"
+
+  # The built-in inline bots @gif and @pic (task 099, ADR 0062,
+  # docs/ops/inline-bots.md): the metrics bff bots exports for the queries
+  # the shared cache did not answer, the imports of media into dfs and the
+  # check of the bots' accounts against the registry.
+  - name: inline_bots
+    rules:
+      # A provider that fails answers empty lists (cache_time 0): clients show
+      # "nothing found", nothing else tells. "error" is a provider that failed
+      # or a page with nothing ready within 7 s; "empty" (nothing found, or
+      # @pic without SEARXNG_URL) and "limited" are not failures. At least 3
+      # errors, so that one failed query at night does not page.
+      - alert: InlineProviderFailing
+        expr: |
+          (
+            sum by (bot) (increase(inline_builtin_requests_total{result="error"}[15m]))
+              / sum by (bot) (increase(inline_builtin_requests_total{result=~"ok|empty|error"}[15m]))
+          ) > 0.5
+          and sum by (bot) (increase(inline_builtin_requests_total{result="error"}[15m])) >= 3
+        labels: {severity: warning}
+        annotations:
+          summary: "@{{ $labels.bot }} fails more than half of its queries"
+          description: "Users get empty lists. @pic: SearXNG is down or every image engine blocks the address (docker compose logs searxng); @gif: MySQL or media. Lines 'messages.getInlineBotResults - @{{ $labels.bot }}' in the log of bff. docs/ops/inline-bots.md"
+
+      # The gauge is 1 while the account of a bot does not match the registry
+      # (pkg/inlinebots): the bot answers BOT_INLINE_DISABLED. bff checks again
+      # every minute, so a repaired account clears it without a restart.
+      - alert: InlineBotMisconfigured
+        expr: max by (bot) (inline_bot_misconfigured) == 1
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "@{{ $labels.bot }} is not served: its account does not match the registry"
+          description: "Usually its username is taken by a person or a channel, or z_pluma-inline-bots.sql did not run. The reason is in the line 'inlinebots: @{{ $labels.bot }} is not served' of the log of bff. docs/ops/inline-bots.md, «Если имя бота занято»"
+
+      # The import budget (INLINE_IMPORT_DAILY_BYTES, 1 GiB a UTC day by
+      # default) refuses imports: only media imported before are shown. Spent
+      # late in the day is the budget working; spent before 18:00 UTC is a
+      # day of unusual use, or a budget too small. The first 15 minutes of a
+      # day are left out: the window still holds the refusals of the day
+      # before, whose budget is gone at 00:00.
+      - alert: InlineImportBudgetSpent
+        expr: |
+          sum(increase(inline_import_total{result="budget"}[15m])) > 0
+          and on() hour() < 18
+          and on() (hour() * 60 + minute()) >= 15
+        labels: {severity: warning}
+        annotations:
+          summary: "The day's import budget of @gif and @pic is spent before 18:00 UTC"
+          description: "New pictures are not imported until 00:00 UTC; @pic answers with what was imported before. Check inline_import_bytes_total by kind and docs/ops/inline-bots.md, «Бюджет импорта», before raising INLINE_IMPORT_DAILY_BYTES."

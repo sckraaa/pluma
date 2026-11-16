@@ -32,6 +32,7 @@
 - **Чего в файле нет.**
   - Значения Telegram для конкретного пользователя или сессии: `freeze_*`, `call_requests_disabled`, `phone_country_iso2`, `transcribe_audio_trial_cooldown_until`.
   - Боты и сервисы Telegram: `premium_bot_username`, `premium_invoice_slug`, `ton_*`, `stars_*` с суммами, `weather_search_username` и т. п.
+  - `stories_venue_search_username` — бот поиска мест для стикера геопозиции в историях iOS. Бота мест у Pluma нет (задача 099, решение владельца 2026-11-16, `docs/ops/inline-bots.md`). Боты `@gif` и `@pic` клиенты берут из `help.getConfig`, а не отсюда.
   - Настройки внутренностей клиента (видео-кружки, очереди загрузки, анимации). Здесь подходят значения клиента по умолчанию.
 
 Клиенты в таблицах: A — Android, D — Desktop (tdesktop), W — Web K, I — iOS (указан там, где ключ читает только он).
