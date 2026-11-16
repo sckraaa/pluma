@@ -17,7 +17,9 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -37,4 +39,26 @@ type Config struct {
 	// Mysql holds the sticker sets of the catalog and the business chat
 	// links (pkg/business).
 	Mysql sqlx.Config
+
+	// OAuth is the login of users on sites, oauth.pluma.chat (task 106,
+	// ADR 0068 p. 6). Its requests live in the Redis of KV, which bff
+	// answers the apps from; AuthsessionClient gives the region of a
+	// visitor's address; BotSecrets opens the login keys of bots for the
+	// format of the login widget.
+	OAuth             OAuthConf
+	KV                kv.KvConf
+	AuthsessionClient zrpc.RpcClientConf
+	BotSecrets        botkeys.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
+// OAuthConf is the provider of oauth.pluma.chat.
+type OAuthConf struct {
+	// Issuer is the provider's address, https://oauth.pluma.chat: the iss
+	// of its ID tokens, and its host the host the provider answers on.
+	Issuer string
+	// SigningKeyFile holds the RSA keys of the ID tokens in PEM
+	// (OAUTH_SIGNING_KEY_FILE): the first signs, any further one is still
+	// published in the JWKS while a replaced key's tokens may be checked.
+	// An empty file turns the provider off.
+	SigningKeyFile string
 }

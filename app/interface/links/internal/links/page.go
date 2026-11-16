@@ -220,6 +220,11 @@ func (b *Builder) Build(ctx context.Context, l Link, v Visitor) (*Page, error) {
 		p.Desc, p.Button = v.html("login_desc", l.Subject), v.text("login_button")
 	case KindBusinessChat:
 		return b.chatLinkPage(ctx, l, v, p)
+	case KindOAuth:
+		// The web client takes no login links (tweb has no handler of
+		// oauth links), so the page offers the app alone.
+		p.Title, p.OgTitle, p.Icon, p.NoIndex = v.text("oauth_link_title"), v.text("oauth_link_title"), "user", true
+		p.Desc, p.Button, p.WebURL = v.html("oauth_link_desc"), v.text("oauth_link_button"), ""
 	case KindContact:
 		p.Title, p.OgTitle, p.Icon, p.NoIndex = v.text("private_title"), v.text("private_title"), "user", true
 		p.Desc, p.Button = v.html("contact_link"), v.text("open_contact")

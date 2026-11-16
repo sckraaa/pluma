@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/urlauth"
 )
 
 // Kind is the kind of a link.
@@ -59,6 +60,13 @@ const (
 	// 0067 item 5): the chat with its owner with a text in the input
 	// field, tg://message?slug=<slug> (core.telegram.org/api/links).
 	KindBusinessChat
+	// KindOAuth is the link of a site's login request, oauth?startapp=<token>
+	// (task 106, ADR 0068 p. 6): the page of oauth.pluma.chat shows it as a
+	// QR code and behind its button. The app link is the form every client
+	// takes, resolve?domain=oauth&startapp=<token> (Android
+	// ui/LinkManager.java:313-314, tdesktop core/local_url_handlers.cpp:707-717,
+	// iOS TelegramUI/Sources/OpenUrl.swift:45-67).
+	KindOAuth
 )
 
 // Link is a parsed link: its kind, what it names (a username, a hash, a set
@@ -163,6 +171,12 @@ func Parse(path string, q url.Values) Link {
 		return Link{Kind: KindContact, Subject: parts[1], App: "contact?token=" + parts[1]}
 	case head == "m" && len(parts) > 1 && slugRe.MatchString(parts[1]):
 		return Link{Kind: KindBusinessChat, Subject: parts[1], App: "message?slug=" + parts[1]}
+	case head == urlauth.OAuthPath && len(parts) == 1:
+		token := q.Get("startapp")
+		if !urlauth.ValidToken(token) {
+			return Link{}
+		}
+		return Link{Kind: KindOAuth, Subject: token, App: "resolve?domain=" + urlauth.OAuthPath + "&startapp=" + token}
 	case head == "bg" && len(parts) > 1:
 		return background(parts[1], q)
 	case usernameRe.MatchString(head) && !userpb.ReservedUsername(head):

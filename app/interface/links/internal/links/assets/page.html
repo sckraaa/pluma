@@ -40,8 +40,8 @@
 {{end}}{{if .Desc}}<div class="desc">{{.Desc}}</div>
 {{end}}<div class="action">
 <a class="btn" data-app href="{{.AppURL}}">{{.Button}}</a>
-<a class="btn btn--quiet" href="{{.WebURL}}">{{index .Texts "open_web"}}</a>
-</div>
+{{if .WebURL}}<a class="btn btn--quiet" href="{{.WebURL}}">{{index .Texts "open_web"}}</a>
+{{end}}</div>
 {{if .Context}}<div class="context"><a href="{{.Context.Href}}">{{.Context.Text}}</a></div>
 {{end}}{{if .Addition}}<div class="addition">{{.Addition}}</div>
 {{end}}</div>

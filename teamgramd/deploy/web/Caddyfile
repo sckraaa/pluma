@@ -136,6 +136,26 @@
 	}
 }
 
+# The login of users on sites with Pluma (task 106, ADR 0068 p. 6): the
+# provider of OpenID Connect and of the login widget format in the links
+# service, which tells this host by the Host header. Caddy sets
+# X-Forwarded-For to the address it was connected from (no address a client
+# puts there passes: no trusted_proxies), which names the visitor's region
+# in the app. The page sends its own policy; the provider's documents
+# (/.well-known/*) are public.
+{$PLUMA_OAUTH_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy links:9096
+	header {
+		?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		Referrer-Policy no-referrer
+		X-Content-Type-Options nosniff
+		Permissions-Policy "interest-cohort=(), camera=(), microphone=(), geolocation=()"
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}
+
 # Other sites the operator serves from the same address, outside Pluma: one
 # file per site, *.caddy in PLUMA_CADDY_SITES_DIR on the host
 # (docs/ops/deployment.md). Kept out of the repository, so that a deploy never
