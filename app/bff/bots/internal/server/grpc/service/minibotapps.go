@@ -93,16 +93,20 @@ func (s *Service) MessagesRequestMainWebView(ctx context.Context, request *mtpro
 	return c.MessagesRequestMainWebView(request)
 }
 
-// MessagesSendWebViewResultMessage is the bot's answer of a web view; it
-// comes with the common send of inline results (task 106, part D2).
+// MessagesSendWebViewResultMessage
+// messages.sendWebViewResultMessage#a4314f5 bot_query_id:string result:InputBotInlineResult = WebViewMessageSent;
 func (s *Service) MessagesSendWebViewResultMessage(ctx context.Context, request *mtproto.TLMessagesSendWebViewResultMessage) (*mtproto.WebViewMessageSent, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.sendWebViewResultMessage - metadata: {%s}", c.MD)
+	return c.MessagesSendWebViewResultMessage(request)
 }
 
-// MessagesSendWebViewData is sendData of a mini app; it comes with the
-// incoming action of msg (task 106, part D2).
+// MessagesSendWebViewData
+// messages.sendWebViewData#dc0242c8 bot:InputUser random_id:long button_text:string data:string = Updates;
 func (s *Service) MessagesSendWebViewData(ctx context.Context, request *mtproto.TLMessagesSendWebViewData) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.sendWebViewData - metadata: {%s}", c.MD)
+	return c.MessagesSendWebViewData(request)
 }
 
 // BotsRequestWebViewButton prepares a button for a mini app (task 106,

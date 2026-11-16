@@ -32,8 +32,6 @@ func TestMiniBotAppsNotServed(t *testing.T) {
 	s := New(&svc.ServiceContext{})
 	ctx := context.Background()
 	for name, call := range map[string]func() error{
-		"sendWebViewResultMessage":  func() error { _, err := s.MessagesSendWebViewResultMessage(ctx, nil); return err },
-		"sendWebViewData":           func() error { _, err := s.MessagesSendWebViewData(ctx, nil); return err },
 		"requestWebViewButton":      func() error { _, err := s.BotsRequestWebViewButton(ctx, nil); return err },
 		"getRequestedWebViewButton": func() error { _, err := s.BotsGetRequestedWebViewButton(ctx, nil); return err },
 		"requestChatJoinWebView":    func() error { _, err := s.MessagesRequestChatJoinWebView(ctx, nil); return err },

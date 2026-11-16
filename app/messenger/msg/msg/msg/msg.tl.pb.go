@@ -384,8 +384,13 @@ type OutboxMessage struct {
 	RandomId      int64                  `protobuf:"varint,5,opt,name=random_id,json=randomId,proto3" json:"random_id,omitempty"`
 	Message       *mtproto.Message       `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
 	ScheduleDate  *wrapperspb.Int32Value `protobuf:"bytes,7,opt,name=schedule_date,json=scheduleDate,proto3" json:"schedule_date,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// pluma: the action the recipient of a private chat gets in place of the
+	// sender's, for a service message whose two sides differ, such as
+	// messageActionWebViewDataSent and messageActionWebViewDataSentMe
+	// (task 106). gRPC only: the TL form of outboxMessage does not carry it.
+	IncomingAction *mtproto.MessageAction `protobuf:"bytes,8,opt,name=incoming_action,json=incomingAction,proto3" json:"incoming_action,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *OutboxMessage) Reset() {
@@ -463,6 +468,13 @@ func (x *OutboxMessage) GetMessage() *mtproto.Message {
 func (x *OutboxMessage) GetScheduleDate() *wrapperspb.Int32Value {
 	if x != nil {
 		return x.ScheduleDate
+	}
+	return nil
+}
+
+func (x *OutboxMessage) GetIncomingAction() *mtproto.MessageAction {
+	if x != nil {
+		return x.IncomingAction
 	}
 	return nil
 }
@@ -4008,7 +4020,7 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\fsend_user_id\x18\b \x01(\x03R\n" +
 	"sendUserId\">\n" +
 	"\x11TL_contentMessage\x12)\n" +
-	"\x05data2\x18\x01 \x01(\v2\x13.msg.ContentMessageR\x05data2\"\xb6\x02\n" +
+	"\x05data2\x18\x01 \x01(\v2\x13.msg.ContentMessageR\x05data2\"\xf7\x02\n" +
 	"\rOutboxMessage\x12%\n" +
 	"\x0epredicate_name\x18\x01 \x01(\tR\rpredicateName\x124\n" +
 	"\vconstructor\x18\x02 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x1d\n" +
@@ -4019,7 +4031,8 @@ const file_msg_tl_proto_rawDesc = "" +
 	"background\x12\x1b\n" +
 	"\trandom_id\x18\x05 \x01(\x03R\brandomId\x12*\n" +
 	"\amessage\x18\x06 \x01(\v2\x10.mtproto.MessageR\amessage\x12@\n" +
-	"\rschedule_date\x18\a \x01(\v2\x1b.google.protobuf.Int32ValueR\fscheduleDate\"<\n" +
+	"\rschedule_date\x18\a \x01(\v2\x1b.google.protobuf.Int32ValueR\fscheduleDate\x12?\n" +
+	"\x0fincoming_action\x18\b \x01(\v2\x16.mtproto.MessageActionR\x0eincomingAction\"<\n" +
 	"\x10TL_outboxMessage\x12(\n" +
 	"\x05data2\x18\x01 \x01(\v2\x12.msg.OutboxMessageR\x05data2\"\xb2\x01\n" +
 	"\x06Sender\x12%\n" +
@@ -4458,19 +4471,20 @@ var file_msg_tl_proto_goTypes = []any{
 	(*TLMsgDeleteQuickReplyShortcut)(nil),          // 45: msg.TL_msg_deleteQuickReplyShortcut
 	(*mtproto.Message)(nil),                        // 46: mtproto.Message
 	(*wrapperspb.Int32Value)(nil),                  // 47: google.protobuf.Int32Value
-	(*mtproto.MessageBox)(nil),                     // 48: mtproto.MessageBox
-	(*mtproto.Bool)(nil),                           // 49: mtproto.Bool
-	(*mtproto.Reaction)(nil),                       // 50: mtproto.Reaction
-	(*mtproto.PollAnswer)(nil),                     // 51: mtproto.PollAnswer
-	(*mtproto.TodoItem)(nil),                       // 52: mtproto.TodoItem
-	(*mtproto.TodoList)(nil),                       // 53: mtproto.TodoList
-	(*mtproto.InputQuickReplyShortcut)(nil),        // 54: mtproto.InputQuickReplyShortcut
-	(*mtproto.Messages_AffectedMessages)(nil),      // 55: mtproto.messages_AffectedMessages
-	(*mtproto.Updates)(nil),                        // 56: mtproto.Updates
-	(*mtproto.Messages_AffectedHistory)(nil),       // 57: mtproto.messages_AffectedHistory
-	(*mtproto.Messages_AffectedFoundMessages)(nil), // 58: mtproto.messages_AffectedFoundMessages
-	(*mtproto.Messages_Messages)(nil),              // 59: mtproto.messages_Messages
-	(*mtproto.Messages_QuickReplies)(nil),          // 60: mtproto.messages_QuickReplies
+	(*mtproto.MessageAction)(nil),                  // 48: mtproto.MessageAction
+	(*mtproto.MessageBox)(nil),                     // 49: mtproto.MessageBox
+	(*mtproto.Bool)(nil),                           // 50: mtproto.Bool
+	(*mtproto.Reaction)(nil),                       // 51: mtproto.Reaction
+	(*mtproto.PollAnswer)(nil),                     // 52: mtproto.PollAnswer
+	(*mtproto.TodoItem)(nil),                       // 53: mtproto.TodoItem
+	(*mtproto.TodoList)(nil),                       // 54: mtproto.TodoList
+	(*mtproto.InputQuickReplyShortcut)(nil),        // 55: mtproto.InputQuickReplyShortcut
+	(*mtproto.Messages_AffectedMessages)(nil),      // 56: mtproto.messages_AffectedMessages
+	(*mtproto.Updates)(nil),                        // 57: mtproto.Updates
+	(*mtproto.Messages_AffectedHistory)(nil),       // 58: mtproto.messages_AffectedHistory
+	(*mtproto.Messages_AffectedFoundMessages)(nil), // 59: mtproto.messages_AffectedFoundMessages
+	(*mtproto.Messages_Messages)(nil),              // 60: mtproto.messages_Messages
+	(*mtproto.Messages_QuickReplies)(nil),          // 61: mtproto.messages_QuickReplies
 }
 var file_msg_tl_proto_depIdxs = []int32{
 	0,   // 0: msg.ContentMessage.constructor:type_name -> msg.TLConstructor
@@ -4478,146 +4492,147 @@ var file_msg_tl_proto_depIdxs = []int32{
 	0,   // 2: msg.OutboxMessage.constructor:type_name -> msg.TLConstructor
 	46,  // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
 	47,  // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
-	3,   // 5: msg.TL_outboxMessage.data2:type_name -> msg.OutboxMessage
-	0,   // 6: msg.Sender.constructor:type_name -> msg.TLConstructor
-	5,   // 7: msg.TL_sender.data2:type_name -> msg.Sender
-	0,   // 8: msg.TL_msg_pushUserMessage.constructor:type_name -> msg.TLConstructor
-	3,   // 9: msg.TL_msg_pushUserMessage.message:type_name -> msg.OutboxMessage
-	0,   // 10: msg.TL_msg_readMessageContents.constructor:type_name -> msg.TLConstructor
-	1,   // 11: msg.TL_msg_readMessageContents.id:type_name -> msg.ContentMessage
-	0,   // 12: msg.TL_msg_sendMessageV2.constructor:type_name -> msg.TLConstructor
-	3,   // 13: msg.TL_msg_sendMessageV2.message:type_name -> msg.OutboxMessage
-	0,   // 14: msg.TL_msg_editMessageV2.constructor:type_name -> msg.TLConstructor
-	3,   // 15: msg.TL_msg_editMessageV2.new_message:type_name -> msg.OutboxMessage
-	48,  // 16: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
-	0,   // 17: msg.TL_msg_deleteMessages.constructor:type_name -> msg.TLConstructor
-	0,   // 18: msg.TL_msg_deleteHistory.constructor:type_name -> msg.TLConstructor
-	0,   // 19: msg.TL_msg_deletePhoneCallHistory.constructor:type_name -> msg.TLConstructor
-	0,   // 20: msg.TL_msg_deleteChatHistory.constructor:type_name -> msg.TLConstructor
-	0,   // 21: msg.TL_msg_readHistoryV2.constructor:type_name -> msg.TLConstructor
-	0,   // 22: msg.TL_msg_updatePinnedMessage.constructor:type_name -> msg.TLConstructor
-	0,   // 23: msg.TL_msg_unpinAllMessages.constructor:type_name -> msg.TLConstructor
-	0,   // 24: msg.TL_msg_readMentions.constructor:type_name -> msg.TLConstructor
-	0,   // 25: msg.TL_msg_deleteHistoryRange.constructor:type_name -> msg.TLConstructor
-	49,  // 26: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
-	0,   // 27: msg.TL_msg_editPeerFolders.constructor:type_name -> msg.TLConstructor
-	0,   // 28: msg.TL_msg_sendReaction.constructor:type_name -> msg.TLConstructor
-	49,  // 29: msg.TL_msg_sendReaction.big:type_name -> mtproto.Bool
-	49,  // 30: msg.TL_msg_sendReaction.add_to_recent:type_name -> mtproto.Bool
-	50,  // 31: msg.TL_msg_sendReaction.reaction:type_name -> mtproto.Reaction
-	0,   // 32: msg.TL_msg_deleteParticipantReactions.constructor:type_name -> msg.TLConstructor
-	0,   // 33: msg.TL_msg_readReactions.constructor:type_name -> msg.TLConstructor
-	0,   // 34: msg.TL_msg_updateSavedReactionTag.constructor:type_name -> msg.TLConstructor
-	50,  // 35: msg.TL_msg_updateSavedReactionTag.reaction:type_name -> mtproto.Reaction
-	0,   // 36: msg.TL_msg_migrateChat.constructor:type_name -> msg.TLConstructor
-	0,   // 37: msg.TL_msg_getScheduledHistory.constructor:type_name -> msg.TLConstructor
-	0,   // 38: msg.TL_msg_getScheduledMessages.constructor:type_name -> msg.TLConstructor
-	0,   // 39: msg.TL_msg_sendScheduledMessages.constructor:type_name -> msg.TLConstructor
-	0,   // 40: msg.TL_msg_deleteScheduledMessages.constructor:type_name -> msg.TLConstructor
-	0,   // 41: msg.TL_msg_hasScheduled.constructor:type_name -> msg.TLConstructor
-	0,   // 42: msg.TL_msg_sendVote.constructor:type_name -> msg.TLConstructor
-	0,   // 43: msg.TL_msg_closePoll.constructor:type_name -> msg.TLConstructor
-	0,   // 44: msg.TL_msg_addPollAnswer.constructor:type_name -> msg.TLConstructor
-	51,  // 45: msg.TL_msg_addPollAnswer.answer:type_name -> mtproto.PollAnswer
-	0,   // 46: msg.TL_msg_deletePollAnswer.constructor:type_name -> msg.TLConstructor
-	0,   // 47: msg.TL_msg_readPollVotes.constructor:type_name -> msg.TLConstructor
-	0,   // 48: msg.TL_msg_toggleTodoCompleted.constructor:type_name -> msg.TLConstructor
-	0,   // 49: msg.TL_msg_appendTodoList.constructor:type_name -> msg.TLConstructor
-	52,  // 50: msg.TL_msg_appendTodoList.list:type_name -> mtproto.TodoItem
-	0,   // 51: msg.TL_msg_editTodoList.constructor:type_name -> msg.TLConstructor
-	53,  // 52: msg.TL_msg_editTodoList.todo:type_name -> mtproto.TodoList
-	0,   // 53: msg.TL_msg_addQuickReplyMessages.constructor:type_name -> msg.TLConstructor
-	54,  // 54: msg.TL_msg_addQuickReplyMessages.shortcut:type_name -> mtproto.InputQuickReplyShortcut
-	3,   // 55: msg.TL_msg_addQuickReplyMessages.message:type_name -> msg.OutboxMessage
-	0,   // 56: msg.TL_msg_getQuickReplies.constructor:type_name -> msg.TLConstructor
-	0,   // 57: msg.TL_msg_getQuickReplyMessages.constructor:type_name -> msg.TLConstructor
-	0,   // 58: msg.TL_msg_checkQuickReplyShortcut.constructor:type_name -> msg.TLConstructor
-	0,   // 59: msg.TL_msg_editQuickReplyShortcut.constructor:type_name -> msg.TLConstructor
-	0,   // 60: msg.TL_msg_reorderQuickReplies.constructor:type_name -> msg.TLConstructor
-	0,   // 61: msg.TL_msg_deleteQuickReplyShortcut.constructor:type_name -> msg.TLConstructor
-	7,   // 62: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
-	8,   // 63: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
-	9,   // 64: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
-	10,  // 65: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
-	11,  // 66: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
-	12,  // 67: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
-	13,  // 68: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
-	14,  // 69: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
-	15,  // 70: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
-	16,  // 71: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
-	17,  // 72: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
-	18,  // 73: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
-	19,  // 74: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
-	20,  // 75: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
-	21,  // 76: msg.RPCMsg.msg_sendReaction:input_type -> msg.TL_msg_sendReaction
-	22,  // 77: msg.RPCMsg.msg_deleteParticipantReactions:input_type -> msg.TL_msg_deleteParticipantReactions
-	23,  // 78: msg.RPCMsg.msg_readReactions:input_type -> msg.TL_msg_readReactions
-	24,  // 79: msg.RPCMsg.msg_updateSavedReactionTag:input_type -> msg.TL_msg_updateSavedReactionTag
-	25,  // 80: msg.RPCMsg.msg_migrateChat:input_type -> msg.TL_msg_migrateChat
-	26,  // 81: msg.RPCMsg.msg_getScheduledHistory:input_type -> msg.TL_msg_getScheduledHistory
-	27,  // 82: msg.RPCMsg.msg_getScheduledMessages:input_type -> msg.TL_msg_getScheduledMessages
-	28,  // 83: msg.RPCMsg.msg_sendScheduledMessages:input_type -> msg.TL_msg_sendScheduledMessages
-	29,  // 84: msg.RPCMsg.msg_deleteScheduledMessages:input_type -> msg.TL_msg_deleteScheduledMessages
-	30,  // 85: msg.RPCMsg.msg_hasScheduled:input_type -> msg.TL_msg_hasScheduled
-	31,  // 86: msg.RPCMsg.msg_sendVote:input_type -> msg.TL_msg_sendVote
-	32,  // 87: msg.RPCMsg.msg_closePoll:input_type -> msg.TL_msg_closePoll
-	33,  // 88: msg.RPCMsg.msg_addPollAnswer:input_type -> msg.TL_msg_addPollAnswer
-	34,  // 89: msg.RPCMsg.msg_deletePollAnswer:input_type -> msg.TL_msg_deletePollAnswer
-	35,  // 90: msg.RPCMsg.msg_readPollVotes:input_type -> msg.TL_msg_readPollVotes
-	36,  // 91: msg.RPCMsg.msg_toggleTodoCompleted:input_type -> msg.TL_msg_toggleTodoCompleted
-	37,  // 92: msg.RPCMsg.msg_appendTodoList:input_type -> msg.TL_msg_appendTodoList
-	38,  // 93: msg.RPCMsg.msg_editTodoList:input_type -> msg.TL_msg_editTodoList
-	39,  // 94: msg.RPCMsg.msg_addQuickReplyMessages:input_type -> msg.TL_msg_addQuickReplyMessages
-	40,  // 95: msg.RPCMsg.msg_getQuickReplies:input_type -> msg.TL_msg_getQuickReplies
-	41,  // 96: msg.RPCMsg.msg_getQuickReplyMessages:input_type -> msg.TL_msg_getQuickReplyMessages
-	42,  // 97: msg.RPCMsg.msg_checkQuickReplyShortcut:input_type -> msg.TL_msg_checkQuickReplyShortcut
-	43,  // 98: msg.RPCMsg.msg_editQuickReplyShortcut:input_type -> msg.TL_msg_editQuickReplyShortcut
-	44,  // 99: msg.RPCMsg.msg_reorderQuickReplies:input_type -> msg.TL_msg_reorderQuickReplies
-	45,  // 100: msg.RPCMsg.msg_deleteQuickReplyShortcut:input_type -> msg.TL_msg_deleteQuickReplyShortcut
-	49,  // 101: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
-	55,  // 102: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
-	56,  // 103: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
-	56,  // 104: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
-	55,  // 105: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
-	57,  // 106: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
-	58,  // 107: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
-	49,  // 108: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
-	55,  // 109: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
-	56,  // 110: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
-	57,  // 111: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
-	57,  // 112: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
-	57,  // 113: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
-	56,  // 114: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
-	56,  // 115: msg.RPCMsg.msg_sendReaction:output_type -> mtproto.Updates
-	56,  // 116: msg.RPCMsg.msg_deleteParticipantReactions:output_type -> mtproto.Updates
-	57,  // 117: msg.RPCMsg.msg_readReactions:output_type -> mtproto.messages_AffectedHistory
-	49,  // 118: msg.RPCMsg.msg_updateSavedReactionTag:output_type -> mtproto.Bool
-	56,  // 119: msg.RPCMsg.msg_migrateChat:output_type -> mtproto.Updates
-	59,  // 120: msg.RPCMsg.msg_getScheduledHistory:output_type -> mtproto.messages_Messages
-	59,  // 121: msg.RPCMsg.msg_getScheduledMessages:output_type -> mtproto.messages_Messages
-	56,  // 122: msg.RPCMsg.msg_sendScheduledMessages:output_type -> mtproto.Updates
-	56,  // 123: msg.RPCMsg.msg_deleteScheduledMessages:output_type -> mtproto.Updates
-	49,  // 124: msg.RPCMsg.msg_hasScheduled:output_type -> mtproto.Bool
-	56,  // 125: msg.RPCMsg.msg_sendVote:output_type -> mtproto.Updates
-	56,  // 126: msg.RPCMsg.msg_closePoll:output_type -> mtproto.Updates
-	56,  // 127: msg.RPCMsg.msg_addPollAnswer:output_type -> mtproto.Updates
-	56,  // 128: msg.RPCMsg.msg_deletePollAnswer:output_type -> mtproto.Updates
-	57,  // 129: msg.RPCMsg.msg_readPollVotes:output_type -> mtproto.messages_AffectedHistory
-	56,  // 130: msg.RPCMsg.msg_toggleTodoCompleted:output_type -> mtproto.Updates
-	56,  // 131: msg.RPCMsg.msg_appendTodoList:output_type -> mtproto.Updates
-	56,  // 132: msg.RPCMsg.msg_editTodoList:output_type -> mtproto.Updates
-	56,  // 133: msg.RPCMsg.msg_addQuickReplyMessages:output_type -> mtproto.Updates
-	60,  // 134: msg.RPCMsg.msg_getQuickReplies:output_type -> mtproto.messages_QuickReplies
-	59,  // 135: msg.RPCMsg.msg_getQuickReplyMessages:output_type -> mtproto.messages_Messages
-	49,  // 136: msg.RPCMsg.msg_checkQuickReplyShortcut:output_type -> mtproto.Bool
-	49,  // 137: msg.RPCMsg.msg_editQuickReplyShortcut:output_type -> mtproto.Bool
-	49,  // 138: msg.RPCMsg.msg_reorderQuickReplies:output_type -> mtproto.Bool
-	49,  // 139: msg.RPCMsg.msg_deleteQuickReplyShortcut:output_type -> mtproto.Bool
-	101, // [101:140] is the sub-list for method output_type
-	62,  // [62:101] is the sub-list for method input_type
-	62,  // [62:62] is the sub-list for extension type_name
-	62,  // [62:62] is the sub-list for extension extendee
-	0,   // [0:62] is the sub-list for field type_name
+	48,  // 5: msg.OutboxMessage.incoming_action:type_name -> mtproto.MessageAction
+	3,   // 6: msg.TL_outboxMessage.data2:type_name -> msg.OutboxMessage
+	0,   // 7: msg.Sender.constructor:type_name -> msg.TLConstructor
+	5,   // 8: msg.TL_sender.data2:type_name -> msg.Sender
+	0,   // 9: msg.TL_msg_pushUserMessage.constructor:type_name -> msg.TLConstructor
+	3,   // 10: msg.TL_msg_pushUserMessage.message:type_name -> msg.OutboxMessage
+	0,   // 11: msg.TL_msg_readMessageContents.constructor:type_name -> msg.TLConstructor
+	1,   // 12: msg.TL_msg_readMessageContents.id:type_name -> msg.ContentMessage
+	0,   // 13: msg.TL_msg_sendMessageV2.constructor:type_name -> msg.TLConstructor
+	3,   // 14: msg.TL_msg_sendMessageV2.message:type_name -> msg.OutboxMessage
+	0,   // 15: msg.TL_msg_editMessageV2.constructor:type_name -> msg.TLConstructor
+	3,   // 16: msg.TL_msg_editMessageV2.new_message:type_name -> msg.OutboxMessage
+	49,  // 17: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
+	0,   // 18: msg.TL_msg_deleteMessages.constructor:type_name -> msg.TLConstructor
+	0,   // 19: msg.TL_msg_deleteHistory.constructor:type_name -> msg.TLConstructor
+	0,   // 20: msg.TL_msg_deletePhoneCallHistory.constructor:type_name -> msg.TLConstructor
+	0,   // 21: msg.TL_msg_deleteChatHistory.constructor:type_name -> msg.TLConstructor
+	0,   // 22: msg.TL_msg_readHistoryV2.constructor:type_name -> msg.TLConstructor
+	0,   // 23: msg.TL_msg_updatePinnedMessage.constructor:type_name -> msg.TLConstructor
+	0,   // 24: msg.TL_msg_unpinAllMessages.constructor:type_name -> msg.TLConstructor
+	0,   // 25: msg.TL_msg_readMentions.constructor:type_name -> msg.TLConstructor
+	0,   // 26: msg.TL_msg_deleteHistoryRange.constructor:type_name -> msg.TLConstructor
+	50,  // 27: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
+	0,   // 28: msg.TL_msg_editPeerFolders.constructor:type_name -> msg.TLConstructor
+	0,   // 29: msg.TL_msg_sendReaction.constructor:type_name -> msg.TLConstructor
+	50,  // 30: msg.TL_msg_sendReaction.big:type_name -> mtproto.Bool
+	50,  // 31: msg.TL_msg_sendReaction.add_to_recent:type_name -> mtproto.Bool
+	51,  // 32: msg.TL_msg_sendReaction.reaction:type_name -> mtproto.Reaction
+	0,   // 33: msg.TL_msg_deleteParticipantReactions.constructor:type_name -> msg.TLConstructor
+	0,   // 34: msg.TL_msg_readReactions.constructor:type_name -> msg.TLConstructor
+	0,   // 35: msg.TL_msg_updateSavedReactionTag.constructor:type_name -> msg.TLConstructor
+	51,  // 36: msg.TL_msg_updateSavedReactionTag.reaction:type_name -> mtproto.Reaction
+	0,   // 37: msg.TL_msg_migrateChat.constructor:type_name -> msg.TLConstructor
+	0,   // 38: msg.TL_msg_getScheduledHistory.constructor:type_name -> msg.TLConstructor
+	0,   // 39: msg.TL_msg_getScheduledMessages.constructor:type_name -> msg.TLConstructor
+	0,   // 40: msg.TL_msg_sendScheduledMessages.constructor:type_name -> msg.TLConstructor
+	0,   // 41: msg.TL_msg_deleteScheduledMessages.constructor:type_name -> msg.TLConstructor
+	0,   // 42: msg.TL_msg_hasScheduled.constructor:type_name -> msg.TLConstructor
+	0,   // 43: msg.TL_msg_sendVote.constructor:type_name -> msg.TLConstructor
+	0,   // 44: msg.TL_msg_closePoll.constructor:type_name -> msg.TLConstructor
+	0,   // 45: msg.TL_msg_addPollAnswer.constructor:type_name -> msg.TLConstructor
+	52,  // 46: msg.TL_msg_addPollAnswer.answer:type_name -> mtproto.PollAnswer
+	0,   // 47: msg.TL_msg_deletePollAnswer.constructor:type_name -> msg.TLConstructor
+	0,   // 48: msg.TL_msg_readPollVotes.constructor:type_name -> msg.TLConstructor
+	0,   // 49: msg.TL_msg_toggleTodoCompleted.constructor:type_name -> msg.TLConstructor
+	0,   // 50: msg.TL_msg_appendTodoList.constructor:type_name -> msg.TLConstructor
+	53,  // 51: msg.TL_msg_appendTodoList.list:type_name -> mtproto.TodoItem
+	0,   // 52: msg.TL_msg_editTodoList.constructor:type_name -> msg.TLConstructor
+	54,  // 53: msg.TL_msg_editTodoList.todo:type_name -> mtproto.TodoList
+	0,   // 54: msg.TL_msg_addQuickReplyMessages.constructor:type_name -> msg.TLConstructor
+	55,  // 55: msg.TL_msg_addQuickReplyMessages.shortcut:type_name -> mtproto.InputQuickReplyShortcut
+	3,   // 56: msg.TL_msg_addQuickReplyMessages.message:type_name -> msg.OutboxMessage
+	0,   // 57: msg.TL_msg_getQuickReplies.constructor:type_name -> msg.TLConstructor
+	0,   // 58: msg.TL_msg_getQuickReplyMessages.constructor:type_name -> msg.TLConstructor
+	0,   // 59: msg.TL_msg_checkQuickReplyShortcut.constructor:type_name -> msg.TLConstructor
+	0,   // 60: msg.TL_msg_editQuickReplyShortcut.constructor:type_name -> msg.TLConstructor
+	0,   // 61: msg.TL_msg_reorderQuickReplies.constructor:type_name -> msg.TLConstructor
+	0,   // 62: msg.TL_msg_deleteQuickReplyShortcut.constructor:type_name -> msg.TLConstructor
+	7,   // 63: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
+	8,   // 64: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
+	9,   // 65: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
+	10,  // 66: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
+	11,  // 67: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
+	12,  // 68: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
+	13,  // 69: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
+	14,  // 70: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
+	15,  // 71: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
+	16,  // 72: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
+	17,  // 73: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
+	18,  // 74: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
+	19,  // 75: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
+	20,  // 76: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
+	21,  // 77: msg.RPCMsg.msg_sendReaction:input_type -> msg.TL_msg_sendReaction
+	22,  // 78: msg.RPCMsg.msg_deleteParticipantReactions:input_type -> msg.TL_msg_deleteParticipantReactions
+	23,  // 79: msg.RPCMsg.msg_readReactions:input_type -> msg.TL_msg_readReactions
+	24,  // 80: msg.RPCMsg.msg_updateSavedReactionTag:input_type -> msg.TL_msg_updateSavedReactionTag
+	25,  // 81: msg.RPCMsg.msg_migrateChat:input_type -> msg.TL_msg_migrateChat
+	26,  // 82: msg.RPCMsg.msg_getScheduledHistory:input_type -> msg.TL_msg_getScheduledHistory
+	27,  // 83: msg.RPCMsg.msg_getScheduledMessages:input_type -> msg.TL_msg_getScheduledMessages
+	28,  // 84: msg.RPCMsg.msg_sendScheduledMessages:input_type -> msg.TL_msg_sendScheduledMessages
+	29,  // 85: msg.RPCMsg.msg_deleteScheduledMessages:input_type -> msg.TL_msg_deleteScheduledMessages
+	30,  // 86: msg.RPCMsg.msg_hasScheduled:input_type -> msg.TL_msg_hasScheduled
+	31,  // 87: msg.RPCMsg.msg_sendVote:input_type -> msg.TL_msg_sendVote
+	32,  // 88: msg.RPCMsg.msg_closePoll:input_type -> msg.TL_msg_closePoll
+	33,  // 89: msg.RPCMsg.msg_addPollAnswer:input_type -> msg.TL_msg_addPollAnswer
+	34,  // 90: msg.RPCMsg.msg_deletePollAnswer:input_type -> msg.TL_msg_deletePollAnswer
+	35,  // 91: msg.RPCMsg.msg_readPollVotes:input_type -> msg.TL_msg_readPollVotes
+	36,  // 92: msg.RPCMsg.msg_toggleTodoCompleted:input_type -> msg.TL_msg_toggleTodoCompleted
+	37,  // 93: msg.RPCMsg.msg_appendTodoList:input_type -> msg.TL_msg_appendTodoList
+	38,  // 94: msg.RPCMsg.msg_editTodoList:input_type -> msg.TL_msg_editTodoList
+	39,  // 95: msg.RPCMsg.msg_addQuickReplyMessages:input_type -> msg.TL_msg_addQuickReplyMessages
+	40,  // 96: msg.RPCMsg.msg_getQuickReplies:input_type -> msg.TL_msg_getQuickReplies
+	41,  // 97: msg.RPCMsg.msg_getQuickReplyMessages:input_type -> msg.TL_msg_getQuickReplyMessages
+	42,  // 98: msg.RPCMsg.msg_checkQuickReplyShortcut:input_type -> msg.TL_msg_checkQuickReplyShortcut
+	43,  // 99: msg.RPCMsg.msg_editQuickReplyShortcut:input_type -> msg.TL_msg_editQuickReplyShortcut
+	44,  // 100: msg.RPCMsg.msg_reorderQuickReplies:input_type -> msg.TL_msg_reorderQuickReplies
+	45,  // 101: msg.RPCMsg.msg_deleteQuickReplyShortcut:input_type -> msg.TL_msg_deleteQuickReplyShortcut
+	50,  // 102: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
+	56,  // 103: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
+	57,  // 104: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
+	57,  // 105: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
+	56,  // 106: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
+	58,  // 107: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
+	59,  // 108: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
+	50,  // 109: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
+	56,  // 110: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
+	57,  // 111: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
+	58,  // 112: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
+	58,  // 113: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
+	58,  // 114: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
+	57,  // 115: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
+	57,  // 116: msg.RPCMsg.msg_sendReaction:output_type -> mtproto.Updates
+	57,  // 117: msg.RPCMsg.msg_deleteParticipantReactions:output_type -> mtproto.Updates
+	58,  // 118: msg.RPCMsg.msg_readReactions:output_type -> mtproto.messages_AffectedHistory
+	50,  // 119: msg.RPCMsg.msg_updateSavedReactionTag:output_type -> mtproto.Bool
+	57,  // 120: msg.RPCMsg.msg_migrateChat:output_type -> mtproto.Updates
+	60,  // 121: msg.RPCMsg.msg_getScheduledHistory:output_type -> mtproto.messages_Messages
+	60,  // 122: msg.RPCMsg.msg_getScheduledMessages:output_type -> mtproto.messages_Messages
+	57,  // 123: msg.RPCMsg.msg_sendScheduledMessages:output_type -> mtproto.Updates
+	57,  // 124: msg.RPCMsg.msg_deleteScheduledMessages:output_type -> mtproto.Updates
+	50,  // 125: msg.RPCMsg.msg_hasScheduled:output_type -> mtproto.Bool
+	57,  // 126: msg.RPCMsg.msg_sendVote:output_type -> mtproto.Updates
+	57,  // 127: msg.RPCMsg.msg_closePoll:output_type -> mtproto.Updates
+	57,  // 128: msg.RPCMsg.msg_addPollAnswer:output_type -> mtproto.Updates
+	57,  // 129: msg.RPCMsg.msg_deletePollAnswer:output_type -> mtproto.Updates
+	58,  // 130: msg.RPCMsg.msg_readPollVotes:output_type -> mtproto.messages_AffectedHistory
+	57,  // 131: msg.RPCMsg.msg_toggleTodoCompleted:output_type -> mtproto.Updates
+	57,  // 132: msg.RPCMsg.msg_appendTodoList:output_type -> mtproto.Updates
+	57,  // 133: msg.RPCMsg.msg_editTodoList:output_type -> mtproto.Updates
+	57,  // 134: msg.RPCMsg.msg_addQuickReplyMessages:output_type -> mtproto.Updates
+	61,  // 135: msg.RPCMsg.msg_getQuickReplies:output_type -> mtproto.messages_QuickReplies
+	60,  // 136: msg.RPCMsg.msg_getQuickReplyMessages:output_type -> mtproto.messages_Messages
+	50,  // 137: msg.RPCMsg.msg_checkQuickReplyShortcut:output_type -> mtproto.Bool
+	50,  // 138: msg.RPCMsg.msg_editQuickReplyShortcut:output_type -> mtproto.Bool
+	50,  // 139: msg.RPCMsg.msg_reorderQuickReplies:output_type -> mtproto.Bool
+	50,  // 140: msg.RPCMsg.msg_deleteQuickReplyShortcut:output_type -> mtproto.Bool
+	102, // [102:141] is the sub-list for method output_type
+	63,  // [63:102] is the sub-list for method input_type
+	63,  // [63:63] is the sub-list for extension type_name
+	63,  // [63:63] is the sub-list for extension extendee
+	0,   // [0:63] is the sub-list for field type_name
 }
 
 func init() { file_msg_tl_proto_init() }

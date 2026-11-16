@@ -120,6 +120,11 @@ message OutboxMessage {
   int64 random_id = 5;
   mtproto.Message message = 6;
   google.protobuf.Int32Value schedule_date = 7;
+  // pluma: the action the recipient of a private chat gets in place of the
+  // sender's, for a service message whose two sides differ, such as
+  // messageActionWebViewDataSent and messageActionWebViewDataSentMe
+  // (task 106). gRPC only: the TL form of outboxMessage does not carry it.
+  mtproto.MessageAction incoming_action = 8;
 }
 
 message TL_outboxMessage {

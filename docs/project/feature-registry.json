@@ -2877,7 +2877,7 @@
   "used_by": "Android ui/bots/BotWebViewAttachedSheet.java:481; Desktop inline_bots/bot_attach_web_view.cpp:1860; iOS TelegramEngine/Messages/BotWebView.swift:349; Web lib/appManagers/appAttachMenuBotsManager.ts:276",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of mini apps (ADR 0043 next tasks)."
+  "why": "Task 106, part D2: one service message from the user to the bot, messageActionWebViewDataSent for the user and messageActionWebViewDataSentMe with the data for the bot (msg incoming_action); button_text must be a keyboardButtonSimpleWebView of the bot's latest 50 messages."
  },
  {
   "name": "messages.sendWebViewResultMessage",
@@ -2886,7 +2886,7 @@
   "used_by": "none found as a call (bot-side). Clients consume the result updateWebViewResultSent: Desktop api/api_updates.cpp, Web lib/appManagers/appAttachMenuBotsManager.ts",
   "decision": "implement",
   "priority": "normal",
-  "why": "Bot half of requestWebView (answerWebAppQuery). Bots are MTProto accounts here (ADR 0043), so without it a mini app can never finish with a message."
+  "why": "Task 106, part D2: the bot's answer of a web view (answerWebAppQuery) goes from the user via the bot to the chat of the query, through the inline result send shared with sendInlineBotResult; updateWebViewResultSent with seq to the user's sessions; once per query."
  },
  {
   "name": "messages.summarizeText",
