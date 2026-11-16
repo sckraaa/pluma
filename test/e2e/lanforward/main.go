@@ -17,9 +17,12 @@
 // network: it accepts TCP connections on an address of this machine (its
 // Wi-Fi address) and relays each to the gateway's loopback port, so a phone
 // on the same network can sign in with a development build for that address
-// (docs/ops/clients.md). It runs until interrupted. Standard library only.
+// (docs/ops/clients.md). Several pairs relay at once, the n-th -listen to
+// the n-th -to (the gateway and the CDN node). It runs until interrupted.
+// Standard library only.
 //
-//	lanforward -listen 192.168.0.10:10443 -to 127.0.0.1:10443
+//	lanforward -listen 192.168.0.10:10443 -to 127.0.0.1:10443 \
+//		-listen 192.168.0.10:8443 -to 127.0.0.1:23456
 package main
 
 import (
@@ -30,29 +33,57 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"slices"
+	"strings"
 	"sync"
 	"syscall"
 )
 
+// addrs is a flag given once per relay.
+type addrs []string
+
+func (a *addrs) String() string     { return strings.Join(*a, ",") }
+func (a *addrs) Set(v string) error { *a = append(*a, v); return nil }
+
 func main() {
-	listen := flag.String("listen", "", "address to accept connections on, e.g. 192.168.0.10:10443")
-	to := flag.String("to", "", "address to relay them to, e.g. 127.0.0.1:10443")
+	var listen, to addrs
+	flag.Var(&listen, "listen", "address to accept connections on, e.g. 192.168.0.10:10443; once per relay")
+	flag.Var(&to, "to", "address to relay them to, e.g. 127.0.0.1:10443; once per relay")
 	flag.Parse()
-	if *listen == "" || *to == "" {
+	if len(listen) == 0 || len(listen) != len(to) || slices.Contains(listen, "") || slices.Contains(to, "") {
 		flag.Usage()
 		os.Exit(2)
 	}
-	ln, err := net.Listen("tcp", *listen)
-	if err != nil {
-		log.Fatalf("lanforward: %v", err)
+	lns := make([]net.Listener, len(listen))
+	for i, addr := range listen {
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			log.Fatalf("lanforward: %v", err)
+		}
+		lns[i] = ln
 	}
 	go func() {
 		stop := make(chan os.Signal, 1)
 		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 		<-stop
-		ln.Close()
+		for _, ln := range lns {
+			ln.Close()
+		}
 	}()
-	log.Printf("lanforward: %s -> %s, Ctrl-C stops", *listen, *to)
+	var wg sync.WaitGroup
+	for i, ln := range lns {
+		log.Printf("lanforward: %s -> %s, Ctrl-C stops", listen[i], to[i])
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			serve(ln, to[i])
+		}()
+	}
+	wg.Wait()
+}
+
+// serve relays each connection ln accepts to to, until ln is closed.
+func serve(ln net.Listener, to string) {
 	for {
 		conn, err := ln.Accept()
 		if errors.Is(err, net.ErrClosed) {
@@ -62,7 +93,7 @@ func main() {
 			log.Printf("lanforward: %v", err)
 			continue
 		}
-		go relay(conn, *to)
+		go relay(conn, to)
 	}
 }
 

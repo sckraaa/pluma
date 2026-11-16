@@ -42,10 +42,11 @@
 #   E2E_DC1_ADDRESSES  DC 1 in dc_options (default 127.0.0.1 and the
 #                gateway's port), e.g. 10.0.2.2:10443 for an emulator or
 #                ADDR:10443 for `lan`: the clients follow it
-#   E2E_CDN_ADDRESS  ip:port of the CDN node in dc_options, where the node
-#                is published (default: its address on the network of the
-#                services, which only this machine reaches), e.g. ADDR:8443
-#                for a client on another device
+#   E2E_CDN_ADDRESS  ip:port of the CDN node in dc_options (default: its
+#                address on the network of the services, which only this
+#                machine reaches), e.g. ADDR:8443 for a client on another
+#                device: the node then has a fixed loopback port and `lan`
+#                relays ADDR:8443 to it, as it does for the gateway
 #
 # The secrets (passwords, the server RSA key) are generated for one run and
 # deleted by `down`; they are never written anywhere git tracks.
@@ -195,6 +196,14 @@ gen_secrets() {
 	while [[ $sfu_port == "$gateway_port" ]]; do
 		sfu_port=$(free_port) || return
 	done
+	# The CDN node's loopback port, fixed when `lan` relays to it.
+	local cdn_port=
+	if [[ -n ${E2E_CDN_ADDRESS:-} ]]; then
+		cdn_port=$(free_port) || return
+		while [[ $cdn_port == "$gateway_port" || $cdn_port == "$sfu_port" ]]; do
+			cdn_port=$(free_port) || return
+		done
+	fi
 	local fp keytool=(-out "$KEY_FILE")
 	if [[ -n ${E2E_SERVER_KEY:-} ]]; then
 		install -m 600 "$E2E_SERVER_KEY" "$KEY_FILE" || return
@@ -278,7 +287,10 @@ CDN_MONTHLY_EGRESS_LIMIT_GB=1000
 PLUMA_DC1_ADDRESSES=${E2E_DC1_ADDRESSES:-127.0.0.1:$gateway_port}
 EOF
 			if [[ -n ${E2E_CDN_ADDRESS:-} ]]; then
-				printf 'CDN_DC_ADDRESS=%s\nCDN_E2E_PUBLISH=%s:8443\n' "$E2E_CDN_ADDRESS" "$E2E_CDN_ADDRESS" >>"$ENV_FILE"
+				# The node stays on loopback, like the gateway: `lan`
+				# relays E2E_CDN_ADDRESS to it while it runs. Docker in a
+				# VM (colima) cannot publish on the host's own addresses.
+				printf 'CDN_DC_ADDRESS=%s\nCDN_E2E_PUBLISH=127.0.0.1:%s:8443\n' "$E2E_CDN_ADDRESS" "$cdn_port" >>"$ENV_FILE"
 			fi
 		elif [[ -n ${E2E_DC1_ADDRESSES:-} ]]; then
 			echo "PLUMA_DC1_ADDRESSES=$E2E_DC1_ADDRESSES" >>"$ENV_FILE"
@@ -299,7 +311,7 @@ env_value() {
 cdn_address() {
 	[[ $E2E_CDN == on ]] || return 0
 	compose up --detach --wait --wait-timeout 120 cdn || return
-	# An address given by E2E_CDN_ADDRESS is where the node is published.
+	# An address given by E2E_CDN_ADDRESS is relayed to the node by `lan`.
 	[[ -z $(env_value CDN_E2E_PUBLISH) ]] || return 0
 	local id ip addr
 	id=$(compose ps --quiet cdn) || return
@@ -597,7 +609,10 @@ lan)
 	# A phone on the same network as this machine: its development build
 	# dials ADDR:10443 (the dev_address input of the client's workflow,
 	# docs/ops/clients.md), and test/e2e/lanforward relays that to the
-	# gateway's loopback port. The stand is open to the network meanwhile.
+	# gateway's loopback port; with E2E_CDN_ADDRESS, it relays that address
+	# to the CDN node's loopback port too. The stand is open to the network
+	# meanwhile, and only then: bff finds the node unreachable at its
+	# address otherwise and serves files from home.
 	gateway=$(compose port gnetway 10443)
 	if [ -z "$gateway" ]; then
 		echo "run.sh: the stand is not running (test/e2e/run.sh up)" >&2
@@ -615,8 +630,12 @@ lan)
 		echo "run.sh: no address of this machine found; pass one: test/e2e/run.sh lan ADDR" >&2
 		exit 1
 	fi
+	relays=(-listen "$addr:10443" -to "$gateway")
+	if [[ $E2E_CDN == on && -n $(env_value CDN_E2E_PUBLISH) ]]; then
+		relays+=(-listen "$(env_value CDN_DC_ADDRESS)" -to "$(compose port cdn 8443)")
+	fi
 	echo "run.sh: a development build for $addr reaches the stand while this runs (dev_address=$addr)"
-	cd "$ROOT" && exec go run ./test/e2e/lanforward -listen "$addr:10443" -to "$gateway"
+	cd "$ROOT" && exec go run ./test/e2e/lanforward "${relays[@]}"
 	;;
 compose)
 	shift
