@@ -20,6 +20,7 @@ import (
 	bff_proxy_client "github.com/teamgram/teamgram-server/app/bff/bff/client"
 	"github.com/teamgram/teamgram-server/app/interface/session/internal/config"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	status_client "github.com/teamgram/teamgram-server/app/service/status/client"
 
 	"github.com/zeromicro/go-zero/zrpc"
@@ -29,6 +30,8 @@ type Dao struct {
 	cache *cache.LRUCache
 	authsession_client.AuthsessionClient
 	status_client.StatusClient
+	// UserClient reads whether the user of a key is a bot (RpcMetadata.IsBot).
+	UserClient user_client.UserClient
 	*bff_proxy_client.BFFProxyClient
 	gateMu           sync.RWMutex
 	eGateServers     map[string]*Gateway
@@ -45,6 +48,7 @@ func New(c config.Config) *Dao {
 		AuthsessionClient:  authsession_client.NewAuthsessionClient(zrpc.MustNewClient(c.AuthSession)),
 		BFFProxyClient:     bff_proxy_client.NewBFFProxyClients(c.BFFProxyClients.Clients, c.BFFProxyClients.IDMap),
 		StatusClient:       status_client.NewStatusClient(zrpc.MustNewClient(c.StatusClient)),
+		UserClient:         user_client.NewUserClient(zrpc.MustNewClient(c.BizServiceClient)),
 		eGateServers:       make(map[string]*Gateway),
 		MyServerId:         myServerId,
 		UseStreamGateway:   c.UseStreamGateway,

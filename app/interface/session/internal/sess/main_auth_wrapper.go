@@ -21,6 +21,7 @@ import (
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/interface/session/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/status/status"
 
 	"github.com/zeromicro/go-zero/core/contextx"
@@ -127,6 +128,12 @@ type MainAuthWrapper struct {
 	// (checkRpcWithUnboundTempKey). Once the binding is verified, the gateway
 	// routes the key's traffic to the permanent key's wrapper.
 	unboundTempKey bool
+
+	// botMu guards botUserId and isBot: whether botUserId, the last user the
+	// key was bound to, is a bot (userIsBot).
+	botMu     sync.Mutex
+	botUserId int64
+	isBot     bool
 }
 
 func NewMainAuthWrapper(mainAuthKeyId int64, authUserId int64, state int, client *authsession.ClientSession, androidPushId int64, cb *MainAuthWrapperManager) *MainAuthWrapper {
@@ -739,22 +746,18 @@ func (m *MainAuthWrapper) rpcRunLoop() {
 		} else {
 			threading.RunSafe(func() {
 				for _, request := range apiRequest.([]*rpcApiMessage) {
-					md := &metadata.RpcMetadata{
-						ServerId:      m.cb.Dao.MyServerId,
-						ClientAddr:    request.clientIp,
-						AuthId:        request.sessList.authId,
-						SessionId:     request.sessionId,
-						ReceiveTime:   time.Now().Unix(),
-						UserId:        m.AuthUserId,
-						ClientMsgId:   request.reqMsgId,
-						Layer:         m.Layer(),
-						Client:        m.ClientName(),
-						Langpack:      m.LangPack(),
-						PermAuthKeyId: m.permAuthKeyId(),
-						LangCode:      m.LangCode(),
-						Takeout:       request.takeout,
-
-						BusinessConnectionId: request.businessConnectionId,
+					md, err := m.rpcMetadata(request)
+					if err != nil {
+						// Not knowing whether the key is a bot's, the
+						// request is not run as either: the client
+						// repeats it.
+						logx.WithContext(request.ctx).Errorf("rpcRunLoop - auth key %d: %v", m.authKeyId, err)
+						request.rpcResult = &mtproto.TLRpcResult{
+							ReqMsgId: request.reqMsgId,
+							Result:   mtproto.NewRpcError(mtproto.ErrInternalServerError),
+						}
+						m.rpcDataChan <- request
+						continue
 					}
 					if runsAside(request.reqMsg) {
 						m.startAside(request, md)
@@ -766,6 +769,69 @@ func (m *MainAuthWrapper) rpcRunLoop() {
 			})
 		}
 	}
+}
+
+// rpcMetadata is the metadata request goes to the services with: the key,
+// its user and client, and whether that user is a bot (userIsBot).
+func (m *MainAuthWrapper) rpcMetadata(request *rpcApiMessage) (*metadata.RpcMetadata, error) {
+	userId := m.AuthUserId
+	isBot, err := m.userIsBot(request.ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+	return &metadata.RpcMetadata{
+		ServerId:      m.cb.Dao.MyServerId,
+		ClientAddr:    request.clientIp,
+		AuthId:        request.sessList.authId,
+		SessionId:     request.sessionId,
+		ReceiveTime:   time.Now().Unix(),
+		UserId:        userId,
+		IsBot:         isBot,
+		ClientMsgId:   request.reqMsgId,
+		Layer:         m.Layer(),
+		Client:        m.ClientName(),
+		Langpack:      m.LangPack(),
+		PermAuthKeyId: m.permAuthKeyId(),
+		LangCode:      m.LangCode(),
+		Takeout:       request.takeout,
+
+		BusinessConnectionId: request.businessConnectionId,
+	}, nil
+}
+
+// userIsBot tells whether userId, the user the key is bound to (0: none),
+// is a bot. bff answers a bot BOT_METHOD_INVALID for the methods only users
+// may call and runs the branches of bots by it (RpcMetadata.IsBot). A user
+// never turns into a bot or back, so biz is asked once for each user the
+// key is bound to, at its first request after a login or after a restart
+// of the session, and the answer is kept; a key that logs out and in as
+// another user is asked about that user. A failed read is not kept and is
+// the request's error: a bot must not pass for a user, nor a user for a
+// bot. USER_ID_INVALID is such a failure too: biz answers it for any
+// failed load of the user (Dao.GetImmutableUser), and users are never
+// removed, so a bound key's user always exists.
+func (m *MainAuthWrapper) userIsBot(ctx context.Context, userId int64) (bool, error) {
+	if userId == 0 {
+		return false, nil
+	}
+	m.botMu.Lock()
+	if m.botUserId == userId {
+		isBot := m.isBot
+		m.botMu.Unlock()
+		return isBot, nil
+	}
+	m.botMu.Unlock()
+
+	u, err := m.cb.Dao.UserClient.UserGetImmutableUser(ctx, &userpb.TLUserGetImmutableUser{Id: userId})
+	if err != nil {
+		return false, fmt.Errorf("whether user %d is a bot: %w", userId, err)
+	}
+	isBot := u.IsBot()
+
+	m.botMu.Lock()
+	m.botUserId, m.isBot = userId, isBot
+	m.botMu.Unlock()
+	return isBot, nil
 }
 
 // runsAside tells the requests that may take seconds for a reason outside

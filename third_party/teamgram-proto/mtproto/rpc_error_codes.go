@@ -2165,6 +2165,12 @@ var (
 	// | 400 | REPLY_MESSAGES_TOO_MUCH | Too many messages in a quick reply shortcut. |
 	ErrReplyMessagesTooMuch = status.Error(ErrBadRequest, "REPLY_MESSAGES_TOO_MUCH")
 
+	// ErrQuickRepliesBotNotAllowed
+	// | 400 | QUICK_REPLIES_BOT_NOT_ALLOWED | Quick replies cannot be used by bots. |
+	// pluma: on core.telegram.org/method/messages.sendMessage and
+	// messages.sendMedia (task 108).
+	ErrQuickRepliesBotNotAllowed = status.Error(ErrBadRequest, "QUICK_REPLIES_BOT_NOT_ALLOWED")
+
 	// ErrShortcutInvalid
 	// | 400 | SHORTCUT_INVALID | The specified shortcut is invalid. |
 	ErrShortcutInvalid = status.Error(ErrBadRequest, "SHORTCUT_INVALID")

@@ -26,7 +26,15 @@ import (
 
 // MessagesGetPeerSettings
 // messages.getPeerSettings#efd9a6a2 peer:InputPeer = messages.PeerSettings;
+//
+// Only users ask it (core.telegram.org/method/messages.getPeerSettings:
+// "Only users can use this method"); a bot gets BOT_METHOD_INVALID.
 func (c *DialogsCore) MessagesGetPeerSettings(in *mtproto.TLMessagesGetPeerSettings) (*mtproto.Messages_PeerSettings, error) {
+	if c.MD.IsBot {
+		err := mtproto.ErrBotMethodInvalid
+		c.Logger.Errorf("messages.getPeerSettings - error: %v", err)
+		return nil, err
+	}
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 
 	peerSettings, err := c.svcCtx.UserClient.UserGetPeerSettings(c.ctx, &userpb.TLUserGetPeerSettings{
@@ -72,7 +80,7 @@ func (c *DialogsCore) MessagesGetPeerSettings(in *mtproto.TLMessagesGetPeerSetti
 	// when it opens the chat (history/view/history_view_contact_status.cpp,
 	// BusinessBotStatus::setupState); the bot is in users, so that the
 	// client knows the user the bar shows.
-	if peer.PeerType == mtproto.PEER_USER && !c.MD.IsBot {
+	if peer.PeerType == mtproto.PEER_USER {
 		bar, err := c.svcCtx.Business.PeerBar(c.ctx, c.svcCtx.UserClient, env2.TDotMe, c.MD.UserId, peer.PeerId)
 		if err != nil {
 			c.Logger.Errorf("messages.getPeerSettings - the connected bot: %v", err)

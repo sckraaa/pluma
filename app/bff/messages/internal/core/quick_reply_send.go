@@ -30,7 +30,9 @@ import (
 // service msg keeps them (msg.addQuickReplyMessages).
 
 // checkQuickReplySend checks a send to a shortcut before anything is made
-// of it: a bot has no shortcuts; the peer must be the account itself
+// of it: a bot has no shortcuts (QUICK_REPLIES_BOT_NOT_ALLOWED, "Quick
+// replies cannot be used by bots", core.telegram.org/method/
+// messages.sendMessage and messages.sendMedia); the peer must be the account itself
 // (PEER_ID_INVALID otherwise); a shortcut has no time to go out at
 // (SCHEDULE_DATE_INVALID; Telegram names no error for both together, not
 // verified). A send without a shortcut passes.
@@ -39,7 +41,7 @@ func (c *MessagesCore) checkQuickReplySend(peer *mtproto.PeerUtil, shortcut *mtp
 	case shortcut == nil:
 		return nil
 	case c.MD.IsBot:
-		return mtproto.ErrBotMethodInvalid
+		return mtproto.ErrQuickRepliesBotNotAllowed
 	case !peer.IsSelfUser(c.MD.UserId):
 		return mtproto.ErrPeerIdInvalid
 	case scheduleDate != nil:

@@ -17,6 +17,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
@@ -102,5 +103,17 @@ func TestHidePeerSettingsBar(t *testing.T) {
 	}
 	if len(users.hidden) != 1 {
 		t.Errorf("%d requests to biz", len(users.hidden))
+	}
+}
+
+// Only users ask for the bar of a chat (core.telegram.org/method/
+// messages.getPeerSettings): a bot gets BOT_METHOD_INVALID before anything
+// is read.
+func TestGetPeerSettingsBotInvalid(t *testing.T) {
+	ctx := context.Background()
+	c := &DialogsCore{ctx: ctx, svcCtx: &svc.ServiceContext{Dao: &dao.Dao{}}, Logger: logx.WithContext(ctx), MD: &metadata.RpcMetadata{UserId: 7, IsBot: true}}
+	peer := mtproto.MakeTLInputPeerUser(&mtproto.InputPeer{UserId: 8, AccessHash: 1}).To_InputPeer()
+	if _, err := c.MessagesGetPeerSettings(&mtproto.TLMessagesGetPeerSettings{Peer: peer}); !errors.Is(err, mtproto.ErrBotMethodInvalid) {
+		t.Fatalf("messages.getPeerSettings of a bot: %v", err)
 	}
 }

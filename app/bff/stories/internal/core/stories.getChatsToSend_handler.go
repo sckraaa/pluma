@@ -25,32 +25,34 @@ import (
 //
 // The channels and supergroups the caller may post stories to: the ones it
 // created or is an admin of with post_stories (Android offers them as the
-// author of a new story, StoriesController.java:4725-4745).
+// author of a new story, StoriesController.java:4725-4745). Only users
+// ask it (core.telegram.org/method/stories.getChatsToSend: "Only users can
+// use this method"); a bot gets BOT_METHOD_INVALID.
 func (c *StoriesCore) StoriesGetChatsToSend(in *mtproto.TLStoriesGetChatsToSend) (*mtproto.Messages_Chats, error) {
-	chats := []*mtproto.Chat{}
-	if !c.MD.IsBot {
-		ids, err := stories.PostingChannels(c.ctx, c.svcCtx.Dao.DB, c.MD.UserId)
-		if err != nil {
-			c.Logger.Errorf("stories.getChatsToSend - error: %v", err)
-			return nil, err
+	if c.MD.IsBot {
+		return nil, mtproto.ErrBotMethodInvalid
+	}
+	ids, err := stories.PostingChannels(c.ctx, c.svcCtx.Dao.DB, c.MD.UserId)
+	if err != nil {
+		c.Logger.Errorf("stories.getChatsToSend - error: %v", err)
+		return nil, err
+	}
+	r := &refs{}
+	r.channel(ids...)
+	_, chats, err := c.resolve(r)
+	if err != nil {
+		c.Logger.Errorf("stories.getChatsToSend - error: %v", err)
+		return nil, err
+	}
+	// A channel the owner of the server blocked comes as restricted or
+	// forbidden: nothing is posted there.
+	kept := []*mtproto.Chat{}
+	for _, chat := range chats {
+		if chat.GetPredicateName() == mtproto.Predicate_channel && !chat.GetRestricted() {
+			kept = append(kept, chat)
 		}
-		r := &refs{}
-		r.channel(ids...)
-		if _, chats, err = c.resolve(r); err != nil {
-			c.Logger.Errorf("stories.getChatsToSend - error: %v", err)
-			return nil, err
-		}
-		// A channel the owner of the server blocked comes as restricted
-		// or forbidden: nothing is posted there.
-		kept := chats[:0]
-		for _, chat := range chats {
-			if chat.GetPredicateName() == mtproto.Predicate_channel && !chat.GetRestricted() {
-				kept = append(kept, chat)
-			}
-		}
-		chats = kept
 	}
 	return mtproto.MakeTLMessagesChats(&mtproto.Messages_Chats{
-		Chats: chats,
+		Chats: kept,
 	}).To_Messages_Chats(), nil
 }

@@ -32,6 +32,11 @@ import (
 // objects the client has without it. A peer without a story the caller
 // may open, or one it may not see, answers recentStory without an id.
 func (c *StoriesCore) StoriesGetPeerMaxIDs78499170(in *mtproto.TLStoriesGetPeerMaxIDs78499170) (*mtproto.Vector_RecentStory, error) {
+	// "Only users can use this method" (core.telegram.org/method/
+	// stories.getPeerMaxIDs).
+	if c.MD.IsBot {
+		return nil, mtproto.ErrBotMethodInvalid
+	}
 	ids, err := c.peerMaxIds(in.Id)
 	if err != nil {
 		c.Logger.Errorf("stories.getPeerMaxIDs - error: %v", err)

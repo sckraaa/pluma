@@ -89,7 +89,13 @@ func (c *BotsCore) inlinePeerType(botId int64, peer *mtproto.PeerUtil) (*mtproto
 
 // MessagesGetInlineBotResults
 // messages.getInlineBotResults#514e999d flags:# bot:InputUser peer:InputPeer geo_point:flags.0?InputGeoPoint query:string offset:string = messages.BotResults;
+//
+// Only users ask a bot (core.telegram.org/method/messages.getInlineBotResults:
+// "Only users can use this method"); a bot gets BOT_METHOD_INVALID.
 func (c *BotsCore) MessagesGetInlineBotResults(in *mtproto.TLMessagesGetInlineBotResults) (*mtproto.Messages_BotResults, error) {
+	if c.MD.IsBot {
+		return nil, mtproto.ErrBotMethodInvalid
+	}
 	target := mtproto.FromInputUser(c.MD.UserId, in.Bot)
 	if !target.IsUser() {
 		return nil, mtproto.ErrBotInvalid
@@ -507,7 +513,13 @@ func outOfResult(r *mtproto.BotInlineResult, game *mtproto.Game) (*mtproto.Messa
 
 // MessagesSendInlineBotResult
 // messages.sendInlineBotResult#c0cf7646 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true hide_via:flags.11?true peer:InputPeer reply_to:flags.0?InputReplyTo random_id:long query_id:long id:string schedule_date:flags.10?int send_as:flags.13?InputPeer quick_reply_shortcut:flags.17?InputQuickReplyShortcut allow_paid_stars:flags.21?long = Updates;
+//
+// Only users send a result (core.telegram.org/method/messages.sendInlineBotResult:
+// "Only users can use this method"); a bot gets BOT_METHOD_INVALID.
 func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineBotResult) (*mtproto.Updates, error) {
+	if c.MD.IsBot {
+		return nil, mtproto.ErrBotMethodInvalid
+	}
 	peer := c.chatPeer(in.Peer)
 	if !peer.IsUser() && !peer.IsChat() && !peer.IsChannel() {
 		return nil, mtproto.ErrPeerIdInvalid
@@ -630,8 +642,6 @@ type inlineSend struct {
 func (c *BotsCore) sendInlineResult(s *inlineSend) (*mtproto.Message, *mtproto.Updates, error) {
 	if s.shortcut != nil {
 		switch {
-		case c.MD.IsBot:
-			return nil, nil, mtproto.ErrBotMethodInvalid
 		case !s.peer.IsSelfUser(s.userId):
 			return nil, nil, mtproto.ErrPeerIdInvalid
 		case s.scheduleDate != nil:
@@ -761,9 +771,6 @@ func sentSticker(media *mtproto.MessageMedia) int64 {
 // keeps the sticker only if the server adds it too. The message is sent
 // by then: a failure is logged, the sticker is only missing from the list.
 func (c *BotsCore) addRecentSticker(media *mtproto.MessageMedia) {
-	if c.MD.IsBot {
-		return
-	}
 	if id := sentSticker(media); id != 0 {
 		if err := c.svcCtx.StickerLists.Add(c.ctx, c.MD.UserId, stickerlists.Recent, id); err != nil {
 			c.Logger.Errorf("recent stickers - sticker %d: %v", id, err)
