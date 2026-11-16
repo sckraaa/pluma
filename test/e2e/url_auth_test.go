@@ -124,9 +124,15 @@ func TestUrlAuthButton(t *testing.T) {
 		if m.GetMessage() != "log in" {
 			return false
 		}
-		b := m.GetReplyMarkup().GetRows()[0].GetButtons()[0]
-		if b.GetPredicateName() != mtproto.Predicate_keyboardButtonUrlAuth || b.GetUserId_INT64() != 0 || b.GetRequestWriteAccess() {
-			t.Fatalf("the button as the user gets it: %v", b)
+		// Alice is of the default layer, where a button of an inline
+		// keyboard has a type (layer 229, pkg/layercompat).
+		rows := m.GetReplyMarkup().GetRows_VECTORKEYBOARDINLINEBUTTONROW()
+		if len(rows) != 1 || len(rows[0].GetButtons()) != 1 {
+			t.Fatalf("the keyboard as the user gets it: %v", m.GetReplyMarkup())
+		}
+		b := rows[0].GetButtons()[0].GetType()
+		if b.GetPredicateName() != mtproto.Predicate_inlineButtonTypeUrlAuth {
+			t.Fatalf("the button as the user gets it: %v", rows[0].GetButtons()[0])
 		}
 		msgId, buttonId, link = m.GetId(), b.GetButtonId(), b.GetUrl()
 		return true
