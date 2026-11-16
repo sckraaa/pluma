@@ -20,7 +20,9 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/staticmap"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
+	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -33,4 +35,11 @@ type Config struct {
 	// WebFile is upload.getWebFile (ADR 0062, p. 5): the key of the
 	// addresses it proxies and the cache of the files it fetched.
 	WebFile webfile.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// KV keeps the maps rendered and the counts of the limit per user
+	// (pkg/staticmap); the Redis of bff.
+	KV kv.KvConf `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Maps renders the maps of inputWebFileGeoPointLocation (task 100, ADR
+	// 0063, docs/ops/maps.md); off without a URL, and such a map is
+	// LOCATION_INVALID. Maps need KV.
+	Maps staticmap.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

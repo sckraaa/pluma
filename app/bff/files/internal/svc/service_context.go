@@ -19,13 +19,18 @@
 package svc
 
 import (
+	"errors"
+
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/files/plugin"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
+	"github.com/teamgram/teamgram-server/pkg/staticmap"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/stores/kv"
 )
 
 type ServiceContext struct {
@@ -36,14 +41,22 @@ type ServiceContext struct {
 	// Attached keeps the stickers put on uploaded photos and videos (task
 	// 084); nil: none are kept.
 	Attached *attached.Store
-	// WebFiles serves upload.getWebFile (ADR 0062, p. 5); the maps of task
-	// 100 register their source on it.
+	// WebFiles serves upload.getWebFile (ADR 0062, p. 5), the maps among
+	// them when Maps is set.
 	WebFiles *webfile.Server
+	// Maps renders the maps of inputWebFileGeoPointLocation (task 100, ADR
+	// 0063); nil: maps are off, and such a location is LOCATION_INVALID.
+	Maps *staticmap.Service
 }
 
 func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2 plugin.StreamFilesPlugin) *ServiceContext {
 	webFiles, err := webfile.New(c.WebFile)
 	logx.Must(err)
+	maps, err := newMaps(c)
+	logx.Must(err)
+	if maps != nil {
+		webFiles.Register(mtproto.Predicate_inputWebFileGeoPointLocation, NewGeoSource(maps))
+	}
 	return &ServiceContext{
 		Config:   c,
 		Dao:      dao.New(c),
@@ -51,5 +64,18 @@ func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2
 		Plugin2:  plugin2,
 		Attached: attached.NewStore(sqlx.NewMySQL(&c.Mysql)),
 		WebFiles: webFiles,
+		Maps:     maps,
 	}
+}
+
+// newMaps returns the map service of c, nil when maps are off. A wrong
+// Maps block stops the start instead of leaving the maps silently off.
+func newMaps(c config.Config) (*staticmap.Service, error) {
+	if !c.Maps.Enabled() {
+		return nil, nil
+	}
+	if len(c.KV) == 0 {
+		return nil, errors.New("files: Maps needs KV, the Redis the maps are kept in")
+	}
+	return staticmap.New(c.Maps, kv.NewStore(c.KV))
 }

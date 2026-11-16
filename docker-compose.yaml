@@ -98,6 +98,13 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       # bff.yaml names the key of the web file proxy (task 099); empty: off.
       WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
+      # bff.yaml names the maps service (task 100); empty: off.
+      MAPS_URL: ${MAPS_URL:-}
+      MAPS_STYLES: ${MAPS_STYLES:-}
+      MAPS_TIMEOUT: ${MAPS_TIMEOUT:-}
+      MAPS_CONCURRENCY: ${MAPS_CONCURRENCY:-}
+      MAPS_CACHE_TTL: ${MAPS_CACHE_TTL:-}
+      MAPS_PER_USER_PER_MINUTE: ${MAPS_PER_USER_PER_MINUTE:-}
       # bff.yaml names the keys of the bot platform (task 106); empty: the
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
@@ -332,6 +339,15 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       # bff.yaml names the key of the web file proxy (task 099); empty: off.
       WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
+      # The maps service of the map previews of geo points (task 100,
+      # docs/ops/maps.md), http://maps:8080 with docker-compose.maps.yaml;
+      # no URL: maps are off. The rest take their defaults when empty.
+      MAPS_URL: ${MAPS_URL:-}
+      MAPS_STYLES: ${MAPS_STYLES:-}
+      MAPS_TIMEOUT: ${MAPS_TIMEOUT:-}
+      MAPS_CONCURRENCY: ${MAPS_CONCURRENCY:-}
+      MAPS_CACHE_TTL: ${MAPS_CACHE_TTL:-}
+      MAPS_PER_USER_PER_MINUTE: ${MAPS_PER_USER_PER_MINUTE:-}
       # bff.yaml names the keys of the bot platform (task 106); empty: the
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}

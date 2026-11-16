@@ -29,8 +29,11 @@ import (
 // upload.getWebFile (task 099, ADR 0062, p. 5): clients send it to
 // webfile_dc_id, the server's own DC, and get the errors of the method's
 // documentation instead of the enterprise stub: an address the server did
-// not sign and a map without a source are LOCATION_INVALID, an album cover
-// WEBFILE_NOT_AVAILABLE, a part over 1 MiB LIMIT_INVALID.
+// not sign and a map of no size are LOCATION_INVALID (the latter whether
+// the stand runs the maps or not: staticmap.Normalize refuses it before
+// any render, and without the maps no source serves maps), an album cover
+// WEBFILE_NOT_AVAILABLE, a part over 1 MiB LIMIT_INVALID. The maps
+// themselves are the TestWebMap tests of task 100.
 func TestWebFileLocations(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -76,10 +79,10 @@ func TestWebFileLocations(t *testing.T) {
 			Lat:         52.52,
 			Long:        13.40,
 		},
-		AccessHash: 0, W: 200, H: 100, Zoom: 15, Scale: 2,
+		AccessHash: 0, W: 0, H: 100, Zoom: 15, Scale: 2,
 	}
 	if err := webFile(geo, 128<<10); !mtclient.IsRPCError(err, "LOCATION_INVALID") {
-		t.Errorf("a map: %v", err)
+		t.Errorf("a map of width 0: %v", err)
 	}
 	album := &mtproto.InputWebFileLocation{
 		Constructor: alice.c.Constructor(mtproto.Predicate_inputWebFileAudioAlbumThumbLocation),
