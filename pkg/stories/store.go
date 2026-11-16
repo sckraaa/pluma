@@ -199,7 +199,8 @@ func count(ctx context.Context, db *sqlx.DB, query string, args ...any) (int32, 
 // Create stores the new story st of st.Peer posted by st.SenderId at
 // st.Date, under the next id of the peer, at the end of those of the albums
 // st.Albums that exist and have room (the others are passed over, ADR 0069,
-// p. 6); stored.Albums are the albums it is in. A repeat of the request (the
+// p. 6); stored.Albums are the albums it is in. Its tags and places go to
+// the search index in the same transaction (indexTx). A repeat of the request (the
 // same random_id of the same sender) returns the story stored the first
 // time, with created false. ErrTooMany and *FloodError are the limits of the
 // peer, counted in the same transaction as the new id, so two requests at
@@ -261,6 +262,9 @@ func (s *Store) Create(ctx context.Context, st *Story) (stored *Story, created b
 		}
 		copied := *st
 		copied.Id, copied.PinnedToTop, copied.Edited, copied.ForwardsCount, copied.Albums = id, 0, false, 0, albums[id]
+		if err := indexTx(tx, &copied); err != nil {
+			return err
+		}
 		stored, created = &copied, true
 		return nil
 	})
@@ -421,8 +425,9 @@ func (s *Store) Archive(ctx context.Context, peer Peer, offsetId, limit int32) (
 
 // Update applies edit to the story id of peer as it is stored under the
 // lock of the peer, and stores what an edit may change: its media, areas,
-// caption with entities, privacy and music. The story becomes edited, and
-// its peer is marked changed (Dirty). Two edits at once each change only
+// caption with entities, privacy and music, with its tags and places in the
+// search index (indexTx). The story becomes edited, and its peer is marked
+// changed (Dirty). Two edits at once each change only
 // what they set: the second applies its own to the story the first left.
 // It returns the story before and after the edit, with its albums, both
 // nil when it is gone.
@@ -458,6 +463,9 @@ func (s *Store) Update(ctx context.Context, peer Peer, id int32, at int32, edit 
 			return err
 		}
 		st.Edited = true
+		if err := indexTx(tx, st); err != nil {
+			return err
+		}
 		albums, err := albumsOfTx(tx.QueryRowsPartial, peer, []int32{id})
 		if err != nil {
 			return err
