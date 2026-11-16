@@ -33,6 +33,13 @@ func TestInvokeTimeout(t *testing.T) {
 			t.Errorf("%T: %v, not longer than the wait of a translation %v", o, d, translate.MaxSyncWait)
 		}
 	}
+	// The requests that wait for a bot or another host: past the 15 s a
+	// widget waits for its bot and the 30 s of a web file.
+	for _, o := range []mtproto.TLObject{&mtproto.TLMessagesGetBotCallbackAnswer{}, &mtproto.TLMessagesGetInlineBotResults{}, &mtproto.TLMessagesGetBotWidgetQueryAnswer{}, &mtproto.TLUploadGetWebFile{}} {
+		if d := invokeTimeout(o); d <= 30*time.Second {
+			t.Errorf("%T: %v", o, d)
+		}
+	}
 	if d := invokeTimeout(&mtproto.TLMessagesSendMedia{}); d != time.Minute {
 		t.Errorf("messages.sendMedia: %v", d)
 	}

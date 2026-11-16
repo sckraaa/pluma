@@ -174,6 +174,15 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 // without end (ADR 0064). It is the BFF Timeout of session.yaml.
 const translateTimeout = 150 * time.Second
 
+// outsideTimeout is the deadline of the requests that wait for something
+// outside the server, which the session runs aside (runsAside): bff waits
+// for a bot's answer 10 s (bots dao.AnswerWait), a widget's 15 s
+// (WidgetAnswerWait), the search of a built-in inline bot 7 s, and fills a
+// web file in at most 30 s (pkg/webfile fillTimeout); each then answers
+// what the clients expect (BOT_RESPONSE_TIMEOUT, an empty page), which a
+// deadline before it would turn into a 500.
+const outsideTimeout = 40 * time.Second
+
 // invokeTimeout is how long a request waits for bff.
 func invokeTimeout(object mtproto.TLObject) time.Duration {
 	// Fixed @LionPuChiPuChi, 2018-12-19
@@ -192,6 +201,11 @@ func invokeTimeout(object mtproto.TLObject) time.Duration {
 	case *mtproto.TLMessagesTranslateText,
 		*mtproto.TLMessagesComposeMessageWithAI:
 		return translateTimeout
+	case *mtproto.TLMessagesGetBotCallbackAnswer,
+		*mtproto.TLMessagesGetInlineBotResults,
+		*mtproto.TLMessagesGetBotWidgetQueryAnswer,
+		*mtproto.TLUploadGetWebFile:
+		return outsideTimeout
 	}
 	return 5 * time.Second
 }
