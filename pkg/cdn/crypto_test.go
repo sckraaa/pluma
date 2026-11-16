@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"testing"
-	"time"
 )
 
 // The reference file of the tests: 3 MiB + 17 bytes, byte i is
@@ -151,56 +150,5 @@ func TestNewSecrets(t *testing.T) {
 	// The parts are separate slices: appending to one cannot write another.
 	if cap(a.Token) != TokenSize || cap(a.Key) != KeySize {
 		t.Errorf("token and key share room with the next part: caps %d, %d", cap(a.Token), cap(a.Key))
-	}
-	k, err := NewRtKey()
-	if err != nil || len(k) != RtKeySize {
-		t.Fatalf("NewRtKey: %d bytes, %v", len(k), err)
-	}
-}
-
-func TestRequestToken(t *testing.T) {
-	now := time.UnixMilli(1_763_000_000_000)
-	key, prev, other := bytes.Repeat([]byte{1}, 32), bytes.Repeat([]byte{2}, 32), bytes.Repeat([]byte{3}, 32)
-	file, otherFile := bytes.Repeat([]byte{7}, TokenSize), bytes.Repeat([]byte{8}, TokenSize)
-	keys := [][]byte{key, prev}
-
-	tok := SignRequestToken(key, file, now)
-	if len(tok) != ReqTokenSize {
-		t.Fatalf("token of %d bytes", len(tok))
-	}
-	for _, c := range []struct {
-		name  string
-		keys  [][]byte
-		file  []byte
-		token []byte
-		at    time.Time
-		want  bool
-	}{
-		{"own", keys, file, tok, now, true},
-		{"previous key", keys, file, SignRequestToken(prev, file, now), now, true},
-		{"no previous key", [][]byte{key, nil}, file, tok, now, true},
-		{"other key", keys, file, SignRequestToken(other, file, now), now, false},
-		{"other file", keys, otherFile, tok, now, false},
-		{"just in time", keys, file, tok, now.Add(ReqTokenTTL), true},
-		{"older than 10 min", keys, file, tok, now.Add(ReqTokenTTL + time.Millisecond), false},
-		{"a minute ahead", keys, file, SignRequestToken(key, file, now.Add(time.Minute)), now, true},
-		{"more than a minute ahead", keys, file, SignRequestToken(key, file, now.Add(time.Minute+time.Millisecond)), now, false},
-		{"truncated", keys, file, tok[:ReqTokenSize-1], now, false},
-		{"other version", keys, file, append([]byte{2}, tok[1:]...), now, false},
-		{"no keys", nil, file, tok, now, false},
-	} {
-		if got := VerifyRequestToken(c.keys, c.file, c.token, c.at); got != c.want {
-			t.Errorf("%s: %v, want %v", c.name, got, c.want)
-		}
-	}
-	forged := bytes.Clone(tok)
-	forged[len(forged)-1] ^= 1
-	if VerifyRequestToken(keys, file, forged, now) {
-		t.Error("a token with a changed signature passed")
-	}
-	moved := bytes.Clone(tok)
-	moved[8] ^= 1 // the time, signed
-	if VerifyRequestToken(keys, file, moved, now) {
-		t.Error("a token with a changed time passed")
 	}
 }

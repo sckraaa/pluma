@@ -1,0 +1,32 @@
+{
+  "source": "https://docs.gcore.com/cdn/cdn-resource-options/security/use-a-secure-token/configure-and-use-secure-token.md (read 2026-11-16)",
+  "command": "echo -n '<expires><path> <key>' | openssl md5 -binary | openssl base64 | tr +/ -_ | tr -d =",
+  "openssl": "OpenSSL 4.0.3 29 Sep 2026",
+  "note": "the keys are made up for the test",
+  "vectors": [
+    {
+      "base_url": "https://cdn.example.com",
+      "path": "/o/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "key": "Zx9kQ2mT7pLw4vRb",
+      "expires": 1763300000,
+      "md5": "Z67eXScYNJKnUT0AwcuBag",
+      "url": "https://cdn.example.com/o/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f?md5=Z67eXScYNJKnUT0AwcuBag&expires=1763300000"
+    },
+    {
+      "base_url": "https://abc123.gcorecdn.com",
+      "path": "/o/f3a94c0b2e7d18665ab0c1d2e3f405162738495a6b7c8d9eafb0c1d2e3f40516",
+      "key": "a1b2c3d4e5f60718293a4b5c6d7e8f90",
+      "expires": 1763321600,
+      "md5": "5nplgKo9PjHeDv8gSiv1rQ",
+      "url": "https://abc123.gcorecdn.com/o/f3a94c0b2e7d18665ab0c1d2e3f405162738495a6b7c8d9eafb0c1d2e3f40516?md5=5nplgKo9PjHeDv8gSiv1rQ&expires=1763321600"
+    },
+    {
+      "base_url": "https://cdn.example.com",
+      "path": "/c/v1",
+      "key": "secret",
+      "expires": 1763300000,
+      "md5": "d5CV4tQn3L5vMe87iuQoaA",
+      "url": "https://cdn.example.com/c/v1?md5=d5CV4tQn3L5vMe87iuQoaA&expires=1763300000"
+    }
+  ]
+}

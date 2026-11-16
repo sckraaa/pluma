@@ -28,14 +28,17 @@ import (
 // The behaviour every Store has: run on the MemStore by the unit tests and
 // on MySQL by the integration tests, so the two cannot drift apart.
 
-// suiteSeq makes file ids and DCs unique across tests and runs on one
-// database (go test -count=N).
+// suiteSeq makes file ids, targets and deliveries unique across tests and
+// runs on one database (go test -count=N).
 var suiteSeq atomic.Int64
 
 func suiteId() int64 { return time.Now().UnixMilli()%1_000_000_000*1000 + suiteSeq.Add(1) }
 
-// suiteDc is a DC of its own for a test, so the queues of tests do not mix.
-func suiteDc() int32 { return int32(1000 + suiteId()%1_000_000_000) }
+// suiteTarget is a target of its own for a test, so the queues of tests do
+// not mix; suiteDelivery likewise a delivery.
+func suiteTarget() int32 { return int32(1000 + suiteId()%1_000_000_000) }
+
+func suiteDelivery() int32 { return suiteTarget() }
 
 func mustSecrets(t *testing.T) Secrets {
 	t.Helper()
@@ -60,8 +63,8 @@ func runStoreSuite(t *testing.T, s Store) {
 	t.Run("queue", func(t *testing.T) { suiteQueue(t, s) })
 	t.Run("fencing", func(t *testing.T) { suiteFencing(t, s) })
 	t.Run("failures", func(t *testing.T) { suiteFailures(t, s) })
-	t.Run("reupload first", func(t *testing.T) { suiteReuploadFirst(t, s) })
-	t.Run("nodes", func(t *testing.T) { suiteNodes(t, s) })
+	t.Run("priority first", func(t *testing.T) { suitePriorityFirst(t, s) })
+	t.Run("deliveries", func(t *testing.T) { suiteDeliveries(t, s) })
 	t.Run("concurrent", func(t *testing.T) { suiteConcurrent(t, s) })
 }
 
@@ -132,7 +135,7 @@ func suiteFiles(t *testing.T, s Store) {
 
 func suiteQueue(t *testing.T, s Store) {
 	ctx := context.Background()
-	dc := suiteDc()
+	dc := suiteTarget()
 	const now = 10_000_000
 	if c, err := s.Claim(ctx, dc, time.Minute, now); c != nil || err != nil {
 		t.Fatalf("Claim of an empty queue: %v, %v", c, err)
@@ -180,21 +183,13 @@ func suiteQueue(t *testing.T, s Store) {
 		t.Fatalf("hashes not stored: %v", err)
 	}
 	// Enqueue leaves a ready copy.
-	if err = s.Enqueue(ctx, a.RowId, dc, PriorityReupload, now+6); err != nil {
+	if err = s.Enqueue(ctx, a.RowId, dc, PriorityFirst, now+6); err != nil {
 		t.Fatal(err)
 	}
 	if r, _ = s.Replica(ctx, a.RowId, dc); r.State != StateReady || r.Priority != 0 {
 		t.Fatalf("Enqueue changed a ready copy: %+v", r)
 	}
-	ready, err := s.ListReady(ctx, dc, 0, 10)
-	if err != nil || len(ready) != 1 || ready[0].FileRowId != a.RowId || !bytes.Equal(ready[0].Token, sec.Token) || ready[0].Size != 2<<20 {
-		t.Fatalf("ListReady: %+v, %v", ready, err)
-	}
-	if ready, err = s.ListReady(ctx, dc, a.RowId, 10); err != nil || len(ready) != 0 {
-		t.Fatalf("ListReady after the last: %+v, %v", ready, err)
-	}
-
-	// The node lost it: absent, not queued until asked for again.
+	// The target lost it: absent, not queued until asked for again.
 	if ok, err := s.MarkAbsent(ctx, a.RowId, dc, now+7); !ok || err != nil {
 		t.Fatalf("MarkAbsent: %v, %v", ok, err)
 	}
@@ -221,7 +216,7 @@ func suiteQueue(t *testing.T, s Store) {
 
 func suiteFencing(t *testing.T, s Store) {
 	ctx := context.Background()
-	dc := suiteDc()
+	dc := suiteTarget()
 	const now = 20_000_000
 	f := ensure(t, s, FileKey{Kind: KindDocument, Id: suiteId()}, 2<<20)
 	if err := s.Enqueue(ctx, f.RowId, dc, 0, now); err != nil {
@@ -273,7 +268,7 @@ func suiteFencing(t *testing.T, s Store) {
 
 func suiteFailures(t *testing.T, s Store) {
 	ctx := context.Background()
-	dc := suiteDc()
+	dc := suiteTarget()
 	now := int64(30_000_000)
 	f := ensure(t, s, FileKey{Kind: KindEncrypted, Id: suiteId()}, 2<<20)
 	if err := s.Enqueue(ctx, f.RowId, dc, 0, now); err != nil {
@@ -308,7 +303,7 @@ func suiteFailures(t *testing.T, s Store) {
 		now = retry
 	}
 	// Failed for good: never claimed, and Enqueue leaves it.
-	if err := s.Enqueue(ctx, f.RowId, dc, PriorityReupload, now); err != nil {
+	if err := s.Enqueue(ctx, f.RowId, dc, PriorityFirst, now); err != nil {
 		t.Fatal(err)
 	}
 	if c, err := s.Claim(ctx, dc, time.Minute, now+1<<40); c != nil || err != nil {
@@ -334,11 +329,11 @@ func suiteFailures(t *testing.T, s Store) {
 	}
 }
 
-// suiteReuploadFirst: a copy upload.reuploadCdnFile asked for (MarkAbsent,
-// Enqueue with PriorityReupload) is pushed before the queue.
-func suiteReuploadFirst(t *testing.T, s Store) {
+// suitePriorityFirst: a preparation queued with PriorityFirst (here after
+// MarkAbsent) is claimed before the queue.
+func suitePriorityFirst(t *testing.T, s Store) {
 	ctx := context.Background()
-	dc := suiteDc()
+	dc := suiteTarget()
 	const now = 40_000_000
 	lost := ensure(t, s, FileKey{Kind: KindDocument, Id: suiteId()}, 2<<20)
 	waiting := []*File{
@@ -363,15 +358,15 @@ func suiteReuploadFirst(t *testing.T, s Store) {
 	if ok, err := s.MarkAbsent(ctx, lost.RowId, dc, now+1); !ok || err != nil {
 		t.Fatal(ok, err)
 	}
-	if err := s.Enqueue(ctx, lost.RowId, dc, PriorityReupload, now+1); err != nil {
+	if err := s.Enqueue(ctx, lost.RowId, dc, PriorityFirst, now+1); err != nil {
 		t.Fatal(err)
 	}
 	c, err = s.Claim(ctx, dc, time.Minute, now+2)
-	if err != nil || c == nil || c.File.RowId != lost.RowId || c.Priority != PriorityReupload || c.Attempts != 1 {
-		t.Fatalf("first claim after the reupload: %+v, %v", c, err)
+	if err != nil || c == nil || c.File.RowId != lost.RowId || c.Priority != PriorityFirst || c.Attempts != 1 {
+		t.Fatalf("first claim after the raise: %+v, %v", c, err)
 	}
-	// A queued copy is raised by a reupload too, and not lowered after.
-	if err := s.Enqueue(ctx, waiting[1].RowId, dc, PriorityReupload, now+3); err != nil {
+	// A queued preparation is raised too, and not lowered after.
+	if err := s.Enqueue(ctx, waiting[1].RowId, dc, PriorityFirst, now+3); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Enqueue(ctx, waiting[1].RowId, dc, 0, now+3); err != nil {
@@ -389,88 +384,80 @@ func suiteReuploadFirst(t *testing.T, s Store) {
 	}
 }
 
-func suiteNodes(t *testing.T, s Store) {
+// suiteDeliveries: the health of the deliveries and their traffic.
+func suiteDeliveries(t *testing.T, s Store) {
 	ctx := context.Background()
-	dc := suiteDc()
-	const now = 50_000_000
-	const every = 30 * 24 * time.Hour
-	if n, err := s.Node(ctx, dc); n != nil || err != nil {
-		t.Fatalf("Node before any: %v, %v", n, err)
+	dc, other := suiteDelivery(), suiteDelivery()
+	if h, err := s.DeliveryHealth(ctx, dc); h != nil || err != nil {
+		t.Fatalf("health before any check: %+v, %v", h, err)
 	}
-	k1, k2, k3 := bytes.Repeat([]byte{1}, 32), bytes.Repeat([]byte{2}, 32), bytes.Repeat([]byte{3}, 32)
-	n, err := s.RotateRtKey(ctx, dc, k1, every, now)
-	if err != nil || !bytes.Equal(n.RtKey, k1) || n.RtKeyPrev != nil || n.RtKeyAt != now {
-		t.Fatalf("first key: %+v, %v", n, err)
-	}
-	if n, err = s.RotateRtKey(ctx, dc, k2, every, now+every.Milliseconds()-1); err != nil || !bytes.Equal(n.RtKey, k1) || n.RtKeyPrev != nil {
-		t.Fatalf("rotated before its time: %+v, %v", n, err)
-	}
-	if _, err = s.RotateRtKey(ctx, dc, k2[:16], every, now); err == nil {
-		t.Fatal("RotateRtKey took a 16-byte key")
-	}
-
-	put := &Node{
-		DcId: dc, PublicKey: "-----BEGIN RSA PUBLIC KEY-----\nAAAA\n-----END RSA PUBLIC KEY-----\n", Fingerprint: -42,
-		BootId: bytes.Repeat([]byte{5}, 16), HealthyUntil: now + 30_000, EgressMonth: "2026-11", EgressBytes: 7 << 30,
-		CacheUsed: 1 << 30, CacheCap: 50 << 30, UpdatedAt: now,
-		RtKey: k3, // not PutNode's to change
-	}
-	if err = s.PutNode(ctx, put); err != nil {
+	put := &DeliveryHealth{DcId: dc, HealthyUntil: 1_000_180_000, UpdatedAt: 1_000_000_000}
+	if err := s.PutDeliveryHealth(ctx, put); err != nil {
 		t.Fatal(err)
 	}
-	n, err = s.Node(ctx, dc)
-	if err != nil || n.PublicKey != put.PublicKey || n.Fingerprint != -42 || !bytes.Equal(n.BootId, put.BootId) ||
-		n.HealthyUntil != put.HealthyUntil || n.EgressMonth != "2026-11" || n.EgressBytes != 7<<30 ||
-		n.CacheUsed != 1<<30 || n.CacheCap != 50<<30 || !bytes.Equal(n.RtKey, k1) || n.RtKeyAt != now {
-		t.Fatalf("Node after PutNode: %+v, %v", n, err)
+	if h, err := s.DeliveryHealth(ctx, dc); err != nil || h == nil || *h != *put {
+		t.Fatalf("health: %+v, %v", h, err)
 	}
-	if keys := n.RtKeys(); len(keys) != 2 || !bytes.Equal(keys[0], k1) || keys[1] != nil {
-		t.Fatalf("RtKeys: %v", keys)
-	}
-	// Unhealthy: the reason replaces the old state.
-	put.HealthyUntil, put.UnhealthyReason, put.UpdatedAt = 0, "egress", now+10_000
-	if err = s.PutNode(ctx, put); err != nil {
+	// Out, with a reason cut to the column.
+	put = &DeliveryHealth{DcId: dc, UnhealthyReason: strings.Repeat("r", 40), UpdatedAt: 1_000_060_000}
+	if err := s.PutDeliveryHealth(ctx, put); err != nil {
 		t.Fatal(err)
 	}
-	if n, _ = s.Node(ctx, dc); n.HealthyUntil != 0 || n.UnhealthyReason != "egress" {
-		t.Fatalf("unhealthy node: %+v", n)
+	h, err := s.DeliveryHealth(ctx, dc)
+	if err != nil || h.HealthyUntil != 0 || len(h.UnhealthyReason) != maxUnhealthyReason || h.UpdatedAt != 1_000_060_000 {
+		t.Fatalf("health out: %+v, %v", h, err)
+	}
+	if h, err := s.DeliveryHealth(ctx, other); h != nil || err != nil {
+		t.Fatalf("health of another delivery: %+v, %v", h, err)
 	}
 
-	n, err = s.RotateRtKey(ctx, dc, k2, every, now+every.Milliseconds())
-	if err != nil || !bytes.Equal(n.RtKey, k2) || !bytes.Equal(n.RtKeyPrev, k1) || n.RtKeyAt != now+every.Milliseconds() {
-		t.Fatalf("rotation: %+v, %v", n, err)
+	const month, next = "2026-11", "2026-12"
+	if u, err := s.Usage(ctx, dc, month); err != nil || u != (DeliveryUsage{DcId: dc, Month: month}) {
+		t.Fatalf("usage before any: %+v, %v", u, err)
 	}
-	if n.PublicKey != put.PublicKey || n.Fingerprint != -42 {
-		t.Fatalf("rotation changed the node: %+v", n)
-	}
-
-	// A node seen before it got a key gets one.
-	dc2 := suiteDc()
-	if err = s.PutNode(ctx, &Node{DcId: dc2, UpdatedAt: now}); err != nil {
-		t.Fatal(err)
-	}
-	if n, _ = s.Node(ctx, dc2); n.RtKey != nil || n.PublicKey != "" || n.BootId != nil {
-		t.Fatalf("new node: %+v", n)
-	}
-	if n, err = s.RotateRtKey(ctx, dc2, k3, every, now); err != nil || !bytes.Equal(n.RtKey, k3) || n.RtKeyPrev != nil {
-		t.Fatalf("key of a node without one: %+v, %v", n, err)
-	}
-
-	nodes, err := s.Nodes(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var seen []int32
-	for i, n := range nodes {
-		if i > 0 && nodes[i-1].DcId >= n.DcId {
-			t.Fatalf("Nodes not by DC: %d after %d", n.DcId, nodes[i-1].DcId)
-		}
-		if n.DcId == dc || n.DcId == dc2 {
-			seen = append(seen, n.DcId)
+	for _, add := range [][2]int64{{100, 0}, {0, 3 << 20}, {5, 7}} {
+		if err := s.AddUsage(ctx, dc, month, add[0], add[1]); err != nil {
+			t.Fatal(err)
 		}
 	}
-	if len(seen) != 2 {
-		t.Fatalf("Nodes: %v of %d, %d", seen, dc, dc2)
+	if err := s.AddUsage(ctx, dc, next, 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if u, err := s.Usage(ctx, dc, month); err != nil || u.OriginBytes != 105 || u.EdgeBytesEst != 3<<20+7 {
+		t.Fatalf("usage: %+v, %v", u, err)
+	}
+	if u, err := s.Usage(ctx, dc, next); err != nil || u.OriginBytes != 1 || u.EdgeBytesEst != 1 {
+		t.Fatalf("usage of the next month: %+v, %v", u, err)
+	}
+	if u, err := s.Usage(ctx, other, month); err != nil || u.OriginBytes != 0 {
+		t.Fatalf("usage of another delivery: %+v, %v", u, err)
+	}
+	for _, bad := range []struct {
+		month          string
+		origin, edgeEs int64
+	}{{"2026-13", 1, 1}, {"2026-1", 1, 1}, {"", 1, 1}, {month, -1, 0}, {month, 0, -1}} {
+		if err := s.AddUsage(ctx, dc, bad.month, bad.origin, bad.edgeEs); err == nil {
+			t.Errorf("AddUsage(%q, %d, %d) taken", bad.month, bad.origin, bad.edgeEs)
+		}
+	}
+
+	// Concurrent additions all count.
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := s.AddUsage(ctx, other, month, 10, 1); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	if u, err := s.Usage(ctx, other, month); err != nil || u.OriginBytes != 80 || u.EdgeBytesEst != 8 {
+		t.Fatalf("concurrent usage: %+v, %v", u, err)
+	}
+	if got := UsageMonth(time.Date(2026, 12, 1, 0, 30, 0, 0, time.FixedZone("", 3600))); got != "2026-11" {
+		t.Fatalf("UsageMonth of 00:30 on Dec 1 at UTC+1: %s", got)
 	}
 }
 
@@ -526,9 +513,9 @@ func suiteConcurrent(t *testing.T, s Store) {
 		}
 	}
 
-	// Claim: two pushers on one copy — one push, the other waits for the
-	// lease.
-	dc := suiteDc()
+	// Claim: two preparers on one preparation — one claim, the other waits
+	// for the lease.
+	dc := suiteTarget()
 	const now = 60_000_000
 	if err := s.Enqueue(ctx, f.RowId, dc, 0, now); err != nil {
 		t.Fatal(err)
@@ -549,12 +536,12 @@ func suiteConcurrent(t *testing.T, s Store) {
 	}
 	wg.Wait()
 	if n := claims.Load(); n != 1 {
-		t.Fatalf("%d pushers claimed one copy", n)
+		t.Fatalf("%d preparers claimed one preparation", n)
 	}
-	// Two copies, two pushers: each gets one.
+	// Two preparations, two preparers: each gets one.
 	g := ensure(t, s, FileKey{Kind: KindDocument, Id: suiteId()}, 2<<20)
 	h := ensure(t, s, FileKey{Kind: KindDocument, Id: suiteId()}, 2<<20)
-	dc2 := suiteDc()
+	dc2 := suiteTarget()
 	for _, x := range []*File{g, h} {
 		if err := s.Enqueue(ctx, x.RowId, dc2, 0, now); err != nil {
 			t.Fatal(err)
@@ -573,6 +560,6 @@ func suiteConcurrent(t *testing.T, s Store) {
 	}
 	wg.Wait()
 	if held[0] == nil || held[1] == nil || held[0].File.RowId == held[1].File.RowId {
-		t.Fatalf("two pushers on two copies: %+v", held)
+		t.Fatalf("two preparers on two preparations: %+v", held)
 	}
 }

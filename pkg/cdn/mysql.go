@@ -24,15 +24,16 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 )
 
-// MySQLStore is the Store on the tables of migrate-20261120-cdn.sql.
+// MySQLStore is the Store on the tables of migrate-20261120-cdn.sql as
+// migrate-20261125-https-cdn.sql leaves them.
 type MySQLStore struct {
 	db *sqlx.DB
 }
 
 var _ Store = (*MySQLStore)(nil)
 
-// NewMySQLStore returns the Store on db. Reads go to the primary: a pusher
-// and the redirect must see a change the moment it is made.
+// NewMySQLStore returns the Store on db. Reads go to the primary: a
+// preparer and the redirect must see a change the moment it is made.
 func NewMySQLStore(db *sqlx.DB) *MySQLStore {
 	return &MySQLStore{db: db.Master()}
 }
@@ -135,11 +136,11 @@ func (s *MySQLStore) SetKey(ctx context.Context, rowId int64, sec Secrets) (*Fil
 	return s.queryFile(ctx, "id = ?", rowId)
 }
 
-const replicaColumns = "file_row_id, dc_id, state, priority, lease_until, attempts, next_try_at, last_error, ready_at, updated_at"
+const replicaColumns = "file_row_id, target_id, state, priority, lease_until, attempts, next_try_at, last_error, ready_at, updated_at"
 
 type replicaRow struct {
 	FileRowId  int64  `db:"file_row_id"`
-	DcId       int32  `db:"dc_id"`
+	TargetId   int32  `db:"target_id"`
 	State      int8   `db:"state"`
 	Priority   int8   `db:"priority"`
 	LeaseUntil int64  `db:"lease_until"`
@@ -150,10 +151,10 @@ type replicaRow struct {
 	UpdatedAt  int64  `db:"updated_at"`
 }
 
-func (s *MySQLStore) Replica(ctx context.Context, rowId int64, dcId int32) (*Replica, error) {
+func (s *MySQLStore) Replica(ctx context.Context, rowId int64, targetId int32) (*Replica, error) {
 	var r replicaRow
 	err := s.db.QueryRowPartial(ctx, &r,
-		"select "+replicaColumns+" from cdn_replicas where file_row_id = ? and dc_id = ?", rowId, dcId)
+		"select "+replicaColumns+" from cdn_replicas where file_row_id = ? and target_id = ?", rowId, targetId)
 	switch {
 	case errors.Is(err, sqlx.ErrNotFound):
 		return nil, nil
@@ -161,7 +162,7 @@ func (s *MySQLStore) Replica(ctx context.Context, rowId int64, dcId int32) (*Rep
 		return nil, err
 	}
 	return &Replica{
-		FileRowId: r.FileRowId, DcId: r.DcId, State: ReplicaState(r.State), Priority: r.Priority,
+		FileRowId: r.FileRowId, TargetId: r.TargetId, State: ReplicaState(r.State), Priority: r.Priority,
 		LeaseUntil: r.LeaseUntil, Attempts: r.Attempts, NextTryAt: r.NextTryAt, LastError: r.LastError,
 		ReadyAt: r.ReadyAt, UpdatedAt: r.UpdatedAt,
 	}, nil
@@ -169,9 +170,9 @@ func (s *MySQLStore) Replica(ctx context.Context, rowId int64, dcId int32) (*Rep
 
 // Enqueue assigns state last: the columns before it are assigned by what it
 // was.
-func (s *MySQLStore) Enqueue(ctx context.Context, rowId int64, dcId int32, priority int8, now int64) error {
+func (s *MySQLStore) Enqueue(ctx context.Context, rowId int64, targetId int32, priority int8, now int64) error {
 	_, err := s.db.Exec(ctx,
-		"insert into cdn_replicas(file_row_id, dc_id, state, priority, updated_at) values (?, ?, 0, ?, ?)"+
+		"insert into cdn_replicas(file_row_id, target_id, state, priority, updated_at) values (?, ?, 0, ?, ?)"+
 			" on duplicate key update"+
 			" priority = if(state = 3, values(priority), if(state in (0, 1), greatest(priority, values(priority)), priority)),"+
 			" attempts = if(state = 3, 0, attempts),"+
@@ -179,28 +180,28 @@ func (s *MySQLStore) Enqueue(ctx context.Context, rowId int64, dcId int32, prior
 			" last_error = if(state = 3, '', last_error),"+
 			" updated_at = if(state in (0, 1, 3), values(updated_at), updated_at),"+
 			" state = if(state = 3, 0, state)",
-		rowId, dcId, priority, now)
+		rowId, targetId, priority, now)
 	return err
 }
 
-// claimTries is how many candidates Claim tries when other pushers take
+// claimTries is how many candidates Claim tries when other preparers take
 // them first.
 const claimTries = 4
 
 // Claim reads the next candidate and takes it with an update conditional on
-// the row it read, so two pushers never claim one copy, and the one that
-// lost the race tries the next. A locking read (FOR UPDATE SKIP LOCKED)
-// would lock every row the ordered scan reads, so a second pusher would see
-// none.
-func (s *MySQLStore) Claim(ctx context.Context, dcId int32, lease time.Duration, now int64) (*Claim, error) {
+// the row it read, so two preparers never claim one preparation, and the
+// one that lost the race tries the next. A locking read (FOR UPDATE SKIP
+// LOCKED) would lock every row the ordered scan reads, so a second
+// preparer would see none.
+func (s *MySQLStore) Claim(ctx context.Context, targetId int32, lease time.Duration, now int64) (*Claim, error) {
 	until := now + lease.Milliseconds()
 	for range claimTries {
 		var r replicaRow
 		err := s.db.QueryRowPartial(ctx, &r,
 			"select "+replicaColumns+" from cdn_replicas"+
-				" where dc_id = ? and (state = 0 and next_try_at <= ? or state = 1 and lease_until <= ?)"+
+				" where target_id = ? and (state = 0 and next_try_at <= ? or state = 1 and lease_until <= ?)"+
 				" order by priority desc, file_row_id limit 1",
-			dcId, now, now)
+			targetId, now, now)
 		switch {
 		case errors.Is(err, sqlx.ErrNotFound):
 			return nil, nil
@@ -209,8 +210,8 @@ func (s *MySQLStore) Claim(ctx context.Context, dcId int32, lease time.Duration,
 		}
 		took, err := s.exec(ctx,
 			"update cdn_replicas set state = 1, attempts = attempts + 1, lease_until = ?, updated_at = ?"+
-				" where file_row_id = ? and dc_id = ? and state = ? and attempts = ? and lease_until = ? and next_try_at = ?",
-			until, now, r.FileRowId, dcId, r.State, r.Attempts, r.LeaseUntil, r.NextTryAt)
+				" where file_row_id = ? and target_id = ? and state = ? and attempts = ? and lease_until = ? and next_try_at = ?",
+			until, now, r.FileRowId, targetId, r.State, r.Attempts, r.LeaseUntil, r.NextTryAt)
 		if err != nil {
 			return nil, err
 		}
@@ -224,20 +225,20 @@ func (s *MySQLStore) Claim(ctx context.Context, dcId int32, lease time.Duration,
 		if err != nil {
 			return nil, err
 		}
-		return &Claim{File: *f, DcId: dcId, Priority: r.Priority, Attempts: r.Attempts + 1, LeaseUntil: until}, nil
+		return &Claim{File: *f, TargetId: targetId, Priority: r.Priority, Attempts: r.Attempts + 1, LeaseUntil: until}, nil
 	}
 	return nil, nil
 }
 
-const claimHeld = " where file_row_id = ? and dc_id = ? and state = 1 and attempts = ? and lease_until = ?"
+const claimHeld = " where file_row_id = ? and target_id = ? and state = 1 and attempts = ? and lease_until = ?"
 
 // ExtendLease always moves the lease forward, by a millisecond at least, so
 // the affected rows (changed rows, the driver's default) tell whether c
-// still holds the copy.
+// still holds the preparation.
 func (s *MySQLStore) ExtendLease(ctx context.Context, c *Claim, lease time.Duration, now int64) (bool, error) {
 	until := max(now+lease.Milliseconds(), c.LeaseUntil+1)
 	ok, err := s.exec(ctx, "update cdn_replicas set lease_until = ?, updated_at = ?"+claimHeld,
-		until, now, c.File.RowId, c.DcId, c.Attempts, c.LeaseUntil)
+		until, now, c.File.RowId, c.TargetId, c.Attempts, c.LeaseUntil)
 	if ok {
 		c.LeaseUntil = until
 	}
@@ -249,7 +250,7 @@ var errClaimLost = errors.New("cdn: claim lost")
 func (s *MySQLStore) MarkReady(ctx context.Context, c *Claim, hashes []byte, now int64) (bool, error) {
 	res := sqlx.TxWrapper(ctx, s.db, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
 		r, err := tx.Exec("update cdn_replicas set state = 2, priority = 0, lease_until = 0, last_error = '', ready_at = ?, updated_at = ?"+claimHeld,
-			now, now, c.File.RowId, c.DcId, c.Attempts, c.LeaseUntil)
+			now, now, c.File.RowId, c.TargetId, c.Attempts, c.LeaseUntil)
 		if err != nil {
 			result.Err = err
 			return
@@ -280,40 +281,21 @@ func (s *MySQLStore) MarkFailed(ctx context.Context, c *Claim, reason string, ne
 		state = StateFailed
 	}
 	return s.exec(ctx, "update cdn_replicas set state = ?, next_try_at = ?, lease_until = 0, last_error = ?, updated_at = ?"+claimHeld,
-		state, nextTryAt, clipReason(reason), now, c.File.RowId, c.DcId, c.Attempts, c.LeaseUntil)
+		state, nextTryAt, clip(reason, maxLastError), now, c.File.RowId, c.TargetId, c.Attempts, c.LeaseUntil)
 }
 
-func (s *MySQLStore) MarkAbsent(ctx context.Context, rowId int64, dcId int32, now int64) (bool, error) {
-	return s.exec(ctx, "update cdn_replicas set state = 3, updated_at = ? where file_row_id = ? and dc_id = ? and state = 2",
-		now, rowId, dcId)
+func (s *MySQLStore) MarkAbsent(ctx context.Context, rowId int64, targetId int32, now int64) (bool, error) {
+	return s.exec(ctx, "update cdn_replicas set state = 3, updated_at = ? where file_row_id = ? and target_id = ? and state = 2",
+		now, rowId, targetId)
 }
 
-func (s *MySQLStore) ListReady(ctx context.Context, dcId int32, afterRowId int64, limit int) ([]ReadyCopy, error) {
-	var rows []struct {
-		FileRowId int64  `db:"file_row_id"`
-		FileToken []byte `db:"file_token"`
-		Size      int64  `db:"size"`
-	}
-	if err := s.db.QueryRowsPartial(ctx, &rows,
-		"select r.file_row_id, f.file_token, f.size from cdn_replicas r join cdn_files f on f.id = r.file_row_id"+
-			" where r.dc_id = ? and r.state = 2 and r.file_row_id > ? order by r.file_row_id limit ?",
-		dcId, afterRowId, limit); err != nil {
-		return nil, err
-	}
-	out := make([]ReadyCopy, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, ReadyCopy{FileRowId: r.FileRowId, Token: r.FileToken, Size: r.Size})
-	}
-	return out, nil
-}
-
-func (s *MySQLStore) QueueCounts(ctx context.Context, dcId int32) (map[ReplicaState]int64, error) {
+func (s *MySQLStore) QueueCounts(ctx context.Context, targetId int32) (map[ReplicaState]int64, error) {
 	var rows []struct {
 		State int8  `db:"state"`
 		N     int64 `db:"n"`
 	}
 	if err := s.db.QueryRowsPartial(ctx, &rows,
-		"select state, count(*) as n from cdn_replicas where dc_id = ? group by state", dcId); err != nil {
+		"select state, count(*) as n from cdn_replicas where target_id = ? group by state", targetId); err != nil {
 		return nil, err
 	}
 	out := make(map[ReplicaState]int64, len(rows))
@@ -323,107 +305,66 @@ func (s *MySQLStore) QueueCounts(ctx context.Context, dcId int32) (map[ReplicaSt
 	return out, nil
 }
 
-const nodeColumns = "dc_id, coalesce(public_key, '') as public_key, fingerprint, boot_id, healthy_until, unhealthy_reason," +
-	" egress_month, egress_bytes, cache_used, cache_cap, rt_key, rt_key_prev, rt_key_at, updated_at"
-
-type nodeRow struct {
+type deliveryRow struct {
 	DcId            int32  `db:"dc_id"`
-	PublicKey       string `db:"public_key"`
-	Fingerprint     int64  `db:"fingerprint"`
-	BootId          []byte `db:"boot_id"`
 	HealthyUntil    int64  `db:"healthy_until"`
 	UnhealthyReason string `db:"unhealthy_reason"`
-	EgressMonth     string `db:"egress_month"`
-	EgressBytes     int64  `db:"egress_bytes"`
-	CacheUsed       int64  `db:"cache_used"`
-	CacheCap        int64  `db:"cache_cap"`
-	RtKey           []byte `db:"rt_key"`
-	RtKeyPrev       []byte `db:"rt_key_prev"`
-	RtKeyAt         int64  `db:"rt_key_at"`
 	UpdatedAt       int64  `db:"updated_at"`
 }
 
-func (r *nodeRow) node() *Node {
-	n := Node(*r)
-	return &n
-}
-
-func (s *MySQLStore) Node(ctx context.Context, dcId int32) (*Node, error) {
-	var r nodeRow
-	err := s.db.QueryRowPartial(ctx, &r, "select "+nodeColumns+" from cdn_nodes where dc_id = ?", dcId)
+func (s *MySQLStore) DeliveryHealth(ctx context.Context, dcId int32) (*DeliveryHealth, error) {
+	var r deliveryRow
+	err := s.db.QueryRowPartial(ctx, &r,
+		"select dc_id, healthy_until, unhealthy_reason, updated_at from cdn_deliveries where dc_id = ?", dcId)
 	switch {
 	case errors.Is(err, sqlx.ErrNotFound):
 		return nil, nil
 	case err != nil:
 		return nil, err
 	}
-	return r.node(), nil
+	h := DeliveryHealth(r)
+	return &h, nil
 }
 
-func (s *MySQLStore) Nodes(ctx context.Context) ([]*Node, error) {
-	var rows []nodeRow
-	if err := s.db.QueryRowsPartial(ctx, &rows, "select "+nodeColumns+" from cdn_nodes order by dc_id"); err != nil {
-		return nil, err
-	}
-	out := make([]*Node, 0, len(rows))
-	for i := range rows {
-		out = append(out, rows[i].node())
-	}
-	return out, nil
-}
-
-func (s *MySQLStore) PutNode(ctx context.Context, n *Node) error {
-	var publicKey any
-	if n.PublicKey != "" {
-		publicKey = n.PublicKey
-	}
+func (s *MySQLStore) PutDeliveryHealth(ctx context.Context, h *DeliveryHealth) error {
 	_, err := s.db.Exec(ctx,
-		"insert into cdn_nodes(dc_id, public_key, fingerprint, boot_id, healthy_until, unhealthy_reason,"+
-			" egress_month, egress_bytes, cache_used, cache_cap, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"+
-			" on duplicate key update public_key = values(public_key), fingerprint = values(fingerprint), boot_id = values(boot_id),"+
-			" healthy_until = values(healthy_until), unhealthy_reason = values(unhealthy_reason), egress_month = values(egress_month),"+
-			" egress_bytes = values(egress_bytes), cache_used = values(cache_used), cache_cap = values(cache_cap), updated_at = values(updated_at)",
-		n.DcId, publicKey, n.Fingerprint, n.BootId, n.HealthyUntil, n.UnhealthyReason,
-		n.EgressMonth, n.EgressBytes, n.CacheUsed, n.CacheCap, n.UpdatedAt)
+		"insert into cdn_deliveries(dc_id, healthy_until, unhealthy_reason, updated_at) values (?, ?, ?, ?)"+
+			" on duplicate key update healthy_until = values(healthy_until), unhealthy_reason = values(unhealthy_reason),"+
+			" updated_at = values(updated_at)",
+		h.DcId, h.HealthyUntil, clip(h.UnhealthyReason, maxUnhealthyReason), h.UpdatedAt)
 	return err
 }
 
-// RotateRtKey makes the row first (with key) if there is none, then
-// decides under the row lock, so concurrent homes rotate once.
-func (s *MySQLStore) RotateRtKey(ctx context.Context, dcId int32, key []byte, every time.Duration, now int64) (*Node, error) {
-	if len(key) != RtKeySize || every <= 0 {
-		return nil, fmt.Errorf("cdn: request token key of %d bytes, rotation every %v", len(key), every)
+// AddUsage adds in one statement, so concurrent additions of several bff
+// processes all count.
+func (s *MySQLStore) AddUsage(ctx context.Context, dcId int32, month string, originBytes, edgeBytesEst int64) error {
+	if err := checkUsage(month, originBytes, edgeBytesEst); err != nil {
+		return err
 	}
-	res := sqlx.TxWrapper(ctx, s.db, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-		if _, result.Err = tx.Exec(
-			"insert into cdn_nodes(dc_id, rt_key, rt_key_at, updated_at) values (?, ?, ?, ?) on duplicate key update dc_id = dc_id",
-			dcId, key, now, now); result.Err != nil {
-			return
-		}
-		var cur struct {
-			RtKey   []byte `db:"rt_key"`
-			RtKeyAt int64  `db:"rt_key_at"`
-		}
-		if result.Err = tx.QueryRowPartial(&cur, "select rt_key, rt_key_at from cdn_nodes where dc_id = ? for update", dcId); result.Err != nil {
-			return
-		}
-		switch {
-		case len(cur.RtKey) == 0:
-			_, result.Err = tx.Exec("update cdn_nodes set rt_key = ?, rt_key_at = ?, updated_at = ? where dc_id = ?", key, now, now, dcId)
-		case now-cur.RtKeyAt >= every.Milliseconds():
-			// rt_key_prev goes first: it takes the key in force.
-			_, result.Err = tx.Exec("update cdn_nodes set rt_key_prev = rt_key, rt_key = ?, rt_key_at = ?, updated_at = ? where dc_id = ?",
-				key, now, now, dcId)
-		}
-	})
-	if res.Err != nil {
-		return nil, res.Err
+	_, err := s.db.Exec(ctx,
+		"insert into cdn_delivery_usage(dc_id, month, origin_bytes, edge_bytes_est) values (?, ?, ?, ?)"+
+			" on duplicate key update origin_bytes = origin_bytes + values(origin_bytes),"+
+			" edge_bytes_est = edge_bytes_est + values(edge_bytes_est)",
+		dcId, month, originBytes, edgeBytesEst)
+	return err
+}
+
+func (s *MySQLStore) Usage(ctx context.Context, dcId int32, month string) (DeliveryUsage, error) {
+	u := DeliveryUsage{DcId: dcId, Month: month}
+	var r struct {
+		OriginBytes  int64 `db:"origin_bytes"`
+		EdgeBytesEst int64 `db:"edge_bytes_est"`
 	}
-	n, err := s.Node(ctx, dcId)
-	if err == nil && n == nil {
-		err = fmt.Errorf("cdn: node %d vanished", dcId)
+	err := s.db.QueryRowPartial(ctx, &r,
+		"select origin_bytes, edge_bytes_est from cdn_delivery_usage where dc_id = ? and month = ?", dcId, month)
+	switch {
+	case errors.Is(err, sqlx.ErrNotFound):
+		return u, nil
+	case err != nil:
+		return u, err
 	}
-	return n, err
+	u.OriginBytes, u.EdgeBytesEst = r.OriginBytes, r.EdgeBytesEst
+	return u, nil
 }
 
 func (s *MySQLStore) exec(ctx context.Context, query string, args ...any) (bool, error) {

@@ -47,8 +47,8 @@ type Config struct {
 	// 0063, docs/ops/maps.md); off without a URL, and such a map is
 	// LOCATION_INVALID. Maps need KV.
 	Maps staticmap.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// Cdn is the CDN-DC (task 102, ADR 0065, docs/ops/cdn.md): the node's
-	// control API, its DC and address, and the limits of the pushes; off
-	// without NodeControl. Its tables are in the database of Mysql.
+	// Cdn is the HTTPS CDN (task 107, ADR 0071, docs/ops/cdn.md): the
+	// deliveries, their route, the origin and the limits; off without a
+	// delivery with a BaseURL. Its tables are in the database of Mysql.
 	Cdn cdn.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

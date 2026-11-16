@@ -16,166 +16,379 @@
 package cdn
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
-	"net/netip"
+	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/teamgram/teamgram-server/pkg/mtserver/codec"
 )
 
-// Config is the CDN of the home in bff.yaml (task 102, ADR 0065,
-// docs/ops/cdn.md). Every value is a string, so that an empty variable of
-// the environment takes the default; Parse checks them. Without
-// NodeControl the CDN is off: upload.getFile never redirects, nothing is
-// pushed and help.getCdnConfig is empty.
+// Config is the HTTPS CDN of the home in bff.yaml (task 107, ADR 0071,
+// docs/ops/cdn.md). Every value but the id of a delivery is a string, so
+// that an empty variable of the environment takes the default; Parse checks
+// them. A delivery without BaseURL is off; with none on, the CDN is off:
+// upload.getFile never redirects and the origin does not listen.
 type Config struct {
-	// NodeControl is host:port of the control API of the node (CDN_NODE_CONTROL,
-	// the tunnel address 10.77.0.1:20510).
-	NodeControl string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// ServerName is the name of the node's certificate; the host of
-	// NodeControl when empty.
-	ServerName string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// CertFile and KeyFile are bff's certificate of the control API, CAFile
-	// signs the node's (teamgramd/deploy/cdn/control-certs.sh). Required with
-	// NodeControl: the API is mutual TLS only.
-	CertFile string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	KeyFile  string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	CAFile   string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// DcId is the CDN DC of the node (CDN_DC_ID, "201"): what
-	// upload.fileCdnRedirect and help.getCdnConfig name.
-	DcId string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// DcAddress is ip:port the clients reach the node at (CDN_DC_ADDRESS),
-	// and DcSecret its secret, "dd" and 32 hex digits (CDN_DC_SECRET): the
-	// home checks the node there as a client would.
-	DcAddress string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	DcSecret  string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Deliveries are the CDNs files may be redirected to.
+	Deliveries []DeliveryConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Routes is CDN_ROUTES ("*:201" when empty), see ParseRoutes.
+	Routes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Origin is where the CDNs pull the cipher from.
+	Origin OriginConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// UrlTTL is how long a signed URL works, CDN_URL_TTL ("6h"): whole
+	// seconds from 10s to 24h.
+	UrlTTL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// PrepareRateMbit bounds the reads of files for their hashes, megabits a
+	// second (CDN_PREPARE_RATE_MBIT, "800").
+	PrepareRateMbit string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// MinFileSize is CDN_MIN_FILE_SIZE, a multiple of 1 MiB ("1048576").
 	MinFileSize string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// PushRateMbit bounds the pushes to the node, megabits a second
-	// (CDN_PUSH_RATE_MBIT, "20").
-	PushRateMbit string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// PushConcurrency is how many files are pushed at once
-	// (CDN_PUSH_CONCURRENCY, "1"); the rate is shared by them.
-	PushConcurrency string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// MonthlyEgressLimitGB: the node is taken out of the redirects when it
-	// sent this many GB (10^9 bytes) to clients in a calendar month (UTC)
-	// (CDN_MONTHLY_EGRESS_LIMIT_GB). Required with NodeControl: below the
-	// traffic the VPS plan includes.
-	MonthlyEgressLimitGB string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// ReuploadWait is how long upload.reuploadCdnFile waits for the copy
-	// (CDN_REUPLOAD_WAIT, "10s").
-	ReuploadWait string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Kinds are the kinds of files that go through the CDN, CDN_KINDS
+	// ("document,photo"); the files of secret chats never do.
+	Kinds string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// DevAllowHTTP is CDN_DEV_ALLOW_HTTP: "1" lets a delivery have an
+	// http:// BaseURL. Only the stand of the e2e tests sets it.
+	DevAllowHTTP string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// HealthEvery is how often each delivery is checked, CDN_HEALTH_EVERY
+	// ("1m").
+	HealthEvery string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// AvoidTTL is how long a key avoids a delivery its client fell back
+	// from, CDN_AVOID_TTL ("1h").
+	AvoidTTL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
+// DeliveryConfig is a delivery in Config.
+type DeliveryConfig struct {
+	// Id is the dc_id of the redirects, MinDeliveryID to MaxDeliveryID.
+	Id   int32  `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	Name string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Signer is gcore-md5 (when empty) or path-hmac (CDN_GCORE_SIGNER).
+	Signer string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// BaseURL is https://<host> of the CDN resource (CDN_GCORE_BASE_URL);
+	// empty: the delivery is off.
+	BaseURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Key signs the URLs (CDN_GCORE_TOKEN_KEY): for gcore-md5 the Secure
+	// Token key, 6 to 32 characters; for path-hmac 32 bytes in base64.
+	Key string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Source is home-origin (when empty).
+	Source string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// MonthlyGB is the budget of a calendar month, GB of 10^9 bytes
+	// (CDN_GCORE_MONTHLY_GB, "800").
+	MonthlyGB string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
+// OriginConfig is the origin in Config.
+type OriginConfig struct {
+	// Listen is host:port of the origin in bff, reached by Caddy over the
+	// Docker network only (CDN_ORIGIN_LISTEN, "0.0.0.0:20480").
+	Listen string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// AuthValue is what the CDN puts in X-Pluma-Origin-Auth (CDN_ORIGIN_AUTH),
+	// 64 hex digits; required while a delivery pulls from the origin.
+	AuthValue string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// MaxConcurrent is how many requests the origin serves at once ("16").
+	MaxConcurrent string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 // Defaults of Config.
 const (
-	DefaultDcId            = 201
-	DefaultPushRateMbit    = 20
-	DefaultPushConcurrency = 1
-	DefaultReuploadWait    = 10 * time.Second
+	DefaultRoutes          = "*:201"
+	DefaultOriginListen    = "0.0.0.0:20480"
+	DefaultOriginMax       = 16
+	DefaultURLTTL          = 6 * time.Hour
+	DefaultPrepareRateMbit = 800
+	DefaultKinds           = "document,photo"
+	DefaultHealthEvery     = time.Minute
+	DefaultAvoidTTL        = time.Hour
+	DefaultMonthlyGB       = 800
 
-	maxPushConcurrency = 4
-	maxReuploadWait    = time.Minute
+	minURLTTL        = 10 * time.Second
+	maxURLTTL        = 24 * time.Hour
+	maxOriginMax     = 1024
+	maxPrepareMbit   = 10000
+	minHealthEvery   = time.Second
+	maxHealthEvery   = time.Hour
+	minAvoidTTL      = time.Second
+	maxAvoidTTL      = 24 * time.Hour
+	maxMonthlyGB     = 1 << 20
+	originAuthDigits = 64
 )
 
 // Settings are a parsed Config.
 type Settings struct {
-	NodeControl string
-	ServerName  string
-	CertFile    string
-	KeyFile     string
-	CAFile      string
+	// Deliveries are the enabled ones, in the order of the config.
+	Deliveries []Delivery
+	// Routes are CDN_ROUTES; every id names one of Deliveries.
+	Routes []Route
+	Origin OriginSettings
 
-	DcId      int32
-	DcAddress string
-	DcSecret  codec.Secret
-
-	MinFileSize        int64
-	PushBytesPerSecond int64
-	PushConcurrency    int
-	MonthlyEgressLimit int64 // bytes
-	ReuploadWait       time.Duration
+	URLTTL                time.Duration
+	PrepareBytesPerSecond int64
+	MinFileSize           int64
+	// Kinds are the kinds of files that go through the CDN.
+	Kinds        []FileKind
+	DevAllowHTTP bool
+	HealthEvery  time.Duration
+	AvoidTTL     time.Duration
 }
 
-// Enabled reports whether the CDN is configured.
-func (c Config) Enabled() bool { return strings.TrimSpace(c.NodeControl) != "" }
+// OriginSettings are the parsed OriginConfig.
+type OriginSettings struct {
+	// Listen is empty when no delivery pulls from the origin: it does not
+	// listen then.
+	Listen string
+	// AuthValue is the value of X-Pluma-Origin-Auth.
+	AuthValue Secret
+	// MaxConcurrent is how many requests are served at once.
+	MaxConcurrent int
+}
+
+// Secret is a value of the config that must not reach a log: fmt prints
+// it as a placeholder.
+type Secret string
+
+func (Secret) String() string { return "[secret]" }
+
+// GoString keeps %#v from printing the value.
+func (Secret) GoString() string { return "[secret]" }
+
+// Delivery returns the enabled delivery id.
+func (s *Settings) Delivery(id int32) (*Delivery, bool) {
+	i := slices.IndexFunc(s.Deliveries, func(d Delivery) bool { return d.ID == id })
+	if i < 0 {
+		return nil, false
+	}
+	return &s.Deliveries[i], true
+}
+
+// AllowsKind reports whether files of kind k go through the CDN.
+func (s *Settings) AllowsKind(k FileKind) bool { return slices.Contains(s.Kinds, k) }
+
+// Enabled reports whether a delivery is configured.
+func (c Config) Enabled() bool {
+	return slices.ContainsFunc(c.Deliveries, func(d DeliveryConfig) bool { return strings.TrimSpace(d.BaseURL) != "" })
+}
 
 // Parse checks an enabled Config and returns its settings; nil for a
-// disabled one. A wrong value stops the start rather than leave the CDN
-// half on.
+// disabled one, whose values are not looked at. A wrong value stops the
+// start rather than leave the CDN half on.
 func (c Config) Parse() (*Settings, error) {
 	if !c.Enabled() {
 		return nil, nil
 	}
-	s := &Settings{
-		NodeControl: strings.TrimSpace(c.NodeControl),
-		ServerName:  strings.TrimSpace(c.ServerName),
-		CertFile:    c.CertFile,
-		KeyFile:     c.KeyFile,
-		CAFile:      c.CAFile,
+	s := &Settings{}
+	var err error
+	if s.DevAllowHTTP, err = flagOf(c.DevAllowHTTP); err != nil {
+		return nil, fmt.Errorf("cdn: CDN_DEV_ALLOW_HTTP %q: %w", c.DevAllowHTTP, err)
 	}
-	host, _, err := net.SplitHostPort(s.NodeControl)
-	if err != nil {
-		return nil, fmt.Errorf("cdn: CDN_NODE_CONTROL %q: %w", s.NodeControl, err)
+	if s.URLTTL, err = durationOr(c.UrlTTL, DefaultURLTTL); err != nil || s.URLTTL < minURLTTL || s.URLTTL > maxURLTTL || s.URLTTL%time.Second != 0 {
+		return nil, fmt.Errorf("cdn: CDN_URL_TTL %q: whole seconds from %v to %v", c.UrlTTL, minURLTTL, maxURLTTL)
 	}
-	if s.ServerName == "" {
-		s.ServerName = host
+	if s.HealthEvery, err = durationOr(c.HealthEvery, DefaultHealthEvery); err != nil || s.HealthEvery < minHealthEvery || s.HealthEvery > maxHealthEvery {
+		return nil, fmt.Errorf("cdn: CDN_HEALTH_EVERY %q: a duration from %v to %v", c.HealthEvery, minHealthEvery, maxHealthEvery)
 	}
-	if s.CertFile == "" || s.KeyFile == "" || s.CAFile == "" {
-		return nil, errors.New("cdn: Cdn needs CertFile, KeyFile and CAFile: the control API of the node is mutual TLS only")
+	if s.AvoidTTL, err = durationOr(c.AvoidTTL, DefaultAvoidTTL); err != nil || s.AvoidTTL < minAvoidTTL || s.AvoidTTL > maxAvoidTTL {
+		return nil, fmt.Errorf("cdn: CDN_AVOID_TTL %q: a duration from %v to %v", c.AvoidTTL, minAvoidTTL, maxAvoidTTL)
 	}
-
-	dc, err := intOr(c.DcId, DefaultDcId)
-	if err != nil || dc < 2 || dc >= 1000 {
-		// tdesktop takes a DC of 1000 and above for a temporary one
-		// (mtproto/mtp_instance.h:45); 1 is the home.
-		return nil, fmt.Errorf("cdn: CDN_DC_ID %q: a number from 2 to 999", c.DcId)
+	mbit, err := intOr(c.PrepareRateMbit, DefaultPrepareRateMbit)
+	if err != nil || mbit <= 0 || mbit > maxPrepareMbit {
+		return nil, fmt.Errorf("cdn: CDN_PREPARE_RATE_MBIT %q: a number of megabits a second from 1 to %d", c.PrepareRateMbit, maxPrepareMbit)
 	}
-	s.DcId = int32(dc)
-
-	ap, err := netip.ParseAddrPort(strings.TrimSpace(c.DcAddress))
-	if err != nil || ap.Port() == 0 {
-		// The clients do not resolve the names of dc_options
-		// (docs/ops/clients.md).
-		return nil, fmt.Errorf("cdn: CDN_DC_ADDRESS %q: an IP address and a port", c.DcAddress)
-	}
-	s.DcAddress = ap.String()
-	if s.DcSecret, err = codec.ParseSecretHex(strings.TrimSpace(c.DcSecret)); err != nil {
-		return nil, fmt.Errorf("cdn: CDN_DC_SECRET: %w", err)
-	}
-
+	s.PrepareBytesPerSecond = mbit * 1000 * 1000 / 8
 	if s.MinFileSize, err = intOr(c.MinFileSize, DefaultMinFileSize); err != nil {
 		return nil, fmt.Errorf("cdn: CDN_MIN_FILE_SIZE %q: %w", c.MinFileSize, err)
 	}
 	if err = ValidMinFileSize(s.MinFileSize); err != nil {
 		return nil, err
 	}
-	mbit, err := intOr(c.PushRateMbit, DefaultPushRateMbit)
-	if err != nil || mbit <= 0 || mbit > 10000 {
-		return nil, fmt.Errorf("cdn: CDN_PUSH_RATE_MBIT %q: a number of megabits a second from 1 to 10000", c.PushRateMbit)
+	if s.Kinds, err = parseKinds(c.Kinds); err != nil {
+		return nil, err
 	}
-	s.PushBytesPerSecond = mbit * 1000 * 1000 / 8
-	n, err := intOr(c.PushConcurrency, DefaultPushConcurrency)
-	if err != nil || n < 1 || n > maxPushConcurrency {
-		return nil, fmt.Errorf("cdn: CDN_PUSH_CONCURRENCY %q: from 1 to %d", c.PushConcurrency, maxPushConcurrency)
-	}
-	s.PushConcurrency = int(n)
-	gb, err := strconv.ParseInt(strings.TrimSpace(c.MonthlyEgressLimitGB), 10, 64)
-	if err != nil || gb <= 0 || gb > 1<<20 {
-		return nil, fmt.Errorf("cdn: CDN_MONTHLY_EGRESS_LIMIT_GB %q: required, a positive number of GB below the traffic of the VPS plan", c.MonthlyEgressLimitGB)
-	}
-	s.MonthlyEgressLimit = gb * 1000 * 1000 * 1000
-	s.ReuploadWait = DefaultReuploadWait
-	if v := strings.TrimSpace(c.ReuploadWait); v != "" {
-		if s.ReuploadWait, err = time.ParseDuration(v); err != nil || s.ReuploadWait < time.Second || s.ReuploadWait > maxReuploadWait {
-			return nil, fmt.Errorf("cdn: CDN_REUPLOAD_WAIT %q: a duration from 1s to %v", c.ReuploadWait, maxReuploadWait)
+
+	var ids []int32
+	var names []string
+	for i := range c.Deliveries {
+		d, err := c.Deliveries[i].parse(s)
+		if err != nil {
+			return nil, err
+		}
+		if slices.Contains(ids, d.ID) || slices.Contains(names, d.Name) {
+			return nil, fmt.Errorf("cdn: two deliveries with id %d or name %q", d.ID, d.Name)
+		}
+		ids, names = append(ids, d.ID), append(names, d.Name)
+		if d.BaseURL != "" {
+			s.Deliveries = append(s.Deliveries, d)
 		}
 	}
+
+	routes := strings.TrimSpace(c.Routes)
+	if routes == "" {
+		routes = DefaultRoutes
+	}
+	if s.Routes, err = ParseRoutes(routes); err != nil {
+		return nil, err
+	}
+	for _, r := range s.Routes {
+		for _, id := range r.Deliveries {
+			if _, ok := s.Delivery(id); !ok {
+				return nil, fmt.Errorf("cdn: CDN_ROUTES names delivery %d, which is unknown or off (no BaseURL)", id)
+			}
+		}
+	}
+
+	if err = c.Origin.parse(s); err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+// parse checks a delivery; it returns one with an empty BaseURL when it is
+// off, whose other fields are not looked at.
+func (c DeliveryConfig) parse(s *Settings) (Delivery, error) {
+	d := Delivery{ID: c.Id, Name: strings.TrimSpace(c.Name)}
+	if d.ID < MinDeliveryID || d.ID > MaxDeliveryID {
+		return d, fmt.Errorf("cdn: delivery id %d: from %d to %d", d.ID, MinDeliveryID, MaxDeliveryID)
+	}
+	if d.Name == "" {
+		return d, fmt.Errorf("cdn: delivery %d has no name", d.ID)
+	}
+	base := strings.TrimSpace(c.BaseURL)
+	if base == "" {
+		return d, nil
+	}
+	var err error
+	if d.BaseURL, d.InsecureHTTP, err = parseBaseURL(base, s.DevAllowHTTP); err != nil {
+		return d, fmt.Errorf("cdn: delivery %d: %w", d.ID, err)
+	}
+	if d.Source = strings.TrimSpace(c.Source); d.Source == "" {
+		d.Source = SourceHomeOrigin
+	}
+	if d.Source != SourceHomeOrigin {
+		return d, fmt.Errorf("cdn: delivery %d: source %q, only %s is supported", d.ID, d.Source, SourceHomeOrigin)
+	}
+	gb, err := intOr(c.MonthlyGB, DefaultMonthlyGB)
+	if err != nil || gb <= 0 || gb > maxMonthlyGB {
+		return d, fmt.Errorf("cdn: delivery %d: MonthlyGB %q: a positive number of GB", d.ID, c.MonthlyGB)
+	}
+	d.MonthlyBytes = gb * 1000 * 1000 * 1000
+
+	signer := strings.TrimSpace(c.Signer)
+	if signer == "" {
+		signer = SignerGcoreMD5
+	}
+	// The key is used as it is written, never printed.
+	switch signer {
+	case SignerGcoreMD5:
+		d.Signer, err = NewGcoreSigner(d.BaseURL, c.Key, s.URLTTL)
+	case SignerPathHMAC:
+		var key []byte
+		if key, err = ParsePathHMACKey(c.Key); err == nil {
+			d.Signer, err = NewPathHMACSigner(d.BaseURL, key, s.URLTTL)
+		}
+	default:
+		err = fmt.Errorf("cdn: signer %q, want %s or %s", signer, SignerGcoreMD5, SignerPathHMAC)
+	}
+	if err != nil {
+		return d, fmt.Errorf("cdn: delivery %d: %w", d.ID, err)
+	}
+	return d, nil
+}
+
+// parseBaseURL checks the base of the URLs of a delivery: https:// and a
+// host, nothing after it but a slash, which is dropped; http:// only with
+// devHTTP. It reports whether the base is http://.
+func parseBaseURL(base string, devHTTP bool) (string, bool, error) {
+	u, err := url.Parse(base)
+	if err != nil {
+		return "", false, errors.New("BaseURL does not parse")
+	}
+	insecure := u.Scheme == "http"
+	switch {
+	case u.Scheme != "https" && !insecure:
+		return "", false, fmt.Errorf("BaseURL has scheme %q, want https", u.Scheme)
+	case insecure && !devHTTP:
+		return "", false, errors.New("BaseURL is http://, which only CDN_DEV_ALLOW_HTTP=1 of the test stand allows")
+	case u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.ForceQuery || (u.Path != "" && u.Path != "/"):
+		return "", false, errors.New("BaseURL must be a scheme and a host only")
+	}
+	return u.Scheme + "://" + u.Host, insecure, nil
+}
+
+// parse checks the origin, which is required while a delivery pulls from
+// it.
+func (c OriginConfig) parse(s *Settings) error {
+	if !slices.ContainsFunc(s.Deliveries, func(d Delivery) bool { return d.Source == SourceHomeOrigin }) {
+		return nil
+	}
+	o := &s.Origin
+	if o.Listen = strings.TrimSpace(c.Listen); o.Listen == "" {
+		o.Listen = DefaultOriginListen
+	}
+	_, port, err := net.SplitHostPort(o.Listen)
+	if p, perr := strconv.Atoi(port); err != nil || perr != nil || p <= 0 || p > 65535 {
+		return fmt.Errorf("cdn: CDN_ORIGIN_LISTEN %q: host:port", o.Listen)
+	}
+	// The value is compared as it is written, and never printed.
+	if _, err = hex.DecodeString(c.AuthValue); err != nil || len(c.AuthValue) != originAuthDigits {
+		return fmt.Errorf("cdn: CDN_ORIGIN_AUTH must be %d hex digits (openssl rand -hex 32)", originAuthDigits)
+	}
+	o.AuthValue = Secret(c.AuthValue)
+	n, err := intOr(c.MaxConcurrent, DefaultOriginMax)
+	if err != nil || n < 1 || n > maxOriginMax {
+		return fmt.Errorf("cdn: Origin.MaxConcurrent %q: from 1 to %d", c.MaxConcurrent, maxOriginMax)
+	}
+	o.MaxConcurrent = int(n)
+	return nil
+}
+
+// kindNames are the names of CDN_KINDS.
+var kindNames = map[string]FileKind{"document": KindDocument, "photo": KindPhoto}
+
+// parseKinds parses CDN_KINDS, names separated by commas.
+func parseKinds(v string) ([]FileKind, error) {
+	if v = strings.TrimSpace(v); v == "" {
+		v = DefaultKinds
+	}
+	var kinds []FileKind
+	for name := range strings.SplitSeq(v, ",") {
+		name = strings.TrimSpace(name)
+		if name == "encrypted" {
+			// The owner's decision of 2026-11-16 (ADR 0071 §6): a secret
+			// chat file has one recipient, and the CDN would see the pair
+			// of addresses.
+			return nil, errors.New("cdn: CDN_KINDS: the files of secret chats (encrypted) never go through the CDN")
+		}
+		k, ok := kindNames[name]
+		if !ok {
+			return nil, fmt.Errorf("cdn: CDN_KINDS: unknown kind %q, want document or photo", name)
+		}
+		if !slices.Contains(kinds, k) {
+			kinds = append(kinds, k)
+		}
+	}
+	return kinds, nil
+}
+
+// flagOf parses a switch of the environment: "" or "0" off, "1" on.
+func flagOf(v string) (bool, error) {
+	switch strings.TrimSpace(v) {
+	case "", "0":
+		return false, nil
+	case "1":
+		return true, nil
+	}
+	return false, errors.New("want 0 or 1")
+}
+
+// durationOr parses v, or returns def for an empty one.
+func durationOr(v string, def time.Duration) (time.Duration, error) {
+	if v = strings.TrimSpace(v); v == "" {
+		return def, nil
+	}
+	return time.ParseDuration(v)
 }
 
 // intOr parses v, or returns def for an empty one.

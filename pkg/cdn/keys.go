@@ -13,10 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cdn is the home side of Pluma's CDN-DC (ADR 0065): the keys,
-// tokens and hashes of the files pushed to a CDN node, their encryption,
-// the request tokens of upload.reuploadCdnFile, the policy of what goes
-// through the CDN and the tables that keep it all.
+// Package cdn is the home side of Pluma's HTTPS CDN (ADR 0071, on the keys
+// and hashes of ADR 0065): the keys, tokens and hashes of the files a CDN
+// serves, their encryption, the deliveries and the signatures of their
+// URLs, the policy of what goes through the CDN and the tables that keep it
+// all.
 package cdn
 
 import (
@@ -31,14 +32,13 @@ const (
 	KeySize = 32
 	// IVSize is the size of a file's IV; see KeySize.
 	IVSize = 16
-	// TokenSize is the size of a file_token.
+	// TokenSize is the size of cdn_files.file_token, the id of a file in
+	// the URLs and in a PLH1 file_token.
 	TokenSize = 32
-	// RtKeySize is the size of a request_token key.
-	RtKeySize = 32
 )
 
-// Secrets are what a file is encrypted and found by on every node: its
-// AES-256-CTR key, its IV and its file_token (ADR 0065, p. 3).
+// Secrets are what a file is encrypted and found by: its AES-256-CTR key,
+// its IV and its id (ADR 0065, p. 3).
 type Secrets struct {
 	Token []byte
 	Key   []byte
@@ -69,13 +69,4 @@ func (s Secrets) Valid() bool {
 
 func validKeyIV(key, iv []byte) bool {
 	return len(key) == KeySize && len(iv) == IVSize && iv[12] == 0 && iv[13] == 0 && iv[14] == 0 && iv[15] == 0
-}
-
-// NewRtKey makes a request_token key from crypto/rand.
-func NewRtKey() ([]byte, error) {
-	k := make([]byte, RtKeySize)
-	if _, err := rand.Read(k); err != nil {
-		return nil, fmt.Errorf("cdn: request token key: %w", err)
-	}
-	return k, nil
 }
