@@ -59,6 +59,7 @@ var served = map[string]bool{
 	"AccountGetConnectedBots":         true,
 	"AccountToggleConnectedBotPaused": true,
 	"AccountDisablePeerConnectedBot":  true,
+	"AccountGetBotBusinessConnection": true,
 }
 
 // The services of Business the session routes to bff (session.yaml): one

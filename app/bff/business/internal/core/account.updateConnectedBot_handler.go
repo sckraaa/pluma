@@ -56,16 +56,18 @@ func (c *BusinessCore) AccountUpdateConnectedBot(in *mtproto.TLAccountUpdateConn
 	}
 	if in.GetDeleted() {
 		var removed *business.Connection
-		if _, err := userbox.Run(c.ctx, c.svcCtx.Dao.BoxDB, c.MD.UserId, func(b *userbox.Box) error {
+		if err := c.runBox(func(b *userbox.Box) error {
 			var err error
-			removed, err = business.DisconnectTx(b.Tx(), c.MD.UserId, 0)
-			return err
+			if removed, err = business.DisconnectTx(b.Tx(), c.MD.UserId, 0); err != nil {
+				return err
+			}
+			// The bot that is no longer connected is told so
+			// (updateBotBusinessConnect with disabled).
+			return c.tellBot(b, removed, true)
 		}); err != nil {
 			c.Logger.Errorf("%s - error: %v", method, err)
 			return nil, err
 		}
-		// The bot that is no longer connected is told so (part 7 of task
-		// 105, updateBotBusinessConnect with disabled).
 		var ids []int64
 		if removed != nil {
 			ids = []int64{removed.BotID}
@@ -111,11 +113,18 @@ func (c *BusinessCore) AccountUpdateConnectedBot(in *mtproto.TLAccountUpdateConn
 		// the rights.
 		rights = business.RightReply
 	}
-	if _, err = userbox.Run(c.ctx, c.svcCtx.Dao.BoxDB, c.MD.UserId, func(b *userbox.Box) error {
+	if err = c.runBox(func(b *userbox.Box) error {
 		// The connection and the one it replaced are told to their bots
-		// (part 7 of task 105, updateBotBusinessConnect).
-		_, _, err := business.ConnectTx(b.Tx(), c.MD.UserId, bot.Id(), rights, recipients, int32(time.Now().Unix()))
-		return err
+		// (updateBotBusinessConnect): the bot replaced first, then the new
+		// one, each in its own lane.
+		conn, replaced, err := business.ConnectTx(b.Tx(), c.MD.UserId, bot.Id(), rights, recipients, int32(time.Now().Unix()))
+		if err != nil {
+			return err
+		}
+		if err = c.tellBot(b, replaced, true); err != nil {
+			return err
+		}
+		return c.tellBot(b, conn, false)
 	}); err != nil {
 		c.Logger.Errorf("%s - error: %v", method, err)
 		return nil, err

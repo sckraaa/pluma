@@ -197,6 +197,13 @@ func (d *delivery) record(m *sarama.ConsumerMessage) {
 			return
 		}
 		p = push{updates: in.Updates}
+	case "sync.TL_sync_updatesMe":
+		var in syncpb.TLSyncUpdatesMe
+		if err := json.Unmarshal(m.Value, &in); err != nil {
+			d.fail("decode %s: %v", method, err)
+			return
+		}
+		p = push{authKey: in.PermAuthKeyId, updates: in.Updates}
 	case "sync.TL_sync_pushChannelUpdates":
 		// Channel pts are the channel's: the delivery checks boxes of users.
 		return

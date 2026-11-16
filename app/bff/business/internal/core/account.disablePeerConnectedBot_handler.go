@@ -16,9 +16,9 @@
 package core
 
 import (
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/business"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // AccountDisablePeerConnectedBot
@@ -30,8 +30,9 @@ import (
 // business.Recipients.WithoutPeer) and is no longer paused. The bar over
 // the chat goes: tdesktop clears it itself and reads the connected bot
 // again (data/business/data_business_chatbots.cpp:155-163), the other
-// devices get updatePeerSettings without it. The bot is told of its new
-// recipients (part 7 of task 105, updateBotBusinessConnect).
+// devices get updatePeerSettings without it. The bot is told of its
+// changed connection (updateBotBusinessConnect, with the same
+// connection_id).
 //
 // A list of excluded users already at business.RecipientsUsersMax is
 // USERS_TOO_MUCH, the limit of account.updateConnectedBot.
@@ -44,18 +45,18 @@ func (c *BusinessCore) AccountDisablePeerConnectedBot(in *mtproto.TLAccountDisab
 	if err != nil {
 		return nil, err
 	}
-	if err = c.changeChat(method, peerID, func(tx *sqlx.Tx, conn *business.Connection, peer business.Peer, now int32) (*business.PeerBar, error) {
+	if err = c.changeChat(method, peerID, func(b *userbox.Box, conn *business.Connection, peer business.Peer, now int32) (*business.PeerBar, error) {
 		r := conn.Recipients.WithoutPeer(peer)
 		if len(r.Users) > business.RecipientsUsersMax || len(r.ExcludeUsers) > business.RecipientsUsersMax {
 			return nil, mtproto.ErrUsersTooMuch
 		}
-		if err := business.SetRecipientsTx(tx, conn, r, now); err != nil {
+		if err := business.SetRecipientsTx(b.Tx(), conn, r, now); err != nil {
 			return nil, err
 		}
-		if err := business.SetPausedTx(tx, c.MD.UserId, peerID, false, now); err != nil {
+		if err := business.SetPausedTx(b.Tx(), c.MD.UserId, peerID, false, now); err != nil {
 			return nil, err
 		}
-		return nil, nil
+		return nil, c.tellBot(b, conn, false)
 	}); err != nil {
 		return nil, err
 	}

@@ -111,7 +111,13 @@ func sendReply(boxes []*mtproto.MessageBox, users func([]int64) []*mtproto.User,
 // toUserId: the sender's box, the push to the sender's other devices and
 // one inbox event with all the messages to the recipient (unless it
 // blocked the sender), in one transaction. A send repeated with the same
-// random ids gets the first reply (dao.SentBefore).
+// random ids gets the first reply (dao.SentBefore). The connected bot of
+// Telegram Business of the sender that serves the chat is told of the
+// messages (task 105): the account's own messages of a business chat are
+// the bot's too, those it sent through the bot among them (Bot API,
+// Message.sender_business_bot: "for outgoing messages sent on behalf of
+// the connected business account"; not verified that Telegram sends the
+// bot the account's other outgoing messages).
 func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, outBoxList []*msg.OutboxMessage, opt sendOptions) (*mtproto.Updates, error) {
 	idHelper := mtproto.NewIDListHelper(fromUserId, toUserId)
 	for _, outBox := range outBoxList {
@@ -150,6 +156,10 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 	}
 	incoming := incomingActions(outBoxList, msgs)
 	auto, err := c.autoTTLMessage(fromUserId, toUserId, msgs)
+	if err != nil {
+		return nil, err
+	}
+	businessChat, err := c.svcCtx.Dao.BusinessChatOf(c.ctx, fromUserId, toUserId, users)
 	if err != nil {
 		return nil, err
 	}
@@ -227,12 +237,28 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 					return err
 				}
 			}
+			bot, err := c.svcCtx.Dao.BusinessBotTx(b, businessChat)
+			if err != nil {
+				return err
+			}
+			if err = c.svcCtx.Dao.EmitBusinessMessages(b, bot, toUserId, false, boxMessages(boxes)...); err != nil {
+				return err
+			}
 			return opt.runAfter(b, sentIds(boxes))
 		})
 	if err != nil {
 		return nil, err
 	}
 	return rUpdates, nil
+}
+
+// boxMessages are the messages of boxes, in order.
+func boxMessages(boxes []*mtproto.MessageBox) []*mtproto.Message {
+	out := make([]*mtproto.Message, len(boxes))
+	for i, box := range boxes {
+		out[i] = box.GetMessage()
+	}
+	return out
 }
 
 // checkIncomingActions checks the incoming actions of a send

@@ -21,6 +21,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -28,12 +29,23 @@ import (
 // inbox.editMessageToInboxV2 flags:# user_id:long from_id:long peer_type:int peer_id:long new_message:MessageBox users:flags.2?Vector<User> chats:flags.3?Vector<Chat> = Void;
 //
 // The recipient's copy is found by dialog_message_id in the transaction; no
-// copy, nothing to do.
+// copy, nothing to do. The connected bot of Telegram Business of the
+// recipient that serves the private chat is told of the edit (task 105).
 func (c *InboxCore) InboxEditMessageToInboxV2(in *inbox.TLInboxEditMessageToInboxV2) error {
 	bot := isBot(in.UserId, in.Users)
+	var businessChat *dao.BusinessChat
+	if !bot {
+		var err error
+		if businessChat, err = c.privateBusinessChat(in.UserId, in.FromId, in.PeerType, in.PeerId); err != nil {
+			return err
+		}
+	}
 	return c.apply(in.UserId, nil, func(b *userbox.Box) (bool, error) {
 		update, err := c.svcCtx.Dao.EditIncoming(b, in.GetNewMessage().GetDialogMessageId(), in.GetNewMessage().GetMessage())
 		if err != nil || update == nil {
+			return true, err
+		}
+		if err = c.businessMessages(b, businessChat, true, []*mtproto.MessageBox{{Message: update.GetMessage_MESSAGE()}}); err != nil {
 			return true, err
 		}
 		return true, c.svcCtx.Dao.EmitPushUpdates(b, in.UserId, bot,

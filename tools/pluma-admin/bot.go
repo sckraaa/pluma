@@ -31,6 +31,7 @@ import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
@@ -45,6 +46,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 	"github.com/teamgram/teamgram-server/pkg/webappdata"
 
@@ -557,13 +559,17 @@ func (s *rpcBotServices) UpdateBotData(ctx context.Context, in *userpb.TLUserUpd
 
 // DisconnectBusiness removes the connections of the bot account by
 // account, each in a box transaction of the account, as
-// account.updateConnectedBot does; the bot is told of each (part 7 of task
-// 105, updateBotBusinessConnect with disabled). A connection the account
-// changed to another bot meanwhile stays.
+// account.updateConnectedBot does; the bot is told of each
+// (updateBotBusinessConnect with disabled, by an inbox event the relay of
+// msg publishes). A connection the account changed to another bot
+// meanwhile stays.
 func (s *rpcBotServices) DisconnectBusiness(ctx context.Context, botId int64) (int, error) {
 	store := business.NewStore(sqlx.NewMySQL(&s.conf.Mysql))
 	accounts, err := store.AccountsOfBot(ctx, botId)
 	if err != nil || len(accounts) == 0 {
+		return 0, err
+	}
+	if err = outbox.Register(outbox.Topics{Inbox: []string{inboxTopic}}); err != nil {
 		return 0, err
 	}
 	boxDB, err := userbox.Open(s.conf.Mysql.DSN)
@@ -576,8 +582,10 @@ func (s *rpcBotServices) DisconnectBusiness(ctx context.Context, botId int64) (i
 		var removed *business.Connection
 		if _, err = userbox.Run(ctx, boxDB, userId, func(b *userbox.Box) error {
 			var err error
-			removed, err = business.DisconnectTx(b.Tx(), userId, botId)
-			return err
+			if removed, err = business.DisconnectTx(b.Tx(), userId, botId); err != nil || removed == nil {
+				return err
+			}
+			return inbox.EmitBotBusinessUpdate(b, inboxTopic, removed.BotID, removed.ConnectUpdate(true))
 		}); err != nil {
 			return n, fmt.Errorf("account %d: %w", userId, err)
 		}

@@ -75,6 +75,13 @@ func (c *MsgCore) deleteMessages(in *msg.TLMsgDeleteMessages) (*mtproto.Messages
 			return nil, err
 		}
 	}
+	// The connected bot of Telegram Business is told of the deletions in
+	// the private chats it serves (task 105), with or without revoke: the
+	// messages leave the account's box either way.
+	businessChats, err := c.svcCtx.Dao.BusinessChatsOf(c.ctx, in.UserId, privatePeers(in.UserId, dialogs), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	res, err := c.svcCtx.Dao.RunBox(c.ctx, in.UserId, keys, func(b *userbox.Box) error {
 		deleted, err := c.svcCtx.Dao.DeleteMessages(b, in.Id)
@@ -82,6 +89,9 @@ func (c *MsgCore) deleteMessages(in *msg.TLMsgDeleteMessages) (*mtproto.Messages
 			return err
 		}
 		if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, in.UserId, in.AuthKeyId, mtproto.MakeUpdatesByUpdates(deleted.Update)); err != nil {
+			return err
+		}
+		if err = c.svcCtx.Dao.EmitBusinessDeletedChats(b, deleted, businessChats); err != nil {
 			return err
 		}
 		if !in.Revoke {
@@ -93,6 +103,19 @@ func (c *MsgCore) deleteMessages(in *msg.TLMsgDeleteMessages) (*mtproto.Messages
 		return nil, err
 	}
 	return affectedMessages(res), nil
+}
+
+// privatePeers are the other users of the private chats among dialogs, of
+// userId's box.
+func privatePeers(userId int64, dialogs []mtproto.DialogID) []int64 {
+	var out []int64
+	for _, did := range dialogs {
+		p := mtproto.FromPeer(mtproto.GetPeerByDialogId(userId, did))
+		if p.PeerType == mtproto.PEER_USER && p.PeerId != userId {
+			out = append(out, p.PeerId)
+		}
+	}
+	return out
 }
 
 // emitDeleted adds, for each dialog of the deleted messages, an inbox event

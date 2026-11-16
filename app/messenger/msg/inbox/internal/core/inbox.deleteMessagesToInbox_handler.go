@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -27,12 +28,25 @@ import (
 // inbox.deleteMessagesToInbox user_id:long from_id:long peer_type:int peer_id:long id:Vector<long> = Void;
 //
 // The recipient's copies of the messages are deleted in portions, one
-// transaction and one push each.
+// transaction and one push each. The connected bot of Telegram Business of
+// the recipient that serves the private chat is told of each portion (task
+// 105).
 func (c *InboxCore) InboxDeleteMessagesToInbox(in *inbox.TLInboxDeleteMessagesToInbox) error {
 	peer := recipientPeer(in.FromId, in.PeerType, in.PeerId)
+	businessChat, err := c.privateBusinessChat(in.UserId, in.FromId, in.PeerType, in.PeerId)
+	if err != nil {
+		return err
+	}
+	var chats map[int64]*dao.BusinessChat
+	if businessChat != nil {
+		chats = map[int64]*dao.BusinessChat{businessChat.PeerId: businessChat}
+	}
 	return c.apply(in.UserId, peer, func(b *userbox.Box) (bool, error) {
 		deleted, err := c.svcCtx.Dao.DeleteCopies(b, in.Id)
 		if err != nil || deleted == nil {
+			return true, err
+		}
+		if err = c.svcCtx.Dao.EmitBusinessDeletedChats(b, deleted, chats); err != nil {
 			return true, err
 		}
 		return deleted.Left == 0, c.push(b, deleted.Update)

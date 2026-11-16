@@ -17,6 +17,7 @@ package dao
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
@@ -26,6 +27,7 @@ import (
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -43,6 +45,9 @@ type Dao struct {
 	// (ADR 0020), to SyncTopic.
 	BoxDB     *sql.DB
 	SyncTopic string
+	// InboxTopic takes the events to the connected bot of the account
+	// (inbox.botBusinessUpdateToInbox), applied in the bot's box.
+	InboxTopic string
 	// MsgClient serves the quick replies (task 105).
 	MsgClient msg_client.MsgClient
 }
@@ -53,6 +58,10 @@ func New(c config.Config) *Dao {
 	if err != nil {
 		logx.Must(err)
 	}
+	if c.InboxTopic == "" {
+		logx.Must(errors.New("business: InboxTopic is required"))
+	}
+	logx.Must(outbox.Register(outbox.Topics{Inbox: []string{c.InboxTopic}}))
 	return &Dao{
 		UserClient:  user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		MediaClient: media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
@@ -60,6 +69,7 @@ func New(c config.Config) *Dao {
 		Catalog:     catalog.NewStore(db),
 		BoxDB:       boxDB,
 		SyncTopic:   c.SyncClient.Topic,
+		InboxTopic:  c.InboxTopic,
 		MsgClient:   msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 	}
 }

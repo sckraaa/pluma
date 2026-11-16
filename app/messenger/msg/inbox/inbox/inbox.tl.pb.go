@@ -63,6 +63,8 @@ const (
 	TLConstructor_CRC32_inbox_chatHistoryToInbox TLConstructor = 1284828188
 	// pluma: task 082
 	TLConstructor_CRC32_inbox_channelAntispamToInbox TLConstructor = 1763452259
+	// pluma: task 105
+	TLConstructor_CRC32_inbox_botBusinessUpdateToInbox TLConstructor = -63579870
 )
 
 // Enum value maps for TLConstructor.
@@ -88,6 +90,7 @@ var (
 		-1548352621: "CRC32_inbox_channelJoinedHiddenToInbox",
 		1284828188:  "CRC32_inbox_chatHistoryToInbox",
 		1763452259:  "CRC32_inbox_channelAntispamToInbox",
+		-63579870:   "CRC32_inbox_botBusinessUpdateToInbox",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                             0,
@@ -110,6 +113,7 @@ var (
 		"CRC32_inbox_channelJoinedHiddenToInbox":    -1548352621,
 		"CRC32_inbox_chatHistoryToInbox":            1284828188,
 		"CRC32_inbox_channelAntispamToInbox":        1763452259,
+		"CRC32_inbox_botBusinessUpdateToInbox":      -63579870,
 	}
 )
 
@@ -1763,6 +1767,86 @@ func (x *TLInboxChannelKickedToInbox) GetChannelId() int64 {
 	return 0
 }
 
+// --------------------------------------------------------------------------------------------
+// pluma: inbox.botBusinessUpdateToInbox user_id:long from_id:long update:Update = Void;
+// The bot user_id is the connected bot of Telegram Business of from_id
+// (task 105, ADR 0067, p. 6), and update is what it is told of that
+// connection, without its qts: updateBotBusinessConnect, or
+// updateBotNewBusinessMessage, updateBotEditBusinessMessage or
+// updateBotDeleteBusinessMessage of a chat of from_id it serves, the
+// messages as from_id sees them. The box transaction of from_id that made
+// the change writes the event; the bot's applies it: each authorization of
+// the bot gets the update with its next qts in its queue (pkg/qtsqueue)
+// and pushed. The users and chats it refers to are built then, as the bot
+// sees them.
+type TLInboxBotBusinessUpdateToInbox struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=inbox.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	FromId        int64                  `protobuf:"varint,4,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
+	Update        *mtproto.Update        `protobuf:"bytes,5,opt,name=update,proto3" json:"update,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLInboxBotBusinessUpdateToInbox) Reset() {
+	*x = TLInboxBotBusinessUpdateToInbox{}
+	mi := &file_inbox_tl_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLInboxBotBusinessUpdateToInbox) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLInboxBotBusinessUpdateToInbox) ProtoMessage() {}
+
+func (x *TLInboxBotBusinessUpdateToInbox) ProtoReflect() protoreflect.Message {
+	mi := &file_inbox_tl_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLInboxBotBusinessUpdateToInbox.ProtoReflect.Descriptor instead.
+func (*TLInboxBotBusinessUpdateToInbox) Descriptor() ([]byte, []int) {
+	return file_inbox_tl_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *TLInboxBotBusinessUpdateToInbox) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLInboxBotBusinessUpdateToInbox) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLInboxBotBusinessUpdateToInbox) GetFromId() int64 {
+	if x != nil {
+		return x.FromId
+	}
+	return 0
+}
+
+func (x *TLInboxBotBusinessUpdateToInbox) GetUpdate() *mtproto.Update {
+	if x != nil {
+		return x.Update
+	}
+	return nil
+}
+
 var File_inbox_tl_proto protoreflect.FileDescriptor
 
 const file_inbox_tl_proto_rawDesc = "" +
@@ -1900,7 +1984,12 @@ const file_inbox_tl_proto_rawDesc = "" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x17\n" +
 	"\afrom_id\x18\x04 \x01(\x03R\x06fromId\x12\x1d\n" +
 	"\n" +
-	"channel_id\x18\x05 \x01(\x03R\tchannelId*\x88\a\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\"\xb6\x01\n" +
+	"!TL_inbox_botBusinessUpdateToInbox\x126\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x14.inbox.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x17\n" +
+	"\afrom_id\x18\x04 \x01(\x03R\x06fromId\x12'\n" +
+	"\x06update\x18\x05 \x01(\v2\x0f.mtproto.UpdateR\x06update*\xbb\a\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12.\n" +
 	"!CRC32_inbox_deleteMessagesToInbox\x10\xb5\xfb\xdf\xfe\xfe\xff\xff\xff\xff\x01\x121\n" +
@@ -1921,7 +2010,8 @@ const file_inbox_tl_proto_rawDesc = "" +
 	" CRC32_inbox_channelKickedToInbox\x10\xe9\xac\xe5\xce\xf8\xff\xff\xff\xff\x01\x123\n" +
 	"&CRC32_inbox_channelJoinedHiddenToInbox\x10\x93\x87؝\xfa\xff\xff\xff\xff\x01\x12&\n" +
 	"\x1eCRC32_inbox_chatHistoryToInbox\x10\x9c\xd8\xd3\xe4\x04\x12*\n" +
-	"\"CRC32_inbox_channelAntispamToInbox\x10\xe3\xca\xf0\xc8\x06BCZAgithub.com/teamgram/teamgram-server/app/messenger/msg/inbox/inboxb\x06proto3"
+	"\"CRC32_inbox_channelAntispamToInbox\x10\xe3\xca\xf0\xc8\x06\x121\n" +
+	"$CRC32_inbox_botBusinessUpdateToInbox\x10\xa2\xb2\xd7\xe1\xff\xff\xff\xff\xff\x01BCZAgithub.com/teamgram/teamgram-server/app/messenger/msg/inbox/inboxb\x06proto3"
 
 var (
 	file_inbox_tl_proto_rawDescOnce sync.Once
@@ -1936,7 +2026,7 @@ func file_inbox_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_inbox_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_inbox_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_inbox_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_inbox_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                           // 0: inbox.TLConstructor
 	(*TLInboxDeleteMessagesToInbox)(nil),         // 1: inbox.TL_inbox_deleteMessagesToInbox
@@ -1958,10 +2048,11 @@ var file_inbox_tl_proto_goTypes = []any{
 	(*TLInboxChannelAntispamToInbox)(nil),        // 17: inbox.TL_inbox_channelAntispamToInbox
 	(*TLInboxChannelDeletedToInbox)(nil),         // 18: inbox.TL_inbox_channelDeletedToInbox
 	(*TLInboxChannelKickedToInbox)(nil),          // 19: inbox.TL_inbox_channelKickedToInbox
-	(*mtproto.MessageBox)(nil),                   // 20: mtproto.MessageBox
-	(*mtproto.User)(nil),                         // 21: mtproto.User
-	(*mtproto.Chat)(nil),                         // 22: mtproto.Chat
-	(*mtproto.Update)(nil),                       // 23: mtproto.Update
+	(*TLInboxBotBusinessUpdateToInbox)(nil),      // 20: inbox.TL_inbox_botBusinessUpdateToInbox
+	(*mtproto.MessageBox)(nil),                   // 21: mtproto.MessageBox
+	(*mtproto.User)(nil),                         // 22: mtproto.User
+	(*mtproto.Chat)(nil),                         // 23: mtproto.Chat
+	(*mtproto.Update)(nil),                       // 24: mtproto.Update
 }
 var file_inbox_tl_proto_depIdxs = []int32{
 	0,  // 0: inbox.TL_inbox_deleteMessagesToInbox.constructor:type_name -> inbox.TLConstructor
@@ -1970,31 +2061,33 @@ var file_inbox_tl_proto_depIdxs = []int32{
 	0,  // 3: inbox.TL_inbox_updatePinnedMessage.constructor:type_name -> inbox.TLConstructor
 	0,  // 4: inbox.TL_inbox_unpinAllMessages.constructor:type_name -> inbox.TLConstructor
 	0,  // 5: inbox.TL_inbox_sendUserMessageToInboxV2.constructor:type_name -> inbox.TLConstructor
-	20, // 6: inbox.TL_inbox_sendUserMessageToInboxV2.box_list:type_name -> mtproto.MessageBox
-	21, // 7: inbox.TL_inbox_sendUserMessageToInboxV2.users:type_name -> mtproto.User
-	22, // 8: inbox.TL_inbox_sendUserMessageToInboxV2.chats:type_name -> mtproto.Chat
+	21, // 6: inbox.TL_inbox_sendUserMessageToInboxV2.box_list:type_name -> mtproto.MessageBox
+	22, // 7: inbox.TL_inbox_sendUserMessageToInboxV2.users:type_name -> mtproto.User
+	23, // 8: inbox.TL_inbox_sendUserMessageToInboxV2.chats:type_name -> mtproto.Chat
 	0,  // 9: inbox.TL_inbox_editMessageToInboxV2.constructor:type_name -> inbox.TLConstructor
-	20, // 10: inbox.TL_inbox_editMessageToInboxV2.new_message:type_name -> mtproto.MessageBox
-	21, // 11: inbox.TL_inbox_editMessageToInboxV2.users:type_name -> mtproto.User
-	22, // 12: inbox.TL_inbox_editMessageToInboxV2.chats:type_name -> mtproto.Chat
+	21, // 10: inbox.TL_inbox_editMessageToInboxV2.new_message:type_name -> mtproto.MessageBox
+	22, // 11: inbox.TL_inbox_editMessageToInboxV2.users:type_name -> mtproto.User
+	23, // 12: inbox.TL_inbox_editMessageToInboxV2.chats:type_name -> mtproto.Chat
 	0,  // 13: inbox.TL_inbox_readOutboxHistory.constructor:type_name -> inbox.TLConstructor
 	0,  // 14: inbox.TL_inbox_updateMessageReactionsToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 15: inbox.TL_inbox_updatePollToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 16: inbox.TL_inbox_updateTodoToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 17: inbox.TL_inbox_readMediaUnreadToInboxV2.constructor:type_name -> inbox.TLConstructor
 	0,  // 18: inbox.TL_inbox_seqUpdatesToInbox.constructor:type_name -> inbox.TLConstructor
-	23, // 19: inbox.TL_inbox_seqUpdatesToInbox.updates:type_name -> mtproto.Update
+	24, // 19: inbox.TL_inbox_seqUpdatesToInbox.updates:type_name -> mtproto.Update
 	0,  // 20: inbox.TL_inbox_channelInvitedToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 21: inbox.TL_inbox_channelJoinedHiddenToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 22: inbox.TL_inbox_chatHistoryToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 23: inbox.TL_inbox_channelAntispamToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 24: inbox.TL_inbox_channelDeletedToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 25: inbox.TL_inbox_channelKickedToInbox.constructor:type_name -> inbox.TLConstructor
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	0,  // 26: inbox.TL_inbox_botBusinessUpdateToInbox.constructor:type_name -> inbox.TLConstructor
+	24, // 27: inbox.TL_inbox_botBusinessUpdateToInbox.update:type_name -> mtproto.Update
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_inbox_tl_proto_init() }
@@ -2008,7 +2101,7 @@ func file_inbox_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_inbox_tl_proto_rawDesc), len(file_inbox_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

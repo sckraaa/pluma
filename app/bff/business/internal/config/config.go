@@ -33,4 +33,8 @@ type Config struct {
 	// MsgClient keeps the quick replies (service msg): their messages are
 	// made and sent as other messages are.
 	MsgClient zrpc.RpcClientConf
+	// InboxTopic is the topic of the inbox events the box transactions of
+	// the account write (Inbox-T, ADR 0012): what its connected bot is told
+	// of its connection (inbox.botBusinessUpdateToInbox).
+	InboxTopic string
 }
