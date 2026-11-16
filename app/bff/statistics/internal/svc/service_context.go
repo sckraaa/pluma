@@ -38,6 +38,14 @@ type Channels interface {
 	ChannelGetMutableChannel(ctx context.Context, in *channelpb.TLChannelGetMutableChannel) (*channelpb.MutableChannel, error)
 }
 
+// ChannelMessages reads messages of channels and the channels themselves as
+// a viewer sees them: the copies the public forwards of a post or a story
+// list, and the channels of those copies.
+type ChannelMessages interface {
+	ChannelGetMessages(ctx context.Context, in *channelpb.TLChannelGetMessages) (*channelpb.Vector_Message, error)
+	ChannelGetChannelListByIdList(ctx context.Context, in *channelpb.TLChannelGetChannelListByIdList) (*channelpb.Vector_MutableChannel, error)
+}
+
 // Users reads the users the statistics name (the top members of a
 // supergroup) as the viewer sees them.
 type Users interface {
@@ -48,6 +56,7 @@ type ServiceContext struct {
 	Config   config.Config
 	Dao      *dao.Dao
 	Channels Channels
+	Messages ChannelMessages
 	Users    Users
 	// Signer signs and checks the zoom tokens; nil when the statistics are
 	// off (no STATS_GRAPH_TOKEN_KEY).
@@ -61,10 +70,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if err := c.Stats.Validate(); err != nil {
 		panic(err)
 	}
+	channels := channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient))
 	s := &ServiceContext{
 		Config:   c,
 		Dao:      dao.New(sqlx.NewMySQL(&c.Mysql)),
-		Channels: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
+		Channels: channels,
+		Messages: channels,
 		Users:    user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		Flight:   new(singleflight.Group),
 	}

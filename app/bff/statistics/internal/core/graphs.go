@@ -29,12 +29,13 @@ import (
 // target is what a graph counts.
 type target struct {
 	channelId int64
-	// object is the post of a post's graphs, 0 for a channel's.
+	// object is the post of a post's graphs, the story of a story's, 0
+	// for a channel's.
 	object int32
 	// broadcast: a channel, not a supergroup.
 	broadcast bool
 	// start is when the counted object began: the channel was made, the
-	// post was posted.
+	// post or the story was posted.
 	start int64
 	// members is the channel's participants_count now (no ghosts).
 	members int64
@@ -50,8 +51,10 @@ type graphSpec struct {
 	// it starts when they began to be recorded (ADR 0066, p. 3). Empty
 	// for the tables that keep their whole history.
 	events channelstats.Kind
-	// object: the graph is of a post (target.object), not of a channel.
+	// object: the graph is of a post (target.object), not of a channel;
+	// story: of a story, not of a post.
 	object bool
+	story  bool
 	// kind is the kind of channel whose statistics have the graph.
 	kind  int
 	build func(ctx context.Context, d *dao.Dao, t target, b statsgraph.Buckets) (*statsgraph.Graph, error)
@@ -369,14 +372,14 @@ func reactionsGraph(ctx context.Context, d *dao.Dao, t target, b statsgraph.Buck
 }
 
 // storyInteractionsGraph: the views and the shares of the stories of the
-// channel in each bucket; two axes.
+// channel, or of the story of t, in each bucket; two axes.
 func storyInteractionsGraph(ctx context.Context, d *dao.Dao, t target, b statsgraph.Buckets) (*statsgraph.Graph, error) {
 	r := rangeOf(b)
-	views, err := d.StoryViewCounts(ctx, t.channelId, 0, r)
+	views, err := d.StoryViewCounts(ctx, t.channelId, t.object, r)
 	if err != nil {
 		return nil, err
 	}
-	shares, err := d.StoryShareCounts(ctx, t.channelId, 0, r)
+	shares, err := d.StoryShareCounts(ctx, t.channelId, t.object, r)
 	if err != nil {
 		return nil, err
 	}
@@ -389,10 +392,10 @@ func storyInteractionsGraph(ctx context.Context, d *dao.Dao, t target, b statsgr
 	}, nil
 }
 
-// storyReactionsGraph: the reactions put on the stories of the channel in
-// each bucket by emotion.
+// storyReactionsGraph: the reactions put on the stories of the channel, or
+// on the story of t, in each bucket by emotion.
 func storyReactionsGraph(ctx context.Context, d *dao.Dao, t target, b statsgraph.Buckets) (*statsgraph.Graph, error) {
-	rows, err := d.StoryReactionCounts(ctx, t.channelId, 0, rangeOf(b))
+	rows, err := d.StoryReactionCounts(ctx, t.channelId, t.object, rangeOf(b))
 	if err != nil {
 		return nil, err
 	}

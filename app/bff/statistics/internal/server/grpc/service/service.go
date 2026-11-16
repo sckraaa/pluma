@@ -58,28 +58,28 @@ func (s *Service) StatsGetMegagroupStats(ctx context.Context, request *mtproto.T
 	return c.StatsGetMegagroupStats(request)
 }
 
-// StatsGetMessagePublicForwards5F150144: the public forwards of posts are
-// not served yet (task 103).
-func (s *Service) StatsGetMessagePublicForwards5F150144(context.Context, *mtproto.TLStatsGetMessagePublicForwards5F150144) (*mtproto.Stats_PublicForwards, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+func (s *Service) StatsGetMessagePublicForwards5F150144(ctx context.Context, request *mtproto.TLStatsGetMessagePublicForwards5F150144) (*mtproto.Stats_PublicForwards, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stats.getMessagePublicForwards - metadata: {%s}", c.MD)
+	return c.StatsGetMessagePublicForwards5F150144(request)
 }
 
-// StatsGetStoryStats: the statistics of stories are not served yet (task
-// 103).
-func (s *Service) StatsGetStoryStats(context.Context, *mtproto.TLStatsGetStoryStats) (*mtproto.Stats_StoryStats, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+func (s *Service) StatsGetStoryStats(ctx context.Context, request *mtproto.TLStatsGetStoryStats) (*mtproto.Stats_StoryStats, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stats.getStoryStats - metadata: {%s}", c.MD)
+	return c.StatsGetStoryStats(request)
 }
 
-// StatsGetStoryPublicForwards: the public reposts of stories are not
-// served yet (task 103).
-func (s *Service) StatsGetStoryPublicForwards(context.Context, *mtproto.TLStatsGetStoryPublicForwards) (*mtproto.Stats_PublicForwards, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+func (s *Service) StatsGetStoryPublicForwards(ctx context.Context, request *mtproto.TLStatsGetStoryPublicForwards) (*mtproto.Stats_PublicForwards, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stats.getStoryPublicForwards - metadata: {%s}", c.MD)
+	return c.StatsGetStoryPublicForwards(request)
 }
 
-// StatsGetPollStats: the statistics of polls are not served yet (task
-// 103).
-func (s *Service) StatsGetPollStats(context.Context, *mtproto.TLStatsGetPollStats) (*mtproto.Stats_PollStats, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+func (s *Service) StatsGetPollStats(ctx context.Context, request *mtproto.TLStatsGetPollStats) (*mtproto.Stats_PollStats, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stats.getPollStats - metadata: {%s}", c.MD)
+	return c.StatsGetPollStats(request)
 }
 
 // StatsGetMessagePublicForwards5630281B is the method of the layers before
