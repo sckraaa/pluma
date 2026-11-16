@@ -1,14 +1,16 @@
 # Builds the images a server runs and pushes them to GHCR, tagged with the
 # commit (docs/ops/deployment.md): the teamgram services (Dockerfile),
-# alertpush, backup, iosinstall, codes, stt and sfu. A server names the
-# commit it runs in its .env and only pulls; nothing is built on it.
+# alertpush, backup, iosinstall, codes, stt, translate and sfu. A server
+# names the commit it runs in its .env and only pulls; nothing is built on
+# it.
 # linux/amd64 only, the architecture of the server. CI calls it for a push
 # to master once everything has passed; a manual run builds the commit it is
 # started on. The layers are kept in the GitHub Actions cache, each image's
 # apart: TDLib, the long part of pluma-codes, is rebuilt only when its commit
-# changes, and so is the speech model that pluma-stt downloads (the defaults
-# of its Dockerfile: another model is a commit there,
-# docs/ops/transcription.md). A cache that cannot be written costs time, not
+# changes, and so are the speech model that pluma-stt downloads and the
+# translation model that pluma-translate downloads (the defaults of their
+# Dockerfiles: another model is a commit there, docs/ops/transcription.md,
+# docs/ops/translation.md). A cache that cannot be written costs time, not
 # the image.
 name: images
 
@@ -42,6 +44,8 @@ jobs:
             dockerfile: teamgramd/deploy/codes/Dockerfile
           - name: pluma-stt
             dockerfile: teamgramd/deploy/stt/Dockerfile
+          - name: pluma-translate
+            dockerfile: teamgramd/deploy/translate/Dockerfile
           - name: pluma-sfu
             dockerfile: teamgramd/deploy/sfu/Dockerfile
     steps:
@@ -62,10 +66,10 @@ jobs:
           push: true
           provenance: false
           # max keeps the layers of the stages too, which is what TDLib and
-          # the speech model are; the stages of the other images change with
-          # every commit.
+          # the speech and translation models are; the stages of the other
+          # images change with every commit.
           cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=${{ (matrix.name == 'pluma-codes' || matrix.name == 'pluma-stt') && 'max' || 'min' }},ignore-error=true
+          cache-to: type=gha,scope=${{ matrix.name }},mode=${{ (matrix.name == 'pluma-codes' || matrix.name == 'pluma-stt' || matrix.name == 'pluma-translate') && 'max' || 'min' }},ignore-error=true
           tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

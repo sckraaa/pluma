@@ -39,8 +39,9 @@ services:
       # once as there are slots, and bounds an answer by the context of one.
       TRANSLATE_SLOTS: ${TRANSLATE_SLOTS:-4}
       TRANSLATE_CTX: ${TRANSLATE_CTX:-16384}
-    # No published port: only bff, on the network of the services, calls it,
-    # and Prometheus reads /metrics there.
+    # No published port: only bff, on the network of the services, calls it.
+    # Prometheus does not read llama-server's /metrics, which wants the
+    # token; bff's translate_* metrics are what the alerts use.
     networks:
       - teamgram_net
     stop_grace_period: 30s
