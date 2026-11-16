@@ -130,7 +130,7 @@ BFFProxyClients:
     "/mtproto.RPCNsfw": "bff.bff"
     "/mtproto.RPCSponsoredMessages": "bff.bff"
     #"/mtproto.RPCProxyData": "bff.bff"
-    #"/mtproto.RPCStatistics": "bff.bff"
+    "/mtproto.RPCStatistics": "bff.bff"
     "/mtproto.RPCAccount": "bff.bff"
     "/mtproto.RPCWebBrowser": "bff.bff"
     "/mtproto.RPCBusinessOpeningHours": "bff.bff"

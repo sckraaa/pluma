@@ -94,6 +94,9 @@ type Channel struct {
 	// Blocked: the owner of the server blocked the channel (the panel,
 	// channel.setBlocked); nobody may do anything in it.
 	Blocked bool
+	// Monoforum: the direct messages of a channel (task 084); it has no
+	// statistics of its own (CanViewStats).
+	Monoforum bool
 }
 
 // Participant is what Can reads of a participant of the channel.
@@ -257,6 +260,31 @@ func canAdmin(ch Channel, p Participant, a Action) error {
 		return nil
 	}
 	return mtproto.ErrChatAdminRequired
+}
+
+// CanViewStats tells whether p sees the statistics of ch (task 103, ADR
+// 0066, p. 1): a creator in the channel, or an admin with post_messages in
+// a broadcast channel and with ban_users in a supergroup. chatAdminRights
+// has no right of statistics (api.tl:1304 of layer 233); tdlib names these
+// two as the rights that also give the statistics
+// (td/generate/scheme/td_api.tl:839, :843). No statistics for the direct
+// messages of a channel (tdesktop skips them, window_peer_menu.cpp:1316),
+// nor in a blocked channel. There is no threshold of subscribers (ADR
+// 0041).
+func CanViewStats(ch Channel, p Participant) bool {
+	if ch.Blocked || ch.Monoforum || p.State != StateIn {
+		return false
+	}
+	switch p.Role {
+	case RoleCreator:
+		return true
+	case RoleAdmin:
+		if ch.Broadcast {
+			return p.AdminRights&mtproto.ADMIN_POST_MESSAGES != 0
+		}
+		return p.AdminRights&mtproto.ADMIN_BAN_USERS != 0
+	}
+	return false
 }
 
 // Restricted reports whether the participant's own restriction is in effect
