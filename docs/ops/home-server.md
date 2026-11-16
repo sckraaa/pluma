@@ -1,10 +1,10 @@
 # Домашний сервер и край на VPS
 
-Решение — ADR 0061, развитие ADR 0057. Ядро Pluma работает дома, на VPS только край: публичный адрес 195.201.252.126, туннель домой, SFU групповых звонков, TURN звонков один на один, пересылка к сайтам владельца.
+Решение — ADR 0061, развитие ADR 0057. Ядро Pluma работает дома, на VPS только край: публичный адрес 195.201.252.126, туннель домой, SFU групповых звонков, TURN звонков один на один, узел CDN больших файлов (ADR 0065, `docs/ops/cdn.md`), пересылка к сайтам владельца.
 
 ```
 клиенты ──► 195.201.252.126 (VPS) ──DNAT, адрес клиента сохраняется──► WireGuard ──► дом 10.77.0.2: шлюз, Caddy, всё ядро
-                 │  SFU 20600/udp 20601/tcp, TURN 3478, 49160-49659/udp — на VPS, только шифр
+                 │  SFU 20600/udp 20601/tcp, TURN 3478, 49160-49659/udp, CDN 8443/tcp — на VPS, только шифр
                  └─ исходящий трафик дома ◄── SNAT 195.201.252.126 ◄── туннель ◄── контейнеры дома
 ```
 
@@ -66,8 +66,9 @@ docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- https://ifco
 - `/opt/pluma` — клон репозитория. Его `.env` отличается от VPS:
   - `PLUMA_PUBLIC_IPV4=10.77.0.2`;
   - `GROUPCALLS_SFU_ENDPOINT=10.77.0.1:20500`;
+  - с CDN — `CDN_NODE_CONTROL=10.77.0.1:20510`, `CDN_DC_ADDRESS`, `CDN_DC_SECRET`, `CDN_MONTHLY_EGRESS_LIMIT_GB`, `PLUMA_DC1_ADDRESSES`, сертификаты в `/opt/pluma/cdn`, наложение `docker-compose.cdn.yaml` (`docs/ops/cdn.md`, «Включение»);
   - нет `TURN_PUBLIC_IPV4` и `SFU_PUBLIC_IPV4`: они нужны только краю.
-- Цели Prometheus на краю: `/opt/pluma/prometheus-targets/sfu.json` и `node.json`, например `[{"targets":["10.77.0.1:20501"]}]`.
+- Цели Prometheus на краю: `/opt/pluma/prometheus-targets/sfu.json`, `node.json` и с CDN `cdn.json` (`10.77.0.1:20511`), например `[{"targets":["10.77.0.1:20501"]}]`.
 - **Карты в геопозициях** (задача 100, ADR 0063, `docs/ops/maps.md`):
   - сервис `maps` (tileserver-gl) — только дома, на краю его нет; образ `pluma-maps:local` собирается здесь же (`… -f docker-compose.maps.yaml build maps`);
   - данные — `/opt/pluma-maps` (root, 0755, файлы 0644): `pluma-<дата>.pmtiles` около 103 ГБ и ссылка `pluma.pmtiles`; на время обновления — ещё столько же. Диск общий с медиасервером: `df -h /opt` перед вырезкой;
@@ -78,21 +79,22 @@ docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- https://ifco
 
 ## VPS: край
 Край живёт в `/opt/pluma-edge`, отдельно от проверки репозитория ядра. Там лежат:
-- копии своих файлов из репозитория: `docker-compose.edge.yaml`, `teamgramd/deploy/{sfu,turn,edge}/…`;
+- копии своих файлов из репозитория: `docker-compose.edge.yaml`, `teamgramd/deploy/{sfu,turn,edge,cdn}/…`;
 - `.env` с правами 600:
   - `PLUMA_PUBLIC_IPV4=195.201.252.126`;
   - `PLUMA_SFU_IMAGE`;
   - `CALLS_TURN_SECRET` — тот же, что дома;
   - `PLUMA_SFU_CERTS=/opt/pluma-edge/sfu`;
   - `EDGE_SITE_RELAY=lawyer-app:3000`;
-  - `COMPOSE_PROFILES=sites`;
+  - `COMPOSE_PROFILES=sites` (с узлом CDN — `sites,cdn`);
+  - с узлом CDN — `PLUMA_CDN_IMAGE`, `CDN_SECRET` (тот же, что `CDN_DC_SECRET` дома), `CDN_CACHE_BYTES`; данные узла — `/opt/pluma-edge/cdn-data` (владелец 65532), сертификаты — `/opt/pluma-edge/cdn` (`docs/ops/cdn.md`);
   - `PLUMA_CGROUP_PARENT`.
 
 ```bash
 cd /opt/pluma-edge && docker compose -p pluma-edge -f docker-compose.edge.yaml up -d
 ```
 
-Обновление края до коммита (файлы из репозитория и образ SFU): `ssh neo_old 'NEW=<sha> bash -s' < ~/pluma-work/bin/pluma-edge-deploy.sh`.
+Обновление края до коммита (файлы из репозитория, образы SFU и узла CDN; шаги для CDN в скрипте — `docs/ops/cdn.md`, «Выкладка»): `ssh neo_old 'NEW=<sha> bash -s' < ~/pluma-work/bin/pluma-edge-deploy.sh`.
 
 После переезда на VPS не остаётся секретов ядра. С подтверждения владельца, когда дом проработает несколько дней, удаляются:
 - `/opt/pluma/.env`, `.env.bak-*`, `secrets/`, `iosinstall/`, `releases/`, `groupcalls/`, `sfu/`, `data/`;
@@ -102,6 +104,8 @@ cd /opt/pluma-edge && docker compose -p pluma-edge -f docker-compose.edge.yaml u
 Сертификаты управления SFU:
 - на VPS: `control-certs.sh /opt/pluma-edge/sfu /root/groupcalls-certs 10.77.0.1`;
 - `/root/groupcalls-certs` перенести домой в `/opt/pluma/groupcalls` с правами 0400 и удалить на VPS.
+
+Сертификаты управления узла CDN — так же, своим скриптом и со своими центрами: `teamgramd/deploy/cdn/control-certs.sh /opt/pluma-edge/cdn /root/cdn-certs 10.77.0.1`, `/root/cdn-certs` — домой в `/opt/pluma/cdn` (0400), на VPS удалить (`docs/ops/cdn.md`, «Включение», шаг 3).
 
 ## Сертификаты и CAA
 - **Caddy берёт сертификаты только у Let's Encrypt** (`acme_ca` в `Caddyfile`), под ACME-аккаунтом домашнего сервера `https://acme-v02.api.letsencrypt.org/acme/acct/3996877102`. Аккаунт создан 2026-11-14; прежний аккаунт и ключи сертификатов были на VPS, сертификаты отозваны (keyCompromise).
@@ -138,7 +142,7 @@ cd /opt/pluma-edge && docker compose -p pluma-edge -f docker-compose.edge.yaml u
    - сайт, `/dl/`, веб-клиент;
    - звонок один на один и групповой;
    - `sckra.dev`;
-   - Prometheus дома: цели `ops.sfu` и `node-exporter` края `up`.
+   - Prometheus дома: цели `ops.sfu` и `node-exporter` края `up` (с CDN — и `ops.cdn`).
 
 ## Откат
 Пока дома не появились новые данные:

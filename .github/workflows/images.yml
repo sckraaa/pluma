@@ -1,6 +1,6 @@
 # Builds the images a server runs and pushes them to GHCR, tagged with the
 # commit (docs/ops/deployment.md): the teamgram services (Dockerfile),
-# alertpush, backup, iosinstall, codes, stt, translate and sfu. A server
+# alertpush, backup, iosinstall, codes, stt, translate, sfu and cdn. A server
 # names the commit it runs in its .env and only pulls; nothing is built on
 # it.
 # linux/amd64 only, the architecture of the server. CI calls it for a push
@@ -48,6 +48,8 @@ jobs:
             dockerfile: teamgramd/deploy/translate/Dockerfile
           - name: pluma-sfu
             dockerfile: teamgramd/deploy/sfu/Dockerfile
+          - name: pluma-cdn
+            dockerfile: teamgramd/deploy/cdn/Dockerfile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
