@@ -4,12 +4,12 @@
 
 | Клиент | Репозиторий | Апстрим (закреплён) | Реестр | Правок |
 |---|---|---|---|---|
-| Android | `sckraaa/pluma-android` (локально `~/pluma-android`) | DrKLO/Telegram 13.2.1, `7be672ea` | [android.md](android.md) | A-001…A-122 |
-| iOS | `sckraaa/pluma-ios` | Telegram-iOS 12.9.2, `6ad963e5` (ветка `task/074-upstream`: 13.2, `24638bc6`) | [ios.md](ios.md) | I-001…I-129 |
-| Desktop | `sckraaa/pluma-desktop` | tdesktop v7.4.1, `157f5cfc` | [desktop.md](desktop.md) | D-001…D-102 |
-| Web | `sckraaa/pluma-web` (локально `~/pluma-web`) | tweb 2.3 (686), `aa74832e` | [web.md](web.md) | W-001…W-083 |
+| Android | `sckraaa/pluma-android` (локально `~/pluma-android`) | DrKLO/Telegram 13.2.1, `7be672ea` | [android.md](android.md) | A-001…A-123 |
+| iOS | `sckraaa/pluma-ios` | Telegram-iOS 12.9.2, `6ad963e5` (ветка `task/074-upstream`: 13.2, `24638bc6`) | [ios.md](ios.md) | I-001…I-132 |
+| Desktop | `sckraaa/pluma-desktop` | tdesktop v7.4.1, `157f5cfc` | [desktop.md](desktop.md) | D-001…D-103 |
+| Web | `sckraaa/pluma-web` (локально `~/pluma-web`) | tweb 2.3 (686), `aa74832e` | [web.md](web.md) | W-001…W-084 |
 
-Следующие свободные номера (2026-11-13): A-123, I-130, D-103, W-084. Записи групповых звонков A-117…A-122, I-122…I-127, D-096…D-101, W-077…W-082 — ветки `task/094-group-calls-e2e` клиентов, не влито, не выпущено (2026-11-13). Записи обновлений приложений I-128, I-129 (вход CI `mandatory`), D-102, W-083 — ветки `task/095-update-prompts` клиентов, не влито, не выпущено (2026-11-13).
+Следующие свободные номера (2026-11-16): A-124, I-133, D-104, W-085. Записи групповых звонков A-117…A-122, I-122…I-127, D-096…D-101, W-077…W-082 — ветки `task/094-group-calls-e2e` клиентов, не влито, не выпущено (2026-11-13). Записи обновлений приложений I-128, I-129 (вход CI `mandatory`), D-102, W-083 — ветки `task/095-update-prompts` клиентов, не влито, не выпущено (2026-11-13). I-130 (задача 101), I-131 (задача 102) — свои ветки pluma-ios; A-123, I-132, D-103, W-084 (Telegram Business, задача 105) — ветки `task/105-client-patches` клиентов, не влито, не выпущено (2026-11-16).
 
 ## Правила
 - Клиенты меняются только там, где это действительно нужно Pluma:
