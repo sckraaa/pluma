@@ -129,6 +129,7 @@ func TestSeqUpdate(t *testing.T) {
 		mtproto.Predicate_updateQuickReplyMessage,
 		mtproto.Predicate_updateDeleteQuickReplyMessages,
 		mtproto.Predicate_updateAttachMenuBots,
+		mtproto.Predicate_updateWebViewResultSent,
 	} {
 		if !SeqUpdate(p) {
 			t.Errorf("%s goes without seq", p)

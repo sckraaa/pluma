@@ -86,6 +86,20 @@ func (d *Dao) ProlongWebView(ctx context.Context, queryId int64, w *WebView) (bo
 	return err == nil, err
 }
 
+// takeScript removes a web view and returns it, nil when it is gone: of
+// two answers of the bot at once, one takes it.
+const takeScript = `local v = redis.call('GET', KEYS[1]); if v then redis.call('DEL', KEYS[1]) end; return v`
+
+// TakeWebView removes the web view of the query: false when it was gone
+// (answered by another request or expired).
+func (d *Dao) TakeWebView(ctx context.Context, queryId int64) (bool, error) {
+	v, err := d.KV.EvalCtx(ctx, takeScript, webViewKey(queryId))
+	if errors.Is(err, redis.Nil) {
+		return false, nil
+	}
+	return err == nil && v != nil, err
+}
+
 func switchWebviewKey(botId, userId int64) string {
 	return "bot_switch_webview:" + strconv.FormatInt(botId, 10) + ":" + strconv.FormatInt(userId, 10)
 }
@@ -106,6 +120,31 @@ func (d *Dao) SwitchWebview(ctx context.Context, botId, userId int64) (string, e
 		return "", nil
 	}
 	return s, err
+}
+
+// RecentBotMarkups returns the reply markups of the latest messages of the
+// bot in its private chat with the user, newest first, up to limit
+// messages: messages.sendWebViewData takes only the text of a button of one
+// of them. Messages without markup are counted and left out.
+func (d *Dao) RecentBotMarkups(ctx context.Context, userId, botId int64, limit int) ([]*mtproto.ReplyMarkup, error) {
+	dialog := mtproto.MakeDialogId(userId, mtproto.PEER_USER, botId)
+	var rows []string
+	if err := d.db.QueryRowsPartial(ctx, &rows,
+		"SELECT message_data FROM messages WHERE user_id = ? AND dialog_id1 = ? AND dialog_id2 = ? AND sender_user_id = ? AND deleted = 0 ORDER BY user_message_box_id DESC LIMIT ?",
+		userId, dialog.A, dialog.B, botId, limit); err != nil {
+		return nil, err
+	}
+	var out []*mtproto.ReplyMarkup
+	for _, data := range rows {
+		m := new(mtproto.Message)
+		if err := jsonx.UnmarshalFromString(data, m); err != nil {
+			return nil, err
+		}
+		if m.GetReplyMarkup() != nil {
+			out = append(out, m.GetReplyMarkup())
+		}
+	}
+	return out, nil
 }
 
 // WroteToBot tells whether the user has a message of its own in its private

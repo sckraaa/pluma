@@ -432,59 +432,19 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 		return nil, mtproto.ErrResultIdInvalid
 	}
 
-	// The peer the message comes from: send_as decides it as for
-	// messages.sendMessage (pkg/sendas), and msg checks it again with the
-	// channel locked (task 081).
-	from, err := c.svcCtx.SendAs.From(c.ctx, c.MD.UserId, peer, in.GetSendAs())
-	if err != nil {
-		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
-		return nil, err
-	}
-
-	out, err := outOfResult(result)
-	if err != nil {
-		return nil, err
-	}
-	out.Date = int32(time.Now().Unix())
-	out.FromId = from
-	out.PeerId = peer.ToPeer()
-	if peer.IsSelfUser(c.MD.UserId) {
-		// The sub-chat of Saved Messages, as messages.sendMessage writes it.
-		out.SavedPeerId = peer.ToPeer()
-	}
-	out.Silent = in.Silent
-	// core.telegram.org/api/bots/inline: the message has via_bot_id, and
-	// clients show the username of the bot in its header. hide_via may
-	// drop it "only for bot usernames encountered in the config"
-	// (core.telegram.org/method/messages.sendInlineBotResult): the
-	// built-in bots of help.getConfig, whose GIFs the emoji panel sends
-	// with it (Android ChatActivityEnterView.java:12491-12509, iOS
-	// ChatController.swift:2820, tdesktop gifs_list_widget.cpp:545).
-	// Another bot keeps it.
-	if !in.HideVia || !inlinebots.IsBuiltin(answer.Bot) {
-		out.ViaBotId = wrapperspb.Int64(answer.Bot)
-	}
-	// The same reply as messages.sendMessage makes: the clients fill reply_to
-	// of both alike (tdesktop data_histories.cpp ReplyToForMTP, Android
-	// SendMessagesHelper.createReplyInput).
-	if out.ReplyTo, err = replyheader.Make(replySource{c: c}, c.MD.UserId, peer, nil, in.GetReplyTo()); err != nil {
-		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
-		return nil, err
-	}
-	out.ReplyTo = replyheader.WithTopic(out.ReplyTo, peer, in.GetReplyTo())
-
-	updates, err := c.svcCtx.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
-		UserId:    c.MD.UserId,
-		AuthKeyId: c.MD.PermAuthKeyId,
-		PeerType:  peer.PeerType,
-		PeerId:    peer.PeerId,
-		Message: []*msgpb.OutboxMessage{msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
-			NoWebpage:    result.GetSendMessage().GetNoWebpage(),
-			Background:   in.Background,
-			RandomId:     in.RandomId,
-			Message:      out,
-			ScheduleDate: in.ScheduleDate,
-		}).To_OutboxMessage()},
+	out, updates, err := c.sendInlineResult(&inlineSend{
+		userId:       c.MD.UserId,
+		authKeyId:    c.MD.PermAuthKeyId,
+		peer:         peer,
+		botId:        answer.Bot,
+		result:       result,
+		hideVia:      in.HideVia,
+		silent:       in.Silent,
+		background:   in.Background,
+		randomId:     in.RandomId,
+		scheduleDate: in.ScheduleDate,
+		replyTo:      in.GetReplyTo(),
+		sendAs:       in.GetSendAs(),
 	})
 	if err != nil {
 		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
@@ -497,6 +457,89 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 		threading.GoSafe(func() { c.clearDraft(ctx, peer, in.GetReplyTo().GetTopMsgId().GetValue()) })
 	}
 	return updates, nil
+}
+
+// inlineSend is an inline result a user sends to a chat: a result the user
+// chose (messages.sendInlineBotResult) or the answer of a bot to the user's
+// web view (messages.sendWebViewResultMessage).
+type inlineSend struct {
+	// userId sends the message; authKeyId is the session the reply goes
+	// to, which the push leaves out (0: every session of the user).
+	userId    int64
+	authKeyId int64
+	peer      *mtproto.PeerUtil
+	// botId is the bot of the result, via_bot_id of the message.
+	botId  int64
+	result *mtproto.BotInlineResult
+	// hideVia drops via_bot_id for a built-in bot.
+	hideVia      bool
+	silent       bool
+	background   bool
+	randomId     int64
+	scheduleDate *wrapperspb.Int32Value
+	replyTo      *mtproto.InputReplyTo
+	sendAs       *mtproto.InputPeer
+}
+
+// sendInlineResult sends the message of an inline result from s.userId to
+// s.peer through msg, and returns the message and the updates of the send.
+func (c *BotsCore) sendInlineResult(s *inlineSend) (*mtproto.Message, *mtproto.Updates, error) {
+	// The peer the message comes from: send_as decides it as for
+	// messages.sendMessage (pkg/sendas), and msg checks it again with the
+	// channel locked (task 081).
+	from, err := c.svcCtx.SendAs.From(c.ctx, s.userId, s.peer, s.sendAs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out, err := outOfResult(s.result)
+	if err != nil {
+		return nil, nil, err
+	}
+	out.Date = int32(time.Now().Unix())
+	out.FromId = from
+	out.PeerId = s.peer.ToPeer()
+	if s.peer.IsSelfUser(s.userId) {
+		// The sub-chat of Saved Messages, as messages.sendMessage writes it.
+		out.SavedPeerId = s.peer.ToPeer()
+	}
+	out.Silent = s.silent
+	// core.telegram.org/api/bots/inline: the message has via_bot_id, and
+	// clients show the username of the bot in its header. hide_via may
+	// drop it "only for bot usernames encountered in the config"
+	// (core.telegram.org/method/messages.sendInlineBotResult): the
+	// built-in bots of help.getConfig, whose GIFs the emoji panel sends
+	// with it (Android ChatActivityEnterView.java:12491-12509, iOS
+	// ChatController.swift:2820, tdesktop gifs_list_widget.cpp:545).
+	// Another bot keeps it.
+	if !s.hideVia || !inlinebots.IsBuiltin(s.botId) {
+		out.ViaBotId = wrapperspb.Int64(s.botId)
+	}
+	// The same reply as messages.sendMessage makes: the clients fill reply_to
+	// of both alike (tdesktop data_histories.cpp ReplyToForMTP, Android
+	// SendMessagesHelper.createReplyInput).
+	if out.ReplyTo, err = replyheader.Make(replySource{c: c, userId: s.userId}, s.userId, s.peer, nil, s.replyTo); err != nil {
+		return nil, nil, err
+	}
+	out.ReplyTo = replyheader.WithTopic(out.ReplyTo, s.peer, s.replyTo)
+
+	updates, err := c.svcCtx.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
+		UserId:    s.userId,
+		AuthKeyId: s.authKeyId,
+		PeerType:  s.peer.PeerType,
+		PeerId:    s.peer.PeerId,
+		Message: []*msgpb.OutboxMessage{msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
+			NoWebpage:    s.result.GetSendMessage().GetNoWebpage(),
+			Background:   s.background,
+			RandomId:     s.randomId,
+			Message:      out,
+			ScheduleDate: s.scheduleDate,
+		}).To_OutboxMessage()},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return out, updates, nil
 }
 
 // countGifSend counts a GIF of @gif's results sent: the popular GIFs of

@@ -289,6 +289,12 @@ func (b *Box) result() *Result {
 // (lib/appManagers/appAttachMenuBotsManager.ts:68-71) too, so a repeat
 // changes nothing; iOS reads it (State/Sync/UpdateInterpreter.swift:378-379)
 // but replays nothing (State/Sync/StateReplay.swift:526-529).
+// updateWebViewResultSent (task 106) tells every device of the account that
+// the bot answered the web view of the query, which the device closes if it
+// has it open (Android messenger/MessagesController.java:20716-20718, tdesktop
+// api/api_updates.cpp:2326, iOS State/Sync/UpdateInterpreter+Bots.swift:64-65):
+// a repeat closes nothing more. It means nothing once the web view would
+// have expired, so it is a query update (queryUpdateTypes).
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateBotCallbackQuery,
@@ -341,7 +347,8 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateDeleteQuickReply,
 		mtproto.Predicate_updateQuickReplyMessage,
 		mtproto.Predicate_updateDeleteQuickReplyMessages,
-		mtproto.Predicate_updateAttachMenuBots:
+		mtproto.Predicate_updateAttachMenuBots,
+		mtproto.Predicate_updateWebViewResultSent:
 		return true
 	}
 	return false
@@ -349,14 +356,17 @@ func SeqUpdate(predicate string) bool {
 
 // QueryUpdateTTL is how long, in seconds, the update of a press of a button
 // or of an inline query means anything to a bot: later the query can no longer
-// be answered (QUERY_ID_INVALID). Such rows are not state to replay: the
+// be answered (QUERY_ID_INVALID). updateWebViewResultSent is one too: a
+// device away longer has the web view closed by its next prolongation,
+// which fails once the query is answered. Such rows are not state to replay: the
 // difference leaves them out when they are older (LiveSeqRows) and the next
 // update of the kind removes them (TrimQueryUpdates), so a bot that reads
 // nothing for long has only the last minute's to get.
 const QueryUpdateTTL = 60
 
 const queryUpdateTypes = "'" + mtproto.Predicate_updateBotCallbackQuery + "', '" +
-	mtproto.Predicate_updateInlineBotCallbackQuery + "', '" + mtproto.Predicate_updateBotInlineQuery + "'"
+	mtproto.Predicate_updateInlineBotCallbackQuery + "', '" + mtproto.Predicate_updateBotInlineQuery + "', '" +
+	mtproto.Predicate_updateWebViewResultSent + "'"
 
 // LiveSeqRows is the condition on user_seq_updates of the rows still worth
 // giving at the time passed as its argument (NotExpiredSince).
@@ -365,7 +375,7 @@ const LiveSeqRows = " AND (update_type NOT IN (" + queryUpdateTypes + ") OR date
 // NotExpiredSince is the argument of LiveSeqRows at now, unix time.
 func NotExpiredSince(now int64) int64 { return now - QueryUpdateTTL }
 
-// TrimQueryUpdates removes the expired updates of presses and inline queries
+// TrimQueryUpdates removes the expired query updates (queryUpdateTypes)
 // from the journal of b's owner, in the transaction that holds its box. The
 // seq they had stays unused: nothing reads the journal by consecutive seq but
 // pluma-admin verify-seq.

@@ -152,8 +152,14 @@ type BoxPush struct {
 
 // PushSeq journals u for userId and pushes it to every session of the
 // account, the one of the request included (sync_client.EmitSeqUpdate).
+// The expired query updates of the account go first, as for a bot
+// (PushToBot): an account gets updateWebViewResultSent, and nothing else
+// removes them from its journal.
 func (p BoxPush) PushSeq(ctx context.Context, userId int64, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error {
 	_, err := userbox.Run(ctx, p.DB, userId, func(b *userbox.Box) error {
+		if err := b.TrimQueryUpdates(); err != nil {
+			return err
+		}
 		return sync_client.EmitSeqUpdate(b, p.Topic, u, users, chats)
 	})
 	if err != nil {
