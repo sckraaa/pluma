@@ -71,3 +71,18 @@
 | `GroupCallsConnectFailing` | больше половины соединений с SFU не проходят ICE или DTLS: адрес, порты, межсетевой экран |
 | `GroupCallsUplinkSaturated` | SFU отдаёт больше 90% заданного лимита отдачи, видео идёт в худшем качестве |
 | `GroupCallsEventsDropped` | bff не успевает читать события SFU; ушедших из звонка выведет сборщик, но позже |
+
+## Встроенные инлайн-боты `@gif` и `@pic`
+Правила — группа `inline_bots` в `teamgramd/deploy/prometheus/server/rules/codes.yml`, метрики bff (задача 099, ADR 0062):
+- `inline_builtin_requests_total{bot, result}`;
+- `inline_import_total{kind, result}`, `inline_import_bytes_total{kind}`;
+- `inline_bot_misconfigured{bot}`;
+- `webfile_requests_total{kind, result}`, `webfile_cache_bytes`.
+
+Что делать по каждому алерту и что значат метки — `docs/ops/inline-bots.md`, раздел «Метрики и алерты».
+
+| Алерт | Что значит |
+|---|---|
+| `InlineProviderFailing` | у бота за 15 минут больше половины запросов кончились ошибкой (и их не меньше трёх). Пользователи видят «ничего не найдено». У `@pic` обычно SearXNG не работает или все движки картинок блокируют адрес |
+| `InlineBotMisconfigured` | учётная запись бота расходится с реестром, обычно его имя занято. Бот отвечает `BOT_INLINE_DISABLED`, вкладка GIF пуста, если это `@gif` |
+| `InlineImportBudgetSpent` | дневной бюджет импорта медиа кончился до 18:00 UTC: новые картинки не импортируются до 00:00 UTC |
