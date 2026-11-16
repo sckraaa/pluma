@@ -6519,10 +6519,10 @@
   "name": "messages.getEmojiURL",
   "group": "messages-a",
   "feature": "Link 'help translate emoji keywords' in the emoji panel",
-  "used_by": "Android ui/Components/EmojiView.java:8290 only",
+  "used_by": "Android ui/Components/EmojiView.java:8290 only (question mark in an empty emoji search, EmojiView.java:8243-8305); iOS, Desktop and Web never call it",
   "decision": "not_needed",
   "priority": "none",
-  "why": "The answer is a link opened in the browser (EmojiView.java:8301), a page of Telegram's own service for keyword suggestions. Owner decision: no Telegram-owned services. On an error the link only does nothing. That the target is Telegram's translation platform is unverified: the client only opens what the server sends."
+  "why": "Task 098 decision: the method keeps answering ERR_ENTERPRISE_IS_BLOCKED (catalog_service_impl.go MessagesGetEmojiURL). Per core.telegram.org/method/messages.getEmojiURL the answer is a short-lived login URL to the translation platform for emoji keyword suggestions; the Android sheet shows https://translations.telegram.org/<lang>/emoji (strings.xml EmojiSuggestionsUrl) and opens only an emojiURL answer (EmojiView.java:8301-8303). Pluma has no translation platform, and Telegram's would not know a Pluma account (owner decision: no Telegram-owned services). On an error Android only dismisses its spinner and opens nothing (EmojiView.java:8296-8305), so the refusal is invisible."
  },
  {
   "name": "messages.getExtendedMedia",
