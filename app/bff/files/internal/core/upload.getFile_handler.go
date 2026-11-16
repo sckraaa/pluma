@@ -21,6 +21,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
+	"github.com/teamgram/teamgram-server/pkg/cdn"
 )
 
 // UploadGetFile
@@ -130,6 +131,15 @@ func (c *FilesCore) UploadGetFile(in *mtproto.TLUploadGetFile) (*mtproto.Upload_
 	default:
 		c.Logger.Errorf("upload.getFile - error: invalid location")
 		return nil, mtproto.ErrLocationInvalid
+	}
+
+	// A large file whose copy is ready on a healthy CDN node is served
+	// from there (task 102, ADR 0065 §2); any other is served from home,
+	// and queued for a push if it may go through the CDN.
+	if c.svcCtx.CDN != nil && cdn.Wants(in) {
+		if redirect, _ := c.svcCtx.CDN.Redirect(c.ctx, location, offset); redirect != nil {
+			return redirect, nil
+		}
 	}
 
 	uploadFile, err := c.svcCtx.Dao.DfsClient.DfsDownloadFile(c.ctx, &dfs.TLDfsDownloadFile{

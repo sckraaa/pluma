@@ -23,12 +23,22 @@ import (
 )
 
 // UploadGetCdnFileHashes
-// upload.getCdnFileHashes#4da54231 file_token:bytes offset:int = Vector<FileHash>;
+// upload.getCdnFileHashes#91dc3f31 file_token:bytes offset:long = Vector<FileHash>;
+//
+// The hashes of the plaintext of a file served by the CDN from offset
+// (task 102, ADR 0065 §3). FILE_TOKEN_INVALID sends the client back to
+// upload.getFile.
 func (c *FilesCore) UploadGetCdnFileHashes(in *mtproto.TLUploadGetCdnFileHashes) (*mtproto.Vector_FileHash, error) {
-	// TODO: not impl
-	c.Logger.Errorf("upload.getCdnFileHashes blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return &mtproto.Vector_FileHash{
-		Datas: []*mtproto.FileHash{},
-	}, nil
+	if c.svcCtx.CDN == nil {
+		return nil, mtproto.ErrFileTokenInvalid
+	}
+	offset := in.GetOffset_INT64()
+	if offset == 0 {
+		offset = int64(in.GetOffset_INT32())
+	}
+	hashes, err := c.svcCtx.CDN.FileHashes(c.ctx, in.GetFileToken(), offset)
+	if err != nil {
+		return nil, err
+	}
+	return &mtproto.Vector_FileHash{Datas: hashes}, nil
 }

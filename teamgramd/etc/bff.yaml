@@ -203,6 +203,31 @@ GroupCalls:
   # Cameras on at once in a call; the node's Limits.MaxVideos.
   VideoLimit: 30
 
+# The CDN-DC of large files (task 102, ADR 0065, docs/ops/cdn.md): files of
+# 1 MiB and more that a ready copy of is on the node on the edge are
+# redirected there (upload.fileCdnRedirect); the node holds only their
+# cipher. bff pushes the copies and checks the node over its control API,
+# which is mutual TLS only (teamgramd/deploy/cdn/control-certs.sh). No
+# CDN_NODE_CONTROL: the CDN is off. CDN_DC_ID (201 when empty),
+# CDN_DC_ADDRESS (ip:port) and CDN_DC_SECRET ("dd" and 32 hex digits) are
+# those of the CDN DC in dc_options; CDN_MONTHLY_EGRESS_LIMIT_GB is required
+# with the node, below the traffic of the VPS plan. Empty limits take their
+# defaults: CDN_MIN_FILE_SIZE 1 MiB, CDN_PUSH_RATE_MBIT 20,
+# CDN_PUSH_CONCURRENCY 1, CDN_REUPLOAD_WAIT 10s.
+Cdn:
+  NodeControl: "${CDN_NODE_CONTROL}"
+  CertFile: /opt/pluma/cdn/client.pem
+  KeyFile: /opt/pluma/cdn/client-key.pem
+  CAFile: /opt/pluma/cdn/server-ca.pem
+  DcId: "${CDN_DC_ID}"
+  DcAddress: "${CDN_DC_ADDRESS}"
+  DcSecret: "${CDN_DC_SECRET}"
+  MinFileSize: "${CDN_MIN_FILE_SIZE}"
+  PushRateMbit: "${CDN_PUSH_RATE_MBIT}"
+  PushConcurrency: "${CDN_PUSH_CONCURRENCY}"
+  MonthlyEgressLimitGB: "${CDN_MONTHLY_EGRESS_LIMIT_GB}"
+  ReuploadWait: "${CDN_REUPLOAD_WAIT}"
+
 # Voice transcription (task 090, ADR 0056, docs/ops/transcription.md): the
 # speech engine is a service with POST /v1/audio/transcriptions of the OpenAI
 # API, app/ops/stt or any other. No URL: transcription is off. Nothing a
