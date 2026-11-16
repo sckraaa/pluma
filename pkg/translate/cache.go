@@ -64,12 +64,6 @@ const (
 	cacheMaxModel = 64
 )
 
-// translation_cache.markup.
-const (
-	cacheMarkupKept     = 1
-	cacheMarkupFallback = 2
-)
-
 // Key is translation_cache.cache_key: the SHA-256 of a KeySource.
 type Key [sha256.Size]byte
 
@@ -166,10 +160,9 @@ func appendKeyEntity(b []byte, e *mtproto.MessageEntity) []byte {
 type CachedTranslation struct {
 	Text     string
 	Entities []*mtproto.MessageEntity
-	// Fallback: the engine did not keep the tags, and the text was
-	// translated in pieces between the entities that must not change;
-	// the formatting of the rest is lost (markup.go).
-	Fallback bool
+	// Markup is translation_cache.markup: MarkupLost when the engine did
+	// not keep the tags and the formatting of the text is lost (markup.go).
+	Markup Markup
 }
 
 func marshalCacheEntities(entities []*mtproto.MessageEntity) ([]byte, error) {
@@ -261,12 +254,8 @@ func (s *Store) readCache(ctx context.Context, keys []Key, stale int64, found ma
 			return nil, fmt.Errorf("translate: cached translation with a key of %d bytes", len(key))
 		}
 		copy(k[:], key)
-		t := &CachedTranslation{Text: text}
-		switch markup {
-		case cacheMarkupKept:
-		case cacheMarkupFallback:
-			t.Fallback = true
-		default:
+		t := &CachedTranslation{Text: text, Markup: Markup(markup)}
+		if !t.Markup.valid() {
 			return nil, fmt.Errorf("translate: cached translation %x: markup %d", key, markup)
 		}
 		if t.Entities, err = unmarshalCacheEntities(entities); err != nil {
@@ -303,15 +292,14 @@ func (s *Store) PutTranslation(ctx context.Context, key Key, toLang, model strin
 	if err != nil {
 		return fmt.Errorf("translate: put translation %x: entities: %w", key[:], err)
 	}
-	markup := cacheMarkupKept
-	if t.Fallback {
-		markup = cacheMarkupFallback
+	if !t.Markup.valid() {
+		return fmt.Errorf("translate: put translation %x: markup %d", key[:], t.Markup)
 	}
 	now := s.now().UnixMilli()
 	if _, err = s.db.ExecContext(ctx,
 		"INSERT INTO translation_cache (cache_key, to_lang, model, `text`, entities, markup, created_at, used_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"+
 			" ON DUPLICATE KEY UPDATE used_at = GREATEST(used_at, VALUES(used_at))",
-		key[:], toLang, model, t.Text, entities, markup, now, now); err != nil {
+		key[:], toLang, model, t.Text, entities, t.Markup, now, now); err != nil {
 		return fmt.Errorf("translate: put translation %x: %w", key[:], err)
 	}
 	return nil

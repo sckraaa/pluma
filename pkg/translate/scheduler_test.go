@@ -585,3 +585,40 @@ func TestSchedulerCanceledCaller(t *testing.T) {
 	release()
 	eventually(t, "the cache", func() bool { return f.cache.size() == 1 })
 }
+
+// The cache keeps what became of the formatting: an item whose answer lost
+// the tags but that had only verbatim entities kept everything, one with
+// bold lost it (translation_cache.markup).
+func TestSchedulerCachesMarkup(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		entity *mtproto.MessageEntity
+		want   Markup
+	}{
+		{"verbatim only", mtproto.MakeTLMessageEntityMention(&mtproto.MessageEntity{Offset: 6, Length: 4}).To_MessageEntity(), MarkupKept},
+		{"formatting", mtproto.MakeTLMessageEntityBold(&mtproto.MessageEntity{Offset: 6, Length: 4}).To_MessageEntity(), MarkupLost},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newSchedFixture(t, nil)
+			// The engine answers a tagged prompt without <target>: the
+			// item goes by pieces.
+			item := mtproto.MakeTLTextWithEntities(&mtproto.TextWithEntities{
+				Text:     "hello @bob and the others",
+				Entities: []*mtproto.MessageEntity{tc.entity},
+			}).To_TextWithEntities()
+			if _, err := f.s.Translate(context.Background(), Ask{UserId: 1, Lang: "en", Items: []*mtproto.TextWithEntities{item}}); err != nil {
+				t.Fatal(err)
+			}
+			f.cache.mu.Lock()
+			defer f.cache.mu.Unlock()
+			if len(f.cache.rows) != 1 {
+				t.Fatalf("%d cached rows, want 1", len(f.cache.rows))
+			}
+			for _, row := range f.cache.rows {
+				if row.Markup != tc.want {
+					t.Fatalf("cached markup %d, want %d", row.Markup, tc.want)
+				}
+			}
+		})
+	}
+}

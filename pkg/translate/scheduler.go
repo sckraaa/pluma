@@ -666,7 +666,7 @@ func (s *Scheduler) run(j *job) {
 	if res.Fallback {
 		metricMarkupFallback.Inc()
 	}
-	t := &CachedTranslation{Text: res.Text, Entities: res.Entities, Fallback: res.Fallback}
+	t := &CachedTranslation{Text: res.Text, Entities: res.Entities, Markup: res.Markup}
 	// The translation goes to the cache before the job ends: a request
 	// that comes meanwhile finds the job and waits for it, one that comes
 	// later finds the cache.

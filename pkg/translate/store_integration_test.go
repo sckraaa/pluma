@@ -126,6 +126,7 @@ func itTranslation() *CachedTranslation {
 			mtproto.MakeTLMessageEntityTextUrl(&mtproto.MessageEntity{Offset: 8, Length: 3, Url: "https://example.com"}).To_MessageEntity(),
 			mtproto.MakeTLMessageEntityMentionName(&mtproto.MessageEntity{Offset: 0, Length: 6, UserId_INT64: 136817688}).To_MessageEntity(),
 		},
+		Markup: MarkupKept,
 	}
 }
 
@@ -134,7 +135,7 @@ func sameTranslation(t *testing.T, got, want *CachedTranslation) {
 	if got == nil {
 		t.Fatal("no translation")
 	}
-	if got.Text != want.Text || got.Fallback != want.Fallback || len(got.Entities) != len(want.Entities) {
+	if got.Text != want.Text || got.Markup != want.Markup || len(got.Entities) != len(want.Entities) {
 		t.Fatalf("translation %+v, want %+v", got, want)
 	}
 	for i := range want.Entities {
@@ -152,8 +153,8 @@ func TestCachePutAndRead(t *testing.T) {
 	s, _ := itStore()
 	kept, fallback, plain, missing := itKey(t), itKey(t), itKey(t), itKey(t)
 	wantKept := itTranslation()
-	wantFallback := &CachedTranslation{Text: "Просто текст", Fallback: true}
-	wantPlain := &CachedTranslation{Text: ""}
+	wantFallback := &CachedTranslation{Text: "Просто текст", Markup: MarkupLost}
+	wantPlain := &CachedTranslation{Text: "", Markup: MarkupKept}
 	for k, tr := range map[Key]*CachedTranslation{kept: wantKept, fallback: wantFallback, plain: wantPlain} {
 		if err := s.PutTranslation(ctx, k, "ru", "hy-mt1.5-1.8b-q8_0", tr); err != nil {
 			t.Fatal(err)
@@ -177,7 +178,7 @@ func TestCachePutAndRead(t *testing.T) {
 		t.Fatalf("no keys: %v %v", got, err)
 	}
 	var markup int
-	if err = itDB.QueryRow("SELECT markup FROM translation_cache WHERE cache_key = ?", fallback[:]).Scan(&markup); err != nil || markup != cacheMarkupFallback {
+	if err = itDB.QueryRow("SELECT markup FROM translation_cache WHERE cache_key = ?", fallback[:]).Scan(&markup); err != nil || Markup(markup) != MarkupLost {
 		t.Fatalf("markup of a fallback: %d %v", markup, err)
 	}
 }
@@ -189,7 +190,7 @@ func TestCacheReadManyKeys(t *testing.T) {
 	keys := make([]Key, 2*cacheReadBatch+7)
 	for i := range keys {
 		keys[i] = itKey(t)
-		if err := s.PutTranslation(ctx, keys[i], "en", "m", &CachedTranslation{Text: fmt.Sprint(i)}); err != nil {
+		if err := s.PutTranslation(ctx, keys[i], "en", "m", &CachedTranslation{Text: fmt.Sprint(i), Markup: MarkupKept}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -245,7 +246,7 @@ func TestCachePutRace(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				errs[i] = s.PutTranslation(ctx, k, "ru", "m", &CachedTranslation{Text: fmt.Sprint("text ", i)})
+				errs[i] = s.PutTranslation(ctx, k, "ru", "m", &CachedTranslation{Text: fmt.Sprint("text ", i), Markup: MarkupKept})
 			}()
 		}
 		wg.Wait()
@@ -263,7 +264,7 @@ func TestCachePutRace(t *testing.T) {
 			t.Fatalf("after the race: %+v", first)
 		}
 		c.add(time.Minute)
-		if err = s.PutTranslation(ctx, k, "ru", "m", &CachedTranslation{Text: "later"}); err != nil {
+		if err = s.PutTranslation(ctx, k, "ru", "m", &CachedTranslation{Text: "later", Markup: MarkupKept}); err != nil {
 			t.Fatal(err)
 		}
 		if got, err = s.CachedTranslations(ctx, []Key{k}); err != nil {
@@ -399,13 +400,15 @@ func TestCacheSweeper(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer w.Stop()
+	// The row is looked at in the table: a read through the cache would
+	// touch it and race the first sweep.
 	deadline := time.Now().Add(10 * time.Second)
 	for {
-		got, err := s.CachedTranslations(ctx, []Key{k})
-		if err != nil {
+		var n int
+		if err := itDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM translation_cache WHERE cache_key = ?", k[:]).Scan(&n); err != nil {
 			t.Fatal(err)
 		}
-		if len(got) == 0 {
+		if n == 0 {
 			break
 		}
 		if time.Now().After(deadline) {

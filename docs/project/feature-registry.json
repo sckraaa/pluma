@@ -850,9 +850,9 @@
   "group": "messages-b",
   "feature": "Translate a message with formatting or a changed tone",
   "used_by": "Android ui/Components/TranslateAlert2.java:341 and messenger/TranslateController.java:1555; Desktop history/view/history_view_translate_tracker.cpp:390; iOS TelegramEngine/Messages/Translate.swift:244; Web lib/appManagers/aiTonesManager.ts:230",
-  "decision": "implement",
-  "priority": "core",
-  "why": "Newer clients translate chats through this method, so translateText alone is not enough. Task 027 lists only translateText: the brief must be extended. Needs the same provider."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "ADR 0064: метод переводит message.rich_message, клиенты шлют его только для сообщений с rich_message (Android TranslateController.java:1506, iOS Translate.swift:330-332, tdesktop history_view_translate_tracker.cpp:373). Pluma rich-сообщений не хранит — ответ ERR_ENTERPRISE_IS_BLOCKED; перевод блоков — вместе с задачей, которая начнёт их хранить."
  },
  {
   "name": "messages.translateText",
@@ -861,7 +861,7 @@
   "used_by": "Android ui/Components/TranslateAlert2.java:407; Desktop lang/translate_mtproto_provider.cpp:51; iOS TelegramEngine/Messages/Translate.swift:48; Web lib/appManagers/appTranslationsManager.ts:288",
   "decision": "implement",
   "priority": "core",
-  "why": "Owner decision 2026-10-30 (task 027, todo). translations_manual_enabled and translations_auto_enabled are disabled in teamgramd/bin/app_config.json until then. Provider choice is the owner's, with numbers."
+  "why": "Задача 101 (ADR 0064): перевод своей моделью HY-MT1.5 в сервисе translate; app/bff/translation. peer+id и text, ответ по порядку, пустой элемент для сообщения без текста; ошибки — FLOOD_WAIT_X вместо 500. Без TRANSLATE_URL — ERR_ENTERPRISE_IS_BLOCKED, ключи translations_*_enabled отдаются disabled (часть 7)."
  },
  {
   "name": "account.confirmBotConnection",
@@ -2913,7 +2913,7 @@
   "used_by": "Android messenger/TranslateController.java:349; Desktop data/data_peer.cpp:861; iOS TelegramEngine/Messages/Translate.swift:527; Web lib/appManagers/appTranslationsManager.ts:531",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of message translation (task 027). A plain per-account flag returned as translations_disabled in userFull and channelFull; independent of the provider."
+  "why": "Задача 101 (ADR 0064): запись в peer_translation_settings, app/bff/translation; флаг translations_disabled в getFull* — часть 6 задачи. Обновления нет, как в Telegram."
  },
  {
   "name": "account.clearRecentEmojiStatuses",
@@ -4290,7 +4290,7 @@
   "used_by": "A AIEditorAlert.java:2137; I Translate.swift:1032; D data_ai_compose_tones.cpp:111; W aiTonesManager.ts:123",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision. Задача 101: сервис RPCAiComposeTone зарегистрирован в bff и маршрутизирован, методы отвечают ERR_ENTERPRISE_IS_BLOCKED (ADR 0064)."
  },
  {
   "name": "aicompose.deleteTone",
@@ -4299,7 +4299,7 @@
   "used_by": "A AIEditorAlert.java:264; I Translate.swift:1136; D data_ai_compose_tones.cpp:216; W aiTonesManager.ts:183",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision. Задача 101: сервис RPCAiComposeTone зарегистрирован в bff и маршрутизирован, методы отвечают ERR_ENTERPRISE_IS_BLOCKED (ADR 0064)."
  },
  {
   "name": "aicompose.getTone",
@@ -4308,7 +4308,7 @@
   "used_by": "A LinkManager.java:1432; I Translate.swift:1207; D data_ai_compose_tones.cpp:237; W aiTonesManager.ts:295",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision. Задача 101: сервис RPCAiComposeTone зарегистрирован в bff и маршрутизирован, методы отвечают ERR_ENTERPRISE_IS_BLOCKED (ADR 0064)."
  },
  {
   "name": "aicompose.getToneExample",
@@ -4317,7 +4317,7 @@
   "used_by": "A AIEditorAlert.java:2557; I Translate.swift:1006; D data_ai_compose_tones.cpp:271; W aiTonesManager.ts:311",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision. Задача 101: сервис RPCAiComposeTone зарегистрирован в bff и маршрутизирован, методы отвечают ERR_ENTERPRISE_IS_BLOCKED (ADR 0064)."
  },
  {
   "name": "aicompose.getTones",
@@ -4326,7 +4326,7 @@
   "used_by": "A AiTonesController.java:38; I Translate.swift:1264; D data_ai_compose_tones.cpp:42; W aiTonesManager.ts:105",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Tones are useless without messages.composeMessageWithAI, which needs an AI model backend: the owner's choice of provider and money."
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Tones are useless without messages.composeMessageWithAI, which needs an AI model backend: the owner's choice of provider and money. Задача 101: сервис RPCAiComposeTone зарегистрирован в bff и маршрутизирован, методы отвечают ERR_ENTERPRISE_IS_BLOCKED (ADR 0064)."
  },
  {
   "name": "aicompose.saveTone",
@@ -4335,7 +4335,7 @@
   "used_by": "A AIEditorAlert.java:2445; I Translate.swift:1153; D data_ai_compose_tones.cpp:189; W aiTonesManager.ts:166",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision. Задача 101: сервис RPCAiComposeTone зарегистрирован в bff и маршрутизирован, методы отвечают ERR_ENTERPRISE_IS_BLOCKED (ADR 0064)."
  },
  {
   "name": "aicompose.updateTone",
@@ -4344,16 +4344,16 @@
   "used_by": "A AIEditorAlert.java:2113; I Translate.swift:1068; D data_ai_compose_tones.cpp:145; W aiTonesManager.ts:141",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision. Задача 101: сервис RPCAiComposeTone зарегистрирован в bff и маршрутизирован, методы отвечают ERR_ENTERPRISE_IS_BLOCKED (ADR 0064)."
  },
  {
   "name": "messages.composeMessageWithAI",
   "group": "messages-a",
-  "feature": "AI editor: rewrite, proofread, change the tone of a typed message",
+  "feature": "Ручной перевод iOS (экран перевода); ИИ-редактор не обслуживается",
   "used_by": "Android ui/Components/AIEditorAlert.java:1249; iOS Translate.swift:100; Desktop api/api_compose_with_ai.cpp:65; Web covered by tests/aiTonesRichMessage.test.ts:26",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. A Premium feature (Android AIEditorAlert.java:576), so ADR 0041 would open it, but it needs a language model that Pluma does not have. The owner decides: connect an external model, or leave the editor off. Decide together with the aicompose namespace."
+  "decision": "implement",
+  "priority": "normal",
+  "why": "ADR 0064: iOS переводит сообщение вручную через этот метод с translate_to_lang (ChatController.swift:4590-4624, TextProcessingTranslateContentComponent.swift:240-282). Обслуживается только форма «перевести» (app/bff/translation); proofread, emojify, tone — ERR_ENTERPRISE_IS_BLOCKED: языковой модели общего назначения нет, ИИ-редактор убран (079)."
  },
  {
   "name": "messages.composeRichMessageWithAI",

@@ -29,6 +29,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/mail"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/teamgram/teamgram-server/pkg/transcribe"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 	"github.com/teamgram/teamgram-server/pkg/webappdata"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/core/stores/kv"
@@ -72,6 +73,10 @@ type Config struct {
 	// (task 090, docs/ops/transcription.md); transcription is off without
 	// a URL.
 	Transcribe transcribe.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Translate is the translation engine of messages and its limits (task
+	// 101, ADR 0064, docs/ops/translation.md); the translation is off
+	// without a URL.
+	Translate translate.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// Mail sends the codes of the recovery email of the cloud password
 	// (task 091, ADR 0058, docs/ops/email.md); the recovery email is off
 	// without a key.

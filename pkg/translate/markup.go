@@ -52,6 +52,8 @@ const (
 	MarkupLost Markup = 2
 )
 
+func (m Markup) valid() bool { return m == MarkupKept || m == MarkupLost }
+
 // MaxOutputFactor bounds a translation: longer than MaxOutputFactor times
 // its source (plus outputSlack, for the shortest texts) it is not a
 // translation but a model that repeats itself (ADR 0064, section 3).
