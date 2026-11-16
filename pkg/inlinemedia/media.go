@@ -177,10 +177,11 @@ type Quota interface {
 // userAgent names the importer to the hosts of the media.
 const userAgent = "Mozilla/5.0 (compatible; PlumaBot/1.0; +https://pluma.chat)"
 
-// NewFetcher returns the Fetcher of the imports: public addresses only, up
-// to five redirects, FileTimeout for a whole fetch.
-func NewFetcher() *webfetch.Client {
-	return webfetch.New(webfetch.Options{UserAgent: userAgent, Timeout: FileTimeout, MaxRedirects: 5})
+// NewFetcher returns the Fetcher of the imports: public addresses only
+// (and the hosts c allows, the test stand's), up to five redirects,
+// FileTimeout for a whole fetch.
+func NewFetcher(c webfetch.Config) *webfetch.Client {
+	return webfetch.New(webfetch.Options{UserAgent: userAgent, Timeout: FileTimeout, MaxRedirects: 5, AllowHosts: c.AllowHosts})
 }
 
 // Importer imports media into dfs and finds the ones imported before.

@@ -21,6 +21,7 @@ import (
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/teamgram/teamgram-server/pkg/webappdata"
+	"github.com/teamgram/teamgram-server/pkg/webfetch"
 
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -50,6 +51,9 @@ type Config struct {
 	// InlineBots is the providers of the built-in inline bots and the
 	// budget of their imports (task 099, ADR 0062).
 	InlineBots inline.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// WebFetch is what the imports of the built-in inline bots may fetch
+	// from beyond the public internet: nothing but on the test stand.
+	WebFetch webfetch.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// WebFileKey signs the addresses of the thumbnails and content of
 	// inline results, WEBFILE_HMAC_KEY (pkg/webfile, ADR 0062, p. 5); the
 	// files service fetches only what it signs. Empty: webDocumentNoProxy.

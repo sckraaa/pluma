@@ -182,9 +182,26 @@ services:
       - teamgram_net
     restart: "no"
 
+  # The web of the built-in inline bots and of web files
+  # (test/e2e/fakeinline, task 099): the SearXNG of @pic (SEARXNG_URL in the
+  # env file of run.sh) and the sites of the pictures it finds and inline
+  # bots name, which bff may fetch from although they are on the network of
+  # the services (WebFetch.AllowHosts in the bff config of run.sh). The tests
+  # plan its answers and read the requests on an ephemeral loopback port.
+  fakeinline:
+    build:
+      context: .
+      dockerfile: test/e2e/fakeinline/Dockerfile
+    image: ${E2E_FAKEINLINE_IMAGE:-pluma-e2e-fakeinline:local}
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - teamgram_net
+    restart: "no"
+
   bff:
-    # The config with the limits of transcription and the mail provider of
-    # the tests, written by run.sh.
+    # The config with the limits of transcription, the mail provider of the
+    # tests and the hosts of fakeinline, written by run.sh.
     volumes:
       - ${E2E_BFF_CONFIG:?run test/e2e/run.sh up}:/app/etc2/bff.yaml:ro
     depends_on:
@@ -193,6 +210,8 @@ services:
       fakemail:
         condition: service_started
       fakemaps:
+        condition: service_started
+      fakeinline:
         condition: service_started
 
   # The SFU of group calls (docker-compose.sfu.yaml): its media ports on the

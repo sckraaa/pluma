@@ -172,7 +172,7 @@ func TestURLSourceDefaultFetcherIsPublicOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := NewServer(cache)
-	s.Register(mtproto.Predicate_inputWebFileLocation, NewURLSource(testKey, NewFetcher()))
+	s.Register(mtproto.Predicate_inputWebFileLocation, NewURLSource(testKey, NewFetcher(webfetch.Config{})))
 	if _, err := s.Get(context.Background(), Request{}, signed(site.URL+"/a.jpg"), 0, 4096); !errors.Is(err, ErrNotAvailable) {
 		t.Fatalf("%v", err)
 	}
@@ -180,7 +180,7 @@ func TestURLSourceDefaultFetcherIsPublicOnly(t *testing.T) {
 
 // Without a key no address is served, and with one the cache is set up.
 func TestNew(t *testing.T) {
-	s, err := New(Config{})
+	s, err := New(Config{}, webfetch.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,10 +188,10 @@ func TestNew(t *testing.T) {
 	if _, err := s.Get(context.Background(), Request{}, signed(u), 0, 4096); !errors.Is(err, mtproto.ErrLocationInvalid) {
 		t.Errorf("no key: %v", err)
 	}
-	if _, err := New(Config{HMACKey: "short"}); err == nil {
+	if _, err := New(Config{HMACKey: "short"}, webfetch.Config{}); err == nil {
 		t.Error("a short key accepted")
 	}
-	s, err = New(Config{HMACKey: string(testKey), CacheDir: t.TempDir(), CacheBytes: 1 << 20})
+	s, err = New(Config{HMACKey: string(testKey), CacheDir: t.TempDir(), CacheBytes: 1 << 20}, webfetch.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

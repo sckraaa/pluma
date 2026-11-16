@@ -41,9 +41,10 @@ const (
 )
 
 // NewFetcher returns the client a URL source fetches with: public
-// addresses only, 10 s, five redirects.
-func NewFetcher() *webfetch.Client {
-	return webfetch.New(webfetch.Options{UserAgent: userAgent, Timeout: urlTimeout, MaxRedirects: urlMaxRedirects})
+// addresses only (and the hosts c allows, the test stand's), 10 s, five
+// redirects.
+func NewFetcher(c webfetch.Config) *webfetch.Client {
+	return webfetch.New(webfetch.Options{UserAgent: userAgent, Timeout: urlTimeout, MaxRedirects: urlMaxRedirects, AllowHosts: c.AllowHosts})
 }
 
 // urlSource serves inputWebFileLocation: the thumbnails and content of
