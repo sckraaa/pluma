@@ -92,6 +92,12 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMsgReorderQuickReplies": {"/mtproto.RPCMsg/msg_reorderQuickReplies", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 105
 	"TLMsgDeleteQuickReplyShortcut": {"/mtproto.RPCMsg/msg_deleteQuickReplyShortcut", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 105
+	"TLMsgEditQuickReplyMessage": {"/mtproto.RPCMsg/msg_editQuickReplyMessage", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 105
+	"TLMsgDeleteQuickReplyMessages": {"/mtproto.RPCMsg/msg_deleteQuickReplyMessages", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 105
+	"TLMsgSendQuickReplyMessages": {"/mtproto.RPCMsg/msg_sendQuickReplyMessages", func() interface{} { return new(mtproto.Updates) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

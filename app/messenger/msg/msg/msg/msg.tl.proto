@@ -89,6 +89,12 @@ enum TLConstructor {
   CRC32_msg_reorderQuickReplies = 166649548;
   // pluma: task 105
   CRC32_msg_deleteQuickReplyShortcut = -1549977524;
+  // pluma: task 105
+  CRC32_msg_editQuickReplyMessage = 514595667;
+  // pluma: task 105
+  CRC32_msg_deleteQuickReplyMessages = -811849787;
+  // pluma: task 105
+  CRC32_msg_sendQuickReplyMessages = -1719038159;
 }
 
 // ContentMessage <--
@@ -616,6 +622,48 @@ message TL_msg_deleteQuickReplyShortcut {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: msg.editQuickReplyMessage user_id:long auth_key_id:long shortcut_id:int message:OutboxMessage = Updates;
+// Replaces a message of a shortcut of user_id with message, edited as
+// messages.editMessage with quick_reply_shortcut_id makes it; the id of
+// message names the message.
+// (task 105)
+message TL_msg_editQuickReplyMessage {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 shortcut_id = 5;
+  OutboxMessage message = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.deleteQuickReplyMessages user_id:long auth_key_id:long shortcut_id:int id:Vector<int> = Updates;
+// Deletes messages of a shortcut of user_id
+// (messages.deleteQuickReplyMessages).
+// (task 105)
+message TL_msg_deleteQuickReplyMessages {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 shortcut_id = 5;
+  repeated int32 id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.sendQuickReplyMessages user_id:long auth_key_id:long peer_id:long shortcut_id:int id:Vector<int> random_id:Vector<long> = Updates;
+// Sends the messages of a shortcut of user_id, all of them or those with
+// id, to the private chat with peer_id (messages.sendQuickReplyMessages).
+// (task 105)
+message TL_msg_sendQuickReplyMessages {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int64 peer_id = 5;
+  int32 shortcut_id = 6;
+  repeated int32 id = 7;
+  repeated int64 random_id = 8;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 
 //--------------------------------------------------------------------------------------------
@@ -696,4 +744,10 @@ service RPCMsg {
   rpc msg_reorderQuickReplies(TL_msg_reorderQuickReplies) returns (mtproto.Bool) {}
   // pluma: task 105
   rpc msg_deleteQuickReplyShortcut(TL_msg_deleteQuickReplyShortcut) returns (mtproto.Bool) {}
+  // pluma: task 105
+  rpc msg_editQuickReplyMessage(TL_msg_editQuickReplyMessage) returns (mtproto.Updates) {}
+  // pluma: task 105
+  rpc msg_deleteQuickReplyMessages(TL_msg_deleteQuickReplyMessages) returns (mtproto.Updates) {}
+  // pluma: task 105
+  rpc msg_sendQuickReplyMessages(TL_msg_sendQuickReplyMessages) returns (mtproto.Updates) {}
 }

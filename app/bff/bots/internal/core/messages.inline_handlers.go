@@ -445,6 +445,7 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 		scheduleDate: in.ScheduleDate,
 		replyTo:      in.GetReplyTo(),
 		sendAs:       in.GetSendAs(),
+		shortcut:     in.GetQuickReplyShortcut(),
 	})
 	if err != nil {
 		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
@@ -452,7 +453,9 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 	}
 	c.addRecentSticker(out.GetMedia())
 	c.countGifSend(answer.Bot, out.GetMedia())
-	if in.ClearDraft {
+	// A result kept in a quick reply shortcut leaves the draft of Saved
+	// Messages alone, as messages.sendMessage does (task 105).
+	if in.ClearDraft && in.GetQuickReplyShortcut() == nil {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() { c.clearDraft(ctx, peer, in.GetReplyTo().GetTopMsgId().GetValue()) })
 	}
@@ -479,11 +482,30 @@ type inlineSend struct {
 	scheduleDate *wrapperspb.Int32Value
 	replyTo      *mtproto.InputReplyTo
 	sendAs       *mtproto.InputPeer
+	// shortcut keeps the message in a quick reply shortcut of the user
+	// instead of sending it (task 105).
+	shortcut *mtproto.InputQuickReplyShortcut
 }
 
 // sendInlineResult sends the message of an inline result from s.userId to
 // s.peer through msg, and returns the message and the updates of the send.
+// With s.shortcut the message goes to that quick reply shortcut of the
+// user instead (task 105, core.telegram.org/api/business: messages are
+// added "to inputPeerSelf, specifying the shortcut"), as iOS sends a result
+// in the shortcut's editor (PendingMessageManager.swift:2093).
 func (c *BotsCore) sendInlineResult(s *inlineSend) (*mtproto.Message, *mtproto.Updates, error) {
+	if s.shortcut != nil {
+		switch {
+		case c.MD.IsBot:
+			return nil, nil, mtproto.ErrBotMethodInvalid
+		case !s.peer.IsSelfUser(s.userId):
+			return nil, nil, mtproto.ErrPeerIdInvalid
+		case s.scheduleDate != nil:
+			// A shortcut has no time to go out at (not verified which error
+			// Telegram answers).
+			return nil, nil, mtproto.ErrScheduleDateInvalid
+		}
+	}
 	// The peer the message comes from: send_as decides it as for
 	// messages.sendMessage (pkg/sendas), and msg checks it again with the
 	// channel locked (task 081).
@@ -499,7 +521,7 @@ func (c *BotsCore) sendInlineResult(s *inlineSend) (*mtproto.Message, *mtproto.U
 	out.Date = int32(time.Now().Unix())
 	out.FromId = from
 	out.PeerId = s.peer.ToPeer()
-	if s.peer.IsSelfUser(s.userId) {
+	if s.peer.IsSelfUser(s.userId) && s.shortcut == nil {
 		// The sub-chat of Saved Messages, as messages.sendMessage writes it.
 		out.SavedPeerId = s.peer.ToPeer()
 	}
@@ -518,24 +540,38 @@ func (c *BotsCore) sendInlineResult(s *inlineSend) (*mtproto.Message, *mtproto.U
 	// The same reply as messages.sendMessage makes: the clients fill reply_to
 	// of both alike (tdesktop data_histories.cpp ReplyToForMTP, Android
 	// SendMessagesHelper.createReplyInput).
-	if out.ReplyTo, err = replyheader.Make(replySource{c: c, userId: s.userId}, s.userId, s.peer, nil, s.replyTo); err != nil {
-		return nil, nil, err
+	// A message of a shortcut answers nothing: it goes to another chat later.
+	if s.shortcut == nil {
+		if out.ReplyTo, err = replyheader.Make(replySource{c: c, userId: s.userId}, s.userId, s.peer, nil, s.replyTo); err != nil {
+			return nil, nil, err
+		}
+		out.ReplyTo = replyheader.WithTopic(out.ReplyTo, s.peer, s.replyTo)
 	}
-	out.ReplyTo = replyheader.WithTopic(out.ReplyTo, s.peer, s.replyTo)
 
-	updates, err := c.svcCtx.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
-		UserId:    s.userId,
-		AuthKeyId: s.authKeyId,
-		PeerType:  s.peer.PeerType,
-		PeerId:    s.peer.PeerId,
-		Message: []*msgpb.OutboxMessage{msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
-			NoWebpage:    s.result.GetSendMessage().GetNoWebpage(),
-			Background:   s.background,
-			RandomId:     s.randomId,
-			Message:      out,
-			ScheduleDate: s.scheduleDate,
-		}).To_OutboxMessage()},
-	})
+	outbox := msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
+		NoWebpage:    s.result.GetSendMessage().GetNoWebpage(),
+		Background:   s.background,
+		RandomId:     s.randomId,
+		Message:      out,
+		ScheduleDate: s.scheduleDate,
+	}).To_OutboxMessage()
+	var updates *mtproto.Updates
+	if s.shortcut != nil {
+		updates, err = c.svcCtx.MsgAddQuickReplyMessages(c.ctx, &msgpb.TLMsgAddQuickReplyMessages{
+			UserId:    s.userId,
+			AuthKeyId: s.authKeyId,
+			Shortcut:  s.shortcut,
+			Message:   []*msgpb.OutboxMessage{outbox},
+		})
+	} else {
+		updates, err = c.svcCtx.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
+			UserId:    s.userId,
+			AuthKeyId: s.authKeyId,
+			PeerType:  s.peer.PeerType,
+			PeerId:    s.peer.PeerId,
+			Message:   []*msgpb.OutboxMessage{outbox},
+		})
+	}
 	if err != nil {
 		return nil, nil, err
 	}

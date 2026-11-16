@@ -241,6 +241,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1549977524,
 		}
 	},
+	514595667: func() mtproto.TLObject { // 0x1eac1b53 pluma: task 105
+		return &TLMsgEditQuickReplyMessage{
+			Constructor: 514595667,
+		}
+	},
+	-811849787: func() mtproto.TLObject { // 0xcf9c27c5 pluma: task 105
+		return &TLMsgDeleteQuickReplyMessages{
+			Constructor: -811849787,
+		}
+	},
+	-1719038159: func() mtproto.TLObject { // 0x99898f31 pluma: task 105
+		return &TLMsgSendQuickReplyMessages{
+			Constructor: -1719038159,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -2676,6 +2691,145 @@ func (m *TLMsgDeleteQuickReplyShortcut) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.UserId = dBuf.Long()
 		m.AuthKeyId = dBuf.Long()
 		m.ShortcutId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgEditQuickReplyMessage (pluma: task 105)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgEditQuickReplyMessage) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x1eac1b53:
+		x.UInt(0x1eac1b53)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetShortcutId())
+		m.GetMessage().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgEditQuickReplyMessage) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgEditQuickReplyMessage) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x1eac1b53:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.ShortcutId = dBuf.Int()
+
+		m4 := &OutboxMessage{}
+		m4.Decode(dBuf)
+		m.Message = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgDeleteQuickReplyMessages (pluma: task 105)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgDeleteQuickReplyMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xcf9c27c5:
+		x.UInt(0xcf9c27c5)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetShortcutId())
+		x.VectorInt(m.GetId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgDeleteQuickReplyMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgDeleteQuickReplyMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xcf9c27c5:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.ShortcutId = dBuf.Int()
+		m.Id = dBuf.VectorInt()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgSendQuickReplyMessages (pluma: task 105)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgSendQuickReplyMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x99898f31:
+		x.UInt(0x99898f31)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetShortcutId())
+		x.VectorInt(m.GetId())
+		x.VectorLong(m.GetRandomId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgSendQuickReplyMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgSendQuickReplyMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x99898f31:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerId = dBuf.Long()
+		m.ShortcutId = dBuf.Int()
+		m.Id = dBuf.VectorInt()
+		m.RandomId = dBuf.VectorLong()
 		return dBuf.GetError()
 
 	default:

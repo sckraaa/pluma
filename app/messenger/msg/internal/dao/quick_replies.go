@@ -582,3 +582,77 @@ func QuickRepliesUpdate(list []*QuickReply) *mtproto.Update {
 func DeleteQuickReplyUpdate(id int32) *mtproto.Update {
 	return mtproto.MakeTLUpdateDeleteQuickReply(&mtproto.Update{ShortcutId: id}).To_Update()
 }
+
+// LockQuickReplyMessage locks and returns the message id of b's owner's
+// shortcut, nil when the shortcut has no such message.
+func (d *Dao) LockQuickReplyMessage(b *userbox.Box, shortcutId, id int32) (*QuickReplyRow, error) {
+	var rows []*QuickReplyRow
+	if err := b.Tx().QueryRowsPartial(&rows,
+		"SELECT "+quickReplyColumns+" FROM quick_reply_messages WHERE id = ? AND user_id = ? AND shortcut_id = ? FOR UPDATE",
+		id, b.UserId(), shortcutId); err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	return rows[0], nil
+}
+
+// UpdateQuickReplyMessage keeps m as the message of row, which the
+// transaction holds locked, edited at b's date. The message stays in its
+// album: grouped_id is the row's. It returns the row as it is now.
+func (d *Dao) UpdateQuickReplyMessage(b *userbox.Box, row *QuickReplyRow, m *mtproto.Message) (*QuickReplyRow, error) {
+	m.GroupedId = nil
+	if row.GroupedId != 0 {
+		m.GroupedId = mtproto.MakeFlagsInt64(row.GroupedId)
+	}
+	data, err := jsonx.MarshalToString(m)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = b.Tx().Exec("UPDATE quick_reply_messages SET message_data = ?, edit_date = ? WHERE id = ?", data, b.Date(), row.Id); err != nil {
+		return nil, err
+	}
+	out := *row
+	out.MessageData = data
+	out.EditDate = int32(b.Date())
+	return &out, nil
+}
+
+// DeleteQuickReplyMessages deletes those of ids that are messages of b's
+// owner's shortcut, which the transaction holds locked; the others are
+// passed over. It returns the ids deleted, ascending. A shortcut left
+// without messages stays, so that a client adding to it by id (iOS,
+// PendingMessageManager.swift:1339-1345) still finds it; the clients
+// delete an empty shortcut themselves (tdesktop data_shortcut_messages.cpp:
+// 552-553 before taking its name), and messages.getQuickReplies does not
+// show it meanwhile (loadQuickReplies).
+func (d *Dao) DeleteQuickReplyMessages(b *userbox.Box, shortcutId int32, ids []int32) ([]int32, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var found []int32
+	if err := b.Tx().QueryRowsPartial(&found,
+		"SELECT id FROM quick_reply_messages WHERE user_id = ? AND shortcut_id = ? AND id IN ("+inList(len(ids))+") ORDER BY id FOR UPDATE",
+		idArgs(ids, b.UserId(), shortcutId)...); err != nil {
+		return nil, err
+	}
+	if len(found) == 0 {
+		return nil, nil
+	}
+	if _, err := b.Tx().Exec("DELETE FROM quick_reply_messages WHERE id IN ("+inList(len(found))+")", idArgs(found)...); err != nil {
+		return nil, err
+	}
+	return found, nil
+}
+
+// QuickReplyMessageUpdate is updateQuickReplyMessage of m.
+func QuickReplyMessageUpdate(m *mtproto.Message) *mtproto.Update {
+	return mtproto.MakeTLUpdateQuickReplyMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update()
+}
+
+// DeleteQuickReplyMessagesUpdate is updateDeleteQuickReplyMessages of the
+// messages ids of the shortcut.
+func DeleteQuickReplyMessagesUpdate(shortcutId int32, ids []int32) *mtproto.Update {
+	return mtproto.MakeTLUpdateDeleteQuickReplyMessages(&mtproto.Update{ShortcutId: shortcutId, Messages: ids}).To_Update()
+}

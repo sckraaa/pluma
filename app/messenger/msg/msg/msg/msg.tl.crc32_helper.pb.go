@@ -81,4 +81,10 @@ const (
 	CRC32_msg_reorderQuickReplies TLConstructor = 166649548 // 0x9eedecc
 	// pluma: task 105
 	CRC32_msg_deleteQuickReplyShortcut TLConstructor = -1549977524 // 0xa39d384c
+	// pluma: task 105
+	CRC32_msg_editQuickReplyMessage TLConstructor = 514595667 // 0x1eac1b53
+	// pluma: task 105
+	CRC32_msg_deleteQuickReplyMessages TLConstructor = -811849787 // 0xcf9c27c5
+	// pluma: task 105
+	CRC32_msg_sendQuickReplyMessages TLConstructor = -1719038159 // 0x99898f31
 )

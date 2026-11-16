@@ -104,6 +104,12 @@ const (
 	TLConstructor_CRC32_msg_reorderQuickReplies TLConstructor = 166649548
 	// pluma: task 105
 	TLConstructor_CRC32_msg_deleteQuickReplyShortcut TLConstructor = -1549977524
+	// pluma: task 105
+	TLConstructor_CRC32_msg_editQuickReplyMessage TLConstructor = 514595667
+	// pluma: task 105
+	TLConstructor_CRC32_msg_deleteQuickReplyMessages TLConstructor = -811849787
+	// pluma: task 105
+	TLConstructor_CRC32_msg_sendQuickReplyMessages TLConstructor = -1719038159
 )
 
 // Enum value maps for TLConstructor.
@@ -152,6 +158,9 @@ var (
 		-881831873:  "CRC32_msg_editQuickReplyShortcut",
 		166649548:   "CRC32_msg_reorderQuickReplies",
 		-1549977524: "CRC32_msg_deleteQuickReplyShortcut",
+		514595667:   "CRC32_msg_editQuickReplyMessage",
+		-811849787:  "CRC32_msg_deleteQuickReplyMessages",
+		-1719038159: "CRC32_msg_sendQuickReplyMessages",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                        0,
@@ -197,6 +206,9 @@ var (
 		"CRC32_msg_editQuickReplyShortcut":     -881831873,
 		"CRC32_msg_reorderQuickReplies":        166649548,
 		"CRC32_msg_deleteQuickReplyShortcut":   -1549977524,
+		"CRC32_msg_editQuickReplyMessage":      514595667,
+		"CRC32_msg_deleteQuickReplyMessages":   -811849787,
+		"CRC32_msg_sendQuickReplyMessages":     -1719038159,
 	}
 )
 
@@ -4004,6 +4016,266 @@ func (x *TLMsgDeleteQuickReplyShortcut) GetShortcutId() int32 {
 	return 0
 }
 
+// --------------------------------------------------------------------------------------------
+// pluma: msg.editQuickReplyMessage user_id:long auth_key_id:long shortcut_id:int message:OutboxMessage = Updates;
+// Replaces a message of a shortcut of user_id with message, edited as
+// messages.editMessage with quick_reply_shortcut_id makes it; the id of
+// message names the message.
+// (task 105)
+type TLMsgEditQuickReplyMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	ShortcutId    int32                  `protobuf:"varint,5,opt,name=shortcut_id,json=shortcutId,proto3" json:"shortcut_id,omitempty"`
+	Message       *OutboxMessage         `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgEditQuickReplyMessage) Reset() {
+	*x = TLMsgEditQuickReplyMessage{}
+	mi := &file_msg_tl_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgEditQuickReplyMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgEditQuickReplyMessage) ProtoMessage() {}
+
+func (x *TLMsgEditQuickReplyMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgEditQuickReplyMessage.ProtoReflect.Descriptor instead.
+func (*TLMsgEditQuickReplyMessage) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *TLMsgEditQuickReplyMessage) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgEditQuickReplyMessage) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgEditQuickReplyMessage) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgEditQuickReplyMessage) GetShortcutId() int32 {
+	if x != nil {
+		return x.ShortcutId
+	}
+	return 0
+}
+
+func (x *TLMsgEditQuickReplyMessage) GetMessage() *OutboxMessage {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.deleteQuickReplyMessages user_id:long auth_key_id:long shortcut_id:int id:Vector<int> = Updates;
+// Deletes messages of a shortcut of user_id
+// (messages.deleteQuickReplyMessages).
+// (task 105)
+type TLMsgDeleteQuickReplyMessages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	ShortcutId    int32                  `protobuf:"varint,5,opt,name=shortcut_id,json=shortcutId,proto3" json:"shortcut_id,omitempty"`
+	Id            []int32                `protobuf:"varint,6,rep,packed,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgDeleteQuickReplyMessages) Reset() {
+	*x = TLMsgDeleteQuickReplyMessages{}
+	mi := &file_msg_tl_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgDeleteQuickReplyMessages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgDeleteQuickReplyMessages) ProtoMessage() {}
+
+func (x *TLMsgDeleteQuickReplyMessages) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgDeleteQuickReplyMessages.ProtoReflect.Descriptor instead.
+func (*TLMsgDeleteQuickReplyMessages) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *TLMsgDeleteQuickReplyMessages) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgDeleteQuickReplyMessages) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgDeleteQuickReplyMessages) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgDeleteQuickReplyMessages) GetShortcutId() int32 {
+	if x != nil {
+		return x.ShortcutId
+	}
+	return 0
+}
+
+func (x *TLMsgDeleteQuickReplyMessages) GetId() []int32 {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.sendQuickReplyMessages user_id:long auth_key_id:long peer_id:long shortcut_id:int id:Vector<int> random_id:Vector<long> = Updates;
+// Sends the messages of a shortcut of user_id, all of them or those with
+// id, to the private chat with peer_id (messages.sendQuickReplyMessages).
+// (task 105)
+type TLMsgSendQuickReplyMessages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerId        int64                  `protobuf:"varint,5,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	ShortcutId    int32                  `protobuf:"varint,6,opt,name=shortcut_id,json=shortcutId,proto3" json:"shortcut_id,omitempty"`
+	Id            []int32                `protobuf:"varint,7,rep,packed,name=id,proto3" json:"id,omitempty"`
+	RandomId      []int64                `protobuf:"varint,8,rep,packed,name=random_id,json=randomId,proto3" json:"random_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgSendQuickReplyMessages) Reset() {
+	*x = TLMsgSendQuickReplyMessages{}
+	mi := &file_msg_tl_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgSendQuickReplyMessages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgSendQuickReplyMessages) ProtoMessage() {}
+
+func (x *TLMsgSendQuickReplyMessages) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgSendQuickReplyMessages.ProtoReflect.Descriptor instead.
+func (*TLMsgSendQuickReplyMessages) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *TLMsgSendQuickReplyMessages) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgSendQuickReplyMessages) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgSendQuickReplyMessages) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgSendQuickReplyMessages) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgSendQuickReplyMessages) GetShortcutId() int32 {
+	if x != nil {
+		return x.ShortcutId
+	}
+	return 0
+}
+
+func (x *TLMsgSendQuickReplyMessages) GetId() []int32 {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+func (x *TLMsgSendQuickReplyMessages) GetRandomId() []int64 {
+	if x != nil {
+		return x.RandomId
+	}
+	return nil
+}
+
 var File_msg_tl_proto protoreflect.FileDescriptor
 
 const file_msg_tl_proto_rawDesc = "" +
@@ -4322,7 +4594,30 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
 	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1f\n" +
 	"\vshortcut_id\x18\x05 \x01(\x05R\n" +
-	"shortcutId*\xe8\f\n" +
+	"shortcutId\"\xdc\x01\n" +
+	"\x1cTL_msg_editQuickReplyMessage\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1f\n" +
+	"\vshortcut_id\x18\x05 \x01(\x05R\n" +
+	"shortcutId\x12,\n" +
+	"\amessage\x18\x06 \x01(\v2\x12.msg.OutboxMessageR\amessage\"\xc1\x01\n" +
+	"\x1fTL_msg_deleteQuickReplyMessages\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1f\n" +
+	"\vshortcut_id\x18\x05 \x01(\x05R\n" +
+	"shortcutId\x12\x0e\n" +
+	"\x02id\x18\x06 \x03(\x05R\x02id\"\xf5\x01\n" +
+	"\x1dTL_msg_sendQuickReplyMessages\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x17\n" +
+	"\apeer_id\x18\x05 \x01(\x03R\x06peerId\x12\x1f\n" +
+	"\vshortcut_id\x18\x06 \x01(\x05R\n" +
+	"shortcutId\x12\x0e\n" +
+	"\x02id\x18\a \x03(\x05R\x02id\x12\x1b\n" +
+	"\trandom_id\x18\b \x03(\x03R\brandomId*\xf1\r\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12\x14\n" +
 	"\fCRC32_sender\x10\xba\xc9\xe1\xd1\x05\x12\x1b\n" +
@@ -4366,7 +4661,10 @@ const file_msg_tl_proto_rawDesc = "" +
 	"!CRC32_msg_checkQuickReplyShortcut\x10\xfa\xbb\x99\x8b\x02\x12-\n" +
 	" CRC32_msg_editQuickReplyShortcut\x10\xbf\xa0\xc1\xdb\xfc\xff\xff\xff\xff\x01\x12$\n" +
 	"\x1dCRC32_msg_reorderQuickReplies\x10̽\xbbO\x12/\n" +
-	"\"CRC32_msg_deleteQuickReplyShortcut\x10\xcc\xf0\xf4\x9c\xfa\xff\xff\xff\xff\x012\xc3\x18\n" +
+	"\"CRC32_msg_deleteQuickReplyShortcut\x10\xcc\xf0\xf4\x9c\xfa\xff\xff\xff\xff\x01\x12'\n" +
+	"\x1fCRC32_msg_editQuickReplyMessage\x10Ӷ\xb0\xf5\x01\x12/\n" +
+	"\"CRC32_msg_deleteQuickReplyMessages\x10\xc5\xcf\xf0\xfc\xfc\xff\xff\xff\xff\x01\x12-\n" +
+	" CRC32_msg_sendQuickReplyMessages\x10\xb1\x9e\xa6\xcc\xf9\xff\xff\xff\xff\x012\xc7\x1a\n" +
 	"\x06RPCMsg\x12C\n" +
 	"\x13msg_pushUserMessage\x12\x1b.msg.TL_msg_pushUserMessage\x1a\r.mtproto.Bool\"\x00\x12`\n" +
 	"\x17msg_readMessageContents\x12\x1f.msg.TL_msg_readMessageContents\x1a\".mtproto.messages_AffectedMessages\"\x00\x12B\n" +
@@ -4406,7 +4704,10 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\x1bmsg_checkQuickReplyShortcut\x12#.msg.TL_msg_checkQuickReplyShortcut\x1a\r.mtproto.Bool\"\x00\x12Q\n" +
 	"\x1amsg_editQuickReplyShortcut\x12\".msg.TL_msg_editQuickReplyShortcut\x1a\r.mtproto.Bool\"\x00\x12K\n" +
 	"\x17msg_reorderQuickReplies\x12\x1f.msg.TL_msg_reorderQuickReplies\x1a\r.mtproto.Bool\"\x00\x12U\n" +
-	"\x1cmsg_deleteQuickReplyShortcut\x12$.msg.TL_msg_deleteQuickReplyShortcut\x1a\r.mtproto.Bool\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
+	"\x1cmsg_deleteQuickReplyShortcut\x12$.msg.TL_msg_deleteQuickReplyShortcut\x1a\r.mtproto.Bool\"\x00\x12R\n" +
+	"\x19msg_editQuickReplyMessage\x12!.msg.TL_msg_editQuickReplyMessage\x1a\x10.mtproto.Updates\"\x00\x12X\n" +
+	"\x1cmsg_deleteQuickReplyMessages\x12$.msg.TL_msg_deleteQuickReplyMessages\x1a\x10.mtproto.Updates\"\x00\x12T\n" +
+	"\x1amsg_sendQuickReplyMessages\x12\".msg.TL_msg_sendQuickReplyMessages\x1a\x10.mtproto.Updates\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
 
 var (
 	file_msg_tl_proto_rawDescOnce sync.Once
@@ -4421,7 +4722,7 @@ func file_msg_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_msg_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
+var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
 var file_msg_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                             // 0: msg.TLConstructor
 	(*ContentMessage)(nil),                         // 1: msg.ContentMessage
@@ -4469,30 +4770,33 @@ var file_msg_tl_proto_goTypes = []any{
 	(*TLMsgEditQuickReplyShortcut)(nil),            // 43: msg.TL_msg_editQuickReplyShortcut
 	(*TLMsgReorderQuickReplies)(nil),               // 44: msg.TL_msg_reorderQuickReplies
 	(*TLMsgDeleteQuickReplyShortcut)(nil),          // 45: msg.TL_msg_deleteQuickReplyShortcut
-	(*mtproto.Message)(nil),                        // 46: mtproto.Message
-	(*wrapperspb.Int32Value)(nil),                  // 47: google.protobuf.Int32Value
-	(*mtproto.MessageAction)(nil),                  // 48: mtproto.MessageAction
-	(*mtproto.MessageBox)(nil),                     // 49: mtproto.MessageBox
-	(*mtproto.Bool)(nil),                           // 50: mtproto.Bool
-	(*mtproto.Reaction)(nil),                       // 51: mtproto.Reaction
-	(*mtproto.PollAnswer)(nil),                     // 52: mtproto.PollAnswer
-	(*mtproto.TodoItem)(nil),                       // 53: mtproto.TodoItem
-	(*mtproto.TodoList)(nil),                       // 54: mtproto.TodoList
-	(*mtproto.InputQuickReplyShortcut)(nil),        // 55: mtproto.InputQuickReplyShortcut
-	(*mtproto.Messages_AffectedMessages)(nil),      // 56: mtproto.messages_AffectedMessages
-	(*mtproto.Updates)(nil),                        // 57: mtproto.Updates
-	(*mtproto.Messages_AffectedHistory)(nil),       // 58: mtproto.messages_AffectedHistory
-	(*mtproto.Messages_AffectedFoundMessages)(nil), // 59: mtproto.messages_AffectedFoundMessages
-	(*mtproto.Messages_Messages)(nil),              // 60: mtproto.messages_Messages
-	(*mtproto.Messages_QuickReplies)(nil),          // 61: mtproto.messages_QuickReplies
+	(*TLMsgEditQuickReplyMessage)(nil),             // 46: msg.TL_msg_editQuickReplyMessage
+	(*TLMsgDeleteQuickReplyMessages)(nil),          // 47: msg.TL_msg_deleteQuickReplyMessages
+	(*TLMsgSendQuickReplyMessages)(nil),            // 48: msg.TL_msg_sendQuickReplyMessages
+	(*mtproto.Message)(nil),                        // 49: mtproto.Message
+	(*wrapperspb.Int32Value)(nil),                  // 50: google.protobuf.Int32Value
+	(*mtproto.MessageAction)(nil),                  // 51: mtproto.MessageAction
+	(*mtproto.MessageBox)(nil),                     // 52: mtproto.MessageBox
+	(*mtproto.Bool)(nil),                           // 53: mtproto.Bool
+	(*mtproto.Reaction)(nil),                       // 54: mtproto.Reaction
+	(*mtproto.PollAnswer)(nil),                     // 55: mtproto.PollAnswer
+	(*mtproto.TodoItem)(nil),                       // 56: mtproto.TodoItem
+	(*mtproto.TodoList)(nil),                       // 57: mtproto.TodoList
+	(*mtproto.InputQuickReplyShortcut)(nil),        // 58: mtproto.InputQuickReplyShortcut
+	(*mtproto.Messages_AffectedMessages)(nil),      // 59: mtproto.messages_AffectedMessages
+	(*mtproto.Updates)(nil),                        // 60: mtproto.Updates
+	(*mtproto.Messages_AffectedHistory)(nil),       // 61: mtproto.messages_AffectedHistory
+	(*mtproto.Messages_AffectedFoundMessages)(nil), // 62: mtproto.messages_AffectedFoundMessages
+	(*mtproto.Messages_Messages)(nil),              // 63: mtproto.messages_Messages
+	(*mtproto.Messages_QuickReplies)(nil),          // 64: mtproto.messages_QuickReplies
 }
 var file_msg_tl_proto_depIdxs = []int32{
 	0,   // 0: msg.ContentMessage.constructor:type_name -> msg.TLConstructor
 	1,   // 1: msg.TL_contentMessage.data2:type_name -> msg.ContentMessage
 	0,   // 2: msg.OutboxMessage.constructor:type_name -> msg.TLConstructor
-	46,  // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
-	47,  // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
-	48,  // 5: msg.OutboxMessage.incoming_action:type_name -> mtproto.MessageAction
+	49,  // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
+	50,  // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
+	51,  // 5: msg.OutboxMessage.incoming_action:type_name -> mtproto.MessageAction
 	3,   // 6: msg.TL_outboxMessage.data2:type_name -> msg.OutboxMessage
 	0,   // 7: msg.Sender.constructor:type_name -> msg.TLConstructor
 	5,   // 8: msg.TL_sender.data2:type_name -> msg.Sender
@@ -4504,7 +4808,7 @@ var file_msg_tl_proto_depIdxs = []int32{
 	3,   // 14: msg.TL_msg_sendMessageV2.message:type_name -> msg.OutboxMessage
 	0,   // 15: msg.TL_msg_editMessageV2.constructor:type_name -> msg.TLConstructor
 	3,   // 16: msg.TL_msg_editMessageV2.new_message:type_name -> msg.OutboxMessage
-	49,  // 17: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
+	52,  // 17: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
 	0,   // 18: msg.TL_msg_deleteMessages.constructor:type_name -> msg.TLConstructor
 	0,   // 19: msg.TL_msg_deleteHistory.constructor:type_name -> msg.TLConstructor
 	0,   // 20: msg.TL_msg_deletePhoneCallHistory.constructor:type_name -> msg.TLConstructor
@@ -4514,16 +4818,16 @@ var file_msg_tl_proto_depIdxs = []int32{
 	0,   // 24: msg.TL_msg_unpinAllMessages.constructor:type_name -> msg.TLConstructor
 	0,   // 25: msg.TL_msg_readMentions.constructor:type_name -> msg.TLConstructor
 	0,   // 26: msg.TL_msg_deleteHistoryRange.constructor:type_name -> msg.TLConstructor
-	50,  // 27: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
+	53,  // 27: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
 	0,   // 28: msg.TL_msg_editPeerFolders.constructor:type_name -> msg.TLConstructor
 	0,   // 29: msg.TL_msg_sendReaction.constructor:type_name -> msg.TLConstructor
-	50,  // 30: msg.TL_msg_sendReaction.big:type_name -> mtproto.Bool
-	50,  // 31: msg.TL_msg_sendReaction.add_to_recent:type_name -> mtproto.Bool
-	51,  // 32: msg.TL_msg_sendReaction.reaction:type_name -> mtproto.Reaction
+	53,  // 30: msg.TL_msg_sendReaction.big:type_name -> mtproto.Bool
+	53,  // 31: msg.TL_msg_sendReaction.add_to_recent:type_name -> mtproto.Bool
+	54,  // 32: msg.TL_msg_sendReaction.reaction:type_name -> mtproto.Reaction
 	0,   // 33: msg.TL_msg_deleteParticipantReactions.constructor:type_name -> msg.TLConstructor
 	0,   // 34: msg.TL_msg_readReactions.constructor:type_name -> msg.TLConstructor
 	0,   // 35: msg.TL_msg_updateSavedReactionTag.constructor:type_name -> msg.TLConstructor
-	51,  // 36: msg.TL_msg_updateSavedReactionTag.reaction:type_name -> mtproto.Reaction
+	54,  // 36: msg.TL_msg_updateSavedReactionTag.reaction:type_name -> mtproto.Reaction
 	0,   // 37: msg.TL_msg_migrateChat.constructor:type_name -> msg.TLConstructor
 	0,   // 38: msg.TL_msg_getScheduledHistory.constructor:type_name -> msg.TLConstructor
 	0,   // 39: msg.TL_msg_getScheduledMessages.constructor:type_name -> msg.TLConstructor
@@ -4533,16 +4837,16 @@ var file_msg_tl_proto_depIdxs = []int32{
 	0,   // 43: msg.TL_msg_sendVote.constructor:type_name -> msg.TLConstructor
 	0,   // 44: msg.TL_msg_closePoll.constructor:type_name -> msg.TLConstructor
 	0,   // 45: msg.TL_msg_addPollAnswer.constructor:type_name -> msg.TLConstructor
-	52,  // 46: msg.TL_msg_addPollAnswer.answer:type_name -> mtproto.PollAnswer
+	55,  // 46: msg.TL_msg_addPollAnswer.answer:type_name -> mtproto.PollAnswer
 	0,   // 47: msg.TL_msg_deletePollAnswer.constructor:type_name -> msg.TLConstructor
 	0,   // 48: msg.TL_msg_readPollVotes.constructor:type_name -> msg.TLConstructor
 	0,   // 49: msg.TL_msg_toggleTodoCompleted.constructor:type_name -> msg.TLConstructor
 	0,   // 50: msg.TL_msg_appendTodoList.constructor:type_name -> msg.TLConstructor
-	53,  // 51: msg.TL_msg_appendTodoList.list:type_name -> mtproto.TodoItem
+	56,  // 51: msg.TL_msg_appendTodoList.list:type_name -> mtproto.TodoItem
 	0,   // 52: msg.TL_msg_editTodoList.constructor:type_name -> msg.TLConstructor
-	54,  // 53: msg.TL_msg_editTodoList.todo:type_name -> mtproto.TodoList
+	57,  // 53: msg.TL_msg_editTodoList.todo:type_name -> mtproto.TodoList
 	0,   // 54: msg.TL_msg_addQuickReplyMessages.constructor:type_name -> msg.TLConstructor
-	55,  // 55: msg.TL_msg_addQuickReplyMessages.shortcut:type_name -> mtproto.InputQuickReplyShortcut
+	58,  // 55: msg.TL_msg_addQuickReplyMessages.shortcut:type_name -> mtproto.InputQuickReplyShortcut
 	3,   // 56: msg.TL_msg_addQuickReplyMessages.message:type_name -> msg.OutboxMessage
 	0,   // 57: msg.TL_msg_getQuickReplies.constructor:type_name -> msg.TLConstructor
 	0,   // 58: msg.TL_msg_getQuickReplyMessages.constructor:type_name -> msg.TLConstructor
@@ -4550,89 +4854,99 @@ var file_msg_tl_proto_depIdxs = []int32{
 	0,   // 60: msg.TL_msg_editQuickReplyShortcut.constructor:type_name -> msg.TLConstructor
 	0,   // 61: msg.TL_msg_reorderQuickReplies.constructor:type_name -> msg.TLConstructor
 	0,   // 62: msg.TL_msg_deleteQuickReplyShortcut.constructor:type_name -> msg.TLConstructor
-	7,   // 63: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
-	8,   // 64: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
-	9,   // 65: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
-	10,  // 66: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
-	11,  // 67: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
-	12,  // 68: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
-	13,  // 69: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
-	14,  // 70: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
-	15,  // 71: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
-	16,  // 72: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
-	17,  // 73: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
-	18,  // 74: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
-	19,  // 75: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
-	20,  // 76: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
-	21,  // 77: msg.RPCMsg.msg_sendReaction:input_type -> msg.TL_msg_sendReaction
-	22,  // 78: msg.RPCMsg.msg_deleteParticipantReactions:input_type -> msg.TL_msg_deleteParticipantReactions
-	23,  // 79: msg.RPCMsg.msg_readReactions:input_type -> msg.TL_msg_readReactions
-	24,  // 80: msg.RPCMsg.msg_updateSavedReactionTag:input_type -> msg.TL_msg_updateSavedReactionTag
-	25,  // 81: msg.RPCMsg.msg_migrateChat:input_type -> msg.TL_msg_migrateChat
-	26,  // 82: msg.RPCMsg.msg_getScheduledHistory:input_type -> msg.TL_msg_getScheduledHistory
-	27,  // 83: msg.RPCMsg.msg_getScheduledMessages:input_type -> msg.TL_msg_getScheduledMessages
-	28,  // 84: msg.RPCMsg.msg_sendScheduledMessages:input_type -> msg.TL_msg_sendScheduledMessages
-	29,  // 85: msg.RPCMsg.msg_deleteScheduledMessages:input_type -> msg.TL_msg_deleteScheduledMessages
-	30,  // 86: msg.RPCMsg.msg_hasScheduled:input_type -> msg.TL_msg_hasScheduled
-	31,  // 87: msg.RPCMsg.msg_sendVote:input_type -> msg.TL_msg_sendVote
-	32,  // 88: msg.RPCMsg.msg_closePoll:input_type -> msg.TL_msg_closePoll
-	33,  // 89: msg.RPCMsg.msg_addPollAnswer:input_type -> msg.TL_msg_addPollAnswer
-	34,  // 90: msg.RPCMsg.msg_deletePollAnswer:input_type -> msg.TL_msg_deletePollAnswer
-	35,  // 91: msg.RPCMsg.msg_readPollVotes:input_type -> msg.TL_msg_readPollVotes
-	36,  // 92: msg.RPCMsg.msg_toggleTodoCompleted:input_type -> msg.TL_msg_toggleTodoCompleted
-	37,  // 93: msg.RPCMsg.msg_appendTodoList:input_type -> msg.TL_msg_appendTodoList
-	38,  // 94: msg.RPCMsg.msg_editTodoList:input_type -> msg.TL_msg_editTodoList
-	39,  // 95: msg.RPCMsg.msg_addQuickReplyMessages:input_type -> msg.TL_msg_addQuickReplyMessages
-	40,  // 96: msg.RPCMsg.msg_getQuickReplies:input_type -> msg.TL_msg_getQuickReplies
-	41,  // 97: msg.RPCMsg.msg_getQuickReplyMessages:input_type -> msg.TL_msg_getQuickReplyMessages
-	42,  // 98: msg.RPCMsg.msg_checkQuickReplyShortcut:input_type -> msg.TL_msg_checkQuickReplyShortcut
-	43,  // 99: msg.RPCMsg.msg_editQuickReplyShortcut:input_type -> msg.TL_msg_editQuickReplyShortcut
-	44,  // 100: msg.RPCMsg.msg_reorderQuickReplies:input_type -> msg.TL_msg_reorderQuickReplies
-	45,  // 101: msg.RPCMsg.msg_deleteQuickReplyShortcut:input_type -> msg.TL_msg_deleteQuickReplyShortcut
-	50,  // 102: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
-	56,  // 103: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
-	57,  // 104: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
-	57,  // 105: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
-	56,  // 106: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
-	58,  // 107: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
-	59,  // 108: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
-	50,  // 109: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
-	56,  // 110: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
-	57,  // 111: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
-	58,  // 112: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
-	58,  // 113: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
-	58,  // 114: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
-	57,  // 115: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
-	57,  // 116: msg.RPCMsg.msg_sendReaction:output_type -> mtproto.Updates
-	57,  // 117: msg.RPCMsg.msg_deleteParticipantReactions:output_type -> mtproto.Updates
-	58,  // 118: msg.RPCMsg.msg_readReactions:output_type -> mtproto.messages_AffectedHistory
-	50,  // 119: msg.RPCMsg.msg_updateSavedReactionTag:output_type -> mtproto.Bool
-	57,  // 120: msg.RPCMsg.msg_migrateChat:output_type -> mtproto.Updates
-	60,  // 121: msg.RPCMsg.msg_getScheduledHistory:output_type -> mtproto.messages_Messages
-	60,  // 122: msg.RPCMsg.msg_getScheduledMessages:output_type -> mtproto.messages_Messages
-	57,  // 123: msg.RPCMsg.msg_sendScheduledMessages:output_type -> mtproto.Updates
-	57,  // 124: msg.RPCMsg.msg_deleteScheduledMessages:output_type -> mtproto.Updates
-	50,  // 125: msg.RPCMsg.msg_hasScheduled:output_type -> mtproto.Bool
-	57,  // 126: msg.RPCMsg.msg_sendVote:output_type -> mtproto.Updates
-	57,  // 127: msg.RPCMsg.msg_closePoll:output_type -> mtproto.Updates
-	57,  // 128: msg.RPCMsg.msg_addPollAnswer:output_type -> mtproto.Updates
-	57,  // 129: msg.RPCMsg.msg_deletePollAnswer:output_type -> mtproto.Updates
-	58,  // 130: msg.RPCMsg.msg_readPollVotes:output_type -> mtproto.messages_AffectedHistory
-	57,  // 131: msg.RPCMsg.msg_toggleTodoCompleted:output_type -> mtproto.Updates
-	57,  // 132: msg.RPCMsg.msg_appendTodoList:output_type -> mtproto.Updates
-	57,  // 133: msg.RPCMsg.msg_editTodoList:output_type -> mtproto.Updates
-	57,  // 134: msg.RPCMsg.msg_addQuickReplyMessages:output_type -> mtproto.Updates
-	61,  // 135: msg.RPCMsg.msg_getQuickReplies:output_type -> mtproto.messages_QuickReplies
-	60,  // 136: msg.RPCMsg.msg_getQuickReplyMessages:output_type -> mtproto.messages_Messages
-	50,  // 137: msg.RPCMsg.msg_checkQuickReplyShortcut:output_type -> mtproto.Bool
-	50,  // 138: msg.RPCMsg.msg_editQuickReplyShortcut:output_type -> mtproto.Bool
-	50,  // 139: msg.RPCMsg.msg_reorderQuickReplies:output_type -> mtproto.Bool
-	50,  // 140: msg.RPCMsg.msg_deleteQuickReplyShortcut:output_type -> mtproto.Bool
-	102, // [102:141] is the sub-list for method output_type
-	63,  // [63:102] is the sub-list for method input_type
-	63,  // [63:63] is the sub-list for extension type_name
-	63,  // [63:63] is the sub-list for extension extendee
-	0,   // [0:63] is the sub-list for field type_name
+	0,   // 63: msg.TL_msg_editQuickReplyMessage.constructor:type_name -> msg.TLConstructor
+	3,   // 64: msg.TL_msg_editQuickReplyMessage.message:type_name -> msg.OutboxMessage
+	0,   // 65: msg.TL_msg_deleteQuickReplyMessages.constructor:type_name -> msg.TLConstructor
+	0,   // 66: msg.TL_msg_sendQuickReplyMessages.constructor:type_name -> msg.TLConstructor
+	7,   // 67: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
+	8,   // 68: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
+	9,   // 69: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
+	10,  // 70: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
+	11,  // 71: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
+	12,  // 72: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
+	13,  // 73: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
+	14,  // 74: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
+	15,  // 75: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
+	16,  // 76: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
+	17,  // 77: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
+	18,  // 78: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
+	19,  // 79: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
+	20,  // 80: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
+	21,  // 81: msg.RPCMsg.msg_sendReaction:input_type -> msg.TL_msg_sendReaction
+	22,  // 82: msg.RPCMsg.msg_deleteParticipantReactions:input_type -> msg.TL_msg_deleteParticipantReactions
+	23,  // 83: msg.RPCMsg.msg_readReactions:input_type -> msg.TL_msg_readReactions
+	24,  // 84: msg.RPCMsg.msg_updateSavedReactionTag:input_type -> msg.TL_msg_updateSavedReactionTag
+	25,  // 85: msg.RPCMsg.msg_migrateChat:input_type -> msg.TL_msg_migrateChat
+	26,  // 86: msg.RPCMsg.msg_getScheduledHistory:input_type -> msg.TL_msg_getScheduledHistory
+	27,  // 87: msg.RPCMsg.msg_getScheduledMessages:input_type -> msg.TL_msg_getScheduledMessages
+	28,  // 88: msg.RPCMsg.msg_sendScheduledMessages:input_type -> msg.TL_msg_sendScheduledMessages
+	29,  // 89: msg.RPCMsg.msg_deleteScheduledMessages:input_type -> msg.TL_msg_deleteScheduledMessages
+	30,  // 90: msg.RPCMsg.msg_hasScheduled:input_type -> msg.TL_msg_hasScheduled
+	31,  // 91: msg.RPCMsg.msg_sendVote:input_type -> msg.TL_msg_sendVote
+	32,  // 92: msg.RPCMsg.msg_closePoll:input_type -> msg.TL_msg_closePoll
+	33,  // 93: msg.RPCMsg.msg_addPollAnswer:input_type -> msg.TL_msg_addPollAnswer
+	34,  // 94: msg.RPCMsg.msg_deletePollAnswer:input_type -> msg.TL_msg_deletePollAnswer
+	35,  // 95: msg.RPCMsg.msg_readPollVotes:input_type -> msg.TL_msg_readPollVotes
+	36,  // 96: msg.RPCMsg.msg_toggleTodoCompleted:input_type -> msg.TL_msg_toggleTodoCompleted
+	37,  // 97: msg.RPCMsg.msg_appendTodoList:input_type -> msg.TL_msg_appendTodoList
+	38,  // 98: msg.RPCMsg.msg_editTodoList:input_type -> msg.TL_msg_editTodoList
+	39,  // 99: msg.RPCMsg.msg_addQuickReplyMessages:input_type -> msg.TL_msg_addQuickReplyMessages
+	40,  // 100: msg.RPCMsg.msg_getQuickReplies:input_type -> msg.TL_msg_getQuickReplies
+	41,  // 101: msg.RPCMsg.msg_getQuickReplyMessages:input_type -> msg.TL_msg_getQuickReplyMessages
+	42,  // 102: msg.RPCMsg.msg_checkQuickReplyShortcut:input_type -> msg.TL_msg_checkQuickReplyShortcut
+	43,  // 103: msg.RPCMsg.msg_editQuickReplyShortcut:input_type -> msg.TL_msg_editQuickReplyShortcut
+	44,  // 104: msg.RPCMsg.msg_reorderQuickReplies:input_type -> msg.TL_msg_reorderQuickReplies
+	45,  // 105: msg.RPCMsg.msg_deleteQuickReplyShortcut:input_type -> msg.TL_msg_deleteQuickReplyShortcut
+	46,  // 106: msg.RPCMsg.msg_editQuickReplyMessage:input_type -> msg.TL_msg_editQuickReplyMessage
+	47,  // 107: msg.RPCMsg.msg_deleteQuickReplyMessages:input_type -> msg.TL_msg_deleteQuickReplyMessages
+	48,  // 108: msg.RPCMsg.msg_sendQuickReplyMessages:input_type -> msg.TL_msg_sendQuickReplyMessages
+	53,  // 109: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
+	59,  // 110: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
+	60,  // 111: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
+	60,  // 112: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
+	59,  // 113: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
+	61,  // 114: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
+	62,  // 115: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
+	53,  // 116: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
+	59,  // 117: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
+	60,  // 118: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
+	61,  // 119: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
+	61,  // 120: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
+	61,  // 121: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
+	60,  // 122: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
+	60,  // 123: msg.RPCMsg.msg_sendReaction:output_type -> mtproto.Updates
+	60,  // 124: msg.RPCMsg.msg_deleteParticipantReactions:output_type -> mtproto.Updates
+	61,  // 125: msg.RPCMsg.msg_readReactions:output_type -> mtproto.messages_AffectedHistory
+	53,  // 126: msg.RPCMsg.msg_updateSavedReactionTag:output_type -> mtproto.Bool
+	60,  // 127: msg.RPCMsg.msg_migrateChat:output_type -> mtproto.Updates
+	63,  // 128: msg.RPCMsg.msg_getScheduledHistory:output_type -> mtproto.messages_Messages
+	63,  // 129: msg.RPCMsg.msg_getScheduledMessages:output_type -> mtproto.messages_Messages
+	60,  // 130: msg.RPCMsg.msg_sendScheduledMessages:output_type -> mtproto.Updates
+	60,  // 131: msg.RPCMsg.msg_deleteScheduledMessages:output_type -> mtproto.Updates
+	53,  // 132: msg.RPCMsg.msg_hasScheduled:output_type -> mtproto.Bool
+	60,  // 133: msg.RPCMsg.msg_sendVote:output_type -> mtproto.Updates
+	60,  // 134: msg.RPCMsg.msg_closePoll:output_type -> mtproto.Updates
+	60,  // 135: msg.RPCMsg.msg_addPollAnswer:output_type -> mtproto.Updates
+	60,  // 136: msg.RPCMsg.msg_deletePollAnswer:output_type -> mtproto.Updates
+	61,  // 137: msg.RPCMsg.msg_readPollVotes:output_type -> mtproto.messages_AffectedHistory
+	60,  // 138: msg.RPCMsg.msg_toggleTodoCompleted:output_type -> mtproto.Updates
+	60,  // 139: msg.RPCMsg.msg_appendTodoList:output_type -> mtproto.Updates
+	60,  // 140: msg.RPCMsg.msg_editTodoList:output_type -> mtproto.Updates
+	60,  // 141: msg.RPCMsg.msg_addQuickReplyMessages:output_type -> mtproto.Updates
+	64,  // 142: msg.RPCMsg.msg_getQuickReplies:output_type -> mtproto.messages_QuickReplies
+	63,  // 143: msg.RPCMsg.msg_getQuickReplyMessages:output_type -> mtproto.messages_Messages
+	53,  // 144: msg.RPCMsg.msg_checkQuickReplyShortcut:output_type -> mtproto.Bool
+	53,  // 145: msg.RPCMsg.msg_editQuickReplyShortcut:output_type -> mtproto.Bool
+	53,  // 146: msg.RPCMsg.msg_reorderQuickReplies:output_type -> mtproto.Bool
+	53,  // 147: msg.RPCMsg.msg_deleteQuickReplyShortcut:output_type -> mtproto.Bool
+	60,  // 148: msg.RPCMsg.msg_editQuickReplyMessage:output_type -> mtproto.Updates
+	60,  // 149: msg.RPCMsg.msg_deleteQuickReplyMessages:output_type -> mtproto.Updates
+	60,  // 150: msg.RPCMsg.msg_sendQuickReplyMessages:output_type -> mtproto.Updates
+	109, // [109:151] is the sub-list for method output_type
+	67,  // [67:109] is the sub-list for method input_type
+	67,  // [67:67] is the sub-list for extension type_name
+	67,  // [67:67] is the sub-list for extension extendee
+	0,   // [0:67] is the sub-list for field type_name
 }
 
 func init() { file_msg_tl_proto_init() }
@@ -4646,7 +4960,7 @@ func file_msg_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_msg_tl_proto_rawDesc), len(file_msg_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   45,
+			NumMessages:   48,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

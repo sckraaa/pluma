@@ -49,6 +49,8 @@ var served = map[string]bool{
 	"MessagesEditQuickReplyShortcut":   true,
 	"MessagesReorderQuickReplies":      true,
 	"MessagesDeleteQuickReplyShortcut": true,
+	"MessagesSendQuickReplyMessages":   true,
+	"MessagesDeleteQuickReplyMessages": true,
 
 	"AccountUpdateConnectedBot":       true,
 	"AccountGetConnectedBots":         true,
@@ -384,5 +386,38 @@ func TestConnectedBotRefused(t *testing.T) {
 		if err := c.call(); !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, want %v", c.name, err, c.want)
 		}
+	}
+}
+
+// The sends of a shortcut refused before msg is asked: to anything but a
+// private chat with another user (core.telegram.org/api/business: "only to
+// users, in private chats with other users"), and a bot, which has no
+// shortcuts.
+func TestQuickReplySendRefused(t *testing.T) {
+	s := New(&svc.ServiceContext{})
+	user := callerCtx(t, 1, false)
+	bot := callerCtx(t, 2, true)
+	send := func(peer *mtproto.InputPeer) *mtproto.TLMessagesSendQuickReplyMessages {
+		return &mtproto.TLMessagesSendQuickReplyMessages{Peer: peer, ShortcutId: 5}
+	}
+	for _, c := range []struct {
+		name string
+		ctx  context.Context
+		in   *mtproto.TLMessagesSendQuickReplyMessages
+		want error
+	}{
+		{"Saved Messages", user, send(mtproto.MakeTLInputPeerSelf(nil).To_InputPeer()), mtproto.ErrPeerIdInvalid},
+		{"the account itself by id", user, send(mtproto.MakeTLInputPeerUser(&mtproto.InputPeer{UserId: 1}).To_InputPeer()), mtproto.ErrPeerIdInvalid},
+		{"a group", user, send(mtproto.MakeTLInputPeerChat(&mtproto.InputPeer{ChatId: 9}).To_InputPeer()), mtproto.ErrPeerIdInvalid},
+		{"a channel", user, send(mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: 9}).To_InputPeer()), mtproto.ErrPeerIdInvalid},
+		{"no peer", user, send(mtproto.MakeTLInputPeerEmpty(nil).To_InputPeer()), mtproto.ErrPeerIdInvalid},
+		{"a bot", bot, send(mtproto.MakeTLInputPeerUser(&mtproto.InputPeer{UserId: 3}).To_InputPeer()), mtproto.ErrBotMethodInvalid},
+	} {
+		if _, err := s.MessagesSendQuickReplyMessages(c.ctx, c.in); !errors.Is(err, c.want) {
+			t.Errorf("%s: %v, want %v", c.name, err, c.want)
+		}
+	}
+	if _, err := s.MessagesDeleteQuickReplyMessages(bot, &mtproto.TLMessagesDeleteQuickReplyMessages{ShortcutId: 5, Id: []int32{1}}); !errors.Is(err, mtproto.ErrBotMethodInvalid) {
+		t.Errorf("delete by a bot: %v, want BOT_METHOD_INVALID", err)
 	}
 }
