@@ -361,6 +361,9 @@ var optionalVars = map[string]bool{
 	// mini app opens without the key of the signature of initData.
 	"BOT_SECRET_ENCRYPTION_KEY": true,
 	"WEBAPP_SIGNING_KEY":        true,
+	// The statistics of channels and groups (task 103, ADR 0066): off
+	// without the key of the zoom tokens of their graphs.
+	"STATS_GRAPH_TOKEN_KEY": true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }

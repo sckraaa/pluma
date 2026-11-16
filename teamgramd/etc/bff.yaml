@@ -121,10 +121,12 @@ Avatars: https://pluma.chat/_l/avatar/
 # channelFull.stats_dc, the DC the clients ask for the statistics: this
 # server's own, this_dc of teamgramd/bin/config.json. TokenKey signs the
 # zoom tokens of the graphs (STATS_GRAPH_TOKEN_KEY, 32 random bytes in
-# base64); without it the statistics are off and the clients do not offer
-# them.
+# base64: openssl rand -base64 32); without it the statistics are off and
+# the clients do not offer them. Changing it invalidates the zoom tokens
+# given out (the clients ask for the statistics again).
 Stats:
   ThisDc: 1
+  TokenKey: "${STATS_GRAPH_TOKEN_KEY}"
 
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"

@@ -140,6 +140,9 @@ var secretNames = set(
 	"translated", "translatedtext", "sourcetext", "getsourcetext",
 	"prompt", "getprompt", "completion", "getcompletion",
 	"content", "getcontent", "resulttext", "getresulttext",
+	// the statistics of channels (task 103, ADR 0066): the zoom tokens of
+	// the graphs, never printed whole, and the key that signs them
+	"statstoken", "zoomtoken", "getzoomtoken", "tokenkey", "gettokenkey",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )

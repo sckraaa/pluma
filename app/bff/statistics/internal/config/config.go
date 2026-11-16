@@ -59,6 +59,16 @@ func (c StatsConfig) Enabled() bool {
 	return c.TokenKey != ""
 }
 
+// StatsDc is what channelFull.stats_dc carries next to can_view_stats:
+// ThisDc while the statistics are served, 0 while they are off, when
+// channels.getFullChannel sets neither and the clients offer no statistics.
+func (c StatsConfig) StatsDc() int32 {
+	if !c.Enabled() {
+		return 0
+	}
+	return c.ThisDc
+}
+
 // Validate checks the settings; the errors never hold the key.
 func (c StatsConfig) Validate() error {
 	if c.ThisDc < 1 {

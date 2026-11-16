@@ -61,6 +61,10 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"compose result", `func f(r *mtproto.Messages_ComposedMessageWithAI) { logx.Infof("%v", r.GetResultText()) }`, []string{"secret"}},
 		{"translated", `func f(translated []string) { logx.Infof("%v", translated) }`, []string{"secret"}},
 		{"translation length ok", `func f(translation string, toLang string) { logx.Infof("%d characters to %s", len(translation), toLang) }`, nil},
+		// the statistics of channels (task 103)
+		{"zoom token", `func f(g *mtproto.StatsGraph, statsToken string) { logx.Infof("%s %s", g.GetZoomToken(), statsToken) }`, []string{"secret", "secret"}},
+		{"stats token key", `func f(c struct{ Stats struct{ ThisDc int32; TokenKey string } }) error { return fmt.Errorf("dc %d key %s", c.Stats.ThisDc, c.Stats.TokenKey) }`, []string{"secret"}},
+		{"stats channel ok", `func f(channelId int64, method string) { logx.Infof("%s of %d", method, channelId) }`, nil},
 		// audit #8: handshake secrets
 		{"handshake state", `func f(ctx *HandshakeStateCtx) { logx.Infof("state: %s", ctx) }`, []string{"object"}},
 		{"new_nonce", `func f(ctx *HandshakeStateCtx) { logx.Infof("n: %x", ctx.NewNonce) }`, []string{"secret"}},
