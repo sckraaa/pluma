@@ -46,6 +46,7 @@ const (
 
 	hymtTargetOpen  = "<target>"
 	hymtTargetClose = "</target>"
+	hymtSourceOpen  = "<source>"
 )
 
 // The sampling the model card recommends ("We recommend using the
@@ -119,7 +120,7 @@ var hymtAliases = map[string]string{
 // card names the English one for every other pair.
 var hymtChinese = map[string]bool{"zh": true, "zh-Hant": true, "yue": true}
 
-var errNoTarget = errors.New("translate: the answer is not in <target>")
+var errNoTarget = errors.New("translate: the answer repeats the <source> of the prompt")
 
 type hymt struct {
 	slotContext int
@@ -226,13 +227,23 @@ func (p *hymt) maxTokens(chars int) int {
 	return min(3*chars/2+64, p.slotContext/2)
 }
 
+// Answer reads a tagged answer inside <target>, and without it as well: the
+// model often leaves the wrapper out and keeps every tag. Measured on
+// HY-MT1.5-1.8B Q8_0 (llama.cpp b11913, docs/ops/translation.md, "Замер"):
+// of the answers to the tagged prompt for ru→en, en→ru and uk→ru, 36% kept
+// the tags inside <target>; read with or without it, 75%. The tags are
+// checked by the markup either way (markup.decode). An answer that repeats
+// the <source> of the prompt is not a translation.
 func (p *hymt) Answer(answer string, tagged bool) (string, error) {
 	if !tagged {
 		return strings.TrimSpace(answer), nil
 	}
+	if strings.Contains(answer, hymtSourceOpen) {
+		return "", errNoTarget
+	}
 	i := strings.Index(answer, hymtTargetOpen)
 	if i < 0 {
-		return "", errNoTarget
+		return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(answer), hymtTargetClose)), nil
 	}
 	answer = answer[i+len(hymtTargetOpen):]
 	if j := strings.Index(answer, hymtTargetClose); j >= 0 {

@@ -1,0 +1,8 @@
+This image carries the translation model HY-MT1.5-1.8B and llama.cpp.
+
+Tencent HY is licensed under the Tencent HY Community License Agreement, Copyright © 2025 Tencent. All Rights Reserved. The trademark rights of “Tencent HY” are owned by Tencent or its affiliate.
+
+The agreement is /model/License.txt, as published with the model at
+huggingface.co/tencent/HY-MT1.5-1.8B-GGUF; the model file is not modified.
+
+llama.cpp is distributed under the MIT License: /licenses/llama.cpp.LICENSE.

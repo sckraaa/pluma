@@ -359,6 +359,19 @@ func TestMarkupSiblingsReordered(t *testing.T) {
 	)
 }
 
+// TestMarkupWithoutTarget: an answer with every tag but without <target>
+// is a translation with its formatting (docs/ops/translation.md, "Замер":
+// the model leaves the wrapper out more often than not).
+func TestMarkupWithoutTarget(t *testing.T) {
+	const text = "red car fast"
+	f := &fakeModel{tagged: func(string) string { return "<s1>красная</s1> машина быстрая\n" }}
+	res := translate(t, f, text, at(mtproto.Predicate_messageEntityBold, text, "red"))
+	if res.Fallback || len(f.calls) != 1 {
+		t.Fatalf("fallback %v after %d calls", res.Fallback, len(f.calls))
+	}
+	checkEntities(t, res, want{mtproto.Predicate_messageEntityBold, "красная"})
+}
+
 func TestMarkupFallback(t *testing.T) {
 	const text = "hello @alice and bold #tag bye"
 	ents := []*mtproto.MessageEntity{
@@ -372,7 +385,7 @@ func TestMarkupFallback(t *testing.T) {
 		"repeated tag":    "<target>HELLO <s1>@alice</s1> <s1>@alice</s1> AND <s2>BOLD</s2> <s3>#tag</s3></target>",
 		"broken nesting":  "<target>HELLO <s2><s1>@alice</s1> AND BOLD</s2> <s3>#tag</s3> BYE</target>",
 		"crossed tags":    "<target>HELLO <s1>@alice <s2>AND</s1> BOLD</s2> <s3>#tag</s3></target>",
-		"no target":       "HELLO <s1>@alice</s1> AND <s2>BOLD</s2> <s3>#tag</s3> BYE",
+		"source repeated": "<source>HELLO <s1>@alice</s1> AND <s2>BOLD</s2> <s3>#tag</s3> BYE</source>",
 		"tag-like":        "<target>HELLO <s1>@alice</s1> AND <s2>BOLD</s2> <s3>#tag</s3> <s 4>BYE</target>",
 		"unclosed at end": "<target>HELLO <s1>@alice</s1> AND <s2>BOLD <s3>#tag</s3> BYE</target>",
 	}
