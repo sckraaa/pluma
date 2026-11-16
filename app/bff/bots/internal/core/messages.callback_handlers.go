@@ -44,8 +44,8 @@ type pressed struct {
 	botId   int64
 	inline  bool  // sent via the bot: the update names it by inline message id
 	botMsg  int32 // the id of the message in the bot's box
-	// business is the message of a connected business bot (task 105),
-	// nil for any other.
+	// business is the message of a connected business bot (task 105), set
+	// by businessCallback for a callback press; nil for any other.
 	business *businessPress
 }
 
@@ -79,13 +79,6 @@ func (c *BotsCore) pressedMessage(peer *mtproto.PeerUtil, msgId int32) (*pressed
 			p.botId, p.inline = via.GetValue(), true
 		} else if peer.IsUser() {
 			p.botId = peer.PeerId
-			biz, err := c.businessPressed(peer, msgId, box.GetMessage())
-			if err != nil {
-				return nil, err
-			}
-			if biz != nil {
-				p.botId, p.business = biz.connection.BotID, biz
-			}
 		} else {
 			p.botId = p.message.GetFromId().GetUserId()
 		}
@@ -108,6 +101,26 @@ func (c *BotsCore) pressedMessage(peer *mtproto.PeerUtil, msgId int32) (*pressed
 		return nil, mtproto.ErrPeerIdInvalid
 	}
 	return p, nil
+}
+
+// businessCallback makes p, the message of a callback press, the press of
+// a connected business bot's message when it is one (businessPressed): its
+// bot is then the connected bot. Only a callback goes to the business bot;
+// the other uses of a pressed message (the login button of URL auth, whose
+// bot is the button's, and widgets, which business bots do not send) keep
+// the bot of the chat and skip the look-up.
+func (c *BotsCore) businessCallback(p *pressed, msgId int32) error {
+	if !p.peer.IsUser() || p.inline {
+		return nil
+	}
+	biz, err := c.businessPressed(p.peer, msgId, p.message)
+	if err != nil {
+		return err
+	}
+	if biz != nil {
+		p.botId, p.business = biz.connection.BotID, biz
+	}
+	return nil
 }
 
 // businessPressed finds whether the message of a press in the private chat
@@ -209,6 +222,9 @@ func (c *BotsCore) MessagesGetBotCallbackAnswer(in *mtproto.TLMessagesGetBotCall
 	p, err := c.pressedMessage(peer, in.MsgId)
 	if err != nil {
 		c.Logger.Errorf("messages.getBotCallbackAnswer - error: %v", err)
+		return nil, err
+	}
+	if err = c.businessCallback(p, in.MsgId); err != nil {
 		return nil, err
 	}
 	data := in.Data

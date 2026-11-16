@@ -98,7 +98,8 @@ func TestInlinePeerTypeOfNoChat(t *testing.T) {
 // userMessages answers the look-up of a press with one copy.
 type userMessages struct {
 	message_client.MessageClient
-	box *mtproto.MessageBox
+	box         *mtproto.MessageBox
+	peerLookups int
 }
 
 func (u *userMessages) MessageGetUserMessage(_ context.Context, _ *message.TLMessageGetUserMessage) (*mtproto.MessageBox, error) {
@@ -109,6 +110,7 @@ func (u *userMessages) MessageGetUserMessage(_ context.Context, _ *message.TLMes
 // of a press in a private chat (a message of a connected business bot,
 // task 105): a copy without via_business_bot_id, a bot's own message.
 func (u *userMessages) MessageGetPeerUserMessage(_ context.Context, _ *message.TLMessageGetPeerUserMessage) (*mtproto.MessageBox, error) {
+	u.peerLookups++
 	return &mtproto.MessageBox{Message: &mtproto.Message{Out: true}}, nil
 }
 
@@ -148,6 +150,29 @@ func TestPressedMessageOfTheChat(t *testing.T) {
 	c := testCore(&dao.Dao{MessageClient: &userMessages{box: copyIn(user, mtproto.PEER_USER, user)}}, user)
 	if _, err := c.pressedMessage(c.chatPeer(mtproto.MakeTLInputPeerSelf(nil).To_InputPeer()), 33); err != nil {
 		t.Errorf("Saved Messages: %v", err)
+	}
+}
+
+// Only a callback press asks whether a message in a private chat is a
+// connected business bot's (task 105): the other uses of a pressed message,
+// the login button of URL auth and the polls of a widget's public data,
+// read no other copy.
+func TestBusinessLookupOnlyForCallbacks(t *testing.T) {
+	const user, bot = int64(10), int64(20)
+	messages := &userMessages{box: copyIn(bot, mtproto.PEER_USER, user)}
+	c := testCore(&dao.Dao{MessageClient: messages}, user)
+	p, err := c.pressedMessage(mtproto.MakeUserPeerUtil(bot), 33)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if messages.peerLookups != 0 || p.botId != bot || p.business != nil {
+		t.Fatalf("pressed message: %d look-ups of the other copy, bot %d, business %v", messages.peerLookups, p.botId, p.business)
+	}
+	if err := c.businessCallback(p, 33); err != nil {
+		t.Fatal(err)
+	}
+	if messages.peerLookups != 1 || p.botId != bot || p.business != nil {
+		t.Fatalf("callback: %d look-ups of the other copy, bot %d, business %v", messages.peerLookups, p.botId, p.business)
 	}
 }
 
