@@ -52,6 +52,9 @@ type ServiceContext struct {
 	// CDN decides the redirects of upload.getFile and serves the CDN
 	// methods (task 107, ADR 0071); nil: the CDN is off.
 	CDN *cdn.Home
+	// cdn runs the origin, the preparation of the files and the checks and
+	// budget of the deliveries; nil when the CDN is off.
+	cdn *cdn.Runtime
 	// Business checks the uploads of a connected bot of Telegram Business
 	// for a chat of its account (task 105).
 	Business *business.Store
@@ -66,7 +69,8 @@ func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2
 		webFiles.Register(mtproto.Predicate_inputWebFileGeoPointLocation, NewGeoSource(maps))
 	}
 	d := dao.New(c)
-	logx.Must(checkCDN(c))
+	runtime, err := startCDN(c, d)
+	logx.Must(err)
 	db := sqlx.NewMySQL(&c.Mysql)
 	s := &ServiceContext{
 		Config:   c,
@@ -77,25 +81,38 @@ func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2
 		Business: business.NewStore(db),
 		WebFiles: webFiles,
 		Maps:     maps,
+		cdn:      runtime,
+	}
+	if runtime != nil {
+		s.CDN = runtime.Home
 	}
 	return s
 }
 
-// Stop stops the work beside the methods. None runs yet: the work of the
-// HTTPS CDN (its origin, the preparation of the hashes, the checks of the
-// deliveries) starts here once it is built (task 107, parts A2 and B).
-func (s *ServiceContext) Stop() {}
+// Stop stops the work beside the methods: the origin of the CDN stops
+// listening, and the preparation, the checks and the budget end.
+func (s *ServiceContext) Stop() {
+	if s.cdn != nil {
+		s.cdn.Stop()
+	}
+}
 
-// checkCDN checks the Cdn block of c. A wrong one stops the start. So does
-// an enabled delivery for now: the redirects of the HTTPS CDN need the
-// origin, the preparation and the checks of task 107 (parts A2 and B),
-// and a CDN left half on would be worse than an explicit refusal.
-func checkCDN(c config.Config) error {
+// startCDN starts the HTTPS CDN of c, nil when it is off (no delivery with
+// a BaseURL): then the origin does not listen. A wrong Cdn block, or an
+// origin address in use, stops the start instead of leaving the CDN
+// silently off.
+func startCDN(c config.Config, d *dao.Dao) (*cdn.Runtime, error) {
 	set, err := c.Cdn.Parse()
 	if err != nil || set == nil {
-		return err
+		return nil, err
 	}
-	return errors.New("files: Cdn has an enabled delivery (CDN_GCORE_BASE_URL), but this build does not run the HTTPS CDN yet: leave CDN_GCORE_BASE_URL empty")
+	files := &cdnFiles{media: d.MediaClient, encrypted: d.SecretChats, dfs: d.DfsClient}
+	r, err := cdn.Start(cdn.NewMySQLStore(sqlx.NewMySQL(&c.Mysql)), set, files, files)
+	if err != nil {
+		return nil, err
+	}
+	logx.Infof("files: HTTPS CDN on: %d deliveries, origin at %s", len(set.Deliveries), set.Origin.Listen)
+	return r, nil
 }
 
 // newMaps returns the map service of c, nil when maps are off. A wrong
