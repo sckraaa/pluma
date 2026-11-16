@@ -279,11 +279,14 @@ Transcribe:
 # URL: the translation is off, and the clients are told so by the keys
 # translations_manual_enabled and translations_auto_enabled. Model names the
 # model the engine serves; Profile the prompts of the model (hy-mt1.5 by
-# default). Slots and Context are the engine's --parallel and --ctx-size
-# (4 and 16384 by default) and are set here when the engine's differ; the
-# waits, the bounds of a request and the per-user limits have defaults too.
+# default). Slots and Context are the engine's --parallel and --ctx-size,
+# TRANSLATE_SLOTS and TRANSLATE_CTX, which the engine of
+# docker-compose.translate.yaml reads too (empty: 4 and 16384); the waits,
+# the bounds of a request and the per-user limits have defaults.
 Translate:
   URL: "${TRANSLATE_URL}"
   Token: "${TRANSLATE_TOKEN}"
   Model: "${TRANSLATE_MODEL}"
   Profile: "${TRANSLATE_PROFILE}"
+  Slots: "${TRANSLATE_SLOTS}"
+  Context: "${TRANSLATE_CTX}"

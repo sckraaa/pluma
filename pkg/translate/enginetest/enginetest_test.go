@@ -106,24 +106,13 @@ func envTarget(t *testing.T) (Target, bool) {
 	if url == "" {
 		return Target{}, false
 	}
-	num := func(name string) int {
-		v := os.Getenv(name)
-		if v == "" {
-			return 0
-		}
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		return n
-	}
 	target := Target{
 		Config: translate.Config{
 			URL:     url,
 			Model:   os.Getenv("TRANSLATE_ENGINE_MODEL"),
 			Token:   os.Getenv("TRANSLATE_ENGINE_TOKEN"),
-			Slots:   num("TRANSLATE_ENGINE_SLOTS"),
-			Context: num("TRANSLATE_ENGINE_CTX"),
+			Slots:   os.Getenv("TRANSLATE_ENGINE_SLOTS"),
+			Context: os.Getenv("TRANSLATE_ENGINE_CTX"),
 		},
 		Strict: os.Getenv("TRANSLATE_ENGINE_STRICT") == "1",
 	}

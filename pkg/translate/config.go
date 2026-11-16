@@ -19,6 +19,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -99,13 +101,16 @@ type Config struct {
 	// (profile.go): "hy-mt1.5".
 	Profile string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 
-	// Slots is how many requests go to the engine at once: its
-	// llama-server --parallel. One item is one request.
-	Slots int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// Context is the context of the engine in tokens (llama-server
-	// --ctx-size), shared evenly by its Slots; the profile bounds the
-	// answer of an item by the context of one slot.
-	Context int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Slots is how many requests go to the engine at once
+	// (TRANSLATE_SLOTS, "4"): its llama-server --parallel, which the
+	// engine of docker-compose.translate.yaml takes from the same
+	// variable. One item is one request. A string, so that an empty
+	// variable takes the default (SlotCount).
+	Slots string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Context is the context of the engine in tokens (TRANSLATE_CTX,
+	// "16384": llama-server --ctx-size), shared evenly by its Slots; the
+	// profile bounds the answer of an item by the context of one slot.
+	Context string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 
 	// SyncWait is how long a batch of a chat is waited for before the
 	// answer is FLOOD_WAIT_X; the work goes on into the cache, and the
@@ -144,11 +149,11 @@ func (c Config) WithDefaults() Config {
 	if c.Profile == "" {
 		c.Profile = DefaultProfile
 	}
-	if c.Slots == 0 {
-		c.Slots = DefaultSlots
+	if strings.TrimSpace(c.Slots) == "" {
+		c.Slots = strconv.Itoa(DefaultSlots)
 	}
-	if c.Context == 0 {
-		c.Context = DefaultContext
+	if strings.TrimSpace(c.Context) == "" {
+		c.Context = strconv.Itoa(DefaultContext)
 	}
 	if c.SyncWait == 0 {
 		c.SyncWait = DefaultSyncWait
@@ -205,10 +210,10 @@ func (c Config) Validate() error {
 	if _, err := NewProfile(c.Profile, 1); err != nil {
 		return fmt.Errorf("translate: TRANSLATE_PROFILE: %w", err)
 	}
-	if c.Slots < 1 || c.Slots > maxSlots {
-		return fmt.Errorf("translate: TRANSLATE_SLOTS must be from 1 to %d", maxSlots)
+	if slots := c.SlotCount(); slots < 1 || slots > maxSlots {
+		return fmt.Errorf("translate: TRANSLATE_SLOTS must be a number from 1 to %d", maxSlots)
 	}
-	if c.Context/c.Slots < minSlotContext {
+	if c.SlotContext() < minSlotContext {
 		return fmt.Errorf("translate: TRANSLATE_CTX must give each of the TRANSLATE_SLOTS at least %d tokens", minSlotContext)
 	}
 	switch {
@@ -229,9 +234,27 @@ func (c Config) Validate() error {
 	return nil
 }
 
+// SlotCount is Slots as a number, 0 if it is none.
+func (c Config) SlotCount() int { return number(c.Slots) }
+
 // SlotContext is the context of one slot of the engine in tokens, as
-// NewProfile takes it.
-func (c Config) SlotContext() int { return c.Context / c.Slots }
+// NewProfile takes it; 0 without a valid Slots or Context.
+func (c Config) SlotContext() int {
+	slots, size := c.SlotCount(), number(c.Context)
+	if slots < 1 || size < 0 {
+		return 0
+	}
+	return size / slots
+}
+
+// number is s as a decimal number, 0 if it is none.
+func number(s string) int {
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil {
+		return 0
+	}
+	return n
+}
 
 // HTTPConfig is what NewHTTPEngine takes of c.
 func (c Config) HTTPConfig() HTTPConfig {

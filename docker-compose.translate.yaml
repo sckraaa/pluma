@@ -35,8 +35,9 @@ services:
       # The same token as bff sends; none if empty.
       TRANSLATE_API_TOKEN: ${TRANSLATE_TOKEN:-}
       TRANSLATE_THREADS: ${TRANSLATE_THREADS:-6}
-      # The same slots and context as bff's: bff sends as many requests at
-      # once as there are slots, and bounds an answer by the context of one.
+      # The variables bff reads too, with its defaults: bff sends as many
+      # requests at once as there are slots, and bounds an answer by the
+      # context of one.
       TRANSLATE_SLOTS: ${TRANSLATE_SLOTS:-4}
       TRANSLATE_CTX: ${TRANSLATE_CTX:-16384}
     # No published port: only bff, on the network of the services, calls it.

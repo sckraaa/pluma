@@ -296,7 +296,7 @@ func Bench(t *testing.T, target Target, opt BenchOptions) Report {
 		}
 
 		if opt.Batch && do("batch") {
-			took, err := batch(ctx, p, eng, e.cfg.Slots, 20)
+			took, err := batch(ctx, p, eng, e.cfg.SlotCount(), 20)
 			if err != nil {
 				t.Errorf("%s: a batch of 20: %v", v.Name, err)
 			} else {
@@ -345,7 +345,7 @@ func batch(ctx context.Context, p translate.Profile, eng translate.Engine, slots
 func logReport(t *testing.T, cfg translate.Config, rep Report) {
 	t.Helper()
 	var b strings.Builder
-	fmt.Fprintf(&b, "engine %s, model %s, %d slots of %d tokens\n", cfg.URL, cfg.Model, cfg.Slots, cfg.SlotContext())
+	fmt.Fprintf(&b, "engine %s, model %s, %d slots of %d tokens\n", cfg.URL, cfg.Model, cfg.SlotCount(), cfg.SlotContext())
 	if len(rep.Timings) > 0 {
 		b.WriteString("variant | pair | message | characters | p50 s | p95 s | characters/s\n")
 		for _, tm := range rep.Timings {

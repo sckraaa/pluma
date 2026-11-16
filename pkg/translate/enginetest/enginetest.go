@@ -290,7 +290,7 @@ func checkKept(kept, all int, least float64) error {
 // slots, as bff never does but another bff (a restart, a second instance)
 // may: the engine must queue them, never refuse one as a bad request.
 func checkOverSlots(ctx context.Context, e *engine, strict bool) error {
-	n := 2 * e.cfg.Slots
+	n := 2 * e.cfg.SlotCount()
 	s := PlainSamples["ru"][1]
 	errs := make([]error, n)
 	var wg sync.WaitGroup

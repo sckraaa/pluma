@@ -343,6 +343,8 @@ var optionalVars = map[string]bool{
 	"TRANSLATE_TOKEN":   true,
 	"TRANSLATE_MODEL":   true,
 	"TRANSLATE_PROFILE": true,
+	"TRANSLATE_SLOTS":   true,
+	"TRANSLATE_CTX":     true,
 	// The mail of the recovery email of the cloud password (task 091):
 	// off when the key is empty.
 	"MAIL_API_KEY": true,
@@ -458,4 +460,40 @@ func loopbackOnly(ports []string) bool {
 		}
 	}
 	return len(ports) > 0
+}
+
+// TestTranslateSlots: bff and the translate engine read the slots and the
+// context of the engine from the same variables (task 101): bff sends as
+// many requests at once as the engine has slots and bounds an answer by
+// the context of one, so the two must not differ.
+func TestTranslateSlots(t *testing.T) {
+	for _, f := range []string{"teamgramd/etc/bff.yaml", "teamgramd/etc2/bff.yaml", "app/bff/bff/etc/bff.yaml"} {
+		data, err := os.ReadFile(filepath.Join(repoRoot, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var cfg struct {
+			Translate map[string]string `yaml:"Translate"`
+		}
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		if cfg.Translate["Slots"] != "${TRANSLATE_SLOTS}" || cfg.Translate["Context"] != "${TRANSLATE_CTX}" {
+			t.Errorf("%s: Translate.Slots %q and Context %q, want ${TRANSLATE_SLOTS} and ${TRANSLATE_CTX}", f, cfg.Translate["Slots"], cfg.Translate["Context"])
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(repoRoot, "docker-compose.translate.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var engine struct {
+		Services map[string]composeService `yaml:"services"`
+	}
+	if err := yaml.Unmarshal(data, &engine); err != nil {
+		t.Fatal(err)
+	}
+	env := engine.Services["translate"].Environment
+	if !strings.HasPrefix(env["TRANSLATE_SLOTS"], "${TRANSLATE_SLOTS:-") || !strings.HasPrefix(env["TRANSLATE_CTX"], "${TRANSLATE_CTX:-") {
+		t.Errorf("docker-compose.translate.yaml: the engine gets slots %q and context %q, not TRANSLATE_SLOTS and TRANSLATE_CTX", env["TRANSLATE_SLOTS"], env["TRANSLATE_CTX"])
+	}
 }

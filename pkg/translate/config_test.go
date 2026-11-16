@@ -26,7 +26,7 @@ func TestConfigDefaults(t *testing.T) {
 	if err := c.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if c.Profile != "hy-mt1.5" || c.Slots != 4 || c.SlotContext() != 4096 ||
+	if c.Profile != "hy-mt1.5" || c.SlotCount() != 4 || c.SlotContext() != 4096 ||
 		c.SyncWait != 25*time.Second || c.SyncWaitSingle != 45*time.Second ||
 		c.FailedTTL != time.Minute || c.CacheTTL != 30*24*time.Hour ||
 		c.MaxItemLength != 4096 || c.MaxItems != 100 || c.MaxRequestLength != 32768 ||
@@ -37,7 +37,7 @@ func TestConfigDefaults(t *testing.T) {
 	if h.URL != c.URL || h.Model != "hy-mt" || h.Timeout != 10*time.Second || h.TimeoutPerChar != 25*time.Millisecond {
 		t.Fatalf("engine config: %+v", h)
 	}
-	if err := (Config{Slots: -1}).Validate(); err != nil {
+	if err := (Config{Slots: "-1"}).Validate(); err != nil {
 		t.Fatalf("an off configuration is valid whatever the rest: %v", err)
 	}
 	if (Config{}).Enabled() {
@@ -55,8 +55,10 @@ func TestConfigValidate(t *testing.T) {
 		{"long model", func(c *Config) { c.Model = strings.Repeat("m", 65) }},
 		{"short token", func(c *Config) { c.Token = "short" }},
 		{"unknown profile", func(c *Config) { c.Profile = "gemma" }},
-		{"too many slots", func(c *Config) { c.Slots = 17 }},
-		{"small context", func(c *Config) { c.Context = 1024 }},
+		{"too many slots", func(c *Config) { c.Slots = "17" }},
+		{"slots not a number", func(c *Config) { c.Slots = "four" }},
+		{"small context", func(c *Config) { c.Context = "1024" }},
+		{"context not a number", func(c *Config) { c.Context = "16k" }},
 		{"long wait", func(c *Config) { c.SyncWaitSingle = 3 * time.Minute }},
 		{"short failure", func(c *Config) { c.FailedTTL = time.Millisecond }},
 		{"long item", func(c *Config) { c.MaxItemLength = 5000 }},

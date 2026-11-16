@@ -230,6 +230,7 @@ func (l *lane) remove(user int64, j *job) bool {
 // Scheduler queues the items of the requests for the engine.
 type Scheduler struct {
 	cfg     Config
+	slots   int
 	profile Profile
 	model   string
 	engine  Engine
@@ -294,6 +295,7 @@ func newScheduler(c Config, profile Profile, engine Engine, cache Cache, limits 
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Scheduler{
 		cfg:         c,
+		slots:       c.SlotCount(),
 		profile:     profile,
 		model:       c.Model,
 		engine:      engine,
@@ -319,7 +321,7 @@ func newScheduler(c Config, profile Profile, engine Engine, cache Cache, limits 
 func (s *Scheduler) start() {
 	setEngineUp(true)
 	metricQueueDepth.Set(0)
-	for range s.cfg.Slots {
+	for range s.slots {
 		s.workers.Add(1)
 		go s.work()
 	}
@@ -617,7 +619,7 @@ func (s *Scheduler) estimate(prio Priority) time.Duration {
 	for p := prio; p < priorities; p++ {
 		ahead += s.lanes[p].n
 	}
-	rounds := max((ahead+s.cfg.Slots-1)/s.cfg.Slots, 1)
+	rounds := max((ahead+s.slots-1)/s.slots, 1)
 	return time.Duration(rounds) * s.itemTime
 }
 

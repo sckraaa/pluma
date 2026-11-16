@@ -195,7 +195,7 @@ type schedFixture struct {
 
 func newSchedFixture(t *testing.T, edit func(*Config)) *schedFixture {
 	t.Helper()
-	c := Config{URL: "http://translate:8080", Model: "hy-mt", Slots: 1}
+	c := Config{URL: "http://translate:8080", Model: "hy-mt", Slots: "1"}
 	if edit != nil {
 		edit(&c)
 	}
@@ -318,7 +318,7 @@ func TestSchedulerPrioritiesAndTurns(t *testing.T) {
 }
 
 func TestSchedulerSingleflight(t *testing.T) {
-	f := newSchedFixture(t, func(c *Config) { c.Slots = 2 })
+	f := newSchedFixture(t, func(c *Config) { c.Slots = "2" })
 	// What is given to the cache is lost: only the shared job can keep
 	// the engine to one call.
 	f.cache.drop = true

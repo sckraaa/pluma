@@ -93,6 +93,8 @@ services:
       TRANSLATE_TOKEN: ${TRANSLATE_TOKEN:-}
       TRANSLATE_MODEL: ${TRANSLATE_MODEL:-}
       TRANSLATE_PROFILE: ${TRANSLATE_PROFILE:-}
+      TRANSLATE_SLOTS: ${TRANSLATE_SLOTS:-}
+      TRANSLATE_CTX: ${TRANSLATE_CTX:-}
       # bff.yaml names the mail of the recovery email (task 091); empty: off.
       MAIL_API_KEY: ${MAIL_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-}
@@ -347,6 +349,8 @@ services:
       TRANSLATE_TOKEN: ${TRANSLATE_TOKEN:-}
       TRANSLATE_MODEL: ${TRANSLATE_MODEL:-}
       TRANSLATE_PROFILE: ${TRANSLATE_PROFILE:-}
+      TRANSLATE_SLOTS: ${TRANSLATE_SLOTS:-}
+      TRANSLATE_CTX: ${TRANSLATE_CTX:-}
       # The mail of the recovery email of the cloud password (task 091,
       # docs/ops/email.md); no key: the recovery email is off.
       MAIL_API_KEY: ${MAIL_API_KEY:-}

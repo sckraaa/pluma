@@ -4,11 +4,11 @@
 # flags are those of llama.cpp release b11913 (common/arg.cpp).
 #
 #   TRANSLATE_THREADS    CPU threads of generation and of prompt processing (6)
-#   TRANSLATE_SLOTS      requests served at once, --parallel (4); bff's
-#                        TRANSLATE_SLOTS must be the same
+#   TRANSLATE_SLOTS      requests served at once, --parallel (4); bff reads
+#                        the same variable
 #   TRANSLATE_CTX        context of the whole engine in tokens (16384), split
-#                        evenly between the slots; bff's TRANSLATE_CTX must be
-#                        the same
+#                        evenly between the slots; bff reads the same
+#                        variable
 #   TRANSLATE_API_TOKEN  the bearer token bff sends, at least 32 characters;
 #                        none if empty
 set -eu
