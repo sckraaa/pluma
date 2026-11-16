@@ -23,9 +23,37 @@ import (
 
 // AccountConfirmBotConnection
 // account.confirmBotConnection#67ed1f68 bot_id:InputUser = Bool;
+//
+// Confirms a connection of a business bot (task 105, part 6). The clients
+// call it from the screen of a new connection that updateNewBotConnection
+// opens (Android messenger/UnconfirmedAuthController.java:355-362, iOS
+// TelegramEngine/AccountData/BotConnectionReviews.swift:7-30) and take
+// boolTrue as confirmed. Pluma sends no updateNewBotConnection: a bot is
+// connected by account.updateConnectedBot of the account itself, confirmed
+// by that (ADR 0067). So the bot connected to the account is confirmed,
+// boolTrue; any other is BOT_INVALID.
 func (c *AccountCore) AccountConfirmBotConnection(in *mtproto.TLAccountConfirmBotConnection) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.confirmBotConnection blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	const method = "account.confirmBotConnection"
+	if c.MD.IsBot {
+		err := mtproto.ErrBotMethodInvalid
+		c.Logger.Errorf("%s - error: %v", method, err)
+		return nil, err
+	}
+	p := mtproto.FromInputUser(c.MD.UserId, in.GetBotId())
+	if p.PeerType != mtproto.PEER_USER {
+		err := mtproto.ErrBotInvalid
+		c.Logger.Errorf("%s - error: %v", method, err)
+		return nil, err
+	}
+	conn, err := c.svcCtx.Business.Connection(c.ctx, c.MD.UserId)
+	if err != nil {
+		c.Logger.Errorf("%s - error: %v", method, err)
+		return nil, err
+	}
+	if conn == nil || conn.BotID != p.PeerId {
+		err = mtproto.ErrBotInvalid
+		c.Logger.Errorf("%s - bot %d is not connected: %v", method, p.PeerId, err)
+		return nil, err
+	}
+	return mtproto.BoolTrue, nil
 }

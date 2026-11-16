@@ -54,9 +54,11 @@ type Dao struct {
 	Business BusinessProfiles
 }
 
-// BusinessProfiles reads the Business part of profiles (pkg/business).
+// BusinessProfiles reads the Business part of profiles (pkg/business) and
+// the bar of the connected bot of a chat.
 type BusinessProfiles interface {
 	Profile(ctx context.Context, userID int64) (business.Profile, error)
+	PeerBar(ctx context.Context, users business.Users, host string, userID, peerID int64) (*business.PeerBar, error)
 }
 
 // Notes reads the private notes on contacts (pkg/contactnotes).

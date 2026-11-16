@@ -41,9 +41,11 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 	"github.com/teamgram/teamgram-server/pkg/webappdata"
 
 	"github.com/zeromicro/go-zero/zrpc"
@@ -301,6 +303,7 @@ func setBot(ctx context.Context, store botSettings, services botServices, args [
 	inline := flags.String("inline", "", "the placeholder of the inline mode; a space turns inline off")
 	domain := flags.String("domain", "", "the site the bot logs users in to; off unlinks it")
 	mainApp := flags.String("main-app", "", "the https address of the bot's main mini app; off removes it")
+	businessMode := flags.String("business", "", "on: accounts may connect the bot as their business bot; off disconnects it from all of them")
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 {
 		return errUsage
 	}
@@ -352,6 +355,16 @@ func setBot(ctx context.Context, store botSettings, services botServices, args [
 		in.BotInlinePlaceholder = wrapperspb.String(placeholder)
 		flagsSet = true
 	}
+	if *businessMode != "" {
+		// user.bot_business: the clients offer only such a bot for
+		// Telegram Business (tdesktop settings/business/settings_chatbots.cpp:342,
+		// Android ui/Business/ChatbotsActivity.java:565), and
+		// account.updateConnectedBot refuses others (BOT_BUSINESS_MISSING).
+		if in.BotBusiness, err = on(*businessMode); err != nil {
+			return err
+		}
+		flagsSet = true
+	}
 	if *domain == "" && *mainApp == "" && !flagsSet {
 		return errUsage
 	}
@@ -399,6 +412,15 @@ func setBot(ctx context.Context, store botSettings, services botServices, args [
 		return err
 	}
 	fmt.Fprintf(stdout, "bot %d updated.\n", id)
+	if in.BotBusiness != nil && !mtproto.FromBool(in.BotBusiness) {
+		// After the flag: no account can connect the bot again meanwhile.
+		// A failure here is repaired by running the command once more.
+		n, err := services.DisconnectBusiness(ctx, id)
+		if err != nil {
+			return fmt.Errorf("the business mode is off, but the bot is still connected to some accounts: %w", err)
+		}
+		fmt.Fprintf(stdout, "bot %d: disconnected from %d accounts.\n", id, n)
+	}
 	return nil
 }
 
@@ -414,6 +436,9 @@ type botServices interface {
 	// UpdateBotData changes the flags of the bot, raises its
 	// bot_info_version and drops the cached user (user.updateBotData).
 	UpdateBotData(ctx context.Context, in *userpb.TLUserUpdateBotData) error
+	// DisconnectBusiness disconnects the bot from every account it is the
+	// business bot of (pkg/business) and returns how many there were.
+	DisconnectBusiness(ctx context.Context, botId int64) (int, error)
 }
 
 // rpcBotServices are the services of the config; the clients are made on
@@ -528,6 +553,39 @@ func (s *rpcBotServices) UpdateBotData(ctx context.Context, in *userpb.TLUserUpd
 	}
 	_, err := s.user.UserUpdateBotData(ctx, in)
 	return err
+}
+
+// DisconnectBusiness removes the connections of the bot account by
+// account, each in a box transaction of the account, as
+// account.updateConnectedBot does; the bot is told of each (part 7 of task
+// 105, updateBotBusinessConnect with disabled). A connection the account
+// changed to another bot meanwhile stays.
+func (s *rpcBotServices) DisconnectBusiness(ctx context.Context, botId int64) (int, error) {
+	store := business.NewStore(sqlx.NewMySQL(&s.conf.Mysql))
+	accounts, err := store.AccountsOfBot(ctx, botId)
+	if err != nil || len(accounts) == 0 {
+		return 0, err
+	}
+	boxDB, err := userbox.Open(s.conf.Mysql.DSN)
+	if err != nil {
+		return 0, err
+	}
+	defer boxDB.Close()
+	n := 0
+	for _, userId := range accounts {
+		var removed *business.Connection
+		if _, err = userbox.Run(ctx, boxDB, userId, func(b *userbox.Box) error {
+			var err error
+			removed, err = business.DisconnectTx(b.Tx(), userId, botId)
+			return err
+		}); err != nil {
+			return n, fmt.Errorf("account %d: %w", userId, err)
+		}
+		if removed != nil {
+			n++
+		}
+	}
+	return n, nil
 }
 
 // readFile reads a file of 1 byte to limit bytes; what names the file in

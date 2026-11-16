@@ -19,6 +19,7 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -37,4 +38,7 @@ type Config struct {
 	// MsgClient writes the service message of a change of the auto-delete
 	// period (task 063).
 	MsgClient zrpc.RpcClientConf
+	// Mysql keeps the connected bots of Telegram Business, whose bar
+	// peerSettings shows (pkg/business, task 105).
+	Mysql sqlx.Config
 }

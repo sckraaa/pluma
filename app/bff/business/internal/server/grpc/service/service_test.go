@@ -49,6 +49,11 @@ var served = map[string]bool{
 	"MessagesEditQuickReplyShortcut":   true,
 	"MessagesReorderQuickReplies":      true,
 	"MessagesDeleteQuickReplyShortcut": true,
+
+	"AccountUpdateConnectedBot":       true,
+	"AccountGetConnectedBots":         true,
+	"AccountToggleConnectedBotPaused": true,
+	"AccountDisablePeerConnectedBot":  true,
 }
 
 // The services of Business the session routes to bff (session.yaml): one
@@ -274,6 +279,107 @@ func TestChatLinksRefused(t *testing.T) {
 			_, err := s.AccountResolveBusinessChatLink(user, &mtproto.TLAccountResolveBusinessChatLink{Slug: "AbCdEfGh1234567-"})
 			return err
 		}, mtproto.ErrChatlinkSlugExpired},
+	} {
+		if err := c.call(); !errors.Is(err, c.want) {
+			t.Errorf("%s: %v, want %v", c.name, err, c.want)
+		}
+	}
+}
+
+// The requests of the connected bot refused before they read or write
+// anything: a bot, a user that is no bot, recipients that name the caller,
+// too many users or nothing, a chat that is no private chat with another
+// user.
+func TestConnectedBotRefused(t *testing.T) {
+	s := New(&svc.ServiceContext{})
+	user := callerCtx(t, 1, false)
+	bot := callerCtx(t, 2, true)
+	inputUser := func(id int64) *mtproto.InputUser {
+		return mtproto.MakeTLInputUser(&mtproto.InputUser{UserId: id, AccessHash: 1}).To_InputUser()
+	}
+	self := mtproto.MakeTLInputUserSelf(nil).To_InputUser()
+	recipients := func(r *mtproto.InputBusinessBotRecipients) *mtproto.InputBusinessBotRecipients {
+		return mtproto.MakeTLInputBusinessBotRecipients(r).To_InputBusinessBotRecipients()
+	}
+	connect := func(b *mtproto.InputUser, r *mtproto.InputBusinessBotRecipients) *mtproto.TLAccountUpdateConnectedBot {
+		return &mtproto.TLAccountUpdateConnectedBot{
+			Rights:                                mtproto.MakeTLBusinessBotRights(&mtproto.BusinessBotRights{Reply: true}).To_BusinessBotRights(),
+			Bot:                                   b,
+			Recipients_INPUTBUSINESSBOTRECIPIENTS: r,
+		}
+	}
+	many := make([]*mtproto.InputUser, 0, 101)
+	for i := range 101 {
+		many = append(many, inputUser(int64(100+i)))
+	}
+	peerUser := func(id int64) *mtproto.InputPeer {
+		return mtproto.MakeTLInputPeerUser(&mtproto.InputPeer{UserId: id, AccessHash: 1}).To_InputPeer()
+	}
+	peerSelf := mtproto.MakeTLInputPeerSelf(nil).To_InputPeer()
+	peerChat := mtproto.MakeTLInputPeerChat(&mtproto.InputPeer{ChatId: 5}).To_InputPeer()
+	for _, c := range []struct {
+		name string
+		call func() error
+		want error
+	}{
+		{"connect by a bot", func() error {
+			_, err := s.AccountUpdateConnectedBot(bot, connect(inputUser(3), recipients(&mtproto.InputBusinessBotRecipients{Contacts: true})))
+			return err
+		}, mtproto.ErrBotMethodInvalid},
+		{"list of a bot", func() error {
+			_, err := s.AccountGetConnectedBots(bot, &mtproto.TLAccountGetConnectedBots{})
+			return err
+		}, mtproto.ErrBotMethodInvalid},
+		{"pause by a bot", func() error {
+			_, err := s.AccountToggleConnectedBotPaused(bot, &mtproto.TLAccountToggleConnectedBotPaused{Peer: peerUser(3), Paused: mtproto.BoolTrue})
+			return err
+		}, mtproto.ErrBotMethodInvalid},
+		{"disable by a bot", func() error {
+			_, err := s.AccountDisablePeerConnectedBot(bot, &mtproto.TLAccountDisablePeerConnectedBot{Peer: peerUser(3)})
+			return err
+		}, mtproto.ErrBotMethodInvalid},
+
+		{"connect no user", func() error {
+			_, err := s.AccountUpdateConnectedBot(user, connect(mtproto.MakeTLInputUserEmpty(nil).To_InputUser(), recipients(&mtproto.InputBusinessBotRecipients{Contacts: true})))
+			return err
+		}, mtproto.ErrBotBusinessMissing},
+		{"connect the caller", func() error {
+			_, err := s.AccountUpdateConnectedBot(user, connect(self, recipients(&mtproto.InputBusinessBotRecipients{Contacts: true})))
+			return err
+		}, mtproto.ErrBotBusinessMissing},
+		{"recipients without a chat", func() error {
+			_, err := s.AccountUpdateConnectedBot(user, connect(inputUser(3), recipients(&mtproto.InputBusinessBotRecipients{})))
+			return err
+		}, mtproto.ErrBusinessRecipientsEmpty},
+		{"no recipients at all", func() error {
+			_, err := s.AccountUpdateConnectedBot(user, connect(inputUser(3), nil))
+			return err
+		}, mtproto.ErrBusinessRecipientsEmpty},
+		{"recipients name the caller", func() error {
+			_, err := s.AccountUpdateConnectedBot(user, connect(inputUser(3), recipients(&mtproto.InputBusinessBotRecipients{Users: []*mtproto.InputUser{self}})))
+			return err
+		}, mtproto.ErrUserIdInvalid},
+		{"excluded users name the caller by id", func() error {
+			_, err := s.AccountUpdateConnectedBot(user, connect(inputUser(3), recipients(&mtproto.InputBusinessBotRecipients{Contacts: true, ExcludeUsers: []*mtproto.InputUser{inputUser(1)}})))
+			return err
+		}, mtproto.ErrUserIdInvalid},
+		{"101 users", func() error {
+			_, err := s.AccountUpdateConnectedBot(user, connect(inputUser(3), recipients(&mtproto.InputBusinessBotRecipients{Users: many})))
+			return err
+		}, mtproto.ErrUsersTooMuch},
+
+		{"pause in Saved Messages", func() error {
+			_, err := s.AccountToggleConnectedBotPaused(user, &mtproto.TLAccountToggleConnectedBotPaused{Peer: peerSelf, Paused: mtproto.BoolTrue})
+			return err
+		}, mtproto.ErrPeerIdInvalid},
+		{"pause in a group", func() error {
+			_, err := s.AccountToggleConnectedBotPaused(user, &mtproto.TLAccountToggleConnectedBotPaused{Peer: peerChat, Paused: mtproto.BoolTrue})
+			return err
+		}, mtproto.ErrPeerIdInvalid},
+		{"disable in the chat with the caller by id", func() error {
+			_, err := s.AccountDisablePeerConnectedBot(user, &mtproto.TLAccountDisablePeerConnectedBot{Peer: peerUser(1)})
+			return err
+		}, mtproto.ErrPeerIdInvalid},
 	} {
 		if err := c.call(); !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, want %v", c.name, err, c.want)

@@ -31,6 +31,7 @@ import (
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/business"
+	"github.com/teamgram/teamgram-server/pkg/env2"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/translate"
 
@@ -318,6 +319,19 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 		}
 	}
 
+	// The bar of the connected bot of the caller in the chat (task 105):
+	// iOS takes the peerSettings of a user from userFull.settings whenever
+	// it loads the full user (TelegramCore UpdateCachedPeerData.swift:377),
+	// so they carry business_bot_* as messages.getPeerSettings does, and
+	// the bot goes in users.
+	var businessBot *mtproto.User
+	if !user.IsBot() && !c.MD.IsBot && peerId != c.MD.UserId && c.svcCtx.Dao.Business != nil {
+		if businessBot, err = c.fillBusinessBot(userFull, me, peerId); err != nil {
+			c.Logger.Errorf("users.getFullUser - error: %v", err)
+			return nil, err
+		}
+	}
+
 	// The stories of the user (task 084): those in the feeds that the
 	// viewer may open, and whether the profile has any for it; the plugin
 	// applies the rules of each story.
@@ -350,11 +364,32 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 	unsafeUser := user.ToUnsafeUser(me)
 	patchBotUsernameFromImmutable(unsafeUser, user)
 
+	users := []*mtproto.User{unsafeUser}
+	if businessBot != nil {
+		users = append(users, businessBot)
+	}
+
 	return mtproto.MakeTLUsersUserFull(&mtproto.Users_UserFull{
 		FullUser: userFull,
 		Chats:    chats,
-		Users:    []*mtproto.User{unsafeUser},
+		Users:    users,
 	}).To_Users_UserFull(), nil
+}
+
+// fillBusinessBot sets business_bot_* of userFull.settings when the
+// connected bot of the caller serves its chat with userId, and returns the
+// bot as me sees it; nil when no bot serves the chat.
+func (c *UsersCore) fillBusinessBot(userFull *mtproto.UserFull, me *mtproto.ImmutableUser, userId int64) (*mtproto.User, error) {
+	bar, err := c.svcCtx.Dao.Business.PeerBar(c.ctx, c.svcCtx.Dao.UserClient, env2.TDotMe, c.MD.UserId, userId)
+	if err != nil || bar == nil {
+		return nil, err
+	}
+	bot, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: bar.BotID})
+	if err != nil {
+		return nil, err
+	}
+	userFull.Settings = bar.Apply(userFull.Settings)
+	return bot.ToUnsafeUser(me), nil
 }
 
 // translationsDisabled tells whether the caller hid the translation bar

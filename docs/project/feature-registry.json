@@ -870,7 +870,7 @@
   "used_by": "A: messenger/UnconfirmedAuthController.java:358; I: AccountData/BotConnectionReviews.swift:28; D: нет; W: lib/appManagers/appBusinessManager.ts:498",
   "decision": "implement",
   "priority": "normal",
-  "why": "Часть подключения чат-ботов, ADR 0041."
+  "why": "Часть подключения чат-ботов, ADR 0041. Задача 105, часть 6: подключённый бот — boolTrue, иной — BOT_INVALID (подключений на подтверждении у Pluma нет)."
  },
  {
   "name": "account.createBusinessChatLink",
@@ -915,7 +915,7 @@
   "used_by": "A: ui/Business/BusinessBotButton.java:133; I: Messages/BotWebView.swift:777; D: data/business/data_business_chatbots.cpp:157; W: lib/appManagers/appBusinessManager.ts:694",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Задача 105, часть 6: чат уходит из получателей бота, пауза снимается, updatePeerSettings на другие устройства."
  },
  {
   "name": "account.editBusinessChatLink",
@@ -951,7 +951,7 @@
   "used_by": "A: ui/Business/BusinessChatbotController.java:54; I: Peers/UpdateCachedPeerData.swift:236, AccountData/BotConnectionReviews.swift:7; D: data/business/data_business_chatbots.cpp:32; W: lib/appManagers/appBusinessManager.ts:726",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041; боты есть (ADR 0043)."
+  "why": "Группа Business, ADR 0041; боты есть (ADR 0043). Задача 105, часть 6."
  },
  {
   "name": "account.getPasskeys",
@@ -1059,7 +1059,7 @@
   "used_by": "A: ui/Business/BusinessBotButton.java:116; I: Messages/BotWebView.swift:712; D: data/business/data_business_chatbots.cpp:119; W: lib/appManagers/appBusinessManager.ts:630",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Задача 105, часть 6: пауза в чате, updatePeerSettings на другие устройства."
  },
  {
   "name": "account.toggleWebBrowserSettingsException (обе версии)",
@@ -1131,7 +1131,7 @@
   "used_by": "A: ui/Business/ChatbotsActivity.java:689, ui/SessionsActivity.java:355; I: Messages/QuickReplyMessages.swift:1270; D: data/business/data_business_chatbots.cpp:83; W: appBusinessManager (tests/chatAutomationManager.test.ts:233)",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Задача 105, часть 6: один бот на аккаунт, BOT_BUSINESS_MISSING без бизнес-режима (pluma-admin bot set -business on), BUSINESS_RECIPIENTS_EMPTY."
  },
  {
   "name": "account.updateEmojiStatus",
