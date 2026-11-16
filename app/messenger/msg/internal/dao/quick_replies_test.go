@@ -27,7 +27,7 @@ import (
 // QuickRepliesActivity.java:359-361).
 func TestValidShortcutName(t *testing.T) {
 	for _, name := range []string{
-		"hello", "away", "Hello_World", "привет", "a1", "٣", "x‌y", "a·b", "අ්",
+		"hello", "away", "Hello_World", "привет", "a1", "٣", "x\u200cy", "a·b", "අ්",
 		strings.Repeat("a", 32), strings.Repeat("ж", 32),
 		"𝒜", // a letter outside the BMP (Android \p{L})
 	} {

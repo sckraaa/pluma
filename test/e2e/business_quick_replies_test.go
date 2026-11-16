@@ -269,7 +269,7 @@ func TestBusinessQuickReplyAlbum(t *testing.T) {
 	if sent == 0 || sent == group || got[back].GetGroupedId().GetValue() != sent || got[alone].GetGroupedId() != nil {
 		t.Errorf("the grouped_id Bob got: %v, %v, %v; of the shortcut %d", got[front].GetGroupedId(), got[back].GetGroupedId(), got[alone].GetGroupedId(), group)
 	}
-	if !(got[front].GetId() < got[back].GetId() && got[back].GetId() < got[alone].GetId()) {
+	if ordered := got[front].GetId() < got[back].GetId() && got[back].GetId() < got[alone].GetId(); !ordered {
 		t.Errorf("the order Bob got: %d, %d, %d", got[front].GetId(), got[back].GetId(), got[alone].GetId())
 	}
 	for text, m := range got {

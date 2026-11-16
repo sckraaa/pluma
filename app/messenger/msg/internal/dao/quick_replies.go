@@ -17,7 +17,7 @@ package dao
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // the clients hash a shortcut name with MD5 (shortcutNameHash)
 	"encoding/binary"
 	"slices"
 	"strings"
@@ -181,7 +181,7 @@ func quickReplyHash(h uint64, v uint64) uint64 {
 // Long.parseUnsignedLong(MD5(name).substring(0, 16), 16); iOS
 // ManagedConsumePersonalMessagesActions.swift:24-36 md5StringHash).
 func shortcutNameHash(name string) uint64 {
-	sum := md5.Sum([]byte(name))
+	sum := md5.Sum([]byte(name)) //nolint:gosec // the hash the clients compute, not security
 	return binary.BigEndian.Uint64(sum[:8])
 }
 

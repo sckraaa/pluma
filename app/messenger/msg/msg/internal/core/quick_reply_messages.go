@@ -255,7 +255,7 @@ func (c *MsgCore) sendQuickReplies(s quickReplySend) (*mtproto.Updates, error) {
 	if peer, _ := users.GetImmutableUser(s.peerId); peer == nil || peer.IsBot() {
 		return nil, mtproto.ErrPeerIdInvalid
 	}
-	outBox, err := quickReplyOutbox(rows, randomOf, s.userId, s.peerId, int32(time.Now().Unix()), rand.Int63) //nolint:gosec // the id of an album, not a secret
+	outBox, err := quickReplyOutbox(rows, randomOf, s.userId, s.peerId, int32(time.Now().Unix()), rand.Int63)
 	if err != nil {
 		return nil, err
 	}

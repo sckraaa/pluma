@@ -272,7 +272,7 @@ func SlugOf(s string) string {
 
 // pause waits 5 to 25 ms, or until ctx is done.
 func pause(ctx context.Context) error {
-	t := time.NewTimer(time.Duration(5+mrand.IntN(21)) * time.Millisecond)
+	t := time.NewTimer(time.Duration(5+mrand.IntN(21)) * time.Millisecond) //nolint:gosec // jitter of a retry, not a secret
 	defer t.Stop()
 	select {
 	case <-ctx.Done():
