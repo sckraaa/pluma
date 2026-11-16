@@ -79,6 +79,14 @@ func NewAutoReplyWorker(svcCtx *svc.ServiceContext) *AutoReplyWorker {
 
 // Start runs the worker until Stop.
 func (w *AutoReplyWorker) Start() {
+	// Every series starts at zero: increase() takes no count from the
+	// first sample of a series, so a counter born at 1 by the first failure
+	// would never show it to BusinessAutoReplyFailing.
+	for _, kind := range []business.AutoReplyKind{business.KindGreeting, business.KindAway} {
+		for _, outcome := range []autoReplyOutcome{autoReplySent, autoReplySkipped, autoReplyFailed} {
+			metricAutoReplies.Add(0, kind.String(), string(outcome))
+		}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	w.cancel = cancel
 	w.wg.Add(1)

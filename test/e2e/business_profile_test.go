@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -175,5 +176,74 @@ func TestBusinessProfile(t *testing.T) {
 	ok("account.updateBusinessIntro", o, err)
 	if f := full(); f.GetBusinessIntro() != nil {
 		t.Errorf("after removing the intro: %v", f.GetBusinessIntro())
+	}
+}
+
+// TestBusinessProfileLimits: what the Business profile refuses (task 105):
+// an address longer than 96 characters ("max 96 UTF-8 characters",
+// core.telegram.org/api/business) and a point off the map; an intro title
+// and description longer than intro_title_length_limit (32) and
+// intro_description_length_limit (70) of the app config. A location with
+// an address and inputGeoPointEmpty, as tdesktop sends one without a point
+// (data/business/data_business_info.cpp:144-160), has no point.
+func TestBusinessProfileLimits(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 2)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	aliceForBob := inputUserOf(ctx, t, bob, alice)
+
+	location := func(address string, point *mtproto.InputGeoPoint) error {
+		_, err := alice.c.Invoke(ctx, &mtproto.TLAccountUpdateBusinessLocation{
+			Constructor: alice.c.Constructor(mtproto.Predicate_account_updateBusinessLocation),
+			GeoPoint:    point,
+			Address:     wrapperspb.String(address),
+		})
+		return err
+	}
+	intro := func(title, description string) error {
+		_, err := alice.c.Invoke(ctx, &mtproto.TLAccountUpdateBusinessIntro{
+			Constructor: alice.c.Constructor(mtproto.Predicate_account_updateBusinessIntro),
+			Intro: &mtproto.InputBusinessIntro{
+				Constructor: alice.c.Constructor(mtproto.Predicate_inputBusinessIntro),
+				Title:       title,
+				Description: description,
+				Sticker:     &mtproto.InputDocument{Constructor: alice.c.Constructor(mtproto.Predicate_inputDocumentEmpty)},
+			},
+		})
+		return err
+	}
+	noPoint := &mtproto.InputGeoPoint{Constructor: alice.c.Constructor(mtproto.Predicate_inputGeoPointEmpty)}
+
+	// 96 characters, Cyrillic ones of two bytes each among them, is the
+	// longest address.
+	longest := strings.Repeat("Улица", 19) + "1"
+	if err := location(longest+"2", noPoint); !mtclient.IsRPCError(err, "ADDRESS_INVALID") {
+		t.Errorf("an address of 97 characters: %v, want ADDRESS_INVALID", err)
+	}
+	if err := location("Main St 1", &mtproto.InputGeoPoint{Constructor: alice.c.Constructor(mtproto.Predicate_inputGeoPoint), Lat: 91, Long: 13}); !mtclient.IsRPCError(err, "GEO_POINT_INVALID") {
+		t.Errorf("a latitude of 91: %v, want GEO_POINT_INVALID", err)
+	}
+	if err := location(longest, noPoint); err != nil {
+		t.Fatalf("an address of 96 characters: %v", err)
+	}
+	if l := bizFullUser(ctx, t, bob, aliceForBob).GetBusinessLocation(); l.GetAddress() != longest || l.GetGeoPoint() != nil {
+		t.Errorf("the location without a point: %v", l)
+	}
+
+	title, description := strings.Repeat("t", 32), strings.Repeat("d", 70)
+	if err := intro(title+"t", description); !mtclient.IsRPCError(err, "TITLE_INVALID") {
+		t.Errorf("a title of 33 characters: %v, want TITLE_INVALID", err)
+	}
+	if err := intro(title, description+"d"); !mtclient.IsRPCError(err, "DESCRIPTION_INVALID") {
+		t.Errorf("a description of 71 characters: %v, want DESCRIPTION_INVALID", err)
+	}
+	if err := intro(title, description); err != nil {
+		t.Fatalf("an intro at the limits: %v", err)
+	}
+	if i := bizFullUser(ctx, t, bob, aliceForBob).GetBusinessIntro(); i.GetTitle() != title || i.GetDescription() != description || i.GetSticker() != nil {
+		t.Errorf("the intro at the limits, without a sticker: %v", i)
 	}
 }
