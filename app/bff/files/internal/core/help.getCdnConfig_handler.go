@@ -26,16 +26,10 @@ import (
 // HelpGetCdnConfig
 // help.getCdnConfig#52029342 = CdnConfig;
 //
-// The keys of the CDN nodes (task 102): the clients check the key a CDN DC
-// offers in resPQ against them. With the CDN off the list is empty.
+// The keys of the MTProto CDN DCs, which the clients check the key a CDN
+// DC offers in resPQ against: none, with the CDN on or off, since the
+// deliveries of Pluma are HTTPS and no client connects to their dc_id
+// (task 107, ADR 0071 §9).
 func (c *FilesCore) HelpGetCdnConfig(in *mtproto.TLHelpGetCdnConfig) (*mtproto.CdnConfig, error) {
-	if c.svcCtx.CDN == nil {
-		return cdn.CdnConfigOf(nil), nil
-	}
-	cfg, err := c.svcCtx.CDN.CdnConfig(c.ctx)
-	if err != nil {
-		c.Logger.Errorf("help.getCdnConfig - error: %v", err)
-		return nil, mtproto.ErrInternalServerError
-	}
-	return cfg, nil
+	return cdn.EmptyCdnConfig(), nil
 }

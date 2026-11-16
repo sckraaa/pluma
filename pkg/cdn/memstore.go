@@ -17,10 +17,8 @@ package cdn
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 )
@@ -34,12 +32,18 @@ type MemStore struct {
 	files    map[int64]*File // by row id
 	byKey    map[FileKey]int64
 	replicas map[replicaKey]*Replica
-	nodes    map[int32]*Node
+	health   map[int32]*DeliveryHealth
+	usage    map[usageKey]*DeliveryUsage
 }
 
 type replicaKey struct {
-	rowId int64
+	rowId    int64
+	targetId int32
+}
+
+type usageKey struct {
 	dcId  int32
+	month string
 }
 
 var _ Store = (*MemStore)(nil)
@@ -50,7 +54,8 @@ func NewMemStore() *MemStore {
 		files:    map[int64]*File{},
 		byKey:    map[FileKey]int64{},
 		replicas: map[replicaKey]*Replica{},
-		nodes:    map[int32]*Node{},
+		health:   map[int32]*DeliveryHealth{},
+		usage:    map[usageKey]*DeliveryUsage{},
 	}
 }
 
@@ -65,12 +70,6 @@ func cloneFile(f *File) *File {
 	c := *f
 	c.Secrets = Secrets{Token: bytes.Clone(f.Secrets.Token), Key: bytes.Clone(f.Secrets.Key), IV: bytes.Clone(f.Secrets.IV)}
 	c.Hashes = bytes.Clone(f.Hashes)
-	return &c
-}
-
-func cloneNode(n *Node) *Node {
-	c := *n
-	c.BootId, c.RtKey, c.RtKeyPrev = bytes.Clone(n.BootId), bytes.Clone(n.RtKey), bytes.Clone(n.RtKeyPrev)
 	return &c
 }
 
@@ -147,29 +146,29 @@ func (m *MemStore) SetKey(_ context.Context, rowId int64, sec Secrets) (*File, e
 	return cloneFile(f), nil
 }
 
-func (m *MemStore) Replica(_ context.Context, rowId int64, dcId int32) (*Replica, error) {
+func (m *MemStore) Replica(_ context.Context, rowId int64, targetId int32) (*Replica, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.err != nil {
 		return nil, m.err
 	}
-	if r, ok := m.replicas[replicaKey{rowId, dcId}]; ok {
+	if r, ok := m.replicas[replicaKey{rowId, targetId}]; ok {
 		c := *r
 		return &c, nil
 	}
 	return nil, nil
 }
 
-func (m *MemStore) Enqueue(_ context.Context, rowId int64, dcId int32, priority int8, now int64) error {
+func (m *MemStore) Enqueue(_ context.Context, rowId int64, targetId int32, priority int8, now int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.err != nil {
 		return m.err
 	}
-	r, ok := m.replicas[replicaKey{rowId, dcId}]
+	r, ok := m.replicas[replicaKey{rowId, targetId}]
 	switch {
 	case !ok:
-		m.replicas[replicaKey{rowId, dcId}] = &Replica{FileRowId: rowId, DcId: dcId, State: StateQueued, Priority: priority, UpdatedAt: now}
+		m.replicas[replicaKey{rowId, targetId}] = &Replica{FileRowId: rowId, TargetId: targetId, State: StateQueued, Priority: priority, UpdatedAt: now}
 	case r.State == StateAbsent:
 		r.State, r.Priority, r.Attempts, r.NextTryAt, r.LastError, r.UpdatedAt = StateQueued, priority, 0, 0, "", now
 	case r.State == StateQueued || r.State == StatePushing:
@@ -178,7 +177,7 @@ func (m *MemStore) Enqueue(_ context.Context, rowId int64, dcId int32, priority 
 	return nil
 }
 
-func (m *MemStore) Claim(_ context.Context, dcId int32, lease time.Duration, now int64) (*Claim, error) {
+func (m *MemStore) Claim(_ context.Context, targetId int32, lease time.Duration, now int64) (*Claim, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.err != nil {
@@ -187,7 +186,7 @@ func (m *MemStore) Claim(_ context.Context, dcId int32, lease time.Duration, now
 	var next *Replica
 	for _, r := range m.replicas {
 		due := r.State == StateQueued && r.NextTryAt <= now || r.State == StatePushing && r.LeaseUntil <= now
-		if r.DcId != dcId || !due {
+		if r.TargetId != targetId || !due {
 			continue
 		}
 		if next == nil || r.Priority > next.Priority || r.Priority == next.Priority && r.FileRowId < next.FileRowId {
@@ -202,12 +201,12 @@ func (m *MemStore) Claim(_ context.Context, dcId int32, lease time.Duration, now
 		return nil, fmt.Errorf("cdn: copy of a missing file row %d", next.FileRowId)
 	}
 	next.State, next.Attempts, next.LeaseUntil, next.UpdatedAt = StatePushing, next.Attempts+1, now+lease.Milliseconds(), now
-	return &Claim{File: *cloneFile(f), DcId: dcId, Priority: next.Priority, Attempts: next.Attempts, LeaseUntil: next.LeaseUntil}, nil
+	return &Claim{File: *cloneFile(f), TargetId: targetId, Priority: next.Priority, Attempts: next.Attempts, LeaseUntil: next.LeaseUntil}, nil
 }
 
 // held returns the copy c holds, or nil; m.mu is held.
 func (m *MemStore) held(c *Claim) *Replica {
-	r, ok := m.replicas[replicaKey{c.File.RowId, c.DcId}]
+	r, ok := m.replicas[replicaKey{c.File.RowId, c.TargetId}]
 	if !ok || r.State != StatePushing || r.Attempts != c.Attempts || r.LeaseUntil != c.LeaseUntil {
 		return nil
 	}
@@ -262,17 +261,17 @@ func (m *MemStore) MarkFailed(_ context.Context, c *Claim, reason string, nextTr
 	if nextTryAt == 0 {
 		r.State = StateFailed
 	}
-	r.NextTryAt, r.LeaseUntil, r.LastError, r.UpdatedAt = nextTryAt, 0, clipReason(reason), now
+	r.NextTryAt, r.LeaseUntil, r.LastError, r.UpdatedAt = nextTryAt, 0, clip(reason, maxLastError), now
 	return true, nil
 }
 
-func (m *MemStore) MarkAbsent(_ context.Context, rowId int64, dcId int32, now int64) (bool, error) {
+func (m *MemStore) MarkAbsent(_ context.Context, rowId int64, targetId int32, now int64) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.err != nil {
 		return false, m.err
 	}
-	r, ok := m.replicas[replicaKey{rowId, dcId}]
+	r, ok := m.replicas[replicaKey{rowId, targetId}]
 	if !ok || r.State != StateReady {
 		return false, nil
 	}
@@ -280,27 +279,7 @@ func (m *MemStore) MarkAbsent(_ context.Context, rowId int64, dcId int32, now in
 	return true, nil
 }
 
-func (m *MemStore) ListReady(_ context.Context, dcId int32, afterRowId int64, limit int) ([]ReadyCopy, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.err != nil {
-		return nil, m.err
-	}
-	var out []ReadyCopy
-	for _, r := range m.replicas {
-		if r.DcId == dcId && r.State == StateReady && r.FileRowId > afterRowId {
-			f := m.files[r.FileRowId]
-			out = append(out, ReadyCopy{FileRowId: r.FileRowId, Token: bytes.Clone(f.Secrets.Token), Size: f.Size})
-		}
-	}
-	slices.SortFunc(out, func(a, b ReadyCopy) int { return cmp.Compare(a.FileRowId, b.FileRowId) })
-	if len(out) > max(limit, 0) {
-		out = out[:max(limit, 0)]
-	}
-	return out, nil
-}
-
-func (m *MemStore) QueueCounts(_ context.Context, dcId int32) (map[ReplicaState]int64, error) {
+func (m *MemStore) QueueCounts(_ context.Context, targetId int32) (map[ReplicaState]int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.err != nil {
@@ -308,72 +287,65 @@ func (m *MemStore) QueueCounts(_ context.Context, dcId int32) (map[ReplicaState]
 	}
 	out := map[ReplicaState]int64{}
 	for _, r := range m.replicas {
-		if r.DcId == dcId {
+		if r.TargetId == targetId {
 			out[r.State]++
 		}
 	}
 	return out, nil
 }
 
-func (m *MemStore) Node(_ context.Context, dcId int32) (*Node, error) {
+func (m *MemStore) DeliveryHealth(_ context.Context, dcId int32) (*DeliveryHealth, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.err != nil {
 		return nil, m.err
 	}
-	if n, ok := m.nodes[dcId]; ok {
-		return cloneNode(n), nil
+	if h, ok := m.health[dcId]; ok {
+		c := *h
+		return &c, nil
 	}
 	return nil, nil
 }
 
-func (m *MemStore) Nodes(_ context.Context) ([]*Node, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.err != nil {
-		return nil, m.err
-	}
-	out := make([]*Node, 0, len(m.nodes))
-	for _, n := range m.nodes {
-		out = append(out, cloneNode(n))
-	}
-	slices.SortFunc(out, func(a, b *Node) int { return cmp.Compare(a.DcId, b.DcId) })
-	return out, nil
-}
-
-func (m *MemStore) PutNode(_ context.Context, n *Node) error {
+func (m *MemStore) PutDeliveryHealth(_ context.Context, h *DeliveryHealth) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.err != nil {
 		return m.err
 	}
-	v := cloneNode(n)
-	v.RtKey, v.RtKeyPrev, v.RtKeyAt = nil, nil, 0
-	if old, ok := m.nodes[n.DcId]; ok {
-		v.RtKey, v.RtKeyPrev, v.RtKeyAt = old.RtKey, old.RtKeyPrev, old.RtKeyAt
-	}
-	m.nodes[n.DcId] = v
+	c := *h
+	c.UnhealthyReason = clip(c.UnhealthyReason, maxUnhealthyReason)
+	m.health[h.DcId] = &c
 	return nil
 }
 
-func (m *MemStore) RotateRtKey(_ context.Context, dcId int32, key []byte, every time.Duration, now int64) (*Node, error) {
+func (m *MemStore) AddUsage(_ context.Context, dcId int32, month string, originBytes, edgeBytesEst int64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.err != nil {
-		return nil, m.err
+		return m.err
 	}
-	if len(key) != RtKeySize || every <= 0 {
-		return nil, fmt.Errorf("cdn: request token key of %d bytes, rotation every %v", len(key), every)
+	if err := checkUsage(month, originBytes, edgeBytesEst); err != nil {
+		return err
 	}
-	n, ok := m.nodes[dcId]
-	switch {
-	case !ok:
-		n = &Node{DcId: dcId, RtKey: bytes.Clone(key), RtKeyAt: now, UpdatedAt: now}
-		m.nodes[dcId] = n
-	case len(n.RtKey) == 0:
-		n.RtKey, n.RtKeyAt, n.UpdatedAt = bytes.Clone(key), now, now
-	case now-n.RtKeyAt >= every.Milliseconds():
-		n.RtKeyPrev, n.RtKey, n.RtKeyAt, n.UpdatedAt = n.RtKey, bytes.Clone(key), now, now
+	u, ok := m.usage[usageKey{dcId, month}]
+	if !ok {
+		u = &DeliveryUsage{DcId: dcId, Month: month}
+		m.usage[usageKey{dcId, month}] = u
 	}
-	return cloneNode(n), nil
+	u.OriginBytes += originBytes
+	u.EdgeBytesEst += edgeBytesEst
+	return nil
+}
+
+func (m *MemStore) Usage(_ context.Context, dcId int32, month string) (DeliveryUsage, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.err != nil {
+		return DeliveryUsage{}, m.err
+	}
+	if u, ok := m.usage[usageKey{dcId, month}]; ok {
+		return *u, nil
+	}
+	return DeliveryUsage{DcId: dcId, Month: month}, nil
 }

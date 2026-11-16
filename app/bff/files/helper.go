@@ -33,8 +33,8 @@ func init() {
 	zrpc.DontLogClientContentForMethod("/dfs.RPCDfs/dfs_downloadFile")
 }
 
-// Module is the methods of files and the work beside them: the pusher and
-// the prober of the CDN (task 102).
+// Module is the methods of files and the work beside them (the HTTPS CDN,
+// task 107).
 type Module struct {
 	*service.Service
 	svcCtx *svc.ServiceContext

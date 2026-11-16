@@ -33,14 +33,17 @@ func TestMemStoreErr(t *testing.T) {
 	if _, err := m.Get(ctx, f.Key); !errors.Is(err, down) {
 		t.Errorf("Get: %v", err)
 	}
-	if err := m.Enqueue(ctx, f.RowId, 201, 0, 1); !errors.Is(err, down) {
+	if err := m.Enqueue(ctx, f.RowId, TargetHomeOrigin, 0, 1); !errors.Is(err, down) {
 		t.Errorf("Enqueue: %v", err)
 	}
-	if _, err := m.Claim(ctx, 201, time.Minute, 1); !errors.Is(err, down) {
+	if _, err := m.Claim(ctx, TargetHomeOrigin, time.Minute, 1); !errors.Is(err, down) {
 		t.Errorf("Claim: %v", err)
 	}
-	if _, err := m.Nodes(ctx); !errors.Is(err, down) {
-		t.Errorf("Nodes: %v", err)
+	if _, err := m.DeliveryHealth(ctx, 201); !errors.Is(err, down) {
+		t.Errorf("DeliveryHealth: %v", err)
+	}
+	if err := m.AddUsage(ctx, 201, "2026-11", 1, 1); !errors.Is(err, down) {
+		t.Errorf("AddUsage: %v", err)
 	}
 	m.SetErr(nil)
 	if got, err := m.Get(ctx, f.Key); err != nil || got == nil {

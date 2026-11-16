@@ -26,7 +26,8 @@ import (
 // upload.getCdnFileHashes#91dc3f31 file_token:bytes offset:long = Vector<FileHash>;
 //
 // The hashes of the plaintext of a file served by the CDN from offset
-// (task 102, ADR 0065 §3). FILE_TOKEN_INVALID sends the client back to
+// (task 102, ADR 0065 §3), by the PLH1 file_token of its redirect (task
+// 107, ADR 0071 §2). FILE_TOKEN_INVALID sends the client back to
 // upload.getFile.
 func (c *FilesCore) UploadGetCdnFileHashes(in *mtproto.TLUploadGetCdnFileHashes) (*mtproto.Vector_FileHash, error) {
 	if c.svcCtx.CDN == nil {

@@ -25,17 +25,13 @@ import (
 // UploadReuploadCdnFile
 // upload.reuploadCdnFile#9b2754a8 file_token:bytes request_token:bytes = Vector<FileHash>;
 //
-// The CDN node lost a file (task 102, ADR 0065 §4): it is pushed again
-// first, and the hashes from offset 0 answer once the copy is ready, within
-// CDN_REUPLOAD_WAIT; otherwise FILE_TOKEN_INVALID or REQUEST_TOKEN_INVALID
-// send the client back to upload.getFile.
+// Always FILE_TOKEN_INVALID, which sends a client back to upload.getFile:
+// an HTTPS delivery pulls a file it lacks from the origin by itself (task
+// 107, ADR 0071 §9). With the CDN on, a user is limited to 30 calls a
+// minute (cdn.Home.Reupload).
 func (c *FilesCore) UploadReuploadCdnFile(in *mtproto.TLUploadReuploadCdnFile) (*mtproto.Vector_FileHash, error) {
 	if c.svcCtx.CDN == nil {
 		return nil, mtproto.ErrFileTokenInvalid
 	}
-	hashes, err := c.svcCtx.CDN.Reupload(c.ctx, c.MD.GetUserId(), in.GetFileToken(), in.GetRequestToken())
-	if err != nil {
-		return nil, err
-	}
-	return &mtproto.Vector_FileHash{Datas: hashes}, nil
+	return nil, c.svcCtx.CDN.Reupload(c.MD.GetUserId())
 }

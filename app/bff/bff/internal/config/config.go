@@ -105,11 +105,10 @@ type Config struct {
 	// with upload.getWebFile (task 100, ADR 0063, docs/ops/maps.md): the
 	// maps service at home and the limits; maps are off without a URL.
 	Maps staticmap.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
-	// Cdn is the CDN-DC of large files (task 102, ADR 0065,
-	// docs/ops/cdn.md): the control API of the node on the edge, its DC
-	// and public address, and the limits of the pushes. Without
-	// CDN_NODE_CONTROL the CDN is off: no redirects, no pushes, an empty
-	// help.getCdnConfig.
+	// Cdn is the HTTPS CDN of large files (task 107, ADR 0071,
+	// docs/ops/cdn.md): the deliveries, their route, the origin and the
+	// limits. Without CDN_GCORE_BASE_URL the CDN is off: no redirects, and
+	// the origin does not listen.
 	Cdn cdn.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// InlineBots is the built-in inline bots @gif and @pic (task 099, ADR
 	// 0062, docs/ops/inline-bots.md): the providers that answer their

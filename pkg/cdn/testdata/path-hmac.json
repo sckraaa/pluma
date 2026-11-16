@@ -1,0 +1,46 @@
+{
+  "source": "docs/tasks/107-https-cdn.md, \"Подписи\": bucket = ceil((now + ttl) / ttl) * ttl; sig = base64url(HMAC-SHA256(key, object + \"|\" + bucket))[:22]",
+  "command": "echo -n '<object>|<bucket>' | openssl dgst -sha256 -mac HMAC -macopt hexkey:<key> -binary | openssl base64 | tr +/ -_ | tr -d = | cut -c1-22",
+  "openssl": "OpenSSL 4.0.3 29 Sep 2026",
+  "note": "the key is made up for the test; key_base64 is how the config carries it",
+  "key_hex": "8f1c2d3e4a5b6c7d8e9fa0b1c2d3e4f5061728394a5b6c7d8e9fa0b1c2d3e4f5",
+  "key_base64": "jxwtPkpbbH2On6CxwtPk9QYXKDlKW2x9jp+gscLT5PU=",
+  "vectors": [
+    {
+      "base_url": "https://cdn.example.com",
+      "path": "/o/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "ttl_seconds": 21600,
+      "now": 1763300000,
+      "bucket": 1763337600,
+      "sig": "c8I5ls9koo7zuH6kva7zqT",
+      "url": "https://cdn.example.com/t/1763337600/c8I5ls9koo7zuH6kva7zqT/o/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    {
+      "base_url": "https://cdn.example.com",
+      "path": "/o/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "ttl_seconds": 21600,
+      "now": 1763337600,
+      "bucket": 1763359200,
+      "sig": "d0VWOnTnErXRqaj-uEcapm",
+      "url": "https://cdn.example.com/t/1763359200/d0VWOnTnErXRqaj-uEcapm/o/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    {
+      "base_url": "https://cdn.example.com",
+      "path": "/o/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "ttl_seconds": 21600,
+      "now": 1763337601,
+      "bucket": 1763380800,
+      "sig": "x9TeDpBoCuk-ap2aj2nQGR",
+      "url": "https://cdn.example.com/t/1763380800/x9TeDpBoCuk-ap2aj2nQGR/o/000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    {
+      "base_url": "http://fakecdn:8080",
+      "path": "/c/v1",
+      "ttl_seconds": 20,
+      "now": 1763300005,
+      "bucket": 1763300040,
+      "sig": "2cXyUNex9IRVHv97NWczSs",
+      "url": "http://fakecdn:8080/t/1763300040/2cXyUNex9IRVHv97NWczSs/c/v1"
+    }
+  ]
+}

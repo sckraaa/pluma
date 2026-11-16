@@ -18,6 +18,7 @@ package core
 import (
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -57,8 +58,8 @@ func (noSizes) FileSize(context.Context, *mtproto.InputFileLocation) (int64, err
 
 const cdnTestDc = 201
 
-// readyCdn returns a Home whose node is healthy and holds a ready copy of
-// document id of size bytes, and the secrets of that file.
+// readyCdn returns a Home whose delivery is healthy and for whose origin
+// document id of size bytes is prepared, and the secrets of that file.
 func readyCdn(t *testing.T, id, size int64) (*cdn.Home, cdn.Secrets) {
 	t.Helper()
 	ctx := context.Background()
@@ -75,10 +76,10 @@ func readyCdn(t *testing.T, id, size int64) (*cdn.Home, cdn.Secrets) {
 	if f, err = store.SetKey(ctx, f.RowId, sec); err != nil {
 		t.Fatal(err)
 	}
-	if err = store.Enqueue(ctx, f.RowId, cdnTestDc, 0, now); err != nil {
+	if err = store.Enqueue(ctx, f.RowId, cdn.TargetHomeOrigin, 0, now); err != nil {
 		t.Fatal(err)
 	}
-	c, err := store.Claim(ctx, cdnTestDc, time.Minute, now)
+	c, err := store.Claim(ctx, cdn.TargetHomeOrigin, time.Minute, now)
 	if err != nil || c == nil {
 		t.Fatalf("claim: %v, %v", c, err)
 	}
@@ -91,20 +92,31 @@ func readyCdn(t *testing.T, id, size int64) (*cdn.Home, cdn.Secrets) {
 	if ok, err := store.MarkReady(ctx, c, h.Sum(), now); !ok || err != nil {
 		t.Fatalf("ready: %v, %v", ok, err)
 	}
-	key, err := cdn.NewRtKey()
+	if err = store.PutDeliveryHealth(ctx, &cdn.DeliveryHealth{DcId: cdnTestDc, HealthyUntil: now + time.Minute.Milliseconds(), UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	set, err := cdn.Config{
+		Deliveries: []cdn.DeliveryConfig{{Id: cdnTestDc, Name: "gcore", BaseURL: "https://cdn.example.com", Key: randomHex(t, 16)}},
+		Origin:     cdn.OriginConfig{AuthValue: randomHex(t, 32)},
+	}.Parse()
 	if err != nil {
 		t.Fatal(err)
 	}
-	n, err := store.RotateRtKey(ctx, cdnTestDc, key, time.Hour, now)
+	home, err := cdn.NewHome(store, set, noSizes{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	n.PublicKey, n.HealthyUntil, n.UpdatedAt = "pem", now+time.Minute.Milliseconds(), now
-	if err = store.PutNode(ctx, n); err != nil {
+	return home, f.Secrets
+}
+
+// randomHex is n throwaway random bytes in hex.
+func randomHex(t *testing.T, n int) string {
+	t.Helper()
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
 		t.Fatal(err)
 	}
-	set := &cdn.Settings{DcId: cdnTestDc, MinFileSize: cdn.DefaultMinFileSize, ReuploadWait: time.Second}
-	return cdn.NewHome(store, set, noSizes{}), f.Secrets
+	return hex.EncodeToString(b)
 }
 
 func cdnCore(home *cdn.Home, d *fakeDfs) *FilesCore {
@@ -126,7 +138,7 @@ func sameError(err, want error) bool {
 }
 
 // TestGetFileRedirect: a client that supports the CDN is redirected to a
-// ready copy; one that does not, or asks for precise ranges, or a server
+// prepared file; one that does not, or asks for precise ranges, or a server
 // with the CDN off, is served from dfs.
 func TestGetFileRedirect(t *testing.T) {
 	home, sec := readyCdn(t, 10, 3<<20+5)
@@ -142,7 +154,8 @@ func TestGetFileRedirect(t *testing.T) {
 	if res.GetPredicateName() != mtproto.Predicate_upload_fileCdnRedirect || d.calls != 0 {
 		t.Fatalf("%s after %d dfs calls, want a redirect", res.GetPredicateName(), d.calls)
 	}
-	if res.GetDcId() != cdnTestDc || string(res.GetFileToken()) != string(sec.Token) ||
+	id, _, _, err := cdn.ParseRedirectToken(res.GetFileToken())
+	if err != nil || res.GetDcId() != cdnTestDc || string(id) != string(sec.Token) ||
 		len(res.GetEncryptionKey()) != 32 || len(res.GetEncryptionIv()) != 16 ||
 		len(res.GetFileHashes()) != 17 || res.GetFileHashes()[0].GetOffset_INT64() != 1<<20 {
 		t.Fatalf("redirect dc %d, %d hashes", res.GetDcId(), len(res.GetFileHashes()))
@@ -177,27 +190,29 @@ func TestCdnMethods(t *testing.T) {
 		}
 	}
 
-	hashes, err := on.UploadGetCdnFileHashes(&mtproto.TLUploadGetCdnFileHashes{FileToken: sec.Token, Offset_INT64: 1 << 20})
+	token, err := cdn.EncodeRedirectToken(sec.Token, time.Now().Unix()+3600, "https://cdn.example.com"+cdn.ObjectPath(sec.Token))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hashes, err := on.UploadGetCdnFileHashes(&mtproto.TLUploadGetCdnFileHashes{FileToken: token, Offset_INT64: 1 << 20})
 	if err != nil || len(hashes.GetDatas()) != 8 || hashes.GetDatas()[0].GetOffset_INT64() != 1<<20 {
 		t.Fatalf("upload.getCdnFileHashes: %v, %v", hashes, err)
 	}
-	if _, err = off.UploadGetCdnFileHashes(&mtproto.TLUploadGetCdnFileHashes{FileToken: sec.Token}); !sameError(err, mtproto.ErrFileTokenInvalid) {
+	// The bare id of the file is not a token of a redirect.
+	if _, err = on.UploadGetCdnFileHashes(&mtproto.TLUploadGetCdnFileHashes{FileToken: sec.Token}); !sameError(err, mtproto.ErrFileTokenInvalid) {
+		t.Fatalf("upload.getCdnFileHashes by the id: %v", err)
+	}
+	if _, err = off.UploadGetCdnFileHashes(&mtproto.TLUploadGetCdnFileHashes{FileToken: token}); !sameError(err, mtproto.ErrFileTokenInvalid) {
 		t.Fatalf("upload.getCdnFileHashes off: %v", err)
 	}
 
-	if _, err = on.UploadReuploadCdnFile(&mtproto.TLUploadReuploadCdnFile{FileToken: sec.Token, RequestToken: []byte("forged")}); !sameError(err, cdn.ErrRequestTokenInvalid) {
-		t.Fatalf("upload.reuploadCdnFile with a forged token: %v", err)
-	}
-	if _, err = off.UploadReuploadCdnFile(&mtproto.TLUploadReuploadCdnFile{FileToken: sec.Token}); !sameError(err, mtproto.ErrFileTokenInvalid) {
-		t.Fatalf("upload.reuploadCdnFile off: %v", err)
-	}
-
-	cfg, err := on.HelpGetCdnConfig(&mtproto.TLHelpGetCdnConfig{})
-	if err != nil || len(cfg.GetPublicKeys()) != 1 || cfg.GetPublicKeys()[0].GetDcId() != cdnTestDc {
-		t.Fatalf("help.getCdnConfig: %v, %v", cfg, err)
-	}
-	cfg, err = off.HelpGetCdnConfig(&mtproto.TLHelpGetCdnConfig{})
-	if err != nil || cfg.GetPredicateName() != mtproto.Predicate_cdnConfig || len(cfg.GetPublicKeys()) != 0 {
-		t.Fatalf("help.getCdnConfig off: %v, %v", cfg, err)
+	for name, c := range map[string]*FilesCore{"on": on, "off": off} {
+		if _, err = c.UploadReuploadCdnFile(&mtproto.TLUploadReuploadCdnFile{FileToken: token, RequestToken: []byte("any")}); !sameError(err, mtproto.ErrFileTokenInvalid) {
+			t.Errorf("%s: upload.reuploadCdnFile: %v", name, err)
+		}
+		cfg, err := c.HelpGetCdnConfig(&mtproto.TLHelpGetCdnConfig{})
+		if err != nil || cfg.GetPredicateName() != mtproto.Predicate_cdnConfig || len(cfg.GetPublicKeys()) != 0 {
+			t.Errorf("%s: help.getCdnConfig: %v, %v", name, cfg, err)
+		}
 	}
 }

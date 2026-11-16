@@ -50,10 +50,8 @@ type ServiceContext struct {
 	// 0063); nil: maps are off, and such a location is LOCATION_INVALID.
 	Maps *staticmap.Service
 	// CDN decides the redirects of upload.getFile and serves the CDN
-	// methods (task 102, ADR 0065); nil: the CDN is off.
+	// methods (task 107, ADR 0071); nil: the CDN is off.
 	CDN *cdn.Home
-	// cdn runs the pusher and the prober of the CDN; nil when it is off.
-	cdn *cdn.Runtime
 	// Business checks the uploads of a connected bot of Telegram Business
 	// for a chat of its account (task 105).
 	Business *business.Store
@@ -68,8 +66,7 @@ func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2
 		webFiles.Register(mtproto.Predicate_inputWebFileGeoPointLocation, NewGeoSource(maps))
 	}
 	d := dao.New(c)
-	runtime, err := startCDN(c, d)
-	logx.Must(err)
+	logx.Must(checkCDN(c))
 	db := sqlx.NewMySQL(&c.Mysql)
 	s := &ServiceContext{
 		Config:   c,
@@ -80,36 +77,25 @@ func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2
 		Business: business.NewStore(db),
 		WebFiles: webFiles,
 		Maps:     maps,
-		cdn:      runtime,
-	}
-	if runtime != nil {
-		s.CDN = runtime.Home
 	}
 	return s
 }
 
-// Stop stops the work beside the methods: the pusher and the prober of
-// the CDN.
-func (s *ServiceContext) Stop() {
-	if s.cdn != nil {
-		s.cdn.Stop()
-	}
-}
+// Stop stops the work beside the methods. None runs yet: the work of the
+// HTTPS CDN (its origin, the preparation of the hashes, the checks of the
+// deliveries) starts here once it is built (task 107, parts A2 and B).
+func (s *ServiceContext) Stop() {}
 
-// startCDN starts the CDN of c, nil when it is off. A wrong Cdn block
-// stops the start instead of leaving the CDN silently off.
-func startCDN(c config.Config, d *dao.Dao) (*cdn.Runtime, error) {
+// checkCDN checks the Cdn block of c. A wrong one stops the start. So does
+// an enabled delivery for now: the redirects of the HTTPS CDN need the
+// origin, the preparation and the checks of task 107 (parts A2 and B),
+// and a CDN left half on would be worse than an explicit refusal.
+func checkCDN(c config.Config) error {
 	set, err := c.Cdn.Parse()
 	if err != nil || set == nil {
-		return nil, err
+		return err
 	}
-	files := &cdnFiles{media: d.MediaClient, encrypted: d.SecretChats, dfs: d.DfsClient}
-	r, err := cdn.Start(cdn.NewMySQLStore(sqlx.NewMySQL(&c.Mysql)), set, files, files)
-	if err != nil {
-		return nil, err
-	}
-	logx.Infof("files: CDN on, DC %d", set.DcId)
-	return r, nil
+	return errors.New("files: Cdn has an enabled delivery (CDN_GCORE_BASE_URL), but this build does not run the HTTPS CDN yet: leave CDN_GCORE_BASE_URL empty")
 }
 
 // newMaps returns the map service of c, nil when maps are off. A wrong
