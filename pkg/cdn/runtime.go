@@ -50,9 +50,9 @@ type Runtime struct {
 	// Home decides the redirects of upload.getFile and serves the CDN
 	// methods.
 	Home *Home
-	// Usage is the traffic and budget of the deliveries: the redirects
-	// note theirs (NoteRedirect) and leave a delivery out of the routes
-	// once it is OverBudget.
+	// Usage is the traffic and budget of the deliveries: it observes the
+	// redirects of Home (edge_bytes_est) and writes cdn_delivery_usage,
+	// which the routes read to leave out a delivery over its budget.
 	Usage *Usage
 	// Health checks the deliveries; the redirects read its outcome from
 	// cdn_deliveries.
@@ -67,16 +67,17 @@ type Runtime struct {
 	done   chan struct{}
 }
 
-// Start starts the CDN of set over store: it listens at the origin (an
+// Start starts the CDN of set over store, whose redirects go to the clients
+// caps tells sent pluma_cdn: it listens at the origin (an
 // address in use stops the start) and starts the preparers, the checks
 // and the budget. Several processes may run them at once: preparations
 // are claimed by lease, the checks write the same rows and the traffic is
 // added up.
-func Start(store Store, set *Settings, sizer Sizer, reader FileReader) (*Runtime, error) {
+func Start(store Store, set *Settings, sizer Sizer, reader FileReader, caps Caps) (*Runtime, error) {
 	if len(set.Deliveries) == 0 {
 		return nil, errors.New("cdn: no delivery")
 	}
-	home, err := NewHome(store, set, sizer)
+	home, err := NewHome(store, set, sizer, caps)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +87,8 @@ func Start(store Store, set *Settings, sizer Sizer, reader FileReader) (*Runtime
 		Health: NewHealth(store, set),
 		done:   make(chan struct{}),
 	}
+	home.Observe(r.Usage)
+	ReportDevHTTP(set)
 
 	byID := map[int32]Target{}
 	for i := range set.Deliveries {
@@ -95,12 +98,6 @@ func Start(store Store, set *Settings, sizer Sizer, reader FileReader) (*Runtime
 			return nil, err
 		}
 		byID[t.ID()] = t
-		dev := 0.0
-		if d.InsecureHTTP {
-			dev = 1
-			logx.Errorf("cdn: delivery %d has an http:// BaseURL (CDN_DEV_ALLOW_HTTP=1): only the test stand may run so", d.ID)
-		}
-		metricDevHTTP.Set(dev, dcLabel(d.ID))
 	}
 	for _, t := range byID {
 		r.preparers = append(r.preparers, NewPreparer(store, t, reader, set, home.Forget))

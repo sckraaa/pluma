@@ -21,6 +21,7 @@ package dao
 import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/config"
+	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
@@ -31,14 +32,16 @@ type Dao struct {
 	dfs_client.DfsClient
 	media_client.MediaClient
 	user_client.UserClient
+	authsession_client.AuthsessionClient
 	SecretChats *secretchat.Store
 }
 
 func New(c config.Config) *Dao {
 	return &Dao{
-		DfsClient:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
-		MediaClient: media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
-		UserClient:  user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
-		SecretChats: secretchat.MustOpen(c.Mysql.DSN),
+		DfsClient:         dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
+		MediaClient:       media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
+		UserClient:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
+		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
+		SecretChats:       secretchat.MustOpen(c.Mysql.DSN),
 	}
 }

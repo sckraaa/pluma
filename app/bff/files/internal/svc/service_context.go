@@ -97,21 +97,30 @@ func (s *ServiceContext) Stop() {
 	}
 }
 
-// startCDN starts the HTTPS CDN of c, nil when it is off (no delivery with
-// a BaseURL): then the origin does not listen. A wrong Cdn block, or an
-// origin address in use, stops the start instead of leaving the CDN
-// silently off.
+// startCDN starts the HTTPS CDN of c (task 107, ADR 0071), nil when it is
+// off (no delivery with a BaseURL): then the origin does not listen. Its
+// redirects go only to the clients whose pluma_cdn authsession keeps. A
+// wrong Cdn block, or an origin address in use, stops the start instead of
+// leaving the CDN silently off.
 func startCDN(c config.Config, d *dao.Dao) (*cdn.Runtime, error) {
 	set, err := c.Cdn.Parse()
 	if err != nil || set == nil {
 		return nil, err
 	}
-	files := &cdnFiles{media: d.MediaClient, encrypted: d.SecretChats, dfs: d.DfsClient}
-	r, err := cdn.Start(cdn.NewMySQLStore(sqlx.NewMySQL(&c.Mysql)), set, files, files)
+	caps, err := newCdnCaps(d.AuthsessionClient)
 	if err != nil {
 		return nil, err
 	}
-	logx.Infof("files: HTTPS CDN on: %d deliveries, origin at %s", len(set.Deliveries), set.Origin.Listen)
+	files := &cdnFiles{media: d.MediaClient, encrypted: d.SecretChats, dfs: d.DfsClient}
+	r, err := cdn.Start(cdn.NewMySQLStore(sqlx.NewMySQL(&c.Mysql)), set, files, files, caps)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int32, 0, len(set.Deliveries))
+	for _, dl := range set.Deliveries {
+		ids = append(ids, dl.ID)
+	}
+	logx.Infof("files: HTTPS CDN on, deliveries %v, origin at %s", ids, set.Origin.Listen)
 	return r, nil
 }
 

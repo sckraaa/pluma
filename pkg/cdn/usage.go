@@ -109,6 +109,12 @@ func (u *Usage) NoteRedirect(dc int32, authKeyId, fileRowId, size int64) {
 	u.add(dc, 0, size)
 }
 
+// Redirected is the RedirectObserver of Home: it notes the redirect of the
+// key authKeyID to f through delivery dc (NoteRedirect).
+func (u *Usage) Redirected(authKeyID int64, f *File, dc int32, _ time.Time) {
+	u.NoteRedirect(dc, authKeyID, f.RowId, f.Size)
+}
+
 func (u *Usage) add(dc int32, origin, edge int64) {
 	k := usageKey{dcId: dc, month: UsageMonth(u.now())}
 	u.mu.Lock()

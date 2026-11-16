@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -38,6 +40,13 @@ type Sizer interface {
 	FileSize(ctx context.Context, loc *mtproto.InputFileLocation) (int64, error)
 }
 
+// Caps tells the version of pluma_cdn (clientcaps.go) the client of a
+// permanent auth key sent in initConnection.params, as the session stored
+// them for the key.
+type Caps interface {
+	PlumaCdn(ctx context.Context, permAuthKeyID int64) (int, error)
+}
+
 // Limits of the home side.
 const (
 	// stateCacheBytes and stateCacheTTL bound the cache of the files'
@@ -45,7 +54,7 @@ const (
 	// megabyte at a time, and MySQL is not asked every time.
 	stateCacheBytes = 64 << 20
 	stateCacheTTL   = time.Minute
-	// healthCacheTTL: the health of the delivery is read again after it.
+	// healthCacheTTL: the health of a delivery is read again after it.
 	healthCacheTTL = 2 * time.Second
 	// reuploadsPerMinute is how many upload.reuploadCdnFile a user may call
 	// a minute; then FLOOD_WAIT_X.
@@ -56,109 +65,149 @@ const (
 // of upload.getFile, upload.getCdnFileHashes, upload.reuploadCdnFile and
 // help.getCdnConfig (ADR 0071 §2, §9). It is safe for concurrent use.
 type Home struct {
-	store Store
-	set   *Settings
-	sizer Sizer
-	now   func() time.Time
-	// delivery is where files are redirected: the first of the route of
-	// every client.
-	delivery *Delivery
+	store  Store
+	set    *Settings
+	sizer  Sizer
+	caps   Caps
+	router *Router
+	now    func() time.Time
 
 	files *stateCache
-
-	healthMu sync.Mutex
-	health   *DeliveryHealth // nil: none read yet, or no row
-	healthAt time.Time
 
 	reuploads *userLimiter
 	// wake tells the preparer a file was queued; nil: it finds it by itself.
 	wake func()
+	// observer learns of the redirects; nil: none is told.
+	observer RedirectObserver
 }
 
-// NewHome returns the Home of set over store. set is a parsed Config:
-// its route names an enabled delivery.
-func NewHome(store Store, set *Settings, sizer Sizer) (*Home, error) {
-	if len(set.Routes) == 0 || len(set.Routes[0].Deliveries) == 0 {
-		return nil, errors.New("cdn: no route")
-	}
-	d, ok := set.Delivery(set.Routes[0].Deliveries[0])
-	if !ok {
-		return nil, fmt.Errorf("cdn: the route names delivery %d, which is off", set.Routes[0].Deliveries[0])
+// NewHome returns the Home of set over store. set is a parsed Config: its
+// route names enabled deliveries. caps tells which clients take a redirect.
+func NewHome(store Store, set *Settings, sizer Sizer, caps Caps) (*Home, error) {
+	router, err := NewRouter(set, NewStoreGate(store))
+	if err != nil {
+		return nil, err
 	}
 	return &Home{
 		store:     store,
 		set:       set,
 		sizer:     sizer,
+		caps:      caps,
+		router:    router,
 		now:       time.Now,
-		delivery:  d,
 		files:     newStateCache(stateCacheBytes, stateCacheTTL),
 		reuploads: newUserLimiter(reuploadsPerMinute, time.Minute),
 	}, nil
 }
 
+// Observe makes o learn of every redirect from now on. It is called once,
+// before the Home serves.
+func (h *Home) Observe(o RedirectObserver) { h.observer = o }
+
 // fileState is what upload.getFile decides a file by.
 type fileState struct {
-	file  *File
-	ready bool // prepared for the origin: its hashes are stored
+	file *File
+	// ready are the targets the file is prepared for (cdn_replicas ready,
+	// the key and the hashes stored).
+	ready []int32
 }
 
 // Redirect decides a request of upload.getFile that Wants a redirect, after
-// the checks of the request: upload.fileCdnRedirect with a PLH1 file_token
-// (token.go) when the file is prepared and the delivery healthy, nil when
-// the file is served from home. A file that may go through the CDN and is
-// not prepared is queued. The result is for the metrics and the tests,
-// empty for a location that never goes through the CDN. The redirect is an
-// optimization: a failure here is logged and the file served from home.
-func (h *Home) Redirect(ctx context.Context, loc *mtproto.InputFileLocation, offset int64) (*mtproto.Upload_File, string) {
+// the checks of the request, for the client of the permanent auth key
+// authKeyID: upload.fileCdnRedirect with a PLH1 file_token (token.go) when
+// the client sent pluma_cdn, the file is prepared and a delivery of the
+// route takes it; nil when the file is served from home. A file that may go
+// through the CDN and is not prepared is queued. The result is for the
+// metrics and the tests, empty for a location that never goes through the
+// CDN. The redirect is an optimization: a failure here is logged and the
+// file served from home.
+//
+// Only a client that sent pluma_cdn gets a redirect (task 107, "Признак
+// клиента"): cdn_supported alone is sent by every Android and tdesktop
+// build (FileLoadOperation.java:2469, download_manager_mtproto.cpp:581),
+// and an unpatched Android waits forever for a DC it does not know
+// (jni/tgnet/ConnectionsManager.cpp:2585-2590).
+func (h *Home) Redirect(ctx context.Context, authKeyID int64, loc *mtproto.InputFileLocation, offset int64) (*mtproto.Upload_File, string) {
 	key, ok := Key(loc)
 	if !ok || !h.set.AllowsKind(key.Kind) {
 		return nil, ""
 	}
-	res, result, err := h.redirect(ctx, key, loc, offset)
+	res, dc, result, err := h.redirect(ctx, authKeyID, key, loc, offset)
 	if err != nil {
 		logx.WithContext(ctx).Errorf("cdn: upload.getFile served from home: %v", err)
 	}
-	metricRedirects.Inc(result)
+	metricRedirects.Inc(strconv.Itoa(int(dc)), result)
 	return res, result
 }
 
-func (h *Home) redirect(ctx context.Context, key FileKey, loc *mtproto.InputFileLocation, offset int64) (*mtproto.Upload_File, string, error) {
+func (h *Home) redirect(ctx context.Context, authKeyID int64, key FileKey, loc *mtproto.InputFileLocation, offset int64) (*mtproto.Upload_File, int32, string, error) {
+	dc := h.router.First().ID
+	if authKeyID == 0 {
+		return nil, dc, ResultNoCaps, nil
+	}
+	v, err := h.caps.PlumaCdn(ctx, authKeyID)
+	if err != nil {
+		return nil, dc, ResultError, fmt.Errorf("pluma_cdn of the key: %w", err)
+	}
+	if v < 1 {
+		return nil, dc, ResultNoCaps, nil
+	}
 	st, err := h.state(ctx, key, loc)
 	if err != nil {
-		return nil, ResultError, err
+		return nil, dc, ResultError, err
 	}
 	if !st.file.Eligible {
-		return nil, ResultSmall, nil
+		return nil, dc, ResultSmall, nil
 	}
-	healthy, err := h.healthy(ctx)
-	if err != nil {
-		return nil, ResultError, err
+	now := h.now()
+	d, result, err := h.router.Pick(ctx, authKeyID, now)
+	if d == nil {
+		return nil, dc, result, err
 	}
-	if !healthy {
-		return nil, ResultUnhealthy, nil
-	}
-	if !st.ready {
-		return nil, ResultNotReady, nil
+	if !slices.Contains(st.ready, d.Target()) {
+		return nil, d.ID, ResultNotReady, nil
 	}
 	hashes, err := Answer(st.file.Hashes, st.file.Size, offset)
 	if err != nil {
-		return nil, ResultError, err
+		return nil, d.ID, ResultError, err
 	}
-	url, exp, err := h.delivery.Signer.SignURL(ObjectPath(st.file.Secrets.Token), h.now())
+	url, exp, err := d.Signer.SignURL(ObjectPath(st.file.Secrets.Token), now)
 	if err != nil {
-		return nil, ResultError, err
+		return nil, d.ID, ResultError, err
 	}
 	token, err := EncodeRedirectToken(st.file.Secrets.Token, exp, url)
 	if err != nil {
-		return nil, ResultError, err
+		return nil, d.ID, ResultError, err
+	}
+	h.router.Redirected(authKeyID, key, d.ID, now)
+	if h.observer != nil {
+		h.observer.Redirected(authKeyID, st.file, d.ID, now)
 	}
 	return mtproto.MakeTLUploadFileCdnRedirect(&mtproto.Upload_File{
-		DcId:          h.delivery.ID,
+		DcId:          d.ID,
 		FileToken:     token,
 		EncryptionKey: st.file.Secrets.Key,
 		EncryptionIv:  st.file.Secrets.IV,
 		FileHashes:    hashes,
-	}).To_Upload_File(), ResultRedirect, nil
+	}).To_Upload_File(), d.ID, ResultRedirect, nil
+}
+
+// ServedHome takes a request of upload.getFile that does not Want a
+// redirect, from the client of the permanent auth key authKeyID: a patched
+// client asks without cdn_supported for a file it was redirected to when
+// the delivery failed it (task 107, client contract p. 7-8), and its key
+// then avoids that delivery (Router.FellBack). It reports whether the
+// request was such a fallback.
+func (h *Home) ServedHome(authKeyID int64, loc *mtproto.InputFileLocation) bool {
+	key, ok := Key(loc)
+	if !ok || authKeyID == 0 {
+		return false
+	}
+	dc, ok := h.router.FellBack(authKeyID, key, h.now())
+	if ok {
+		metricFallbacks.Inc(strconv.Itoa(int(dc)))
+	}
+	return ok
 }
 
 // state returns the state of the file of key from the cache, or reads it,
@@ -191,13 +240,15 @@ func (h *Home) state(ctx context.Context, key FileKey, loc *mtproto.InputFileLoc
 	}
 	st := &fileState{file: f}
 	if f.Eligible {
-		target := h.delivery.Target()
-		r, err := h.store.Replica(ctx, f.RowId, target)
-		if err != nil {
-			return nil, err
-		}
-		st.ready = r != nil && r.State == StateReady && f.HasKey() && f.Hashes != nil
-		if !st.ready {
+		for _, target := range h.router.Targets() {
+			r, err := h.store.Replica(ctx, f.RowId, target)
+			if err != nil {
+				return nil, err
+			}
+			if r != nil && r.State == StateReady && f.HasKey() && f.Hashes != nil {
+				st.ready = append(st.ready, target)
+				continue
+			}
 			// Idempotent: a queued or claimed preparation stays as it is,
 			// an absent one is queued anew, a failed one is left to the
 			// operator.
@@ -216,26 +267,6 @@ func (h *Home) state(ctx context.Context, key FileKey, loc *mtproto.InputFileLoc
 // Forget drops the cached state of the file of key: its preparation
 // changed.
 func (h *Home) Forget(key FileKey) { h.files.remove(key) }
-
-// healthy reports whether the delivery takes redirects: its last check,
-// read at most healthCacheTTL ago, holds now.
-func (h *Home) healthy(ctx context.Context) (bool, error) {
-	now := h.now()
-	h.healthMu.Lock()
-	cached := !h.healthAt.IsZero() && now.Sub(h.healthAt) < healthCacheTTL && now.After(h.healthAt)
-	d := h.health
-	h.healthMu.Unlock()
-	if !cached {
-		var err error
-		if d, err = h.store.DeliveryHealth(ctx, h.delivery.ID); err != nil {
-			return false, err
-		}
-		h.healthMu.Lock()
-		h.health, h.healthAt = d, now
-		h.healthMu.Unlock()
-	}
-	return d != nil && d.HealthyUntil > now.UnixMilli(), nil
-}
 
 // FileHashes answers upload.getCdnFileHashes: the hashes of the file of a
 // PLH1 file_token (token.go) from offset. FILE_TOKEN_INVALID sends the
@@ -281,6 +312,21 @@ func (h *Home) Reupload(userId int64) error {
 // has keys, the deliveries are HTTPS (ADR 0071 §9).
 func EmptyCdnConfig() *mtproto.CdnConfig {
 	return mtproto.MakeTLCdnConfig(&mtproto.CdnConfig{PublicKeys: []*mtproto.CdnPublicKey{}}).To_CdnConfig()
+}
+
+// ReportDevHTTP sets pluma_cdn_dev_http of each delivery of set, 1 for an
+// http:// BaseURL, which only CDN_DEV_ALLOW_HTTP=1 of the e2e stand allows
+// (an alert fires on it in production), and warns of each such delivery at
+// start.
+func ReportDevHTTP(set *Settings) {
+	for _, d := range set.Deliveries {
+		v := 0.0
+		if d.InsecureHTTP {
+			v = 1
+			logx.Errorf("cdn: delivery %d (%s) serves over http:// (CDN_DEV_ALLOW_HTTP=1): only the e2e stand may run so, and released clients refuse it", d.ID, d.Name)
+		}
+		metricDevHTTP.Set(v, strconv.Itoa(int(d.ID)))
+	}
 }
 
 // stateCache is an LRU of the states of files bounded by the bytes they

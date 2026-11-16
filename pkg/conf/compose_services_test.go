@@ -372,18 +372,22 @@ var optionalVars = map[string]bool{
 	// The statistics of channels and groups (task 103, ADR 0066): off
 	// without the key of the zoom tokens of their graphs.
 	"STATS_GRAPH_TOKEN_KEY": true,
-	// The CDN node of large files (task 102): the CDN is off without the
-	// control API, the limits take their defaults when empty, and the DC
-	// is needed only with the node.
-	"CDN_NODE_CONTROL":            true,
-	"CDN_DC_ID":                   true,
-	"CDN_DC_ADDRESS":              true,
-	"CDN_DC_SECRET":               true,
-	"CDN_MIN_FILE_SIZE":           true,
-	"CDN_PUSH_RATE_MBIT":          true,
-	"CDN_PUSH_CONCURRENCY":        true,
-	"CDN_MONTHLY_EGRESS_LIMIT_GB": true,
-	"CDN_REUPLOAD_WAIT":           true,
+	// The HTTPS CDN of large files (task 107, ADR 0071): off without the
+	// URL of a delivery, the rest take their defaults when empty.
+	"CDN_GCORE_SIGNER":      true,
+	"CDN_GCORE_BASE_URL":    true,
+	"CDN_GCORE_TOKEN_KEY":   true,
+	"CDN_GCORE_MONTHLY_GB":  true,
+	"CDN_ROUTES":            true,
+	"CDN_ORIGIN_LISTEN":     true,
+	"CDN_ORIGIN_AUTH":       true,
+	"CDN_URL_TTL":           true,
+	"CDN_PREPARE_RATE_MBIT": true,
+	"CDN_MIN_FILE_SIZE":     true,
+	"CDN_KINDS":             true,
+	"CDN_DEV_ALLOW_HTTP":    true,
+	"CDN_HEALTH_EVERY":      true,
+	"CDN_AVOID_TTL":         true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }

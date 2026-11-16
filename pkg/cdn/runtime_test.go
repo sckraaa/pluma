@@ -44,6 +44,10 @@ func runtimeSettings(t *testing.T) *Settings {
 	return set
 }
 
+// runtimeKey is the permanent auth key of the client of TestRuntime, one
+// that sent pluma_cdn.
+const runtimeKey = 1
+
 // TestRuntime runs the whole home side: a request of upload.getFile queues
 // the file, the preparer woken by it prepares the file, the origin serves
 // its cipher, and the stop closes the origin and writes the traffic.
@@ -57,7 +61,8 @@ func TestRuntime(t *testing.T) {
 	sizer.add(key, data)
 	reader.add(key, data)
 
-	r, err := Start(store, set, sizer, reader)
+	caps := &fakeCaps{versions: map[int64]int{runtimeKey: 1}}
+	r, err := Start(store, set, sizer, reader, caps)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +73,7 @@ func TestRuntime(t *testing.T) {
 		}
 	}()
 
-	if res, result := r.Home.Redirect(ctx, docLoc(42), 0); res != nil || result != ResultUnhealthy && result != ResultNotReady {
+	if res, result := r.Home.Redirect(ctx, runtimeKey, docLoc(42), 0); res != nil || result != ResultUnhealthy && result != ResultNotReady {
 		t.Fatalf("the first request: %v, %q", res, result)
 	}
 	var f *File
@@ -136,7 +141,7 @@ func TestRuntimeOriginAddressInUse(t *testing.T) {
 	defer ln.Close()
 	set := runtimeSettings(t)
 	set.Origin.Listen = ln.Addr().String()
-	if r, err := Start(NewMemStore(), set, newFakeFiles(), newMemReader()); err == nil {
+	if r, err := Start(NewMemStore(), set, newFakeFiles(), newMemReader(), &fakeCaps{}); err == nil {
 		r.Stop()
 		t.Fatal("started on an address in use")
 	}

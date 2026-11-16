@@ -203,29 +203,40 @@ GroupCalls:
   # Cameras on at once in a call; the node's Limits.MaxVideos.
   VideoLimit: 30
 
-# The CDN-DC of large files (task 102, ADR 0065, docs/ops/cdn.md): files of
-# 1 MiB and more that a ready copy of is on the node on the edge are
-# redirected there (upload.fileCdnRedirect); the node holds only their
-# cipher. bff pushes the copies and checks the node over its control API,
-# which is mutual TLS only. No CDN_NODE_CONTROL: the CDN is off, and it
-# stays off: the node is not part of the deployment (task 107, ADR 0071),
-# whose HTTPS CDN replaces this block. CDN_DC_ID (201 when empty),
-# CDN_DC_ADDRESS (ip:port) and CDN_DC_SECRET ("dd" and 32 hex digits) name
-# the node's DC. Empty limits take their defaults: CDN_MIN_FILE_SIZE 1 MiB,
-# CDN_PUSH_RATE_MBIT 20, CDN_PUSH_CONCURRENCY 1, CDN_REUPLOAD_WAIT 10s.
+# The HTTPS CDN of large files (task 107, ADR 0071, docs/ops/cdn.md): a file
+# of CDN_MIN_FILE_SIZE (1 MiB) and more, a document or a photo, is
+# redirected (upload.fileCdnRedirect) to a CDN that pulls its cipher from the
+# origin in bff, only for clients that send pluma_cdn in
+# initConnection.params. The key, the IV and the hashes stay at home. A
+# delivery without BaseURL is off; with none on, the CDN is off and the
+# origin does not listen. The keys come from .env only and are never logged.
+# Empty values take their defaults: CDN_GCORE_SIGNER gcore-md5 (path-hmac
+# when the Secure Token is unavailable), CDN_GCORE_MONTHLY_GB 800,
+# CDN_ROUTES *:201, CDN_ORIGIN_LISTEN 0.0.0.0:20480 (the Docker network
+# only, published by Caddy), CDN_URL_TTL 6h, CDN_PREPARE_RATE_MBIT 800,
+# CDN_KINDS document,photo, CDN_HEALTH_EVERY 1m, CDN_AVOID_TTL 1h.
+# CDN_DEV_ALLOW_HTTP=1 (an http:// BaseURL) is for the e2e stand only.
 Cdn:
-  NodeControl: "${CDN_NODE_CONTROL}"
-  CertFile: /opt/pluma/cdn/client.pem
-  KeyFile: /opt/pluma/cdn/client-key.pem
-  CAFile: /opt/pluma/cdn/server-ca.pem
-  DcId: "${CDN_DC_ID}"
-  DcAddress: "${CDN_DC_ADDRESS}"
-  DcSecret: "${CDN_DC_SECRET}"
+  Deliveries:
+    - Id: 201
+      Name: gcore
+      Signer: "${CDN_GCORE_SIGNER}"
+      BaseURL: "${CDN_GCORE_BASE_URL}"
+      Key: "${CDN_GCORE_TOKEN_KEY}"
+      Source: home-origin
+      MonthlyGB: "${CDN_GCORE_MONTHLY_GB}"
+  Routes: "${CDN_ROUTES}"
+  Origin:
+    Listen: "${CDN_ORIGIN_LISTEN}"
+    AuthValue: "${CDN_ORIGIN_AUTH}"
+    MaxConcurrent: "16"
+  UrlTTL: "${CDN_URL_TTL}"
+  PrepareRateMbit: "${CDN_PREPARE_RATE_MBIT}"
   MinFileSize: "${CDN_MIN_FILE_SIZE}"
-  PushRateMbit: "${CDN_PUSH_RATE_MBIT}"
-  PushConcurrency: "${CDN_PUSH_CONCURRENCY}"
-  MonthlyEgressLimitGB: "${CDN_MONTHLY_EGRESS_LIMIT_GB}"
-  ReuploadWait: "${CDN_REUPLOAD_WAIT}"
+  Kinds: "${CDN_KINDS}"
+  DevAllowHTTP: "${CDN_DEV_ALLOW_HTTP}"
+  HealthEvery: "${CDN_HEALTH_EVERY}"
+  AvoidTTL: "${CDN_AVOID_TTL}"
 
 # Voice transcription (task 090, ADR 0056, docs/ops/transcription.md): the
 # speech engine is a service with POST /v1/audio/transcriptions of the OpenAI
