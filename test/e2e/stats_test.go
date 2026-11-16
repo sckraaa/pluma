@@ -657,10 +657,11 @@ func TestStatsBroadcast(t *testing.T) {
 	statsRefused(t, "a wrong access hash", err, "CHANNEL_INVALID")
 	// The methods of the statistics Pluma does not serve answer 400, which
 	// the clients do not retry: the revenue (RPCChannelAdRevenue, which the
-	// session routes nowhere), and the form of getMessagePublicForwards of
-	// the layers before 170 (RPCStatistics, refused by bff).
+	// session routes nowhere; layer 233 has no such method, so its form of
+	// layer 205 is sent), and the form of getMessagePublicForwards of the
+	// layers before 170 (RPCStatistics, refused by bff).
 	_, err = alice.c.Invoke(ctx, &mtproto.TLStatsGetBroadcastRevenueStats{
-		Constructor: alice.c.Constructor(mtproto.Predicate_stats_getBroadcastRevenueStats),
+		Constructor: mtproto.CRC32_stats_getBroadcastRevenueStats_f788ee19,
 		Peer:        statsPeer(alice, ch),
 		Channel:     statsInput(alice, ch),
 	})
