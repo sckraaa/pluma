@@ -20,7 +20,18 @@
 //	pluma-admin [-f bff.yaml] bot create <username> <name...> [-owner <phone>]
 //	pluma-admin [-f bff.yaml] bot list
 //	pluma-admin [-f bff.yaml] bot token <username>
-//	pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off]
+//	pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off] [-domain <host>|off] [-main-app <url>|off]
+//	pluma-admin [-f bff.yaml] bot app list <username>
+//	pluma-admin [-f bff.yaml] bot app add|edit <username> <short name> [-title <t>] [-url <url>] [-photo <image>] [-description <d>] [-animation <mp4>|off] [-write-access on|off]
+//	pluma-admin [-f bff.yaml] bot app rm <username> <short name>
+//	pluma-admin [-f bff.yaml] bot attach show|rm <username>
+//	pluma-admin [-f bff.yaml] bot attach set <username> [-name <n>] [-url <url>] [-attach-menu on|off] [-side-menu on|off] [-peers <types>] [-write-access on|off] [-settings on|off] [-icon <name>=<file>]... [-no-icon <name>]... [-color <icon>:<color>=#rrggbb|off]...
+//	pluma-admin [-f bff.yaml] bot game list <username>
+//	pluma-admin [-f bff.yaml] bot game add|edit <username> <short name> [-title <t>] [-photo <image>] [-description <d>] [-animation <mp4>|off]
+//	pluma-admin [-f bff.yaml] bot game rm <username> <short name>
+//	pluma-admin [-f bff.yaml] bot login show|rm <username>
+//	pluma-admin [-f bff.yaml] bot login set|edit <username> [-redirect <url>]... [-origin <origin>|off]...
+//	pluma-admin [-f bff.yaml] bot webapp-key
 //	pluma-admin [-f bff.yaml] service-photo [image]
 //	pluma-admin [-f bff.yaml] ghost set <@username|user id> on|off
 //	pluma-admin [-f bff.yaml] ghost join|leave <@username|user id> <chat>
@@ -73,7 +84,14 @@
 // time it can be read; the token goes to whoever runs the bot, over a
 // channel you trust. token replaces the old one. list prints no token. set
 // changes the flags of the bot; -privacy off lets it read every message of
-// its groups.
+// its groups; -domain links it to the site its login buttons go to and
+// -main-app gives it a main mini app. app, attach, game and login set up
+// the bot platform (task 106, ADR 0068): the direct link mini apps, the
+// attachment menu entry, the games and the OpenID Connect client of
+// oauth.pluma.chat, whose secret is printed once. Their pictures go through
+// dfs and media, so they run in the bff container. webapp-key prints the
+// public key third parties check the signature of mini app data with. None
+// of them touches a built-in bot (ADR 0062). See docs/ops/bots.md.
 //
 // service-photo sets the profile photo of the service notifications
 // account (777000, "Pluma"), Pluma's by default, the way a client sets its
@@ -221,7 +239,19 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] bot create <username> <name...> [-owner <phone>]   (prints the token)
   pluma-admin [-f bff.yaml] bot list
   pluma-admin [-f bff.yaml] bot token <username>   (replaces the token)
-  pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off]
+  pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off] [-domain <host>|off] [-main-app <url>|off]
+  pluma-admin [-f bff.yaml] bot app list <username>   (direct link mini apps, docs/ops/bots.md)
+  pluma-admin [-f bff.yaml] bot app add|edit <username> <short name> [-title <t>] [-url <url>] [-photo <image>] [-description <d>] [-animation <mp4>|off] [-write-access on|off]
+  pluma-admin [-f bff.yaml] bot app rm <username> <short name>
+  pluma-admin [-f bff.yaml] bot attach show|rm <username>   (the attachment menu entry)
+  pluma-admin [-f bff.yaml] bot attach set <username> [-name <n>] [-url <url>] [-attach-menu on|off] [-side-menu on|off] [-peers all|same_bot,bot,pm,chat,broadcast] [-write-access on|off] [-settings on|off] [-icon <name>=<svg|tgs>]... [-no-icon <name>]... [-color <icon>:<color>=#rrggbb|off]...
+  pluma-admin [-f bff.yaml] bot game list <username>
+  pluma-admin [-f bff.yaml] bot game add|edit <username> <short name> [-title <t>] [-photo <image>] [-description <d>] [-animation <mp4>|off]
+  pluma-admin [-f bff.yaml] bot game rm <username> <short name>
+  pluma-admin [-f bff.yaml] bot login show|rm <username>   (the OpenID Connect client of oauth.pluma.chat)
+  pluma-admin [-f bff.yaml] bot login set <username> -redirect <url>... [-origin <origin>]...   (prints the client secret once)
+  pluma-admin [-f bff.yaml] bot login edit <username> [-redirect <url>]... [-origin <origin>|off]...   (keeps the secret)
+  pluma-admin [-f bff.yaml] bot webapp-key   (the public key of the signature of mini app data)
   pluma-admin [-f bff.yaml] service-photo [image]   (the service account's photo; Pluma's by default)
   pluma-admin [-f bff.yaml] ghost set <@username|user id> on|off   (the support ghost: in chats, unseen)
   pluma-admin [-f bff.yaml] ghost join|leave <@username|user id> <t.me link|@name|chat id>
