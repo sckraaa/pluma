@@ -21,6 +21,7 @@ package config
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -38,4 +39,8 @@ type Config struct {
 	// IOSUpdate lets an Ad Hoc build of the iPhone app update from the app
 	// (task 085); off without its secret.
 	IOSUpdate iosupdate.Settings `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Translate is the translation engine of bff (task 101, ADR 0064);
+	// without its URL the app config hides the translation from the
+	// clients.
+	Translate translate.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

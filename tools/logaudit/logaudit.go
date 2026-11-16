@@ -133,6 +133,13 @@ var secretNames = set(
 	"initdata", "getinitdata", "tgwebappdata", "webappkey", "loginkey",
 	"signingkey", "encryptionkey", "seed", "clientsecret", "getclientsecret",
 	"idtoken", "oauthtoken", "oauthcode", "matchcode", "getmatchcode", "matchcodes", "getmatchcodes",
+	// the translation of messages (task 101, ADR 0064, section 13): the
+	// text sent to the model, the prompt made of it, the model's answer
+	// and the translation read from it, never printed; their lengths are
+	"translation", "gettranslation", "translations", "gettranslations",
+	"translated", "translatedtext", "sourcetext", "getsourcetext",
+	"prompt", "getprompt", "completion", "getcompletion",
+	"content", "getcontent", "resulttext", "getresulttext",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )

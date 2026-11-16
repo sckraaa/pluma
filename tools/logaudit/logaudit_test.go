@@ -54,6 +54,13 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"match code", `func f(in *mtproto.TLMessagesAcceptUrlAuth) { logx.Infof("code %s", in.GetMatchCode()) }`, []string{"secret"}},
 		{"client secret", `func f(clientSecret string) { logx.Errorf("client %q", clientSecret) }`, []string{"secret"}},
 		{"bot id ok", `func f(botId int64) { logx.Infof("bot %d", botId) }`, nil},
+		// the translation of messages (task 101)
+		{"translation", `func f(translation, sourceText string) { logx.Infof("%s from %s", translation, sourceText) }`, []string{"secret", "secret"}},
+		{"model prompt", `func f(req struct{ Prompt string }) error { return fmt.Errorf("prompt %q failed", req.Prompt) }`, []string{"secret"}},
+		{"model answer", `func f(content, completion string) { logx.Errorf("answer %s / %s", content, completion) }`, []string{"secret", "secret"}},
+		{"compose result", `func f(r *mtproto.Messages_ComposedMessageWithAI) { logx.Infof("%v", r.GetResultText()) }`, []string{"secret"}},
+		{"translated", `func f(translated []string) { logx.Infof("%v", translated) }`, []string{"secret"}},
+		{"translation length ok", `func f(translation string, toLang string) { logx.Infof("%d characters to %s", len(translation), toLang) }`, nil},
 		// audit #8: handshake secrets
 		{"handshake state", `func f(ctx *HandshakeStateCtx) { logx.Infof("state: %s", ctx) }`, []string{"object"}},
 		{"new_nonce", `func f(ctx *HandshakeStateCtx) { logx.Infof("n: %x", ctx.NewNonce) }`, []string{"secret"}},
