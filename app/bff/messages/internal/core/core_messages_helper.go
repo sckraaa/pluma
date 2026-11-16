@@ -633,10 +633,18 @@ func (c *MessagesCore) isBotUser(ctx context.Context, userId int64) (bool, error
 // it may go"). The right to send it in a group is the right to send photos
 // (pkg/channelperm), which msg checks with the send. A connected business
 // bot sends as its account (businessAct), so its widget would be a user's
-// message too.
+// message too. Whether the caller is a bot is looked up, as botMarkup does:
+// the session does not set RpcMetadata.IsBot.
 func (c *MessagesCore) makeWidgetMedia(peer *mtproto.PeerUtil, in *mtproto.InputMedia) (*mtproto.MessageMedia, error) {
 	widget, _ := botwidgets.FromInputMedia(in)
-	if !c.MD.IsBot || c.business != nil {
+	if c.business != nil {
+		return nil, mtproto.ErrInputMediaWidgetNotAllowed
+	}
+	isBot, err := c.isBotUser(c.ctx, c.MD.UserId)
+	if err != nil {
+		return nil, err
+	}
+	if !isBot {
 		return nil, mtproto.ErrInputMediaWidgetNotAllowed
 	}
 	where := botwidgets.Group
