@@ -1,0 +1,38 @@
+{
+  "options": {
+    "paths": {
+      "root": "/app",
+      "fonts": "fonts",
+      "sprites": "sprites",
+      "styles": "styles",
+      "pmtiles": "/data"
+    },
+    "frontPage": false,
+    "serveAllFonts": false,
+    "serveAllStyles": false,
+    "serveStaticMaps": true,
+    "allowRemoteMarkerIcons": false,
+    "allowInlineMarkerImages": false,
+    "maxScaleFactor": 4,
+    "maxSize": 2048,
+    "minRendererPoolSizes": [0],
+    "maxRendererPoolSizes": [1]
+  },
+  "styles": {
+    "ru": {
+      "style": "ru.json",
+      "serve_rendered": true,
+      "serve_data": false
+    },
+    "en": {
+      "style": "en.json",
+      "serve_rendered": true,
+      "serve_data": false
+    }
+  },
+  "data": {
+    "protomaps": {
+      "pmtiles": "pluma.pmtiles"
+    }
+  }
+}
