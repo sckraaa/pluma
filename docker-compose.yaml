@@ -118,16 +118,23 @@ services:
       # pictures; the daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}
       INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
-      # bff.yaml names the CDN node of large files (task 102); empty: off.
-      CDN_NODE_CONTROL: ${CDN_NODE_CONTROL:-}
-      CDN_DC_ID: ${CDN_DC_ID:-}
-      CDN_DC_ADDRESS: ${CDN_DC_ADDRESS:-}
-      CDN_DC_SECRET: ${CDN_DC_SECRET:-}
+      # The HTTPS CDN of large files (task 107, docs/ops/cdn.md): bff.yaml
+      # names the delivery, the origin and the limits; empty
+      # CDN_GCORE_BASE_URL: off.
+      CDN_GCORE_SIGNER: ${CDN_GCORE_SIGNER:-}
+      CDN_GCORE_BASE_URL: ${CDN_GCORE_BASE_URL:-}
+      CDN_GCORE_TOKEN_KEY: ${CDN_GCORE_TOKEN_KEY:-}
+      CDN_GCORE_MONTHLY_GB: ${CDN_GCORE_MONTHLY_GB:-}
+      CDN_ROUTES: ${CDN_ROUTES:-}
+      CDN_ORIGIN_LISTEN: ${CDN_ORIGIN_LISTEN:-}
+      CDN_ORIGIN_AUTH: ${CDN_ORIGIN_AUTH:-}
+      CDN_URL_TTL: ${CDN_URL_TTL:-}
+      CDN_PREPARE_RATE_MBIT: ${CDN_PREPARE_RATE_MBIT:-}
       CDN_MIN_FILE_SIZE: ${CDN_MIN_FILE_SIZE:-}
-      CDN_PUSH_RATE_MBIT: ${CDN_PUSH_RATE_MBIT:-}
-      CDN_PUSH_CONCURRENCY: ${CDN_PUSH_CONCURRENCY:-}
-      CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:-}
-      CDN_REUPLOAD_WAIT: ${CDN_REUPLOAD_WAIT:-}
+      CDN_KINDS: ${CDN_KINDS:-}
+      CDN_DEV_ALLOW_HTTP: ${CDN_DEV_ALLOW_HTTP:-}
+      CDN_HEALTH_EVERY: ${CDN_HEALTH_EVERY:-}
+      CDN_AVOID_TTL: ${CDN_AVOID_TTL:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -376,19 +383,23 @@ services:
       # pictures; the daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}
       INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
-      # The CDN node of large files (task 102, docs/ops/cdn.md): its
-      # control API, its CDN DC, the limits of the pushes. Empty
-      # CDN_NODE_CONTROL: the CDN is off; the node is not deployed (task
-      # 107), so it stays empty.
-      CDN_NODE_CONTROL: ${CDN_NODE_CONTROL:-}
-      CDN_DC_ID: ${CDN_DC_ID:-}
-      CDN_DC_ADDRESS: ${CDN_DC_ADDRESS:-}
-      CDN_DC_SECRET: ${CDN_DC_SECRET:-}
+      # The HTTPS CDN of large files (task 107, docs/ops/cdn.md): bff.yaml
+      # names the delivery, the origin and the limits; empty
+      # CDN_GCORE_BASE_URL: off.
+      CDN_GCORE_SIGNER: ${CDN_GCORE_SIGNER:-}
+      CDN_GCORE_BASE_URL: ${CDN_GCORE_BASE_URL:-}
+      CDN_GCORE_TOKEN_KEY: ${CDN_GCORE_TOKEN_KEY:-}
+      CDN_GCORE_MONTHLY_GB: ${CDN_GCORE_MONTHLY_GB:-}
+      CDN_ROUTES: ${CDN_ROUTES:-}
+      CDN_ORIGIN_LISTEN: ${CDN_ORIGIN_LISTEN:-}
+      CDN_ORIGIN_AUTH: ${CDN_ORIGIN_AUTH:-}
+      CDN_URL_TTL: ${CDN_URL_TTL:-}
+      CDN_PREPARE_RATE_MBIT: ${CDN_PREPARE_RATE_MBIT:-}
       CDN_MIN_FILE_SIZE: ${CDN_MIN_FILE_SIZE:-}
-      CDN_PUSH_RATE_MBIT: ${CDN_PUSH_RATE_MBIT:-}
-      CDN_PUSH_CONCURRENCY: ${CDN_PUSH_CONCURRENCY:-}
-      CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:-}
-      CDN_REUPLOAD_WAIT: ${CDN_REUPLOAD_WAIT:-}
+      CDN_KINDS: ${CDN_KINDS:-}
+      CDN_DEV_ALLOW_HTTP: ${CDN_DEV_ALLOW_HTTP:-}
+      CDN_HEALTH_EVERY: ${CDN_HEALTH_EVERY:-}
+      CDN_AVOID_TTL: ${CDN_AVOID_TTL:-}
     stop_grace_period: 30s
     depends_on:
       sync:

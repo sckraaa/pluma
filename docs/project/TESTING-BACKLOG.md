@@ -1312,6 +1312,16 @@
 - [ ] Дом с пустыми `CDN_GCORE_BASE_URL`, `CDN_GCORE_TOKEN_KEY`, `CDN_ORIGIN_AUTH`: bff стартует, в логе нет строк `cdn:`; на Android, iOS, Desktop и Web документ 5 МБ, фото ≥ 1 МБ и видео 50 МБ в группе открываются из дома, как раньше.
 - [ ] Android и Desktop со старой сборкой (без патча 107): после выката файлы ≥ 1 МБ качаются, ни одна загрузка не зависает (без признака `pluma_cdn` сервер не шлёт редирект).
 
+### Часть B: обработчики, маршрут, признак `pluma_cdn`
+Редирект получает только ключ, чей клиент прислал `pluma_cdn` в `initConnection.params`; bff перечитывает признак не реже раза в минуту. Запрос файла без `cdn_supported` вскоре после редиректа — откат клиента: ключ час не получает редиректов на эту выдачу.
+- [ ] Дом с пустым `CDN_GCORE_BASE_URL`: bff стартует, `help.getCdnConfig` пустой; на Android, Desktop, iOS и Web видео 50 МБ в группе, документ 5 МБ и фото ≥ 1 МБ открываются из дома.
+- [ ] Дом с заданными `CDN_GCORE_BASE_URL`, `CDN_GCORE_TOKEN_KEY`, `CDN_ORIGIN_AUTH`: в логе bff одна строка `files: HTTPS CDN on, deliveries [201]`, без URL и ключей; с неверным ключом (`CDN_GCORE_TOKEN_KEY` из 4 символов) или `http://` в `CDN_GCORE_BASE_URL` bff не стартует, в логе — причина с номером выдачи 201 (значения ключа в логе нет).
+- [ ] Официальный Telegram или старая сборка Pluma (Android и Desktop шлют `cdn_supported` всегда): видео 50 МБ открывается из дома и не зависает; в Grafana растёт `pluma_cdn_redirects_total{dc="201",result="no_caps"}`, `result="redirect"` — нет.
+- [ ] Сборка с патчем 107 (Android, Desktop, iOS, Web), выдача здорова: первый просмотр нового видео 50 МБ — из дома (`result="not_ready"`), повторное открытие через минуту — `result="redirect"`, видео играет и перематывается.
+- [ ] Обновить сборку без патча на сборку с патчем на том же устройстве, не выходя из аккаунта: в течение пары минут после запуска редиректы появляются (`result="redirect"` растёт), без повторного входа.
+- [ ] Во время загрузки через CDN выключить сеть к `*.gcorecdn.com` (или `/_ctl/down` на стенде): загрузка докачивается из дома, `pluma_cdn_fallback_total{dc="201"}` вырос на 1, и тот же клиент следующий час качает новые файлы из дома (`result="avoided"`), а другой пользователь — через CDN.
+- [ ] `pluma_cdn_dev_http{dc="201"}` на проде равен 0.
+
 ### Часть C: публикация источника в Caddy и фальшивый CDN стенда
 Сайт источника — `teamgramd/deploy/web/cdn-origin.caddy`; контейнер `web` подключает его только при непустом `PLUMA_CDN_ORIGIN_DOMAIN` (сайт с пустым адресом Caddy не принимает, и не загрузился бы весь Caddyfile).
 - [ ] Дом, пока `PLUMA_CDN_ORIGIN_DOMAIN` пуст: после пересоздания `web` (`docker compose … up -d --no-deps --force-recreate web`) сайт, веб-клиент и oauth открываются; в `docker logs` контейнера `web` одно предупреждение `No files matching import glob pattern … cdn-origin.d`, ошибок нет; `docker exec <web> ls /etc/caddy/cdn-origin.d` пуст.

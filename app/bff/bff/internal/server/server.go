@@ -354,19 +354,20 @@ func (s *Server) Initialize() error {
 			}))
 
 		// files_helper
-		// The CDN of large files (task 102) runs its pusher and prober
-		// beside the methods.
+		// The HTTPS CDN of large files (task 107) decides the redirects
+		// of upload.getFile by the initConnection params of the client.
 		s.files = files_helper.New(files_helper.Config{
-			RpcServerConf: c.RpcServerConf,
-			Mysql:         c.Mysql,
-			DfsClient:     c.DfsClient,
-			UserClient:    c.BizServiceClient,
-			MediaClient:   c.MediaClient,
-			WebFile:       c.WebFile,
-			WebFetch:      c.WebFetch,
-			KV:            c.KV,
-			Maps:          c.Maps,
-			Cdn:           c.Cdn,
+			RpcServerConf:     c.RpcServerConf,
+			Mysql:             c.Mysql,
+			DfsClient:         c.DfsClient,
+			UserClient:        c.BizServiceClient,
+			MediaClient:       c.MediaClient,
+			AuthsessionClient: c.AuthSessionClient,
+			WebFile:           c.WebFile,
+			WebFetch:          c.WebFetch,
+			KV:                c.KV,
+			Maps:              c.Maps,
+			Cdn:               c.Cdn,
 		}, catalog_helper.SetThumbFiles(c.Mysql, c.MediaClient), nil) // the thumbnails of the sets users make (task 084)
 		mtproto.RegisterRPCFilesServer(grpcServer, s.files)
 

@@ -66,8 +66,9 @@ func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2
 		webFiles.Register(mtproto.Predicate_inputWebFileGeoPointLocation, NewGeoSource(maps))
 	}
 	d := dao.New(c)
-	logx.Must(checkCDN(c))
 	db := sqlx.NewMySQL(&c.Mysql)
+	home, err := newCDN(c, d, db)
+	logx.Must(err)
 	s := &ServiceContext{
 		Config:   c,
 		Dao:      d,
@@ -77,25 +78,42 @@ func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2
 		Business: business.NewStore(db),
 		WebFiles: webFiles,
 		Maps:     maps,
+		CDN:      home,
 	}
 	return s
 }
 
 // Stop stops the work beside the methods. None runs yet: the work of the
 // HTTPS CDN (its origin, the preparation of the hashes, the checks of the
-// deliveries) starts here once it is built (task 107, parts A2 and B).
+// deliveries) starts beside CDN once it is built (task 107, part A2).
 func (s *ServiceContext) Stop() {}
 
-// checkCDN checks the Cdn block of c. A wrong one stops the start. So does
-// an enabled delivery for now: the redirects of the HTTPS CDN need the
-// origin, the preparation and the checks of task 107 (parts A2 and B),
-// and a CDN left half on would be worse than an explicit refusal.
-func checkCDN(c config.Config) error {
+// newCDN returns the Home of the HTTPS CDN (task 107, ADR 0071), nil when
+// no delivery is on; a wrong Cdn block stops the start. The preparation of
+// the files, the origin and the checks of the deliveries (part A2) work
+// over the same Store: until a file is prepared for the origin and a
+// delivery checked healthy, every file is served from home.
+func newCDN(c config.Config, d *dao.Dao, db *sqlx.DB) (*cdn.Home, error) {
 	set, err := c.Cdn.Parse()
 	if err != nil || set == nil {
-		return err
+		return nil, err
 	}
-	return errors.New("files: Cdn has an enabled delivery (CDN_GCORE_BASE_URL), but this build does not run the HTTPS CDN yet: leave CDN_GCORE_BASE_URL empty")
+	cdn.ReportDevHTTP(set)
+	caps, err := newCdnCaps(d.AuthsessionClient)
+	if err != nil {
+		return nil, err
+	}
+	files := &cdnFiles{media: d.MediaClient, encrypted: d.SecretChats, dfs: d.DfsClient}
+	home, err := cdn.NewHome(cdn.NewMySQLStore(db), set, files, caps)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int32, 0, len(set.Deliveries))
+	for _, dl := range set.Deliveries {
+		ids = append(ids, dl.ID)
+	}
+	logx.Infof("files: HTTPS CDN on, deliveries %v", ids)
+	return home, nil
 }
 
 // newMaps returns the map service of c, nil when maps are off. A wrong

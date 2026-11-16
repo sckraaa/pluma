@@ -34,6 +34,9 @@ type Config struct {
 	DfsClient   zrpc.RpcClientConf
 	UserClient  zrpc.RpcClientConf
 	MediaClient zrpc.RpcClientConf
+	// AuthsessionClient reads the initConnection params of a client: its
+	// pluma_cdn decides the redirects of the HTTPS CDN (task 107).
+	AuthsessionClient zrpc.RpcClientConf
 	// WebFile is upload.getWebFile (ADR 0062, p. 5): the key of the
 	// addresses it proxies and the cache of the files it fetched.
 	WebFile webfile.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's

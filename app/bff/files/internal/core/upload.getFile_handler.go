@@ -133,12 +133,18 @@ func (c *FilesCore) UploadGetFile(in *mtproto.TLUploadGetFile) (*mtproto.Upload_
 		return nil, mtproto.ErrLocationInvalid
 	}
 
-	// A large file whose copy is ready on a healthy CDN node is served
-	// from there (task 102, ADR 0065 §2); any other is served from home,
-	// and queued for a push if it may go through the CDN.
-	if c.svcCtx.CDN != nil && cdn.Wants(in) {
-		if redirect, _ := c.svcCtx.CDN.Redirect(c.ctx, location, offset); redirect != nil {
-			return redirect, nil
+	// A large file prepared for the origin is redirected to an HTTPS
+	// delivery when the client sent pluma_cdn (task 107, ADR 0071); any
+	// other is served from home, and queued for its preparation if it may
+	// go through the CDN. A request without cdn_supported may be a patched
+	// client falling back from the delivery, which its key then avoids.
+	if c.svcCtx.CDN != nil {
+		if cdn.Wants(in) {
+			if redirect, _ := c.svcCtx.CDN.Redirect(c.ctx, c.MD.GetPermAuthKeyId(), location, offset); redirect != nil {
+				return redirect, nil
+			}
+		} else if !in.GetCdnSupported() {
+			c.svcCtx.CDN.ServedHome(c.MD.GetPermAuthKeyId(), location)
 		}
 	}
 

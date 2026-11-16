@@ -173,5 +173,5 @@ SyncClient:
 # Group calls (task 093) are off without SFU nodes; GroupCalls in
 # teamgramd/etc/bff.yaml and docs/ops/group-calls.md show how to name one.
 
-# The CDN-DC of large files (task 102) is off without a node; Cdn in
+# The HTTPS CDN of large files (task 107) is off without a delivery; Cdn in
 # teamgramd/etc/bff.yaml and docs/ops/cdn.md show how to name one.

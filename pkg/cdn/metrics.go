@@ -26,8 +26,22 @@ var (
 		Namespace: "pluma",
 		Subsystem: "cdn",
 		Name:      "redirects_total",
-		Help:      "Decisions of upload.getFile on a file that may go through the CDN: redirect, not_ready (not prepared yet), unhealthy (the delivery is out), small (below CDN_MIN_FILE_SIZE), error (the file served from home after a failure).",
-		Labels:    []string{"result"},
+		Help:      "Decisions of upload.getFile with cdn_supported on a file that may go through the CDN, by delivery: redirect, no_caps (the client sent no pluma_cdn), small (below CDN_MIN_FILE_SIZE), avoided (the key fell back from the delivery), unhealthy (the delivery is out), budget (the delivery spent its month), not_ready (not prepared yet), error (the file served from home after a failure).",
+		Labels:    []string{"dc", "result"},
+	})
+	metricFallbacks = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: "pluma",
+		Subsystem: "cdn",
+		Name:      "fallback_total",
+		Help:      "Clients that asked for a file without cdn_supported soon after it was redirected to the delivery: they gave up on it, and their key avoids it for CDN_AVOID_TTL.",
+		Labels:    []string{"dc"},
+	})
+	metricDevHTTP = metric.NewGaugeVec(&metric.GaugeVecOpts{
+		Namespace: "pluma",
+		Subsystem: "cdn",
+		Name:      "dev_http",
+		Help:      "1 for a delivery with an http:// BaseURL (CDN_DEV_ALLOW_HTTP=1), which only the e2e stand may have.",
+		Labels:    []string{"dc"},
 	})
 	metricReuploads = metric.NewCounterVec(&metric.CounterVecOpts{
 		Namespace: "pluma",
@@ -45,6 +59,9 @@ const (
 	ResultUnhealthy = "unhealthy"
 	ResultSmall     = "small"
 	ResultError     = "error"
+	ResultNoCaps    = "no_caps"
+	ResultAvoided   = "avoided"
+	ResultBudget    = "budget"
 )
 
 // Results of upload.reuploadCdnFile (metricReuploads).

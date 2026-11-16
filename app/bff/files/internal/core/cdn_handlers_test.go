@@ -58,6 +58,15 @@ func (noSizes) FileSize(context.Context, *mtproto.InputFileLocation) (int64, err
 
 const cdnTestDc = 201
 
+// cdnTestKey is the permanent auth key of the client of the tests; its
+// pluma_cdn is in capsOf.
+const cdnTestKey = int64(0x7e57_0000_0000_0010)
+
+// capsOf is a cdn.Caps of fixed versions by key.
+type capsOf map[int64]int
+
+func (c capsOf) PlumaCdn(_ context.Context, key int64) (int, error) { return c[key], nil }
+
 // readyCdn returns a Home whose delivery is healthy and for whose origin
 // document id of size bytes is prepared, and the secrets of that file.
 func readyCdn(t *testing.T, id, size int64) (*cdn.Home, cdn.Secrets) {
@@ -102,7 +111,7 @@ func readyCdn(t *testing.T, id, size int64) (*cdn.Home, cdn.Secrets) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	home, err := cdn.NewHome(store, set, noSizes{})
+	home, err := cdn.NewHome(store, set, noSizes{}, capsOf{cdnTestKey: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +134,7 @@ func cdnCore(home *cdn.Home, d *fakeDfs) *FilesCore {
 		ctx:    ctx,
 		svcCtx: &svc.ServiceContext{Dao: &dao.Dao{DfsClient: d}, CDN: home},
 		Logger: logx.WithContext(ctx),
-		MD:     &metadata.RpcMetadata{UserId: 7},
+		MD:     &metadata.RpcMetadata{UserId: 7, PermAuthKeyId: cdnTestKey},
 	}
 }
 
@@ -214,5 +223,48 @@ func TestCdnMethods(t *testing.T) {
 		if err != nil || cfg.GetPredicateName() != mtproto.Predicate_cdnConfig || len(cfg.GetPublicKeys()) != 0 {
 			t.Errorf("%s: help.getCdnConfig: %v, %v", name, cfg, err)
 		}
+	}
+}
+
+// TestGetFileNeedsPlumaCdn: a client that sends cdn_supported without
+// pluma_cdn, as every unpatched Android and tdesktop does, is served from
+// dfs.
+func TestGetFileNeedsPlumaCdn(t *testing.T) {
+	home, _ := readyCdn(t, 12, 2<<20)
+	d := &fakeDfs{}
+	c := cdnCore(home, d)
+	c.MD.PermAuthKeyId = cdnTestKey + 1
+	res, err := c.UploadGetFile(&mtproto.TLUploadGetFile{CdnSupported: true, Location: docLocation(12), Limit: 1 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.GetPredicateName() != mtproto.Predicate_upload_file || d.calls != 1 {
+		t.Fatalf("%s, want upload.file from dfs", res.GetPredicateName())
+	}
+}
+
+// TestGetFileFallback: after a redirect, a request of the file without
+// cdn_supported is the client falling back from the delivery; the key then
+// gets the file from dfs even with cdn_supported.
+func TestGetFileFallback(t *testing.T) {
+	home, _ := readyCdn(t, 13, 2<<20)
+	d := &fakeDfs{}
+	c := cdnCore(home, d)
+	get := func(cdnSupported bool) string {
+		t.Helper()
+		res, err := c.UploadGetFile(&mtproto.TLUploadGetFile{CdnSupported: cdnSupported, Location: docLocation(13), Limit: 1 << 20})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.GetPredicateName()
+	}
+	if got := get(true); got != mtproto.Predicate_upload_fileCdnRedirect {
+		t.Fatalf("first request: %s", got)
+	}
+	if got := get(false); got != mtproto.Predicate_upload_file {
+		t.Fatalf("without cdn_supported: %s", got)
+	}
+	if got := get(true); got != mtproto.Predicate_upload_file || d.calls != 2 {
+		t.Fatalf("after the fallback: %s, %d dfs calls", got, d.calls)
 	}
 }
