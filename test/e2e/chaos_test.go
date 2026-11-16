@@ -48,7 +48,7 @@ func stack(t *testing.T, args ...string) {
 // container that was stopped or recreated gets a new ephemeral host port:
 // new clients use the current one of the gateway, the push tests that of
 // fakepush, the login code test that of fakecodes, the transcription tests
-// that of fakestt.
+// that of fakestt, the maps tests that of fakemaps.
 func restore(t *testing.T) {
 	t.Helper()
 	out, err := exec.Command(runScript, "wait").CombinedOutput()
@@ -96,6 +96,15 @@ func restore(t *testing.T) {
 		}
 		if addr := strings.TrimSpace(string(out)); addr != "" {
 			fakeMailAddr = addr
+		}
+	}
+	if fakeMapsAddr != "" {
+		addr, err := fakeMapsPort()
+		if err != nil {
+			t.Fatalf("fakemaps port: %v", err)
+		}
+		if addr != "" {
+			fakeMapsAddr = addr
 		}
 	}
 }

@@ -166,6 +166,22 @@ services:
       - teamgram_net
     restart: "no"
 
+  # The maps service of the map previews (test/e2e/fakemaps, task 100): bff
+  # renders maps there (MAPS_URL in the env file of run.sh); the tests plan
+  # its answers and read the requests on an ephemeral loopback port.
+  fakemaps:
+    build:
+      context: .
+      dockerfile: test/e2e/fakemaps/Dockerfile
+    image: ${E2E_FAKEMAPS_IMAGE:-pluma-e2e-fakemaps:local}
+    environment:
+      MAPS_STYLES: ${MAPS_STYLES:-}
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - teamgram_net
+    restart: "no"
+
   bff:
     # The config with the limits of transcription and the mail provider of
     # the tests, written by run.sh.
@@ -175,6 +191,8 @@ services:
       fakestt:
         condition: service_started
       fakemail:
+        condition: service_started
+      fakemaps:
         condition: service_started
 
   # The SFU of group calls (docker-compose.sfu.yaml): its media ports on the
