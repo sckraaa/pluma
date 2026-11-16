@@ -109,6 +109,12 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLBotsGetBotMenuButton":                             RPCContextTuple{"/mtproto.RPCBotMenuButton/bots_getBotMenuButton", func() interface{} { return new(BotMenuButton) }},
 	"TLBotsSetCustomVerification":                        RPCContextTuple{"/mtproto.RPCBotVerificationIcons/bots_setCustomVerification", func() interface{} { return new(Bool) }},
 	"TLBotsGetBotRecommendations":                        RPCContextTuple{"/mtproto.RPCBotVerificationIcons/bots_getBotRecommendations", func() interface{} { return new(Users_Users) }},
+	"TLMessagesGetBotWidgetQueryAnswer":                  RPCContextTuple{"/mtproto.RPCBotWidgets/messages_getBotWidgetQueryAnswer", func() interface{} { return new(Messages_BotWidgetQueryAnswer) }}, // pluma: task 106 (ADR 0068), the six methods of RPCBotWidgets
+	"TLMessagesSetBotWidgetQueryAnswer":                  RPCContextTuple{"/mtproto.RPCBotWidgets/messages_setBotWidgetQueryAnswer", func() interface{} { return new(Bool) }},
+	"TLMessagesEditMessageWidgetData":                    RPCContextTuple{"/mtproto.RPCBotWidgets/messages_editMessageWidgetData", func() interface{} { return new(Updates) }},
+	"TLMessagesEditInlineBotMessageWidgetData":           RPCContextTuple{"/mtproto.RPCBotWidgets/messages_editInlineBotMessageWidgetData", func() interface{} { return new(Bool) }},
+	"TLMessagesEditWidgetData":                           RPCContextTuple{"/mtproto.RPCBotWidgets/messages_editWidgetData", func() interface{} { return new(Bool) }},
+	"TLMessagesGetWidgetPublicData":                      RPCContextTuple{"/mtproto.RPCBotWidgets/messages_getWidgetPublicData", func() interface{} { return new(Messages_WidgetPublicData) }},
 	"TLBotsSetBotCommands":                               RPCContextTuple{"/mtproto.RPCBots/bots_setBotCommands", func() interface{} { return new(Bool) }},
 	"TLBotsResetBotCommands":                             RPCContextTuple{"/mtproto.RPCBots/bots_resetBotCommands", func() interface{} { return new(Bool) }},
 	"TLBotsGetBotCommands":                               RPCContextTuple{"/mtproto.RPCBots/bots_getBotCommands", func() interface{} { return new(Vector_BotCommand) }},
