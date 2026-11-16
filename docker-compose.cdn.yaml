@@ -1,0 +1,16 @@
+# bff at home with the CDN node of large files on the edge (task 102, ADR
+# 0065, docs/ops/cdn.md). bff reaches the node's control API through the
+# tunnel, and the node's certificate names that address
+# (teamgramd/deploy/cdn/control-certs.sh ... 10.77.0.1). Added to the
+# services command:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.cdn.yaml up -d bff
+services:
+  bff:
+    environment:
+      CDN_NODE_CONTROL: ${CDN_NODE_CONTROL:?set CDN_NODE_CONTROL in .env, the edge's tunnel address and port 20510}
+      CDN_DC_ADDRESS: ${CDN_DC_ADDRESS:?set CDN_DC_ADDRESS in .env, the public ip:port of the node}
+      CDN_DC_SECRET: ${CDN_DC_SECRET:?set CDN_DC_SECRET in .env, dd and 32 hex digits, the node's CDN_SECRET}
+      CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:?set CDN_MONTHLY_EGRESS_LIMIT_GB in .env, below the traffic of the VPS plan}
+    volumes:
+      - ${PLUMA_CDN_CERTS:-/opt/pluma/cdn}:/run/secrets/cdn:ro

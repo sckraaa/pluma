@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/files/plugin"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
+	"github.com/teamgram/teamgram-server/pkg/cdn"
 	"github.com/teamgram/teamgram-server/pkg/staticmap"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -47,6 +48,11 @@ type ServiceContext struct {
 	// Maps renders the maps of inputWebFileGeoPointLocation (task 100, ADR
 	// 0063); nil: maps are off, and such a location is LOCATION_INVALID.
 	Maps *staticmap.Service
+	// CDN decides the redirects of upload.getFile and serves the CDN
+	// methods (task 102, ADR 0065); nil: the CDN is off.
+	CDN *cdn.Home
+	// cdn runs the pusher and the prober of the CDN; nil when it is off.
+	cdn *cdn.Runtime
 }
 
 func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2 plugin.StreamFilesPlugin) *ServiceContext {
@@ -57,15 +63,47 @@ func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2
 	if maps != nil {
 		webFiles.Register(mtproto.Predicate_inputWebFileGeoPointLocation, NewGeoSource(maps))
 	}
-	return &ServiceContext{
+	d := dao.New(c)
+	runtime, err := startCDN(c, d)
+	logx.Must(err)
+	s := &ServiceContext{
 		Config:   c,
-		Dao:      dao.New(c),
+		Dao:      d,
 		Plugin1:  plugin1,
 		Plugin2:  plugin2,
 		Attached: attached.NewStore(sqlx.NewMySQL(&c.Mysql)),
 		WebFiles: webFiles,
 		Maps:     maps,
+		cdn:      runtime,
 	}
+	if runtime != nil {
+		s.CDN = runtime.Home
+	}
+	return s
+}
+
+// Stop stops the work beside the methods: the pusher and the prober of
+// the CDN.
+func (s *ServiceContext) Stop() {
+	if s.cdn != nil {
+		s.cdn.Stop()
+	}
+}
+
+// startCDN starts the CDN of c, nil when it is off. A wrong Cdn block
+// stops the start instead of leaving the CDN silently off.
+func startCDN(c config.Config, d *dao.Dao) (*cdn.Runtime, error) {
+	set, err := c.Cdn.Parse()
+	if err != nil || set == nil {
+		return nil, err
+	}
+	files := &cdnFiles{media: d.MediaClient, encrypted: d.SecretChats, dfs: d.DfsClient}
+	r, err := cdn.Start(cdn.NewMySQLStore(sqlx.NewMySQL(&c.Mysql)), set, files, files)
+	if err != nil {
+		return nil, err
+	}
+	logx.Infof("files: CDN on, DC %d", set.DcId)
+	return r, nil
 }
 
 // newMaps returns the map service of c, nil when maps are off. A wrong

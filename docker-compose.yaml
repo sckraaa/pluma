@@ -116,6 +116,16 @@ services:
       # pictures; the daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}
       INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
+      # bff.yaml names the CDN node of large files (task 102); empty: off.
+      CDN_NODE_CONTROL: ${CDN_NODE_CONTROL:-}
+      CDN_DC_ID: ${CDN_DC_ID:-}
+      CDN_DC_ADDRESS: ${CDN_DC_ADDRESS:-}
+      CDN_DC_SECRET: ${CDN_DC_SECRET:-}
+      CDN_MIN_FILE_SIZE: ${CDN_MIN_FILE_SIZE:-}
+      CDN_PUSH_RATE_MBIT: ${CDN_PUSH_RATE_MBIT:-}
+      CDN_PUSH_CONCURRENCY: ${CDN_PUSH_CONCURRENCY:-}
+      CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:-}
+      CDN_REUPLOAD_WAIT: ${CDN_REUPLOAD_WAIT:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -362,6 +372,20 @@ services:
       # pictures; the daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}
       INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
+      # The CDN node of large files on the edge (task 102,
+      # docs/ops/cdn.md): its control API on the tunnel, its CDN DC and
+      # public address, the limits of the pushes. Empty CDN_NODE_CONTROL:
+      # the CDN is off. docker-compose.cdn.yaml requires it and mounts the
+      # certificates.
+      CDN_NODE_CONTROL: ${CDN_NODE_CONTROL:-}
+      CDN_DC_ID: ${CDN_DC_ID:-}
+      CDN_DC_ADDRESS: ${CDN_DC_ADDRESS:-}
+      CDN_DC_SECRET: ${CDN_DC_SECRET:-}
+      CDN_MIN_FILE_SIZE: ${CDN_MIN_FILE_SIZE:-}
+      CDN_PUSH_RATE_MBIT: ${CDN_PUSH_RATE_MBIT:-}
+      CDN_PUSH_CONCURRENCY: ${CDN_PUSH_CONCURRENCY:-}
+      CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:-}
+      CDN_REUPLOAD_WAIT: ${CDN_REUPLOAD_WAIT:-}
     stop_grace_period: 30s
     depends_on:
       sync:

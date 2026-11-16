@@ -34,6 +34,7 @@ var configFile = flag.String("f", "etc/files.yaml", "the config file")
 
 type Server struct {
 	grpcSrv *zrpc.RpcServer
+	svcCtx  *svc.ServiceContext
 }
 
 func New() *Server {
@@ -47,6 +48,7 @@ func (s *Server) Initialize() error {
 	// The config carries secrets (passwords, keys): never log it whole.
 	logx.Infof("loaded config %s", *configFile)
 	ctx := svc.NewServiceContext(c, nil, nil)
+	s.svcCtx = ctx
 	s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
 
 	go func() {
@@ -60,4 +62,5 @@ func (s *Server) RunLoop() {
 
 func (s *Server) Destroy() {
 	s.grpcSrv.Stop()
+	s.svcCtx.Stop()
 }

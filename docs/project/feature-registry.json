@@ -4666,9 +4666,9 @@
   "group": "account",
   "feature": "Ключи CDN; человек не видит",
   "used_by": "A: jni/tgnet/Handshake.cpp:1018; I: Network/Network.swift:1032; D: mtproto/mtp_instance.cpp:604 (из session_private.cpp:1030 при DC типа CDN); W: нет",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "Нужен только для CDN-дата-центров; у сервера их нет и он не выдаёт fileCdnRedirect."
+  "decision": "implement",
+  "priority": "normal",
+  "why": "Задача 102 (ADR 0065): ключи узлов CDN из cdn_nodes, здоровых и выведенных из редиректов; CDN выключен — пустой список. Android и tdesktop запрашивают, когда отпечатка из resPQ нет среди известных (Handshake.cpp:404-407; session_private.cpp:1028-1031)."
  },
  {
   "name": "help.getPremiumPromo",
@@ -4729,18 +4729,18 @@
   "group": "account",
   "feature": "Скачивание через CDN",
   "used_by": "A: messenger/FileLoadOperation.java:2451; I: Network/MultipartFetch.swift:423; D: storage/download_manager_mtproto.cpp:520; W: нет",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "Только после upload.fileCdnRedirect, сервер его не выдаёт: файлы идут из своего хранилища (ADR 0014)."
+  "decision": "implement",
+  "priority": "normal",
+  "why": "Задача 102 (ADR 0065): обслуживает узел cdn (app/service/cdn). На DC 1 — FILE_TOKEN_INVALID, клиент возвращается к upload.getFile (Android FileLoadOperation.java:2583-2589, tdesktop download_manager_mtproto.cpp:958-980)."
  },
  {
   "name": "upload.getCdnFileHashes",
   "group": "account",
   "feature": "Проверка файлов CDN",
   "used_by": "A: messenger/FileLoadOperation.java:1817; I: Network/MultipartFetch.swift:195; D: storage/download_manager_mtproto.cpp:610; W: нет",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "См. upload.getCdnFile."
+  "decision": "implement",
+  "priority": "normal",
+  "why": "Задача 102 (ADR 0065 §3): SHA-256 открытых кусков по 128 КБ от смещения, до 64; неизвестный токен или копия не готова — FILE_TOKEN_INVALID."
  },
  {
   "name": "upload.getFile",
@@ -4765,9 +4765,9 @@
   "group": "account",
   "feature": "Перезаливка файла на CDN",
   "used_by": "A: messenger/FileLoadOperation.java:2629; I: Network/MultipartFetch.swift:968; D: storage/download_manager_mtproto.cpp:665; W: нет",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "См. upload.getCdnFile."
+  "decision": "implement",
+  "priority": "normal",
+  "why": "Задача 102 (ADR 0065 §4): проверка request_token узла, перезаливка первой в очереди, ожидание готовности до CDN_REUPLOAD_WAIT; иначе FILE_TOKEN_INVALID или REQUEST_TOKEN_INVALID (Android FileLoadOperation.java:2623-2649)."
  },
  {
   "name": "users.getStoriesMaxIDs",
@@ -6205,18 +6205,18 @@
   "group": "media",
   "feature": "Download from a CDN",
   "used_by": "A FileLoadOperation.java:2451; I FetchV2.swift:909; D download_manager_mtproto.cpp:520",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "Clients use it only after upload.fileCdnRedirect, which the server never sends."
+  "decision": "implement",
+  "priority": "normal",
+  "why": "Задача 102 (ADR 0065): обслуживает узел cdn (app/service/cdn). На DC 1 — FILE_TOKEN_INVALID, клиент возвращается к upload.getFile (Android FileLoadOperation.java:2583-2589, tdesktop download_manager_mtproto.cpp:958-980)."
  },
  {
   "name": "upload.getCdnFileHashes",
   "group": "media",
   "feature": "CDN file check",
   "used_by": "A FileLoadOperation.java:1817; I FetchV2.swift:1136; D download_manager_mtproto.cpp:610",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "No CDN."
+  "decision": "implement",
+  "priority": "normal",
+  "why": "Задача 102 (ADR 0065 §3): SHA-256 открытых кусков по 128 КБ от смещения, до 64; неизвестный токен или копия не готова — FILE_TOKEN_INVALID."
  },
  {
   "name": "upload.getFileHashes",
@@ -6232,9 +6232,9 @@
   "group": "media",
   "feature": "CDN re-upload",
   "used_by": "A FileLoadOperation.java:2629; I FetchV2.swift:769; D download_manager_mtproto.cpp:665",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "No CDN."
+  "decision": "implement",
+  "priority": "normal",
+  "why": "Задача 102 (ADR 0065 §4): проверка request_token узла, перезаливка первой в очереди, ожидание готовности до CDN_REUPLOAD_WAIT; иначе FILE_TOKEN_INVALID или REQUEST_TOKEN_INVALID (Android FileLoadOperation.java:2623-2649)."
  },
  {
   "name": "users.getStoriesMaxIDs",

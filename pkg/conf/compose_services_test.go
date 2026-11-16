@@ -364,6 +364,18 @@ var optionalVars = map[string]bool{
 	// The statistics of channels and groups (task 103, ADR 0066): off
 	// without the key of the zoom tokens of their graphs.
 	"STATS_GRAPH_TOKEN_KEY": true,
+	// The CDN node of large files (task 102): the CDN is off without the
+	// control API, the limits take their defaults when empty, and the DC
+	// is needed only with the node.
+	"CDN_NODE_CONTROL":            true,
+	"CDN_DC_ID":                   true,
+	"CDN_DC_ADDRESS":              true,
+	"CDN_DC_SECRET":               true,
+	"CDN_MIN_FILE_SIZE":           true,
+	"CDN_PUSH_RATE_MBIT":          true,
+	"CDN_PUSH_CONCURRENCY":        true,
+	"CDN_MONTHLY_EGRESS_LIMIT_GB": true,
+	"CDN_REUPLOAD_WAIT":           true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }

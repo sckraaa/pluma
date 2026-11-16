@@ -20,17 +20,22 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/cdn"
 )
 
 // HelpGetCdnConfig
 // help.getCdnConfig#52029342 = CdnConfig;
+//
+// The keys of the CDN nodes (task 102): the clients check the key a CDN DC
+// offers in resPQ against them. With the CDN off the list is empty.
 func (c *FilesCore) HelpGetCdnConfig(in *mtproto.TLHelpGetCdnConfig) (*mtproto.CdnConfig, error) {
-	// TODO: not impl
-	c.Logger.Errorf("help.getCdnConfig blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	rValue := mtproto.MakeTLCdnConfig(&mtproto.CdnConfig{
-		PublicKeys: []*mtproto.CdnPublicKey{},
-	}).To_CdnConfig()
-
-	return rValue, nil
+	if c.svcCtx.CDN == nil {
+		return cdn.CdnConfigOf(nil), nil
+	}
+	cfg, err := c.svcCtx.CDN.CdnConfig(c.ctx)
+	if err != nil {
+		c.Logger.Errorf("help.getCdnConfig - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
+	return cfg, nil
 }

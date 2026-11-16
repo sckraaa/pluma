@@ -96,6 +96,8 @@ type Server struct {
 	// translation runs the queue of the translation engine and the sweep
 	// of its cache (task 101).
 	translation *translation_helper.Background
+	// files runs the pusher and the prober of the CDN (task 102).
+	files *files_helper.Module
 }
 
 func New() *Server {
@@ -347,18 +349,20 @@ func (s *Server) Initialize() error {
 			}))
 
 		// files_helper
-		mtproto.RegisterRPCFilesServer(
-			grpcServer,
-			files_helper.New(files_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				Mysql:         c.Mysql,
-				DfsClient:     c.DfsClient,
-				UserClient:    c.BizServiceClient,
-				MediaClient:   c.MediaClient,
-				WebFile:       c.WebFile,
-				KV:            c.KV,
-				Maps:          c.Maps,
-			}, catalog_helper.SetThumbFiles(c.Mysql, c.MediaClient), nil)) // the thumbnails of the sets users make (task 084)
+		// The CDN of large files (task 102) runs its pusher and prober
+		// beside the methods.
+		s.files = files_helper.New(files_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			DfsClient:     c.DfsClient,
+			UserClient:    c.BizServiceClient,
+			MediaClient:   c.MediaClient,
+			WebFile:       c.WebFile,
+			KV:            c.KV,
+			Maps:          c.Maps,
+			Cdn:           c.Cdn,
+		}, catalog_helper.SetThumbFiles(c.Mysql, c.MediaClient), nil) // the thumbnails of the sets users make (task 084)
+		mtproto.RegisterRPCFilesServer(grpcServer, s.files)
 
 		// passport_helper
 		mtproto.RegisterRPCPassportServer(
@@ -811,6 +815,9 @@ func (s *Server) Destroy() {
 	}
 	if s.translation != nil {
 		s.translation.Stop()
+	}
+	if s.files != nil {
+		s.files.Stop()
 	}
 	s.grpcSrv.Stop()
 }
