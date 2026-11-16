@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build e2e
+
 package e2e
 
 import (
@@ -219,4 +221,236 @@ func TestWidgets(t *testing.T) {
 	if _, err = ask(false, staticId); !strings.Contains(fmt.Sprint(err), "WIDGET_QUERY_NOT_ALLOWED") {
 		t.Fatalf("a widget that may not ask: %v", err)
 	}
+}
+
+// widgetQuery asks the widget of message msgId in peer through c's account
+// and returns the channel its answer comes on.
+func widgetQuery(ctx context.Context, c *user, peer *mtproto.InputPeer, msgId int32, data string) <-chan error {
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.c.Invoke(ctx, &mtproto.TLMessagesGetBotWidgetQueryAnswer{
+			Constructor: c.c.Constructor(mtproto.Predicate_messages_getBotWidgetQueryAnswer),
+			Peer:        peer, MsgId: msgId, Data: []byte(data),
+			QueryType: &mtproto.WidgetQueryType{Constructor: c.c.Constructor(mtproto.Predicate_widgetQueryTypeData)},
+		})
+		done <- err
+	}()
+	return done
+}
+
+// TestWidgetsInGroupAndInline: a bot's widgets beyond its private chats
+// (task 106, ADR 0068 p. 8; Android jni/twidget/widget-sandbox/docs/tgw-format.md).
+// In a basic group the bot sends a shared widget and then the same object
+// by its id: both carry its widget_id, and neither asks in the background.
+// The bot's edit of the group message's state reaches the other member as
+// updateMessageWidgetData in the group, with the new public state. A widget
+// a user sends via the bot as an inline result asks the bot by its inline
+// message id (updateInlineBotWidgetQuery), and the bot's edit by that id
+// reaches the recipient.
+func TestWidgetsInGroupAndInline(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 2)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	getState(ctx, t, alice)
+	getState(ctx, t, bob)
+	username := fmt.Sprintf("e2e%dbot", randomID()&0xffffff)
+	bot := botLoggedIn(ctx, t, phones[0], username)
+	getState(ctx, t, bot)
+
+	chatId := createChat(ctx, t, alice, "board", bob)
+	toBot := resolveBot(ctx, t, alice, username)
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLMessagesAddChatUserCBC6D107{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_addChatUserCBC6D107),
+		ChatId:      chatId, UserId: inputUserOfPeer(alice.c, toBot), FwdLimit: 50,
+	}); err != nil {
+		t.Fatalf("messages.addChatUser of the bot: %v", err)
+	}
+	group := chatPeer(bot, chatId)
+	send := func(media *mtproto.InputMedia) *mtproto.Message {
+		t.Helper()
+		o, err := bot.c.Invoke(ctx, &mtproto.TLMessagesSendMedia{
+			Constructor: bot.c.Constructor(mtproto.Predicate_messages_sendMedia),
+			Peer:        group, Media: media, Message: "Board", RandomId: randomID(),
+		})
+		if err != nil {
+			t.Fatalf("messages.sendMedia of a widget to the group: %v", err)
+		}
+		return sentMessage(t, o)
+	}
+	shared := send(&mtproto.InputMedia{
+		Constructor:  bot.c.Constructor(mtproto.Predicate_inputMediaWidget),
+		AllowQueries: true, SharedWidget: true, Width: 320, Html: widgetHTML,
+		PublicData: wrapperspb.String(`{"n":1}`), ChatData: wrapperspb.String("board 1"),
+	})
+	widgetId := shared.GetMedia().GetWidgetId().GetValue()
+	if widgetId == 0 {
+		t.Fatalf("a shared widget without its id: %v", shared)
+	}
+	byId := send(&mtproto.InputMedia{
+		Constructor: bot.c.Constructor(mtproto.Predicate_inputMediaWidgetId),
+		WidgetId:    widgetId, ChatData: wrapperspb.String("board 2"),
+	})
+	if m := byId.GetMedia(); m.GetWidgetId().GetValue() != widgetId || m.GetPublicData().GetValue() != `{"n":1}` || m.GetChatData().GetValue() != "board 2" {
+		t.Fatalf("the widget sent by its id: %v", byId)
+	}
+	if _, err := bot.c.Invoke(ctx, &mtproto.TLMessagesSendMedia{
+		Constructor: bot.c.Constructor(mtproto.Predicate_messages_sendMedia),
+		Peer:        group, RandomId: randomID(),
+		Media: &mtproto.InputMedia{Constructor: bot.c.Constructor(mtproto.Predicate_inputMediaWidgetId), WidgetId: widgetId ^ 1},
+	}); !strings.Contains(fmt.Sprint(err), "WIDGET_ID_INVALID") {
+		t.Fatalf("a widget id of nobody's: %v", err)
+	}
+
+	// Bob's copies: in a group the widget asks on a tap only.
+	bobIds := map[string]int32{}
+	for len(bobIds) < 2 {
+		waitUpdate(ctx, t, bob, mtproto.Predicate_updateNewMessage, func(u *mtproto.Update) bool {
+			m := u.GetMessage_MESSAGE()
+			w := m.GetMedia()
+			if w.GetPredicateName() != mtproto.Predicate_messageMediaWidget || m.GetPeerId().GetChatId() != chatId {
+				return false
+			}
+			if w.GetWidgetId().GetValue() != widgetId || !w.GetCanQuery() || w.GetBackgroundQuery() {
+				t.Fatalf("the widget in the group: %v", m)
+			}
+			bobIds[w.GetChatData().GetValue()] = m.GetId()
+			return true
+		})
+	}
+
+	// The bot's edit of the group message: the public state and the chat
+	// state together.
+	if _, err := bot.c.Invoke(ctx, &mtproto.TLMessagesEditMessageWidgetData{
+		Constructor: bot.c.Constructor(mtproto.Predicate_messages_editMessageWidgetData),
+		Peer:        group, Id: shared.GetId(),
+		PublicData: wrapperspb.String(`{"n":5}`), ChatData: wrapperspb.String("board 1, move 2"),
+	}); err != nil {
+		t.Fatalf("messages.editMessageWidgetData in the group: %v", err)
+	}
+	waitUpdate(ctx, t, bob, mtproto.Predicate_updateMessageWidgetData, func(u *mtproto.Update) bool {
+		return u.GetMsgId_INT32() == bobIds["board 1"] && u.GetPeer_PEER().GetChatId() == chatId &&
+			u.GetPublicData().GetValue() == `{"n":5}` && u.GetPublicDataHash() != nil && u.GetChatData().GetValue() == "board 1, move 2"
+	})
+
+	// Bob's tap in the group reaches the bot with the group's kind.
+	asked := widgetQuery(ctx, bob, chatPeer(bob, chatId), bobIds["board 2"], "tap")
+	var queryId int64
+	waitUpdate(ctx, t, bot, mtproto.Predicate_updateBotWidgetQuery, func(u *mtproto.Update) bool {
+		if string(u.GetData()) != "tap" || u.GetMsgId_INT32() != byId.GetId() || u.GetUserId() != bob.self.GetId() || u.GetChatType() != "group" {
+			return false
+		}
+		queryId = u.GetQueryId_INT64()
+		return true
+	})
+	answer := func(id int64, result string) {
+		t.Helper()
+		if _, err := bot.c.Invoke(ctx, &mtproto.TLMessagesSetBotWidgetQueryAnswer{
+			Constructor: bot.c.Constructor(mtproto.Predicate_messages_setBotWidgetQueryAnswer),
+			QueryId:     id, Result: wrapperspb.String(result),
+		}); err != nil {
+			t.Fatalf("messages.setBotWidgetQueryAnswer: %v", err)
+		}
+	}
+	answer(queryId, "ok")
+	if err := <-asked; err != nil {
+		t.Fatalf("the widget's request in the group: %v", err)
+	}
+
+	// A widget as an inline result, which Alice sends to Bob via the bot.
+	admin(t, "bot", "set", username, "-inline", "Boards...")
+	toBob := peerOf(ctx, t, alice, bob)
+	inline := make(chan error, 1)
+	var results *mtproto.Messages_BotResults
+	go func() {
+		o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesGetInlineBotResults{
+			Constructor: alice.c.Constructor(mtproto.Predicate_messages_getInlineBotResults),
+			Bot:         inputUserOfPeer(alice.c, toBot), Peer: toBob, Query: "board",
+		})
+		if err == nil {
+			results = o.(interface {
+				To_Messages_BotResults() *mtproto.Messages_BotResults
+			}).To_Messages_BotResults()
+		}
+		inline <- err
+	}()
+	waitUpdate(ctx, t, bot, mtproto.Predicate_updateBotInlineQuery, func(u *mtproto.Update) bool {
+		if u.GetQuery() != "board" {
+			return false
+		}
+		queryId = u.GetQueryId_INT64()
+		return true
+	})
+	if _, err := bot.c.Invoke(ctx, &mtproto.TLMessagesSetInlineBotResults{
+		Constructor: bot.c.Constructor(mtproto.Predicate_messages_setInlineBotResults),
+		QueryId:     queryId,
+		Results: []*mtproto.InputBotInlineResult{{
+			Constructor: bot.c.Constructor(mtproto.Predicate_inputBotInlineResult),
+			Id:          "w", Type: "article", Title: wrapperspb.String("Board"),
+			SendMessage: &mtproto.InputBotInlineMessage{
+				Constructor:  bot.c.Constructor(mtproto.Predicate_inputBotInlineMessageWidget),
+				AllowQueries: true, Width: 320, Html: widgetHTML, Message: "Board",
+				ChatData: wrapperspb.String("inline 1"),
+			},
+		}},
+	}); err != nil {
+		t.Fatalf("messages.setInlineBotResults with a widget: %v", err)
+	}
+	if err := <-inline; err != nil {
+		t.Fatalf("messages.getInlineBotResults: %v", err)
+	}
+	if r := results.GetResults(); len(r) != 1 || r[0].GetSendMessage().GetPredicateName() != mtproto.Predicate_botInlineMessageWidget {
+		t.Fatalf("the widget result: %v", results)
+	}
+	o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesSendInlineBotResult{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_sendInlineBotResult),
+		Peer:        toBob, RandomId: randomID(), QueryId: results.GetQueryId(), Id: "w",
+	})
+	if err != nil {
+		t.Fatalf("messages.sendInlineBotResult of the widget: %v", err)
+	}
+	if m := sentMessage(t, o); m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaWidget || m.GetViaBotId().GetValue() != bot.self.GetId() {
+		t.Fatalf("the widget sent via the bot: %v", m)
+	}
+	var bobInline int32
+	waitUpdate(ctx, t, bob, mtproto.Predicate_updateNewMessage, func(u *mtproto.Update) bool {
+		m := u.GetMessage_MESSAGE()
+		if m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaWidget || m.GetViaBotId().GetValue() != bot.self.GetId() {
+			return false
+		}
+		if !m.GetMedia().GetCanQuery() || m.GetMedia().GetBackgroundQuery() || m.GetMedia().GetChatData().GetValue() != "inline 1" {
+			t.Fatalf("the inline widget as Bob gets it: %v", m)
+		}
+		bobInline = m.GetId()
+		return true
+	})
+
+	asked = widgetQuery(ctx, bob, peerOf(ctx, t, bob, alice), bobInline, "hit")
+	var inlineId *mtproto.InputBotInlineMessageID
+	waitUpdate(ctx, t, bot, mtproto.Predicate_updateInlineBotWidgetQuery, func(u *mtproto.Update) bool {
+		if string(u.GetData()) != "hit" || u.GetUserId() != bob.self.GetId() || u.GetChatType() != "private" {
+			return false
+		}
+		queryId, inlineId = u.GetQueryId_INT64(), u.GetInlineMessageId()
+		return true
+	})
+	if inlineId == nil {
+		t.Fatal("the inline widget's request without its inline message id")
+	}
+	if _, err = bot.c.Invoke(ctx, &mtproto.TLMessagesEditInlineBotMessageWidgetData{
+		Constructor: bot.c.Constructor(mtproto.Predicate_messages_editInlineBotMessageWidgetData),
+		Id:          inlineId, ChatData: wrapperspb.String("inline 2"),
+	}); err != nil {
+		t.Fatalf("messages.editInlineBotMessageWidgetData: %v", err)
+	}
+	answer(queryId, "hit back")
+	if err = <-asked; err != nil {
+		t.Fatalf("the inline widget's request: %v", err)
+	}
+	waitUpdate(ctx, t, bob, mtproto.Predicate_updateMessageWidgetData, func(u *mtproto.Update) bool {
+		return u.GetMsgId_INT32() == bobInline && u.GetPeer_PEER().GetUserId() == alice.self.GetId() &&
+			u.GetChatData().GetValue() == "inline 2" && u.GetPublicData() == nil
+	})
 }
