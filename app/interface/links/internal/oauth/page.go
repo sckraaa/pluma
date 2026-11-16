@@ -99,7 +99,7 @@ func serveAsset(w http.ResponseWriter, r *http.Request, name string) {
 	w.Header().Set("Content-Type", typ)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_, _ = w.Write(b) //nolint:gosec // G705: an embedded file of its own type, never HTML
+	_, _ = w.Write(b)
 }
 
 // newPage is a page in the language of r.

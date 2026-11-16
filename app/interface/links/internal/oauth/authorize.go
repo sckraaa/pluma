@@ -335,7 +335,7 @@ func (p *Provider) start(w http.ResponseWriter, r *http.Request, bot *Account, r
 		Value:    p.binding(e.Token),
 		Path:     "/auth/state",
 		MaxAge:   int(urlauth.RequestTTL.Seconds()),
-		Secure:   strings.HasPrefix(p.Issuer, "https://"),
+		Secure:   true, // the issuer is an https:// origin (server.go checks it)
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	})

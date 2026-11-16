@@ -50,8 +50,18 @@ var (
 	oauthCodeRe   = regexp.MustCompile(`class="match-code">([^<]+)<`)
 )
 
+// oauthReply is what the provider answered, read in full.
+type oauthReply struct {
+	StatusCode int
+	Header     http.Header
+	cookies    []*http.Cookie
+}
+
+// Cookies are the cookies the answer sets.
+func (r oauthReply) Cookies() []*http.Cookie { return r.cookies }
+
 // oauthDo sends a request to the provider of the stand.
-func oauthDo(ctx context.Context, t *testing.T, method, target string, body url.Values, header http.Header) (*http.Response, string) {
+func oauthDo(ctx context.Context, t *testing.T, method, target string, body url.Values, header http.Header) (oauthReply, string) {
 	t.Helper()
 	var rd io.Reader
 	if body != nil {
@@ -82,7 +92,7 @@ func oauthDo(ctx context.Context, t *testing.T, method, target string, body url.
 	if err != nil {
 		t.Fatal(err)
 	}
-	return res, string(b)
+	return oauthReply{StatusCode: res.StatusCode, Header: res.Header, cookies: res.Cookies()}, string(b)
 }
 
 // oauthPage opens the page of a login request and returns its token, the
