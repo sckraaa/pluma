@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/status/status"
+	"github.com/teamgram/teamgram-server/pkg/cdn"
 
 	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -477,8 +478,13 @@ func (m *MainAuthWrapper) onUpdateInitConnection(ctx context.Context, clientIp s
 			// clientNeedUpdate = true
 		}
 		if m.client.Params != params {
+			// bff decides the redirects of the HTTPS CDN by the pluma_cdn
+			// of the stored params (task 107), so a change of it is stored;
+			// the others (tz_offset, perf_cat) change with no need to.
+			if cdn.PlumaCdnVersion(m.client.Params) != cdn.PlumaCdnVersion(params) {
+				clientNeedUpdate = true
+			}
 			m.client.Params = params
-			// clientNeedUpdate = true
 		}
 	}
 
