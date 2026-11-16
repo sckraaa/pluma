@@ -25,16 +25,6 @@ import (
 // transports retry without end. A method moves to its own handler file
 // when its part serves it.
 
-// AccountUpdateBusinessGreetingMessage is not served yet: account.updateBusinessGreetingMessage#66cdafc4.
-func (c *BusinessCore) AccountUpdateBusinessGreetingMessage(in *mtproto.TLAccountUpdateBusinessGreetingMessage) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// AccountUpdateBusinessAwayMessage is not served yet: account.updateBusinessAwayMessage#a26a7fa5.
-func (c *BusinessCore) AccountUpdateBusinessAwayMessage(in *mtproto.TLAccountUpdateBusinessAwayMessage) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // AccountGetBotBusinessConnection is not served yet: account.getBotBusinessConnection#76a86270.
 func (c *BusinessCore) AccountGetBotBusinessConnection(in *mtproto.TLAccountGetBotBusinessConnection) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

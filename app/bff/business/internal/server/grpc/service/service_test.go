@@ -43,6 +43,9 @@ var served = map[string]bool{
 	"AccountGetBusinessChatLinks":    true,
 	"AccountResolveBusinessChatLink": true,
 
+	"AccountUpdateBusinessGreetingMessage": true,
+	"AccountUpdateBusinessAwayMessage":     true,
+
 	"MessagesGetQuickReplies":          true,
 	"MessagesGetQuickReplyMessages":    true,
 	"MessagesCheckQuickReplyShortcut":  true,
@@ -419,5 +422,87 @@ func TestQuickReplySendRefused(t *testing.T) {
 	}
 	if _, err := s.MessagesDeleteQuickReplyMessages(bot, &mtproto.TLMessagesDeleteQuickReplyMessages{ShortcutId: 5, Id: []int32{1}}); !errors.Is(err, mtproto.ErrBotMethodInvalid) {
 		t.Errorf("delete by a bot: %v, want BOT_METHOD_INVALID", err)
+	}
+}
+
+func recipients(r *mtproto.InputBusinessRecipients) *mtproto.InputBusinessRecipients {
+	return mtproto.MakeTLInputBusinessRecipients(r).To_InputBusinessRecipients()
+}
+
+func greeting(days int32, r *mtproto.InputBusinessRecipients) *mtproto.TLAccountUpdateBusinessGreetingMessage {
+	return &mtproto.TLAccountUpdateBusinessGreetingMessage{
+		Message: mtproto.MakeTLInputBusinessGreetingMessage(&mtproto.InputBusinessGreetingMessage{
+			ShortcutId: 1, Recipients: r, NoActivityDays: days,
+		}).To_InputBusinessGreetingMessage(),
+	}
+}
+
+func away(schedule *mtproto.BusinessAwayMessageSchedule, r *mtproto.InputBusinessRecipients) *mtproto.TLAccountUpdateBusinessAwayMessage {
+	return &mtproto.TLAccountUpdateBusinessAwayMessage{
+		Message: mtproto.MakeTLInputBusinessAwayMessage(&mtproto.InputBusinessAwayMessage{
+			ShortcutId: 1, Schedule: schedule, Recipients: r,
+		}).To_InputBusinessAwayMessage(),
+	}
+}
+
+// The settings of the automatic replies refused before they read or write
+// anything: a bot, a period of inactivity the clients do not offer, a
+// custom schedule that ends before it starts, no recipients, and users of
+// the recipients that are not other people.
+func TestAutoRepliesRefused(t *testing.T) {
+	s := New(&svc.ServiceContext{})
+	user := callerCtx(t, 1, false)
+	bot := callerCtx(t, 2, true)
+	all := recipients(&mtproto.InputBusinessRecipients{ExcludeSelected: true})
+	always := mtproto.MakeTLBusinessAwayMessageScheduleAlways(nil).To_BusinessAwayMessageSchedule()
+	custom := func(start, end int32) *mtproto.BusinessAwayMessageSchedule {
+		return mtproto.MakeTLBusinessAwayMessageScheduleCustom(&mtproto.BusinessAwayMessageSchedule{StartDate: start, EndDate: end}).To_BusinessAwayMessageSchedule()
+	}
+	self := mtproto.MakeTLInputUserSelf(nil).To_InputUser()
+	many := make([]*mtproto.InputUser, 101)
+	for i := range many {
+		many[i] = mtproto.MakeTLInputUser(&mtproto.InputUser{UserId: int64(100 + i)}).To_InputUser()
+	}
+	for _, c := range []struct {
+		name string
+		call func() error
+		want error
+	}{
+		{"greeting of a bot", func() error { _, err := s.AccountUpdateBusinessGreetingMessage(bot, greeting(7, all)); return err }, mtproto.ErrBotMethodInvalid},
+		{"away message of a bot", func() error { _, err := s.AccountUpdateBusinessAwayMessage(bot, away(always, all)); return err }, mtproto.ErrBotMethodInvalid},
+		{"greeting turned off by a bot", func() error {
+			_, err := s.AccountUpdateBusinessGreetingMessage(bot, &mtproto.TLAccountUpdateBusinessGreetingMessage{})
+			return err
+		}, mtproto.ErrBotMethodInvalid},
+
+		{"0 days", func() error { _, err := s.AccountUpdateBusinessGreetingMessage(user, greeting(0, all)); return err }, mtproto.ErrNoActivityDaysInvalid},
+		{"8 days", func() error { _, err := s.AccountUpdateBusinessGreetingMessage(user, greeting(8, all)); return err }, mtproto.ErrNoActivityDaysInvalid},
+		{"greeting to nobody", func() error {
+			_, err := s.AccountUpdateBusinessGreetingMessage(user, greeting(7, recipients(&mtproto.InputBusinessRecipients{})))
+			return err
+		}, mtproto.ErrBusinessRecipientsEmpty},
+		{"greeting without recipients", func() error { _, err := s.AccountUpdateBusinessGreetingMessage(user, greeting(7, nil)); return err }, mtproto.ErrBusinessRecipientsEmpty},
+		{"greeting to oneself", func() error {
+			_, err := s.AccountUpdateBusinessGreetingMessage(user, greeting(7, recipients(&mtproto.InputBusinessRecipients{Users: []*mtproto.InputUser{self}})))
+			return err
+		}, mtproto.ErrUserIdInvalid},
+		{"greeting to 101 users", func() error {
+			_, err := s.AccountUpdateBusinessGreetingMessage(user, greeting(7, recipients(&mtproto.InputBusinessRecipients{Users: many})))
+			return err
+		}, mtproto.ErrUsersTooMuch},
+
+		{"away without a schedule", func() error { _, err := s.AccountUpdateBusinessAwayMessage(user, away(nil, all)); return err }, mtproto.ErrInputRequestInvalid},
+		{"away ending before it starts", func() error {
+			_, err := s.AccountUpdateBusinessAwayMessage(user, away(custom(200, 100), all))
+			return err
+		}, mtproto.ErrInputRequestInvalid},
+		{"away to nobody", func() error {
+			_, err := s.AccountUpdateBusinessAwayMessage(user, away(always, recipients(&mtproto.InputBusinessRecipients{Contacts: false})))
+			return err
+		}, mtproto.ErrBusinessRecipientsEmpty},
+	} {
+		if err := c.call(); !errors.Is(err, c.want) {
+			t.Errorf("%s: %v, want %v", c.name, err, c.want)
+		}
 	}
 }
