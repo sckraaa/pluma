@@ -2112,6 +2112,88 @@ var (
 	ErrMessageNotReadYet = status.Error(ErrBadRequest, "MESSAGE_NOT_READ_YET")
 )
 
+// pluma: the errors of Telegram Business (task 105, ADR 0067). The names
+// come from the method pages of core.telegram.org (account.updateBusinessWorkHours,
+// account.createBusinessChatLink, account.resolveBusinessChatLink,
+// account.updateConnectedBot, messages.editQuickReplyShortcut) and from
+// /api/business and /api/bots/connected-business-bots; the pages read give
+// no code for some of them, which are 400 here. ADDRESS_INVALID,
+// DESCRIPTION_INVALID and NO_ACTIVITY_DAYS_INVALID are not published by
+// Telegram: their names are this server's.
+var (
+	// ErrBusinessWorkHoursEmpty
+	// | 400 | BUSINESS_WORK_HOURS_EMPTY | No work hours were specified. |
+	ErrBusinessWorkHoursEmpty = status.Error(ErrBadRequest, "BUSINESS_WORK_HOURS_EMPTY")
+
+	// ErrBusinessWorkHoursPeriodInvalid
+	// | 400 | BUSINESS_WORK_HOURS_PERIOD_INVALID | The specified work hours are invalid. |
+	ErrBusinessWorkHoursPeriodInvalid = status.Error(ErrBadRequest, "BUSINESS_WORK_HOURS_PERIOD_INVALID")
+
+	// ErrTimezoneInvalid
+	// | 400 | TIMEZONE_INVALID | The specified timezone does not exist. |
+	ErrTimezoneInvalid = status.Error(ErrBadRequest, "TIMEZONE_INVALID")
+
+	// ErrAddressInvalid
+	// | 400 | ADDRESS_INVALID | The business address is longer than 96 characters. |
+	ErrAddressInvalid = status.Error(ErrBadRequest, "ADDRESS_INVALID")
+
+	// ErrDescriptionInvalid
+	// | 400 | DESCRIPTION_INVALID | The description of the business intro is too long. |
+	ErrDescriptionInvalid = status.Error(ErrBadRequest, "DESCRIPTION_INVALID")
+
+	// ErrNoActivityDaysInvalid
+	// | 400 | NO_ACTIVITY_DAYS_INVALID | The period of inactivity of a greeting is not 7, 14, 21 or 28 days. |
+	ErrNoActivityDaysInvalid = status.Error(ErrBadRequest, "NO_ACTIVITY_DAYS_INVALID")
+
+	// ErrChatlinksTooMuch
+	// | 400 | CHATLINKS_TOO_MUCH | Too many business chat links were created. |
+	ErrChatlinksTooMuch = status.Error(ErrBadRequest, "CHATLINKS_TOO_MUCH")
+
+	// ErrChatlinkSlugEmpty
+	// | 400 | CHATLINK_SLUG_EMPTY | The specified slug is empty. |
+	ErrChatlinkSlugEmpty = status.Error(ErrBadRequest, "CHATLINK_SLUG_EMPTY")
+
+	// ErrChatlinkSlugExpired
+	// | 400 | CHATLINK_SLUG_EXPIRED | The specified business chat link has expired. |
+	ErrChatlinkSlugExpired = status.Error(ErrBadRequest, "CHATLINK_SLUG_EXPIRED")
+
+	// ErrQuickRepliesTooMuch
+	// | 400 | QUICK_REPLIES_TOO_MUCH | Too many quick reply shortcuts. |
+	ErrQuickRepliesTooMuch = status.Error(ErrBadRequest, "QUICK_REPLIES_TOO_MUCH")
+
+	// ErrReplyMessagesTooMuch
+	// | 400 | REPLY_MESSAGES_TOO_MUCH | Too many messages in a quick reply shortcut. |
+	ErrReplyMessagesTooMuch = status.Error(ErrBadRequest, "REPLY_MESSAGES_TOO_MUCH")
+
+	// ErrShortcutInvalid
+	// | 400 | SHORTCUT_INVALID | The specified shortcut is invalid. |
+	ErrShortcutInvalid = status.Error(ErrBadRequest, "SHORTCUT_INVALID")
+
+	// ErrShortcutOccupied
+	// | 400 | SHORTCUT_OCCUPIED | Another shortcut has this name. |
+	ErrShortcutOccupied = status.Error(ErrBadRequest, "SHORTCUT_OCCUPIED")
+
+	// ErrBotBusinessMissing
+	// | 400 | BOT_BUSINESS_MISSING | The specified bot is not a business bot. |
+	ErrBotBusinessMissing = status.Error(ErrBadRequest, "BOT_BUSINESS_MISSING")
+
+	// ErrBusinessRecipientsEmpty
+	// | 400 | BUSINESS_RECIPIENTS_EMPTY | No recipients were specified. |
+	ErrBusinessRecipientsEmpty = status.Error(ErrBadRequest, "BUSINESS_RECIPIENTS_EMPTY")
+
+	// ErrBusinessConnectionInvalid
+	// | 400 | BUSINESS_CONNECTION_INVALID | The business connection is unknown or not the bot's. |
+	ErrBusinessConnectionInvalid = status.Error(ErrBadRequest, "BUSINESS_CONNECTION_INVALID")
+
+	// ErrBusinessConnectionNotAllowed
+	// | 400 | BUSINESS_CONNECTION_NOT_ALLOWED | This method cannot be called through a business connection. |
+	ErrBusinessConnectionNotAllowed = status.Error(ErrBadRequest, "BUSINESS_CONNECTION_NOT_ALLOWED")
+
+	// ErrBotAccessForbidden
+	// | 400 | BOT_ACCESS_FORBIDDEN | The business bot has no right to do this in this chat. |
+	ErrBotAccessForbidden = status.Error(ErrBadRequest, "BOT_ACCESS_FORBIDDEN")
+)
+
 // 401 UNAUTHORIZED
 var (
 	// ErrSessionPasswordNeeded
