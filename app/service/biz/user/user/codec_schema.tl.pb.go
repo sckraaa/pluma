@@ -651,6 +651,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 2145706849,
 		}
 	},
+	-864359738: func() mtproto.TLObject { // 0xcc7aeac6 pluma: task 104
+		return &TLUserEditUsernames{
+			Constructor: -864359738,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -7285,6 +7290,54 @@ func (m *TLUserSetGhost) Decode(dBuf *mtproto.DecodeBuf) error {
 		m4 := &mtproto.Bool{}
 		m4.Decode(dBuf)
 		m.Ghost = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserEditUsernames (pluma: task 104)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserEditUsernames) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xcc7aeac6:
+		x.UInt(0xcc7aeac6)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetAction())
+		x.String(m.GetUsername())
+		m.GetActive().Encode(x, layer)
+		x.VectorString(m.GetOrder())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserEditUsernames) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserEditUsernames) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xcc7aeac6:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.Action = dBuf.Int()
+		m.Username = dBuf.String()
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.Active = m4
+		m.Order = dBuf.VectorString()
 		return dBuf.GetError()
 
 	default:

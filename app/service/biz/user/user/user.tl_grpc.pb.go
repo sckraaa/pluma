@@ -142,6 +142,7 @@ const (
 	RPCUser_UserGetTopicNotifySettings_FullMethodName        = "/user.RPCUser/user_getTopicNotifySettings"
 	RPCUser_UserGetTopicNotifyExceptions_FullMethodName      = "/user.RPCUser/user_getTopicNotifyExceptions"
 	RPCUser_UserSetGhost_FullMethodName                      = "/user.RPCUser/user_setGhost"
+	RPCUser_UserEditUsernames_FullMethodName                 = "/user.RPCUser/user_editUsernames"
 )
 
 // RPCUserClient is the client API for RPCUser service.
@@ -269,6 +270,8 @@ type RPCUserClient interface {
 	UserGetTopicNotifyExceptions(ctx context.Context, in *TLUserGetTopicNotifyExceptions, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 080
 	UserSetGhost(ctx context.Context, in *TLUserSetGhost, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 104
+	UserEditUsernames(ctx context.Context, in *TLUserEditUsernames, opts ...grpc.CallOption) (*mtproto.Bool, error)
 }
 
 type rPCUserClient struct {
@@ -1409,6 +1412,16 @@ func (c *rPCUserClient) UserSetGhost(ctx context.Context, in *TLUserSetGhost, op
 	return out, nil
 }
 
+func (c *rPCUserClient) UserEditUsernames(ctx context.Context, in *TLUserEditUsernames, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCUser_UserEditUsernames_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCUserServer is the server API for RPCUser service.
 // All implementations should embed UnimplementedRPCUserServer
 // for forward compatibility.
@@ -1534,6 +1547,8 @@ type RPCUserServer interface {
 	UserGetTopicNotifyExceptions(context.Context, *TLUserGetTopicNotifyExceptions) (*mtproto.Updates, error)
 	// pluma: task 080
 	UserSetGhost(context.Context, *TLUserSetGhost) (*mtproto.Bool, error)
+	// pluma: task 104
+	UserEditUsernames(context.Context, *TLUserEditUsernames) (*mtproto.Bool, error)
 }
 
 // UnimplementedRPCUserServer should be embedded to have
@@ -1881,6 +1896,9 @@ func (UnimplementedRPCUserServer) UserGetTopicNotifyExceptions(context.Context, 
 }
 func (UnimplementedRPCUserServer) UserSetGhost(context.Context, *TLUserSetGhost) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserSetGhost not implemented")
+}
+func (UnimplementedRPCUserServer) UserEditUsernames(context.Context, *TLUserEditUsernames) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserEditUsernames not implemented")
 }
 func (UnimplementedRPCUserServer) testEmbeddedByValue() {}
 
@@ -3936,6 +3954,24 @@ func _RPCUser_UserSetGhost_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCUser_UserEditUsernames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserEditUsernames)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserEditUsernames(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserEditUsernames_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserEditUsernames(ctx, req.(*TLUserEditUsernames))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCUser_ServiceDesc is the grpc.ServiceDesc for RPCUser service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -4394,6 +4430,10 @@ var RPCUser_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "user_setGhost",
 			Handler:    _RPCUser_UserSetGhost_Handler,
+		},
+		{
+			MethodName: "user_editUsernames",
+			Handler:    _RPCUser_UserEditUsernames_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

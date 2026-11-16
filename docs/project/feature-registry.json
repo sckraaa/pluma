@@ -4459,9 +4459,9 @@
   "group": "account",
   "feature": "Порядок нескольких username",
   "used_by": "A: ui/ChangeUsernameActivity.java:631; I: Peers/AddressNames.swift:455; D: api/api_user_names.cpp:227; W: lib/appManagers/appUsernamesManager.ts:41",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "Без Fragment у пользователя одно имя, упорядочивать нечего."
+  "decision": "implement",
+  "priority": "rare",
+  "why": "Все четыре клиента вызывают с экрана имени пользователя. Общий код с каналами (pkg/peernames, задача 104); без Fragment у пользователя одно имя, ответ USERNAME_NOT_MODIFIED, как у Telegram."
  },
  {
   "name": "account.saveAutoSaveSettings",
@@ -4504,9 +4504,9 @@
   "group": "account",
   "feature": "Показать или скрыть дополнительный username",
   "used_by": "A: ui/ChangeUsernameActivity.java:295; I: Peers/AddressNames.swift:263; D: api/api_user_names.cpp:174; W: lib/appManagers/appUsernamesManager.ts:14",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "На Android диалог только для нередактируемых имён (ChangeUsernameActivity.java:281 уводит редактируемое в поле). Такие имена покупаются на Fragment, а Fragment исключён."
+  "decision": "implement",
+  "priority": "rare",
+  "why": "Все четыре клиента вызывают; на Android диалог только для нередактируемых имён (ChangeUsernameActivity.java:281 уводит редактируемое в поле). Общий код с каналами (pkg/peernames, задача 104); без Fragment ответ USERNAME_INVALID или USERNAME_NOT_MODIFIED, как у Telegram."
  },
  {
   "name": "account.updateVerified",

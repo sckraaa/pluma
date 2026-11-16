@@ -147,6 +147,8 @@ const (
 	Predicate_user_getTopicNotifyExceptions = "user_getTopicNotifyExceptions"
 	// pluma: task 080
 	Predicate_user_setGhost = "user_setGhost"
+	// pluma: task 104
+	Predicate_user_editUsernames = "user_editUsernames"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -646,6 +648,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 2145706849, // 0x7fe4e361
 
 	},
+	Predicate_user_editUsernames: { // pluma: task 104
+		0: -864359738, // 0xcc7aeac6
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -773,7 +779,8 @@ var clazzIdNameRegisters2 = map[int32]string{
 	1032369295:  Predicate_user_getTopicNotifySettings,        // 0x3d88b48f pluma: task 067
 	-852948814:  Predicate_user_getTopicNotifyExceptions,      // 0xcd2908b2 pluma: task 067
 
-	2145706849: Predicate_user_setGhost, // 0x7fe4e361 pluma: task 080
+	2145706849: Predicate_user_setGhost,      // 0x7fe4e361 pluma: task 080
+	-864359738: Predicate_user_editUsernames, // 0xcc7aeac6 pluma: task 104
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

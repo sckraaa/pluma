@@ -27,6 +27,14 @@ const (
 	MaxUsernameLen = 32
 )
 
+// The actions of user.editUsernames (task 104).
+const (
+	// UsernamesToggle shows or hides one username (account.toggleUsername).
+	UsernamesToggle int32 = 1
+	// UsernamesReorder orders the shown usernames (account.reorderUsernames).
+	UsernamesReorder int32 = 2
+)
+
 const (
 	UsernameNotExisted   = 0
 	UsernameExisted      = 1
