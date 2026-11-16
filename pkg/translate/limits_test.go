@@ -107,7 +107,7 @@ func TestCheckItems(t *testing.T) {
 		{"longest request", plain(repeatItems(strings.Repeat("a", DefaultMaxItemLength), DefaultMaxRequestLength/DefaultMaxItemLength)...), nil},
 		{"request too long", plain(append(repeatItems(strings.Repeat("a", DefaultMaxItemLength), DefaultMaxRequestLength/DefaultMaxItemLength), "a")...), ErrInputTextTooLong},
 	} {
-		if err := CheckItems(c, tc.items); !errors.Is(err, tc.want) && !(err == nil && tc.want == nil) {
+		if err := CheckItems(c, tc.items); !errors.Is(err, tc.want) {
 			t.Errorf("%s: %v, want %v", tc.name, err, tc.want)
 		}
 	}

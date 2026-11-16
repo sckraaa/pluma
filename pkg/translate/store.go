@@ -120,7 +120,7 @@ func (s *Store) TranslationsDisabled(ctx context.Context, userId int64, peers ..
 		conds = append(conds, "(peer_type = ? AND peer_id = ?)")
 		args = append(args, p.Type, p.Id)
 	}
-	query := "SELECT peer_type, peer_id FROM peer_translation_settings WHERE user_id = ? AND disabled = 1 AND (" + strings.Join(conds, " OR ") + ")"
+	query := "SELECT peer_type, peer_id FROM peer_translation_settings WHERE user_id = ? AND disabled = 1 AND (" + strings.Join(conds, " OR ") + ")" //nolint:gosec // only constant conditions with placeholders are joined into the query
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("translate: translations of %d: %w", userId, err)

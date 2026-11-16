@@ -216,7 +216,7 @@ func (s *Store) CachedTranslations(ctx context.Context, keys []Key) (map[Key]*Ca
 			args = append(args, k[:])
 		}
 		args = append(args, stale)
-		query := "UPDATE translation_cache SET used_at = ? WHERE cache_key IN (" + sqlPlaceholders(len(part)) + ") AND used_at < ?"
+		query := "UPDATE translation_cache SET used_at = ? WHERE cache_key IN (" + sqlPlaceholders(len(part)) + ") AND used_at < ?" //nolint:gosec // only placeholders are joined into the query
 		if _, err := s.db.ExecContext(ctx, query, args...); err != nil {
 			return nil, fmt.Errorf("translate: touch cached translations: %w", err)
 		}
@@ -231,7 +231,7 @@ func (s *Store) readCache(ctx context.Context, keys []Key, stale int64, found ma
 	for i, k := range keys {
 		args[i] = k[:]
 	}
-	query := "SELECT cache_key, `text`, entities, markup, used_at FROM translation_cache WHERE cache_key IN (" + sqlPlaceholders(len(keys)) + ")"
+	query := "SELECT cache_key, `text`, entities, markup, used_at FROM translation_cache WHERE cache_key IN (" + sqlPlaceholders(len(keys)) + ")" //nolint:gosec // only placeholders are joined into the query
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("translate: read cached translations: %w", err)

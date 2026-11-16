@@ -90,7 +90,7 @@ func TestBench(t *testing.T) {
 		opt.Repeat = n
 	}
 	if path := os.Getenv("TRANSLATE_ENGINE_OUT"); path != "" {
-		f, err := os.Create(path) //nolint:gosec // G304: the file the operator named
+		f, err := os.Create(path)
 		if err != nil {
 			t.Fatal(err)
 		}

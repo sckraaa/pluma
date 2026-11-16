@@ -137,7 +137,6 @@ type flow struct {
 	t        *testing.T
 	cfg      translate.Config
 	engine   *itEngine
-	url      string
 	store    *translate.Store
 	svc      *svc.ServiceContext
 	messages *fakeMessages
