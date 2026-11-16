@@ -83,6 +83,9 @@ var secretNames = set(
 	"phonecodeflagstring", "getphonecodeflagstring",
 	"phonecodehash", "getphonecodehash", "codehash", "getcodehash",
 	"logincode", "code", "hmackey",
+	// the codes of account.invalidateSignInCodes and those found in a
+	// message (task 098)
+	"codes", "getcodes", "candidates",
 	"password", "getpassword", "newpassword", "getnewpassword",
 	// SRP of the 2FA password (pkg/twofa): the verifier, the client's A and
 	// M1, the server's b and srp_B

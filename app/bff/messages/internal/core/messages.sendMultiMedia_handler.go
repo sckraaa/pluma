@@ -225,6 +225,12 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 		c.Logger.Errorf("messages.sendMedia#c8f16791 - error: %v", err)
 		return nil, err
 	}
+	// A code in a caption of the album (task 098).
+	captions := make([]string, 0, len(in.MultiMedia))
+	for _, media := range in.MultiMedia {
+		captions = append(captions, media.GetMessage())
+	}
+	c.invalidateSentLoginCodes(captions...)
 	// The stickers of an album are recent ones as those of messages.sendMedia
 	// (task 081), in the order of the album: the last on top, as Android
 	// and iOS order them by message (MessagesController.java:22010,

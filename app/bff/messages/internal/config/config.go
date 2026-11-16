@@ -21,6 +21,8 @@ package config
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -42,4 +44,9 @@ type Config struct {
 	DfsClient zrpc.RpcClientConf
 	// ChannelClient reads the history of channels (task 039).
 	ChannelClient zrpc.RpcClientConf
+	// LoginCode (only its HmacKey) and KV reach the pending login codes, so
+	// that a code the account sends to a chat is invalidated (task 098,
+	// logincode.Invalidator).
+	LoginCode logincode.Config
+	KV        kv.KvConf
 }

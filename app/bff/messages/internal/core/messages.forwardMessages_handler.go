@@ -124,6 +124,14 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 		return nil, err
 	}
 	c.attachPollReply(rUpdates)
+	// A forwarded message of the service notifications account with a
+	// login code, or any other text with one (task 098): the texts as they
+	// were forwarded; a caption drop_media_captions removed was not sent.
+	texts := make([]string, 0, len(fwdOutboxList))
+	for _, m := range fwdOutboxList {
+		texts = append(texts, m.GetMessage().GetMessage())
+	}
+	c.invalidateSentLoginCodes(texts...)
 
 	if fromPeer.PeerType == mtproto.PEER_CHANNEL {
 		// The forward is done and answered whatever happens to its count.

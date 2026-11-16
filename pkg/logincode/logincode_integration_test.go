@@ -298,3 +298,44 @@ func TestRegistrationSwitchOnMySQL(t *testing.T) {
 		}
 	}
 }
+
+// TestRedisInvalidate: a code invalidated on the production Redis is
+// PHONE_CODE_EXPIRED afterwards; a pending request that matched none of the
+// codes is left with its attempts and its code.
+func TestRedisInvalidate(t *testing.T) {
+	ctx := context.Background()
+	phone := itPhone()
+	s, rds := itService(t, phone)
+	ip := itIP()
+	shown, err := s.Issue(ctx, phone, "h1"+phone, ip, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kept := shown
+	for kept == shown || kept == wrongCode(shown) {
+		if kept, err = s.Issue(ctx, phone, "h2"+phone, ip, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	v, err := NewInvalidator(Config{HmacKey: testKey}, kv.NewStore(itRedis.KvConf()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := v.Invalidate(ctx, phone, []string{shown[:3] + "-" + shown[3:], wrongCode(shown)})
+	if err != nil || n != 1 {
+		t.Fatalf("Invalidate = %d, %v; want 1", n, err)
+	}
+	if got := rpcMessage(s.Verify(ctx, phone, "h1"+phone, shown, ip)); got != "PHONE_CODE_EXPIRED" {
+		t.Fatalf("the invalidated code: %s, want PHONE_CODE_EXPIRED", got)
+	}
+	if ok, _ := rds.HexistsCtx(ctx, requestsKey(phone), "h1"+phone); ok {
+		t.Fatal("the invalidated request is still pending")
+	}
+	if a, _ := rds.HgetCtx(ctx, secretKey("h2"+phone), "attempts"); a != "0" {
+		t.Fatalf("attempts of the request kept = %s, want 0", a)
+	}
+	if err := s.Verify(ctx, phone, "h2"+phone, kept, ip); err != nil {
+		t.Fatalf("the code of the request kept: %v", err)
+	}
+}

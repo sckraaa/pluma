@@ -72,6 +72,8 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"slice of messages", `func f(msgs []*mtproto.TLMessage2) { logx.Infof("%#v", msgs) }`, []string{"object"}},
 		{"login code", `func f(phoneCode, phoneCodeHash string) { logx.Infof("code %s hash %s", phoneCode, phoneCodeHash) }`, []string{"secret", "secret"}},
 		{"code getter", `func f(in *mtproto.TLAuthSignIn) { logx.Infof("%s", in.GetPhoneCode_STRING()) }`, []string{"secret"}},
+		{"shown login codes", `func f(in *mtproto.TLAccountInvalidateSignInCodes, candidates []string) { logx.Infof("%v %v", in.GetCodes(), candidates) }`, []string{"secret", "secret"}},
+		{"shown login codes count ok", `func f(in *mtproto.TLAccountInvalidateSignInCodes, n int) { logx.Infof("%d of %d", n, len(in.GetCodes())) }`, nil},
 		{"srp proof", `func f(in *mtproto.InputCheckPasswordSRP) { logx.Infof("A %x M1 %x", in.GetA(), in.M1) }`, []string{"secret", "secret"}},
 		{"srp values", `func f(p *mtproto.Account_Password, s *mtproto.Account_PasswordInputSettings) { logx.Infof("%x %x", p.GetSrp_B(), s.GetNewPasswordHash()) }`, []string{"secret", "secret"}},
 		{"srp id ok", `func f(in *mtproto.InputCheckPasswordSRP) { logx.Infof("srp_id %d", in.GetSrpId()) }`, nil},
