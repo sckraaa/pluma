@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/messages/plugin"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/pkg/botgames"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
@@ -91,6 +92,9 @@ type ServiceContext struct {
 	// LoginDomains checks the links of the login buttons of bots (task
 	// 106).
 	LoginDomains LoginDomains
+
+	// Games finds the games of bots that inputMediaGame names (task 106).
+	Games botgames.Store
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories plugin.StoryPlugin) *ServiceContext {
@@ -107,6 +111,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories pl
 	// sender stay with authorization.
 	loginCodes, err := logincode.NewInvalidator(logincode.Config{HmacKey: c.LoginCode.HmacKey}, kv.NewStore(c.KV))
 	logx.Must(err)
+	bots := botstore.New(db)
 	return &ServiceContext{
 		Config:       c,
 		Dao:          d,
@@ -119,7 +124,8 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories pl
 		StickerLists: stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
 		Attached:     attached.NewStore(db),
 		LoginCodes:   loginCodes,
-		LoginDomains: botstore.New(db),
+		LoginDomains: bots,
+		Games:        bots,
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

@@ -43,6 +43,14 @@ type Env struct {
 	// LoginDomain returns the login domain of the user (bots.login_domain,
 	// "" for none); isBot is false when the user is not a bot.
 	LoginDomain func(userId int64) (domain string, isBot bool, err error)
+	// Game tells that the message carries a game (messageMediaGame): only
+	// then may its markup have keyboardButtonGame, and only as the first
+	// button of the first row (core.telegram.org/bots/api#inlinekeyboardbutton,
+	// callback_game: "This type of button must always be the first button
+	// in the first row"). Clients open the game by that button: tdesktop
+	// makes a click on the game itself press the button at row 0, column 0
+	// (history/view/media/history_view_game.cpp:58-69).
+	Game bool
 }
 
 // Normalize checks markup and returns what is stored on the message: the
@@ -69,9 +77,12 @@ func Normalize(markup *mtproto.ReplyMarkup, env Env) (*mtproto.ReplyMarkup, erro
 	// by (tdesktop boxes/url_auth_box.cpp:279-295 sends button->buttonId of
 	// the button pressed).
 	position := int32(0)
-	for _, row := range markup.GetRows() {
+	for r, row := range markup.GetRows() {
 		for i, button := range row.GetButtons() {
 			position++
+			if button.GetPredicateName() == mtproto.Predicate_keyboardButtonGame && !(inline && env.Game && r == 0 && i == 0) {
+				return nil, mtproto.ErrButtonTypeInvalid
+			}
 			normal, err := normalizeButton(button, inline, position, env)
 			if err != nil {
 				return nil, err

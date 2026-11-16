@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/botgames"
 	"github.com/teamgram/teamgram-server/pkg/botmarkup"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
@@ -238,12 +239,27 @@ func (c *BotsCore) MessagesSetInlineBotResults(in *mtproto.TLMessagesSetInlineBo
 	}
 	ids := make(map[string]struct{}, len(in.Results))
 	results := make([]*mtproto.BotInlineResult, 0, len(in.Results))
+	var games map[string]dao.GameRef
 	for _, r := range in.Results {
 		if _, dup := ids[r.GetId()]; dup {
 			return nil, mtproto.ErrResultIdDuplicate
 		}
 		ids[r.GetId()] = struct{}{}
-		res, err := c.inlineResult(r)
+		var (
+			res *mtproto.BotInlineResult
+			err error
+		)
+		if r.GetPredicateName() == mtproto.Predicate_inputBotInlineResultGame {
+			var ref dao.GameRef
+			if res, ref, err = c.inlineGameResult(r); err == nil {
+				if games == nil {
+					games = make(map[string]dao.GameRef)
+				}
+				games[r.GetId()] = ref
+			}
+		} else {
+			res, err = c.inlineResult(r)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -257,6 +273,7 @@ func (c *BotsCore) MessagesSetInlineBotResults(in *mtproto.TLMessagesSetInlineBo
 		CacheTime:     in.CacheTime,
 		Private:       in.Private,
 		Bot:           c.MD.UserId,
+		Games:         games,
 	}
 	if in.NextOffset != nil {
 		a.NextOffset = in.NextOffset.GetValue()
@@ -277,6 +294,12 @@ func (c *BotsCore) MessagesSetInlineBotResults(in *mtproto.TLMessagesSetInlineBo
 // content at a URL and no media already on the server cannot be sent as
 // media, because the server does not fetch URLs, and is refused.
 func (c *BotsCore) inlineResult(r *mtproto.InputBotInlineResult) (*mtproto.BotInlineResult, error) {
+	// Type "game" is a game's (inlineGameResult): tdesktop shows a result of
+	// that type as a game (inline_bot_result.cpp:75), and sending one that
+	// is not would fail (outOfResult).
+	if r.GetType() == "game" {
+		return nil, mtproto.ErrResultTypeInvalid
+	}
 	send, err := c.inlineMessage(r.GetSendMessage())
 	if err != nil {
 		return nil, err
@@ -305,8 +328,60 @@ func (c *BotsCore) inlineResult(r *mtproto.InputBotInlineResult) (*mtproto.BotIn
 		}
 		return mtproto.MakeTLBotInlineMediaResult(&mtproto.BotInlineResult{Id: r.GetId(), Type: r.GetType(), Document: document, Title: r.GetTitle(), Description: r.GetDescription(), SendMessage: send}).To_BotInlineResult(), nil
 	}
-	// Games are not served.
+	// A game is a result of an inline query only (inlineGameResult).
 	return nil, mtproto.ErrResultTypeInvalid
+}
+
+// inlineGameResult turns a game of the bot (inputBotInlineResultGame) into
+// the result clients show: botInlineMediaResult of type "game" with the
+// game's picture, animation, title and description, which tdesktop shows
+// and sends as a game (inline_bot_result.cpp:75, 155-165, 188-192). Its
+// message is inputBotInlineMessageGame, SEND_MESSAGE_TYPE_INVALID
+// otherwise, and its keyboard starts with the game's button or has none
+// (botgames.Check): the button goes in when a user sends the result, in
+// the user's language. The game is a game of the bot, by its short name,
+// MEDIA_INVALID for none. ref names the game for the send.
+func (c *BotsCore) inlineGameResult(r *mtproto.InputBotInlineResult) (*mtproto.BotInlineResult, dao.GameRef, error) {
+	m := r.GetSendMessage()
+	if m.GetPredicateName() != mtproto.Predicate_inputBotInlineMessageGame {
+		return nil, dao.GameRef{}, mtproto.ErrSendMessageTypeInvalid
+	}
+	env := c.markupEnv()
+	env.Game = true
+	markup, err := botmarkup.Normalize(m.GetReplyMarkup(), env)
+	if err != nil {
+		return nil, dao.GameRef{}, err
+	}
+	if err = botgames.Check(markup); err != nil {
+		return nil, dao.GameRef{}, err
+	}
+	game, err := c.svcCtx.Bots.GameByShortName(c.ctx, c.MD.UserId, r.GetShortName())
+	if err != nil {
+		c.Logger.Errorf("messages.setInlineBotResults - game: %v", err)
+		return nil, dao.GameRef{}, mtproto.ErrInternalServerError
+	}
+	if game == nil {
+		return nil, dao.GameRef{}, mtproto.ErrMediaInvalid
+	}
+	tl, err := botgames.TL(c.ctx, c.svcCtx.MediaClient, game)
+	if err != nil {
+		c.Logger.Errorf("messages.setInlineBotResults - game: %v", err)
+		return nil, dao.GameRef{}, mtproto.ErrInternalServerError
+	}
+	res := &mtproto.BotInlineResult{
+		Id:       r.GetId(),
+		Type:     "game",
+		Photo:    tl.GetPhoto(),
+		Document: tl.GetDocument(),
+		Title:    wrapperspb.String(tl.GetTitle()),
+		SendMessage: mtproto.MakeTLBotInlineMessageMediaAuto(&mtproto.BotInlineMessage{
+			ReplyMarkup: markup,
+		}).To_BotInlineMessage(),
+	}
+	if tl.GetDescription() != "" {
+		res.Description = wrapperspb.String(tl.GetDescription())
+	}
+	return mtproto.MakeTLBotInlineMediaResult(res).To_BotInlineResult(), dao.GameRef{Id: game.Id, AccessHash: game.AccessHash}, nil
 }
 
 // resolveUser is the user an input button of a bot names, 0 for nobody.
@@ -343,8 +418,8 @@ func webDocument(key []byte, d *mtproto.InputWebDocument) *mtproto.WebDocument {
 }
 
 // inlineMessage turns what a result sends into its stored form. Web page,
-// invoice, game and rich message results are refused: nothing here makes
-// them.
+// invoice and rich message results are refused: nothing here makes them;
+// the message of a game is inlineGameResult's.
 func (c *BotsCore) inlineMessage(m *mtproto.InputBotInlineMessage) (*mtproto.BotInlineMessage, error) {
 	markup, err := botmarkup.Normalize(m.GetReplyMarkup(), c.markupEnv())
 	if err != nil {
@@ -370,7 +445,9 @@ func (c *BotsCore) inlineMessage(m *mtproto.InputBotInlineMessage) (*mtproto.Bot
 
 // outOfResult builds the message a chosen result sends: text and markup, and
 // the media of the result (its photo or document) or of the message itself.
-func outOfResult(r *mtproto.BotInlineResult) (*mtproto.Message, error) {
+// game is the game of a game result, which is its media; a game result
+// without it is not sent.
+func outOfResult(r *mtproto.BotInlineResult, game *mtproto.Game) (*mtproto.Message, error) {
 	send := r.GetSendMessage()
 	out := mtproto.MakeTLMessage(&mtproto.Message{
 		Out:         true,
@@ -379,9 +456,14 @@ func outOfResult(r *mtproto.BotInlineResult) (*mtproto.Message, error) {
 		Entities:    send.GetEntities(),
 		ReplyMarkup: send.GetReplyMarkup(),
 	}).To_Message()
+	if (game != nil) != (r.GetPredicateName() == mtproto.Predicate_botInlineMediaResult && r.GetType() == "game") {
+		return nil, mtproto.ErrResultTypeInvalid
+	}
 	switch send.GetPredicateName() {
 	case mtproto.Predicate_botInlineMessageMediaAuto:
 		switch {
+		case game != nil:
+			out.Media = botgames.MessageMedia(game)
 		case r.GetPhoto() != nil:
 			out.Media = mtproto.MakeTLMessageMediaPhoto(&mtproto.MessageMedia{Photo_FLAGPHOTO: r.GetPhoto()}).To_MessageMedia()
 		case r.GetDocument() != nil:
@@ -432,7 +514,18 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 		return nil, mtproto.ErrResultIdInvalid
 	}
 
+	// A game result sends the game the answer named (dao.GameRef): one
+	// removed since is no longer sent.
+	var game *mtproto.Game
+	if ref, ok := answer.Games[in.Id]; ok {
+		if game, err = c.inlineGame(ref); err != nil {
+			c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
+			return nil, err
+		}
+	}
+
 	out, updates, err := c.sendInlineResult(&inlineSend{
+		game:         game,
 		userId:       c.MD.UserId,
 		authKeyId:    c.MD.PermAuthKeyId,
 		peer:         peer,
@@ -474,6 +567,8 @@ type inlineSend struct {
 	// botId is the bot of the result, via_bot_id of the message.
 	botId  int64
 	result *mtproto.BotInlineResult
+	// game is the game of a game result (task 106).
+	game *mtproto.Game
 	// hideVia drops via_bot_id for a built-in bot.
 	hideVia      bool
 	silent       bool
@@ -514,9 +609,16 @@ func (c *BotsCore) sendInlineResult(s *inlineSend) (*mtproto.Message, *mtproto.U
 		return nil, nil, err
 	}
 
-	out, err := outOfResult(s.result)
+	out, err := outOfResult(s.result, s.game)
 	if err != nil {
 		return nil, nil, err
+	}
+	if s.game != nil {
+		// The button that starts the game, in the sender's language when
+		// the bot gave none (botgames.Markup).
+		if out.ReplyMarkup, err = botgames.Markup(out.ReplyMarkup, s.game.GetTitle(), c.MD.LangCode); err != nil {
+			return nil, nil, err
+		}
 	}
 	out.Date = int32(time.Now().Unix())
 	out.FromId = from

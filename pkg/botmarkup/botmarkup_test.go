@@ -243,3 +243,48 @@ func TestNormalizeKinds(t *testing.T) {
 		t.Errorf("callback on a reply keyboard: %v", err)
 	}
 }
+
+// The game's button is the first button of the first row of an inline
+// keyboard of a message with a game, and nowhere else.
+func TestNormalizeGameButton(t *testing.T) {
+	game := func() *mtproto.KeyboardButton {
+		return mtproto.MakeTLKeyboardButtonGame(&mtproto.KeyboardButton{Text: "Play"}).To_KeyboardButton()
+	}
+	cb := func() *mtproto.KeyboardButton {
+		return mtproto.MakeTLKeyboardButtonCallback(&mtproto.KeyboardButton{Text: "Go", Data: []byte("x")}).To_KeyboardButton()
+	}
+	rows := func(maker func(...*mtproto.KeyboardButtonRow) *mtproto.ReplyMarkup, rows ...[]*mtproto.KeyboardButton) *mtproto.ReplyMarkup {
+		out := make([]*mtproto.KeyboardButtonRow, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, mtproto.MakeTLKeyboardButtonRow(&mtproto.KeyboardButtonRow{Buttons: r}).To_KeyboardButtonRow())
+		}
+		return maker(out...)
+	}
+	inline := func(r ...*mtproto.KeyboardButtonRow) *mtproto.ReplyMarkup {
+		return mtproto.MakeTLReplyInlineMarkup(&mtproto.ReplyMarkup{Rows: r}).To_ReplyMarkup()
+	}
+	reply := func(r ...*mtproto.KeyboardButtonRow) *mtproto.ReplyMarkup {
+		return mtproto.MakeTLReplyKeyboardMarkup(&mtproto.ReplyMarkup{Rows: r}).To_ReplyMarkup()
+	}
+	withGame := none
+	withGame.Game = true
+
+	if _, err := Normalize(rows(inline, []*mtproto.KeyboardButton{game(), cb()}, []*mtproto.KeyboardButton{cb()}), withGame); err != nil {
+		t.Errorf("the game's button first: %v", err)
+	}
+	for name, tc := range map[string]struct {
+		markup *mtproto.ReplyMarkup
+		env    Env
+	}{
+		"a message without a game": {rows(inline, []*mtproto.KeyboardButton{game()}), none},
+		"second in the first row":  {rows(inline, []*mtproto.KeyboardButton{cb(), game()}), withGame},
+		"first of the second row":  {rows(inline, []*mtproto.KeyboardButton{cb()}, []*mtproto.KeyboardButton{game()}), withGame},
+		"after an empty first row": {rows(inline, []*mtproto.KeyboardButton{}, []*mtproto.KeyboardButton{game()}), withGame},
+		"twice":                    {rows(inline, []*mtproto.KeyboardButton{game(), game()}), withGame},
+		"a reply keyboard":         {rows(reply, []*mtproto.KeyboardButton{game()}), withGame},
+	} {
+		if _, err := Normalize(tc.markup, tc.env); !errors.Is(err, mtproto.ErrButtonTypeInvalid) {
+			t.Errorf("%s: %v, want BUTTON_TYPE_INVALID", name, err)
+		}
+	}
+}

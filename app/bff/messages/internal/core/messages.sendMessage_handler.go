@@ -87,7 +87,7 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	//send_as:flags.13?InputPeer
 	//quick_reply_shortcut:flags.17?InputQuickReplyShortcut
 	//effect:flags.18?long = Updates;
-	replyMarkup, err := c.botMarkup(in.ReplyMarkup)
+	replyMarkup, err := c.botMarkup(in.ReplyMarkup, false)
 	if err != nil {
 		c.Logger.Errorf("messages.sendMessage - reply markup: %v", err)
 		return nil, err

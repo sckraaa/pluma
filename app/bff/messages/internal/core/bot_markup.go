@@ -27,7 +27,9 @@ import (
 // and with its input buttons turned into received ones (task 070), and none
 // from a user account: the keyboards are for bots
 // (core.telegram.org/api/bots/buttons: "Bots can attach a ReplyMarkup").
-func (c *MessagesCore) botMarkup(markup *mtproto.ReplyMarkup) (*mtproto.ReplyMarkup, error) {
+// game tells that the message carries a game, the only message whose
+// keyboard may have the game's button (botmarkup.Env.Game, task 106).
+func (c *MessagesCore) botMarkup(markup *mtproto.ReplyMarkup, game bool) (*mtproto.ReplyMarkup, error) {
 	if markup == nil {
 		return nil, nil
 	}
@@ -51,6 +53,7 @@ func (c *MessagesCore) botMarkup(markup *mtproto.ReplyMarkup) (*mtproto.ReplyMar
 			return u.PeerId
 		},
 		LoginDomain: c.loginDomain,
+		Game:        game,
 	})
 }
 

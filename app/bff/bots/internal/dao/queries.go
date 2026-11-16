@@ -85,6 +85,15 @@ type InlineAnswer struct {
 	CacheTime     int32                      `json:"cache_time,omitempty"`
 	Private       bool                       `json:"private,omitempty"`
 	Bot           int64                      `json:"bot"`
+	// Games are the games of the game results by result id (task 106):
+	// botInlineMediaResult has no field that names its game.
+	Games map[string]GameRef `json:"games,omitempty"`
+}
+
+// GameRef names a game of pkg/botstore (inputGameID).
+type GameRef struct {
+	Id         int64 `json:"id"`
+	AccessHash int64 `json:"access_hash"`
 }
 
 // inlineOwner is who asked an inline query and of which bot.

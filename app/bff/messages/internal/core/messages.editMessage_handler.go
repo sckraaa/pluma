@@ -25,6 +25,7 @@ import (
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
+	"github.com/teamgram/teamgram-server/pkg/botgames"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -174,12 +175,24 @@ func (c *MessagesCore) applyEdit(outMessage *mtproto.Message, in *mtproto.TLMess
 	outMessage.EditDate = &wrapperspb.Int32Value{Value: int32(time.Now().Unix())}
 	outMessage.EditHide = false
 
-	// reply_markup
+	// reply_markup. A message with a game keeps the button that starts it
+	// first, and the game stays its media: the button would open nothing
+	// else (botgames.Markup, task 106).
+	game := outMessage.GetMedia().GetPredicateName() == mtproto.Predicate_messageMediaGame
 	if in.ReplyMarkup != nil {
-		if outMessage.ReplyMarkup, err = c.botMarkup(in.ReplyMarkup); err != nil {
+		if outMessage.ReplyMarkup, err = c.botMarkup(in.ReplyMarkup, game); err != nil {
 			c.Logger.Errorf("messages.editMessage - reply markup: %v", err)
 			return err
 		}
+		if game {
+			if outMessage.ReplyMarkup, err = botgames.Markup(outMessage.ReplyMarkup, outMessage.GetMedia().GetGame().GetTitle(), c.MD.LangCode); err != nil {
+				c.Logger.Errorf("messages.editMessage - reply markup of a game: %v", err)
+				return err
+			}
+		}
+	}
+	if game && in.Media != nil {
+		return mtproto.ErrMediaInvalid
 	}
 
 	if in.Media != nil {
