@@ -116,6 +116,10 @@ var secretNames = set(
 	// geodata (ADR 0062, p. 7, and the maps of task 100): the coordinates
 	// of a point a user sends or looks at
 	"lat", "getlat", "long", "getlong", "geopoint", "getgeopoint",
+	// the queries to the built-in inline bots (ADR 0062, p. 7): their text,
+	// the point and the address of a web file. "query" itself names the SQL
+	// of many logs, so the text is caught by its own names.
+	"inlinequery", "getinlinequery", "geo", "getgeo", "webfileurl",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )

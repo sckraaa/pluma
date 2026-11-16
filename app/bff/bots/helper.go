@@ -21,6 +21,7 @@ package bots
 
 import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/config"
+	"github.com/teamgram/teamgram-server/app/bff/bots/internal/inline"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/server/grpc/service"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/svc"
 )
@@ -28,6 +29,9 @@ import (
 type (
 	// Config is the configuration of the service.
 	Config = config.Config
+	// InlineBotsConfig is InlineBots of bff.yaml: the providers of the
+	// built-in inline bots and the budget of their imports.
+	InlineBotsConfig = inline.Config
 )
 
 // New returns the service.

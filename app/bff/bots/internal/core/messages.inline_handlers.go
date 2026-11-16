@@ -30,6 +30,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/botmarkup"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
+	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/replyheader"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 
@@ -108,6 +109,11 @@ func (c *BotsCore) MessagesGetInlineBotResults(in *mtproto.TLMessagesGetInlineBo
 	peerType, kind, err := c.inlinePeerType(bot.Id(), mtproto.FromInputPeer2(c.MD.UserId, in.Peer))
 	if err != nil {
 		return nil, err
+	}
+	// The built-in bots @gif and @pic have no process: the server answers
+	// for them (task 099, ADR 0062).
+	if b, ok := inlinebots.ByID(bot.Id()); ok {
+		return c.builtinResults(b, in)
 	}
 
 	geo := in.GeoPoint
@@ -440,9 +446,16 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 	}
 	out.Silent = in.Silent
 	// core.telegram.org/api/bots/inline: the message has via_bot_id, and
-	// clients show the username of the bot in its header. hide_via is not
-	// honored: no bot here has the right to hide itself.
-	out.ViaBotId = wrapperspb.Int64(answer.Bot)
+	// clients show the username of the bot in its header. hide_via may
+	// drop it "only for bot usernames encountered in the config"
+	// (core.telegram.org/method/messages.sendInlineBotResult): the
+	// built-in bots of help.getConfig, whose GIFs the emoji panel sends
+	// with it (Android ChatActivityEnterView.java:12491-12509, iOS
+	// ChatController.swift:2820, tdesktop gifs_list_widget.cpp:545).
+	// Another bot keeps it.
+	if !in.HideVia || !inlinebots.IsBuiltin(answer.Bot) {
+		out.ViaBotId = wrapperspb.Int64(answer.Bot)
+	}
 	// The same reply as messages.sendMessage makes: the clients fill reply_to
 	// of both alike (tdesktop data_histories.cpp ReplyToForMTP, Android
 	// SendMessagesHelper.createReplyInput).
@@ -470,11 +483,24 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 		return nil, err
 	}
 	c.addRecentSticker(out.GetMedia())
+	c.countGifSend(answer.Bot, out.GetMedia())
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() { c.clearDraft(ctx, peer, in.GetReplyTo().GetTopMsgId().GetValue()) })
 	}
 	return updates, nil
+}
+
+// countGifSend counts a GIF of @gif's results sent: the popular GIFs of
+// its empty query are the ones sent most. The message is sent by then: a
+// failure is logged, the send is only missing from the count.
+func (c *BotsCore) countGifSend(botId int64, media *mtproto.MessageMedia) {
+	if botId != inlinebots.Gif.Id || media.GetPredicateName() != mtproto.Predicate_messageMediaDocument || media.GetDocument().GetId() == 0 {
+		return
+	}
+	if err := c.svcCtx.GifSends.CountGifSend(c.ctx, media.GetDocument().GetId()); err != nil {
+		c.Logger.Errorf("messages.sendInlineBotResult - count of a @gif send: %v", err)
+	}
 }
 
 // sentSticker is the sticker a message of an inline result sent, 0 for

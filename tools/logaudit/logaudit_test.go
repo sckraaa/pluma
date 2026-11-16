@@ -94,6 +94,8 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"config hosts ok", `func f(c struct{ Etcd struct{ Hosts []string; Pass string } }) { logx.Errorf("etcd %v", c.Etcd.Hosts) }`, nil},
 		{"geo point", `func f(in *mtproto.InputGeoPoint) { logx.Infof("at %f %f", in.GetLat(), in.Long) }`, []string{"secret", "secret"}},
 		{"geo point whole", `func f(in *mtproto.InputWebFileLocation) error { return fmt.Errorf("map %v", in.GetGeoPoint()) }`, []string{"secret"}},
+		{"inline query text", `func f(inlineQuery string, webFileUrl string) { logx.Infof("asked %s for %s", inlineQuery, webFileUrl) }`, []string{"secret", "secret"}},
+		{"inline query point", `func f(in *mtproto.Update) { logx.Errorf("near %v", in.GetGeo()) }`, []string{"secret"}},
 		{"geo zoom ok", `func f(in *mtproto.InputWebFileLocation) { logx.Infof("zoom %d, %dx%d", in.GetZoom(), in.GetW(), in.GetH()) }`, nil},
 		// not findings
 		{"error", `func f(err error) { logx.Errorf("request: %v", err) }`, nil},

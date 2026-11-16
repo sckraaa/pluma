@@ -17,14 +17,44 @@ package svc
 
 import (
 	"context"
+	"time"
 
+	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/dao"
+	"github.com/teamgram/teamgram-server/app/bff/bots/internal/inline"
+	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
+	"github.com/teamgram/teamgram-server/pkg/inlinemedia"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/webfetch"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
+
+// InlineHealth tells which built-in inline bots may be served
+// (*inlinebots.Health).
+type InlineHealth interface {
+	Usable(id int64) bool
+}
+
+// InlineImporter has the media a provider found as photos and documents of
+// the server (*inlinemedia.Importer).
+type InlineImporter interface {
+	Ensure(ctx context.Context, owner int64, sources []inlinemedia.Source) (inlinemedia.Imported, error)
+}
+
+// GifSends counts the GIFs sent from @gif's results (*inlinemedia.Store).
+type GifSends interface {
+	CountGifSend(ctx context.Context, documentId int64) error
+}
+
+// Limiter bounds how often a user may do something (*logincode.Limiter).
+type Limiter interface {
+	Hit(ctx context.Context, rule logincode.Rule, subject string) error
+}
 
 // ServiceContext is the state of the bots methods.
 type ServiceContext struct {
@@ -33,7 +63,17 @@ type ServiceContext struct {
 
 	// InlineBots tells which built-in inline bots (pkg/inlinebots) have
 	// their accounts in order and may be served (ADR 0062, p. 1).
-	InlineBots *inlinebots.Health
+	InlineBots InlineHealth
+	// InlineProviders answer the queries of the built-in bots, by the kind
+	// of the bot. A kind with no provider answers with empty lists.
+	InlineProviders map[inlinebots.Kind]inline.Provider
+	// InlineMedia imports what the providers find into dfs.
+	InlineMedia InlineImporter
+	// GifSends counts the sends of @gif's GIFs, the popular GIFs of its
+	// empty query.
+	GifSends GifSends
+	// Limiter bounds the queries of a user to the built-in bots.
+	Limiter Limiter
 
 	// WebFileKey signs the addresses of inline results' webDocument
 	// (webfile.Sign); nil: they go out unsigned, as webDocumentNoProxy.
@@ -47,12 +87,43 @@ type ServiceContext struct {
 func NewServiceContext(c config.Config) *ServiceContext {
 	key, err := webfile.Key(c.WebFileKey)
 	logx.Must(err)
+	dailyBytes, err := inlinemedia.ParseDailyBytes(c.InlineBots.ImportDailyBytes)
+	logx.Must(err)
+	db := sqlx.NewMySQL(&c.Mysql)
 	health := inlinebots.NewHealth()
-	health.Watch(context.Background(), sqlx.NewMySQL(&c.Mysql))
+	health.Watch(context.Background(), db)
+
+	d := dao.New(c)
+	media := inlinemedia.NewStore(db)
+	importer := inlinemedia.NewImporter(
+		media,
+		inlinemedia.NewBudget(d.KV, dailyBytes),
+		inlinemedia.NewFetcher(),
+		webfetch.RPCPhotos{
+			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
+			Media: d.MediaClient,
+		},
+		d.MediaClient,
+	)
 	return &ServiceContext{
 		Config:     c,
-		Dao:        dao.New(c),
+		Dao:        d,
 		InlineBots: health,
-		WebFileKey: key,
+		// The providers of @gif (local, KLIPY) and @pic (SearXNG) are
+		// registered here by kind (task 099, parts D, E and G).
+		InlineProviders: map[inlinebots.Kind]inline.Provider{},
+		InlineMedia:     importer,
+		GifSends:        gifSends{media},
+		Limiter:         logincode.NewLimiter(d.KV),
+		WebFileKey:      key,
 	}
+}
+
+// gifSends counts sends on the UTC day of the moment.
+type gifSends struct {
+	store *inlinemedia.Store
+}
+
+func (g gifSends) CountGifSend(ctx context.Context, documentId int64) error {
+	return g.store.CountGifSend(ctx, documentId, time.Now())
 }
