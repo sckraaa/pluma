@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	bots_helper "github.com/teamgram/teamgram-server/app/bff/bots"
 	groupcalls_helper "github.com/teamgram/teamgram-server/app/bff/groupcalls"
+	statistics_helper "github.com/teamgram/teamgram-server/app/bff/statistics"
 	voipcalls_helper "github.com/teamgram/teamgram-server/app/bff/voipcalls"
 	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
@@ -104,6 +105,10 @@ type Config struct {
 	// authorization (auth.importBotAuthorization stores them). Without it
 	// the mini apps and the login of bots are off.
 	BotSecrets botkeys.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Stats is the statistics of channels and groups (task 103, ADR 0066):
+	// stats_dc and the key of the zoom tokens of the graphs; the statistics
+	// are off without the key.
+	Stats statistics_helper.StatsConfig
 	// Avatars is the address of the public photos of users by username,
 	// https://pluma.chat/_l/avatar/ (ADR 0036, p. 4), for the photo_url
 	// bots are given.

@@ -57,6 +57,7 @@ import (
 	secretchats_helper "github.com/teamgram/teamgram-server/app/bff/secretchats"
 	sponsoredmessages_helper "github.com/teamgram/teamgram-server/app/bff/sponsoredmessages"
 	stargifts_helper "github.com/teamgram/teamgram-server/app/bff/stargifts"
+	statistics_helper "github.com/teamgram/teamgram-server/app/bff/statistics"
 	stories_helper "github.com/teamgram/teamgram-server/app/bff/stories"
 	tos_helper "github.com/teamgram/teamgram-server/app/bff/tos"
 	transcription_helper "github.com/teamgram/teamgram-server/app/bff/transcription"
@@ -754,6 +755,18 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCTranslationServer(grpcServer, translation)
 		mtproto.RegisterRPCAiComposeToneServer(grpcServer, translation)
 		s.translation = translationBackground
+
+		// statistics_helper: the statistics of channels and groups, their
+		// posts, stories and polls (task 103, ADR 0066); off without the
+		// key of the zoom tokens (Stats.TokenKey).
+		mtproto.RegisterRPCStatisticsServer(
+			grpcServer,
+			statistics_helper.New(statistics_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+				ChannelClient: c.BizServiceClient,
+				Stats:         c.Stats,
+			}))
 	})
 
 	// logx.Must(err)

@@ -94,7 +94,8 @@ func (p *ImmutableChannelParticipant) Perm() channelperm.Participant {
 
 // Perm is the channel as channelperm reads it.
 func (m *ImmutableChannel) Perm() channelperm.Channel {
-	return channelperm.Channel{Broadcast: m.GetBroadcast(), Gigagroup: m.GetGigagroup(), Default: m.GetDefaultBannedRights(), Blocked: m.GetBlocked()}
+	return channelperm.Channel{Broadcast: m.GetBroadcast(), Gigagroup: m.GetGigagroup(), Default: m.GetDefaultBannedRights(), Blocked: m.GetBlocked(),
+		Monoforum: m.GetMonoforum()}
 }
 
 // Can answers whether the participant p may do a in the channel at now
