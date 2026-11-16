@@ -1,0 +1,31 @@
+# The origin of the HTTPS CDN (task 107, ADR 0071, docs/ops/cdn.md): the CDN
+# resource pulls the ciphertext of large files under this name from bff's
+# origin listener (Cdn.Origin of bff.yaml, port 20480 on teamgram_net only,
+# never published on the host). bff refuses every request without the right
+# X-Pluma-Origin-Auth, which the CDN resource adds, before it reads the path;
+# Caddy passes the header, the Range and the conditional headers on as they
+# came, and the 206 back as bff sent it.
+#
+# The Caddyfile imports this file only when PLUMA_CDN_ORIGIN_DOMAIN is set
+# (docker-compose.web.yaml): a site with an empty address would stop the
+# whole Caddyfile. The certificate is Let's Encrypt's, as for the other names.
+#
+# - No encode, and no Accept-Encoding to bff: the answers are byte ranges of
+#   ciphertext, which neither compresses nor may change.
+# - Neither Server nor Via in the answers, Caddy's own errors (502 while bff
+#   is down) included.
+# - No log directive, so no access log: the header, the token of the query
+#   and the ids of files in the paths are never written. bff logs the
+#   origin's requests without them.
+{$PLUMA_CDN_ORIGIN_DOMAIN} {
+	reverse_proxy bff:20480 {
+		header_up -Accept-Encoding
+	}
+	header {
+		-Server
+		-Via
+	}
+	handle_errors {
+		header -Server
+	}
+}

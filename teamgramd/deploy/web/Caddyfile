@@ -156,6 +156,13 @@
 	}
 }
 
+# The origin of the HTTPS CDN (task 107): its site, cdn-origin.caddy, is
+# linked into this directory at the start of the container
+# (docker-compose.web.yaml) only when PLUMA_CDN_ORIGIN_DOMAIN is set; Caddy
+# refuses a whole Caddyfile with a site of an empty address. Without it
+# nothing matches, which Caddy only warns about.
+import /etc/caddy/cdn-origin.d/*.caddy
+
 # Other sites the operator serves from the same address, outside Pluma: one
 # file per site, *.caddy in PLUMA_CADDY_SITES_DIR on the host
 # (docs/ops/deployment.md). Kept out of the repository, so that a deploy never

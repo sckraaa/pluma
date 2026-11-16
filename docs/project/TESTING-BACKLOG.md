@@ -1312,6 +1312,14 @@
 - [ ] Дом с пустыми `CDN_GCORE_BASE_URL`, `CDN_GCORE_TOKEN_KEY`, `CDN_ORIGIN_AUTH`: bff стартует, в логе нет строк `cdn:`; на Android, iOS, Desktop и Web документ 5 МБ, фото ≥ 1 МБ и видео 50 МБ в группе открываются из дома, как раньше.
 - [ ] Android и Desktop со старой сборкой (без патча 107): после выката файлы ≥ 1 МБ качаются, ни одна загрузка не зависает (без признака `pluma_cdn` сервер не шлёт редирект).
 
+### Часть C: публикация источника в Caddy и фальшивый CDN стенда
+Сайт источника — `teamgramd/deploy/web/cdn-origin.caddy`; контейнер `web` подключает его только при непустом `PLUMA_CDN_ORIGIN_DOMAIN` (сайт с пустым адресом Caddy не принимает, и не загрузился бы весь Caddyfile).
+- [ ] Дом, пока `PLUMA_CDN_ORIGIN_DOMAIN` пуст: после пересоздания `web` (`docker compose … up -d --no-deps --force-recreate web`) сайт, веб-клиент и oauth открываются; в `docker logs` контейнера `web` одно предупреждение `No files matching import glob pattern … cdn-origin.d`, ошибок нет; `docker exec <web> ls /etc/caddy/cdn-origin.d` пуст.
+- [ ] Дом с заданным `PLUMA_CDN_ORIGIN_DOMAIN` (A-запись уже на адресе Pluma): после пересоздания `web` в логе Caddy выпуск сертификата Let's Encrypt для этого имени без ошибок; `curl -sI https://<имя>/c/v1` и `curl -sI https://<имя>/o/<любые 64 hex>` без заголовка — оба 403, в ответе нет `Server` и `Via`.
+- [ ] Тот же `curl` с `-H 'X-Pluma-Origin-Auth: <значение CDN_ORIGIN_AUTH>' -H 'Range: bytes=131072-135167' -H 'Accept-Encoding: gzip'` к `/c/v1` — 206, `Content-Range: bytes 131072-135167/262144`, без `Content-Encoding`.
+- [ ] После этих запросов в `docker logs` контейнера `web` нет ни значения заголовка, ни hex из пути, ни `md5=`; порт 20480 на хосте не слушается (`ss -ltn | grep 20480` пусто).
+- [ ] Вернуть `PLUMA_CDN_ORIGIN_DOMAIN` пустым и пересоздать `web`: имя больше не обслуживается, остальные сайты работают.
+
 ## 108 — Сессия отмечает запросы ботов (`RpcMetadata.IsBot`)
 Нужен тестовый бот из `pluma-admin bot create` со своим процессом (например, на Telethon), вошедший токеном, и бизнес-аккаунт с этим ботом в «Telegram Business → Чат-боты».
 - [ ] После выката нового `session` бот отвечает в личке на текст, на нажатие кнопки под своим сообщением и в инлайн-режиме (`@бот запрос` в чате с другим человеком) на Android, iOS, Desktop и Web.
