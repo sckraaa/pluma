@@ -20,6 +20,7 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	bots_helper "github.com/teamgram/teamgram-server/app/bff/bots"
 	groupcalls_helper "github.com/teamgram/teamgram-server/app/bff/groupcalls"
 	voipcalls_helper "github.com/teamgram/teamgram-server/app/bff/voipcalls"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
@@ -78,6 +79,10 @@ type Config struct {
 	// by bots (signing) and files (checking), and the cache of the files
 	// fetched. No key: the addresses are not proxied.
 	WebFile webfile.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// InlineBots is the built-in inline bots @gif and @pic (task 099, ADR
+	// 0062, docs/ops/inline-bots.md): the providers that answer their
+	// queries and the daily budget of the media they import into dfs.
+	InlineBots bots_helper.InlineBotsConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 // SyncClientConf is where bff's pushes go: rows of mq_outbox for Topic in

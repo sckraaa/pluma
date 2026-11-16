@@ -17,6 +17,7 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/app/bff/bots/internal/inline"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 
 	"github.com/zeromicro/go-zero/core/stores/kv"
@@ -38,6 +39,12 @@ type Config struct {
 	DialogClient  zrpc.RpcClientConf
 	MediaClient   zrpc.RpcClientConf
 	MsgClient     zrpc.RpcClientConf
+	// DfsClient stores the media the built-in inline bots import
+	// (pkg/inlinemedia).
+	DfsClient zrpc.RpcClientConf
+	// InlineBots is the providers of the built-in inline bots and the
+	// budget of their imports (task 099, ADR 0062).
+	InlineBots inline.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// WebFileKey signs the addresses of the thumbnails and content of
 	// inline results, WEBFILE_HMAC_KEY (pkg/webfile, ADR 0062, p. 5); the
 	// files service fetches only what it signs. Empty: webDocumentNoProxy.

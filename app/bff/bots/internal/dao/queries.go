@@ -197,6 +197,18 @@ func (d *Dao) SetInlineAnswer(ctx context.Context, queryId, botId int64, a *Inli
 	return true, d.KV.SetexCtx(ctx, inlineAnswerKey(queryId), string(data), inlineKeepOf(a.CacheTime))
 }
 
+// PutInlineAnswer stores the answer of a query the server answers itself (a
+// built-in inline bot, pkg/inlinebots): no bot owns the query, so there is
+// no owner to check. It stays as long as a bot's answer does, for the cache
+// and for messages.sendInlineBotResult.
+func (d *Dao) PutInlineAnswer(ctx context.Context, queryId int64, a *InlineAnswer) error {
+	data, err := jsonx.Marshal(a)
+	if err != nil {
+		return err
+	}
+	return d.KV.SetexCtx(ctx, inlineAnswerKey(queryId), string(data), inlineKeepOf(a.CacheTime))
+}
+
 // inlineKeepOf is how long the answer stays: past the cache that points to
 // it (CacheInline) by inlineKeep, so a list served at the last moment of the
 // cache can still be sent from.

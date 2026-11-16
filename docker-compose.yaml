@@ -93,6 +93,10 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       # bff.yaml names the key of the web file proxy (task 099); empty: off.
       WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
+      # The built-in inline bots (task 099): @pic's SearXNG, empty: no
+      # pictures; the daily import budget, empty: 1 GiB.
+      SEARXNG_URL: ${SEARXNG_URL:-}
+      INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -313,6 +317,10 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       # bff.yaml names the key of the web file proxy (task 099); empty: off.
       WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
+      # The built-in inline bots (task 099): @pic's SearXNG, empty: no
+      # pictures; the daily import budget, empty: 1 GiB.
+      SEARXNG_URL: ${SEARXNG_URL:-}
+      INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
     stop_grace_period: 30s
     depends_on:
       sync:

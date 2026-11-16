@@ -175,7 +175,9 @@ func (s *Server) Initialize() error {
 			DialogClient:  c.BizServiceClient,
 			MediaClient:   c.MediaClient,
 			MsgClient:     c.MsgClient,
+			DfsClient:     c.DfsClient,
 			WebFileKey:    c.WebFile.HMACKey,
+			InlineBots:    c.InlineBots,
 		})
 		mtproto.RegisterRPCBotsServer(grpcServer, bots)
 		mtproto.RegisterRPCBotMenuButtonServer(grpcServer, bots)

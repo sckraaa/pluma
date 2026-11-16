@@ -164,6 +164,8 @@ func TestLoadsUserConfig(t *testing.T) {
 	t.Setenv("MAIL_API_KEY", "")
 	t.Setenv("MAIL_FROM", "")
 	t.Setenv("WEBFILE_HMAC_KEY", "")
+	t.Setenv("SEARXNG_URL", "")
+	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
