@@ -107,6 +107,8 @@
     "stories_stealth_past_period": 300,
     "stories_stealth_future_period": 1500,
     "stories_stealth_cooldown_period": 3600,
+    "stories_albums_limit": 100,
+    "stories_album_stories_limit": 1000,
 
     "translations_manual_enabled": "disabled",
     "translations_auto_enabled": "disabled",

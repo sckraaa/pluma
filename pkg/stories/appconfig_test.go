@@ -22,8 +22,8 @@ import (
 	"testing"
 )
 
-// The clients count the stories, their captions and the stealth mode by
-// help.getAppConfig: the app config must give what the server checks, and
+// The clients count the stories, their captions, albums and the stealth
+// mode by help.getAppConfig: the app config must give what the server checks, and
 // say that stories are posted.
 func TestLimitsAreTheAppConfigs(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "teamgramd", "bin", "app_config.json"))
@@ -49,6 +49,8 @@ func TestLimitsAreTheAppConfigs(t *testing.T) {
 		"stories_stealth_past_period":               StealthPast,
 		"stories_stealth_future_period":             StealthFuture,
 		"stories_stealth_cooldown_period":           StealthCooldown,
+		"stories_albums_limit":                      MaxAlbums,
+		"stories_album_stories_limit":               MaxAlbumStories,
 	} {
 		if v, ok := config[key].(float64); !ok || v != float64(limit) {
 			t.Errorf("%s of app_config.json %v, the server's value %d", key, config[key], limit)
