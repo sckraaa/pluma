@@ -16,19 +16,11 @@
 package webpage
 
 import (
-	"bytes"
-	"errors"
-	"fmt"
-	"image"
-	_ "image/gif" // pictures of pages: decoders
-	"image/jpeg"
-	_ "image/png"
 	"net/url"
 	"strings"
 
-	"github.com/disintegration/imaging"
 	"github.com/teamgram/proto/mtproto"
-	_ "golang.org/x/image/webp"
+	"github.com/teamgram/teamgram-server/pkg/webfetch"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -80,7 +72,7 @@ func parseLink(link string) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := fetchable(u); err != nil {
+	if err := webfetch.Fetchable(u); err != nil {
 		return nil, err
 	}
 	return u, nil
@@ -143,40 +135,13 @@ func emptyPage(id int64, u *url.URL) *mtproto.WebPage {
 	}).To_WebPage()
 }
 
-// maxSide is the longest side of the picture stored: the largest size
-// Telegram makes of one is 1280 px ("y", github.com's 1200 x 600).
-const maxSide = 1280
+// maxSide is the longest side of the picture stored.
+const maxSide = webfetch.MaxSide
 
-// maxPixels guards against a picture that decodes to gigabytes.
-const maxPixels = 40_000_000
-
-// pictureJPEG turns a page's picture into the JPEG the server stores: any
-// of JPEG, PNG, GIF (its first frame) or WebP, at most maxSide on its
-// longer side.
+// pictureJPEG turns a page's picture into the JPEG the server stores
+// (webfetch.PictureJPEG).
 func pictureJPEG(b []byte) ([]byte, int, int, error) {
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
-	if err != nil {
-		return nil, 0, 0, err
-	}
-	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > maxPixels {
-		return nil, 0, 0, fmt.Errorf("webpage: picture of %d x %d", cfg.Width, cfg.Height)
-	}
-	if cfg.Width < 32 || cfg.Height < 32 {
-		return nil, 0, 0, errors.New("webpage: picture too small for a card")
-	}
-	img, _, err := image.Decode(bytes.NewReader(b))
-	if err != nil {
-		return nil, 0, 0, err
-	}
-	if cfg.Width > maxSide || cfg.Height > maxSide {
-		img = imaging.Fit(img, maxSide, maxSide, imaging.Lanczos)
-	}
-	var out bytes.Buffer
-	if err := jpeg.Encode(&out, img, &jpeg.Options{Quality: 87}); err != nil {
-		return nil, 0, 0, err
-	}
-	bounds := img.Bounds()
-	return out.Bytes(), bounds.Dx(), bounds.Dy(), nil
+	return webfetch.PictureJPEG(b)
 }
 
 func str(s string) *wrapperspb.StringValue {

@@ -91,6 +91,8 @@ services:
       # bff.yaml names the mail of the recovery email (task 091); empty: off.
       MAIL_API_KEY: ${MAIL_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # bff.yaml names the key of the web file proxy (task 099); empty: off.
+      WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -309,6 +311,8 @@ services:
       # docs/ops/email.md); no key: the recovery email is off.
       MAIL_API_KEY: ${MAIL_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # bff.yaml names the key of the web file proxy (task 099); empty: off.
+      WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
     stop_grace_period: 30s
     depends_on:
       sync:

@@ -1230,7 +1230,7 @@
   "used_by": "A: messenger/FileLoadOperation.java:2459, messenger/WebFile.java:33; I: Network/MultipartFetch.swift:394; D: storage/download_manager_mtproto.cpp:531, 544; W: lib/appManagers/apiFileManager.ts:445",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают все четыре клиента; сейчас любая локация, кроме обложек аудио, отвечает ошибкой. Для карт нужен источник тайлов: выбор и стоимость — вопрос владельцу."
+  "why": "Вызывают все четыре клиента. Задача 099 (ADR 0062, п. 5): общая основа pkg/webfile и подписанный прокси inputWebFileLocation для миниатюр инлайн-ботов; inputWebFileGeoPointLocation — источник карт задачи 100, до неё LOCATION_INVALID; обложки аудио — WEBFILE_NOT_AVAILABLE."
  },
  {
   "name": "users.suggestBirthday",

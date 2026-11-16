@@ -155,6 +155,7 @@ STT_TOKEN=$(secret 32)
 STT_MODEL=$FAKESTT_MODEL
 MAIL_API_KEY=re_e2e_$(secret 16)
 MAIL_FROM=Pluma <noreply@e2e.pluma.test>
+WEBFILE_HMAC_KEY=$(secret 32)
 AUTH_KEY_ENCRYPTION_KEY=$(secret 32)
 PUSH_SECRET_ENCRYPTION_KEY=$(secret 32)
 NTFY_TOPIC=$(secret 16)

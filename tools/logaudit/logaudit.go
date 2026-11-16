@@ -110,6 +110,9 @@ var secretNames = set(
 	"block", "getblock", "blocks", "getblocks", "publickey", "getpublickey",
 	"sharedkey", "encryptedsharedkey", "destheaders", "nonce", "noncehash",
 	"e2estatus", "gete2estatus", "report",
+	// geodata (ADR 0062, p. 7, and the maps of task 100): the coordinates
+	// of a point a user sends or looks at
+	"lat", "getlat", "long", "getlong", "geopoint", "getgeopoint",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )

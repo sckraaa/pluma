@@ -335,6 +335,9 @@ var optionalVars = map[string]bool{
 	// off when the key is empty.
 	"MAIL_API_KEY": true,
 	"MAIL_FROM":    true,
+	// The key of the web file proxy (task 099, ADR 0062): inline bots'
+	// thumbnails go out unsigned, fetched by clients, when empty.
+	"WEBFILE_HMAC_KEY": true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }

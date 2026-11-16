@@ -180,3 +180,20 @@ func TestHelpGetConfigInlineBots(t *testing.T) {
 		}
 	}
 }
+
+// TestHelpGetConfigWebFileDC: clients send upload.getWebFile to webfile_dc_id
+// (Android FileLoadOperation.java:411, iOS RemoteStorageConfiguration.swift:6-16,
+// tdesktop file_download_mtproto.cpp:64, Web K apiFileManager.ts:381) and
+// know only the DC of the server; tgnet holds a request to an unknown DC
+// unanswered (ConnectionsManager.cpp:2584-2590). So it is this_dc (ADR
+// 0062, p. 5).
+func TestHelpGetConfigWebFileDC(t *testing.T) {
+	c := newGetConfigCore(t, &fakeLangpacks{}, "android", "en")
+	got, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GetWebfileDcId() != got.GetThisDc() || got.GetThisDc() != 1 {
+		t.Errorf("webfile_dc_id %d, this_dc %d", got.GetWebfileDcId(), got.GetThisDc())
+	}
+}

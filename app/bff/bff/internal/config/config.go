@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/mail"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/teamgram/teamgram-server/pkg/transcribe"
+	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -72,6 +73,11 @@ type Config struct {
 	// (task 091, ADR 0058, docs/ops/email.md); the recovery email is off
 	// without a key.
 	Mail mail.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// WebFile is upload.getWebFile (ADR 0062, p. 5, docs/ops/inline-bots.md):
+	// the key that signs the addresses of inline bots' webDocument, shared
+	// by bots (signing) and files (checking), and the cache of the files
+	// fetched. No key: the addresses are not proxied.
+	WebFile webfile.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 // SyncClientConf is where bff's pushes go: rows of mq_outbox for Topic in

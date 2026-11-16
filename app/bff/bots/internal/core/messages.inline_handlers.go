@@ -31,6 +31,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/botmarkup"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/replyheader"
+	"github.com/teamgram/teamgram-server/pkg/webfile"
 
 	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/threading"
@@ -273,7 +274,7 @@ func (c *BotsCore) inlineResult(r *mtproto.InputBotInlineResult) (*mtproto.BotIn
 		}
 		return mtproto.MakeTLBotInlineResult(&mtproto.BotInlineResult{
 			Id: r.GetId(), Type: r.GetType(), Title: r.GetTitle(), Description: r.GetDescription(), Url: r.GetUrl(),
-			Thumb: webDocument(r.GetThumb()), Content: webDocument(r.GetContent()), SendMessage: send,
+			Thumb: webDocument(c.svcCtx.WebFileKey, r.GetThumb()), Content: webDocument(c.svcCtx.WebFileKey, r.GetContent()), SendMessage: send,
 		}).To_BotInlineResult(), nil
 	case mtproto.Predicate_inputBotInlineResultPhoto:
 		// The access hash says the bot was given the file; only with it
@@ -306,13 +307,25 @@ func (c *BotsCore) resolveUser(in *mtproto.InputUser) int64 {
 	return u.PeerId
 }
 
-func webDocument(d *mtproto.InputWebDocument) *mtproto.WebDocument {
+// webDocument is a thumbnail or content of a bot's result as clients get
+// it: a webDocument whose access_hash is the server's signature of the
+// address (webfile.Sign), which clients fetch through upload.getWebFile
+// with inputWebFileLocation{url, access_hash} (core.telegram.org/api/files,
+// "proxying the request through telegram"), so that the device never
+// reaches the bot's host. Without a key it is webDocumentNoProxy, which
+// clients fetch from the address themselves.
+func webDocument(key []byte, d *mtproto.InputWebDocument) *mtproto.WebDocument {
 	if d == nil {
 		return nil
 	}
-	return mtproto.MakeTLWebDocumentNoProxy(&mtproto.WebDocument{
+	doc := &mtproto.WebDocument{
 		Url: d.GetUrl(), Size2: d.GetSize2(), MimeType: d.GetMimeType(), Attributes: d.GetAttributes(),
-	}).To_WebDocument()
+	}
+	if len(key) == 0 {
+		return mtproto.MakeTLWebDocumentNoProxy(doc).To_WebDocument()
+	}
+	doc.AccessHash = webfile.Sign(key, d.GetUrl())
+	return mtproto.MakeTLWebDocument(doc).To_WebDocument()
 }
 
 // inlineMessage turns what a result sends into its stored form. Web page,

@@ -298,6 +298,7 @@ func TestLoadsOutboxConfig(t *testing.T) {
 	t.Setenv("STT_TIMEOUT", "")
 	t.Setenv("MAIL_API_KEY", "")
 	t.Setenv("MAIL_FROM", "")
+	t.Setenv("WEBFILE_HMAC_KEY", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
@@ -335,6 +336,7 @@ func TestLoadsPasswordConfig(t *testing.T) {
 	t.Setenv("STT_TIMEOUT", "")
 	t.Setenv("MAIL_API_KEY", "")
 	t.Setenv("MAIL_FROM", "")
+	t.Setenv("WEBFILE_HMAC_KEY", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
@@ -372,6 +374,7 @@ func TestLoadsBffConfig(t *testing.T) {
 	t.Setenv("STT_TIMEOUT", "")
 	t.Setenv("MAIL_API_KEY", "")
 	t.Setenv("MAIL_FROM", "")
+	t.Setenv("WEBFILE_HMAC_KEY", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {

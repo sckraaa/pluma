@@ -81,6 +81,15 @@ Mail:
   ApiKey: "${MAIL_API_KEY}"
   From: "${MAIL_FROM}"
 
+# upload.getWebFile (task 099, ADR 0062, p. 5, docs/ops/inline-bots.md):
+# the thumbnails and content inline bots name by address are handed out
+# signed under WEBFILE_HMAC_KEY and fetched by the server, never by the
+# device. No key: they go out unsigned (webDocumentNoProxy) and clients
+# fetch them from the bot's host themselves. CacheDir and CacheBytes (by
+# default /tmp/webfile and 2 GiB) bound the files kept for 24 hours.
+WebFile:
+  HMACKey: "${WEBFILE_HMAC_KEY}"
+
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
 

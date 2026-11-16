@@ -87,6 +87,9 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"chain height ok", `func f(height int32, callId int64) { logx.Infof("call %d at height %d", callId, height) }`, nil},
 		{"config with credentials", `func f(c struct{ Etcd struct{ Hosts []string; Pass string } }) { logx.Errorf("etcd %+v", c.Etcd) }`, []string{"secret"}},
 		{"config hosts ok", `func f(c struct{ Etcd struct{ Hosts []string; Pass string } }) { logx.Errorf("etcd %v", c.Etcd.Hosts) }`, nil},
+		{"geo point", `func f(in *mtproto.InputGeoPoint) { logx.Infof("at %f %f", in.GetLat(), in.Long) }`, []string{"secret", "secret"}},
+		{"geo point whole", `func f(in *mtproto.InputWebFileLocation) error { return fmt.Errorf("map %v", in.GetGeoPoint()) }`, []string{"secret"}},
+		{"geo zoom ok", `func f(in *mtproto.InputWebFileLocation) { logx.Infof("zoom %d, %dx%d", in.GetZoom(), in.GetW(), in.GetH()) }`, nil},
 		// not findings
 		{"error", `func f(err error) { logx.Errorf("request: %v", err) }`, nil},
 		{"len", `func f(b []byte) { logx.Errorf("payload: %d bytes", len(b)) }`, nil},

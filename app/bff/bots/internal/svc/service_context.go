@@ -22,6 +22,8 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
+	"github.com/teamgram/teamgram-server/pkg/webfile"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // ServiceContext is the state of the bots methods.
@@ -32,6 +34,10 @@ type ServiceContext struct {
 	// InlineBots tells which built-in inline bots (pkg/inlinebots) have
 	// their accounts in order and may be served (ADR 0062, p. 1).
 	InlineBots *inlinebots.Health
+
+	// WebFileKey signs the addresses of inline results' webDocument
+	// (webfile.Sign); nil: they go out unsigned, as webDocumentNoProxy.
+	WebFileKey []byte
 }
 
 // NewServiceContext connects the service. It checks the accounts of the
@@ -39,11 +45,14 @@ type ServiceContext struct {
 // background: a bot whose account does not match the registry is not served
 // until it does, the rest work.
 func NewServiceContext(c config.Config) *ServiceContext {
+	key, err := webfile.Key(c.WebFileKey)
+	logx.Must(err)
 	health := inlinebots.NewHealth()
 	health.Watch(context.Background(), sqlx.NewMySQL(&c.Mysql))
 	return &ServiceContext{
 		Config:     c,
 		Dao:        dao.New(c),
 		InlineBots: health,
+		WebFileKey: key,
 	}
 }
