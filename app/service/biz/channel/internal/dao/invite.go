@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -173,6 +174,9 @@ func (d *Dao) writeMembers(b *userbox.Box, ch *channelbox.Channel, c *memberChan
 		b.Emit(userbox.Event{Topic: d.Topics.Inbox, Recipient: id, Method: string(proto.MessageName(ev)), Data: data})
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + ?, admins_count = admins_count + ? WHERE id = ?", len(users), owners, channelId); err != nil {
+		return err
+	}
+	if err = channelstats.MembersJoined(b.Tx(), channelId, users, b.Date(), channelstats.JoinAdded, b.UserId()); err != nil {
 		return err
 	}
 	return d.dropRequests(b, channelId, users...)

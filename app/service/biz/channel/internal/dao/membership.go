@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -342,6 +343,19 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 	if err = adminlog.Write(b, channelId, joinLog, ""); err != nil {
 		return nil, err
 	}
+	source := channelstats.JoinPublic
+	switch {
+	case link != "" && joinLog.GetViaChatlist():
+		source = channelstats.JoinFolder
+	case link != "":
+		source = channelstats.JoinLink
+	case !c.Public:
+		// The owner back in its private channel, by itself.
+		source = channelstats.JoinOther
+	}
+	if err = channelstats.MemberJoined(b.Tx(), channelId, b.UserId(), b.Date(), source, inviter); err != nil {
+		return nil, err
+	}
 	return change, nil
 }
 
@@ -500,6 +514,9 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 	}
 	InvalidateDialog(b, channelId)
 	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionParticipantLeave(nil).To_ChannelAdminLogEventAction(), ""); err != nil {
+		return nil, err
+	}
+	if err = channelstats.MemberLeft(b.Tx(), channelId, b.UserId(), b.Date()); err != nil {
 		return nil, err
 	}
 	return change, nil

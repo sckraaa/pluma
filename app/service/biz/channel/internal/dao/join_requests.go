@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -337,6 +338,9 @@ func (d *Dao) approve(b *userbox.Box, ch *channelbox.Channel, channelId int64, r
 	}
 	if len(h.Approved) > 0 {
 		if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + ?, top_message = ? WHERE id = ?", len(h.Approved), top, channelId); err != nil {
+			return err
+		}
+		if err = channelstats.MembersJoined(b.Tx(), channelId, h.Approved, b.Date(), channelstats.JoinRequest, b.UserId()); err != nil {
 			return err
 		}
 	}
