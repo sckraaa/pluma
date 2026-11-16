@@ -224,10 +224,12 @@ func checkPlain(s Sample, lang string, res *translate.Result) error {
 		return errors.New("the translation is the source")
 	case strings.Contains(text, "<target>"), strings.Contains(text, "</target>"),
 		strings.Contains(text, "<source>"), strings.Contains(text, "<s1>"):
+		// logaudit:ok a translation of the test corpus, printed in a test report
 		return fmt.Errorf("the translation carries the markup of the prompt: %q", text)
 	}
 	for _, w := range s.Expect[lang] {
 		if !strings.Contains(strings.ToLower(text), strings.ToLower(w)) {
+			// logaudit:ok a translation of the test corpus, printed in a test report
 			return fmt.Errorf("the translation has no %q: %q", w, text)
 		}
 	}
@@ -256,6 +258,7 @@ func checkVerbatim(s Sample, res *translate.Result) error {
 			}
 		}
 		if !found {
+			// logaudit:ok a translation of the test corpus, printed in a test report
 			return fmt.Errorf("%s %q is not in the translation %q", want.GetPredicateName(), wantText, res.Text)
 		}
 	}

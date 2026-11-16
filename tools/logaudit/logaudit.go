@@ -138,8 +138,11 @@ var secretNames = set(
 	"signingkey", "encryptionkey", "seed", "clientsecret", "getclientsecret",
 	"idtoken", "oauthtoken", "oauthcode", "matchcode", "getmatchcode", "matchcodes", "getmatchcodes",
 	// the translation of messages (task 101, ADR 0064, section 13): the
-	// text sent to the model, the prompt made of it, the model's answer
-	// and the translation read from it, never printed; their lengths are
+	// text sent to the model (the text of a textWithEntities and of
+	// messages.translateText, as anywhere else), the prompt made of it, the
+	// model's answer and the translation read from it, never printed; their
+	// lengths are
+	"text", "gettext",
 	"translation", "gettranslation", "translations", "gettranslations",
 	"translated", "translatedtext", "sourcetext", "getsourcetext",
 	"prompt", "getprompt", "completion", "getcompletion",

@@ -56,6 +56,9 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"bot id ok", `func f(botId int64) { logx.Infof("bot %d", botId) }`, nil},
 		// the translation of messages (task 101)
 		{"translation", `func f(translation, sourceText string) { logx.Infof("%s from %s", translation, sourceText) }`, []string{"secret", "secret"}},
+		{"text of an item", `func f(item *mtproto.TextWithEntities) { logx.Infof("item %q", item.GetText()) }`, []string{"secret"}},
+		{"text of a request", `func f(in *mtproto.TLMessagesTranslateText, t *mtproto.TLTextWithEntities) error { return fmt.Errorf("%s: %s", in.GetText(), t.Text) }`, []string{"secret", "secret"}},
+		{"text length ok", `func f(item *mtproto.TextWithEntities) { logx.Infof("item of %d", len(item.GetText())) }`, nil},
 		{"model prompt", `func f(req struct{ Prompt string }) error { return fmt.Errorf("prompt %q failed", req.Prompt) }`, []string{"secret"}},
 		{"model answer", `func f(content, completion string) { logx.Errorf("answer %s / %s", content, completion) }`, []string{"secret", "secret"}},
 		{"compose result", `func f(r *mtproto.Messages_ComposedMessageWithAI) { logx.Infof("%v", r.GetResultText()) }`, []string{"secret"}},
