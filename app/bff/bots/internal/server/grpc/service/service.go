@@ -24,7 +24,8 @@ import (
 )
 
 // Service is the gRPC server of RPCBots, RPCBotMenuButton, RPCInlineBot,
-// RPCDeepLinks, RPCBotMenu and RPCGames.
+// RPCDeepLinks, RPCBotMenu, RPCGames, RPCSeamless, RPCMiniBotApps,
+// RPCMainMiniBotApps and RPCPreparedInlineMessages.
 type Service struct {
 	svcCtx *svc.ServiceContext
 }
@@ -202,9 +203,12 @@ func (s *Service) MessagesEditInlineBotMessage(ctx context.Context, request *mtp
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// MessagesSendBotRequestedPeer is not served.
+// MessagesSendBotRequestedPeer
+// messages.sendBotRequestedPeer#6c5cf2a7 flags:# peer:InputPeer msg_id:flags.0?int webapp_req_id:flags.1?string button_id:int requested_peers:Vector<InputPeer> = Updates;
 func (s *Service) MessagesSendBotRequestedPeer(ctx context.Context, request *mtproto.TLMessagesSendBotRequestedPeer) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.sendBotRequestedPeer - metadata: {%s}", c.MD)
+	return c.MessagesSendBotRequestedPeer(request)
 }
 
 // MessagesSetBotGuestChatResult is not served.

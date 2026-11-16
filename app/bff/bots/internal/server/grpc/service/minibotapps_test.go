@@ -23,17 +23,17 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/svc"
 )
 
-// The service is the server of RPCMiniBotApps and RPCMainMiniBotApps; the
+// The service is the server of RPCMiniBotApps, RPCMainMiniBotApps and
+// RPCPreparedInlineMessages; the
 // methods it does not serve answer ERR_ENTERPRISE_IS_BLOCKED, a 400 the
 // clients do not repeat, not gRPC's Unimplemented, a 500 they do.
 func TestMiniBotAppsNotServed(t *testing.T) {
 	var _ mtproto.RPCMiniBotAppsServer = (*Service)(nil)
 	var _ mtproto.RPCMainMiniBotAppsServer = (*Service)(nil)
+	var _ mtproto.RPCPreparedInlineMessagesServer = (*Service)(nil)
 	s := New(&svc.ServiceContext{})
 	ctx := context.Background()
 	for name, call := range map[string]func() error{
-		"requestWebViewButton":      func() error { _, err := s.BotsRequestWebViewButton(ctx, nil); return err },
-		"getRequestedWebViewButton": func() error { _, err := s.BotsGetRequestedWebViewButton(ctx, nil); return err },
 		"requestChatJoinWebView":    func() error { _, err := s.MessagesRequestChatJoinWebView(ctx, nil); return err },
 		"invokeWebViewCustomMethod": func() error { _, err := s.BotsInvokeWebViewCustomMethod(ctx, nil); return err },
 		"checkDownloadFileParams":   func() error { _, err := s.BotsCheckDownloadFileParams(ctx, nil); return err },

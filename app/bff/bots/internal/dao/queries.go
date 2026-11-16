@@ -88,6 +88,10 @@ type InlineAnswer struct {
 	// Games are the games of the game results by result id (task 106):
 	// botInlineMediaResult has no field that names its game.
 	Games map[string]GameRef `json:"games,omitempty"`
+	// PeerTypes are the kinds of chats the results may be sent to, by the
+	// names of BotsCore.inlinePeerType: the peer_types of a prepared inline
+	// message (messages.getPreparedInlineMessage, task 106). Empty: any.
+	PeerTypes []string `json:"peer_types,omitempty"`
 }
 
 // GameRef names a game of pkg/botstore (inputGameID).

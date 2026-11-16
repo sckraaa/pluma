@@ -231,6 +231,17 @@ func canonicalInlineButton(b *mtproto.KeyboardInlineButton) *mtproto.KeyboardBut
 	return mtproto.MakeTLKeyboardButton(k).To_KeyboardButton()
 }
 
+// CanonicalButton returns a button a client sent outside a markup (the
+// button of bots.requestWebViewButton) in the stored shape: a bot of layer
+// 229 or later sends keyboardButton with a ButtonType. A button that already
+// has the shape is returned as it is.
+func CanonicalButton(b *mtproto.KeyboardButton) *mtproto.KeyboardButton {
+	if b == nil {
+		return nil
+	}
+	return canonicalButton(b)
+}
+
 // canonicalButton: a typed button of replyKeyboardMarkup to its stored form.
 func canonicalButton(b *mtproto.KeyboardButton) *mtproto.KeyboardButton {
 	if b.GetPredicateName() != mtproto.Predicate_keyboardButton || b.GetType() == nil {

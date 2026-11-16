@@ -288,3 +288,59 @@ func TestNormalizeGameButton(t *testing.T) {
 		}
 	}
 }
+
+// The requested parts of a request-peer button stay on the stored button for
+// messages.sendBotRequestedPeer, and its TL form does not carry them.
+func TestRequestPeerKeepsRequestedParts(t *testing.T) {
+	in := mtproto.MakeTLInputKeyboardButtonRequestPeer(&mtproto.KeyboardButton{
+		Text: "Pick", ButtonId: 3, MaxQuantity: 2, NameRequested: true, PhotoRequested: true,
+		PeerType: mtproto.MakeTLRequestPeerTypeUser(&mtproto.RequestPeerType{}).To_RequestPeerType(),
+	}).To_KeyboardButton()
+	got, err := Normalize(mtproto.MakeTLReplyKeyboardMarkup(&mtproto.ReplyMarkup{
+		Rows: []*mtproto.KeyboardButtonRow{mtproto.MakeTLKeyboardButtonRow(&mtproto.KeyboardButtonRow{Buttons: []*mtproto.KeyboardButton{in}}).To_KeyboardButtonRow()},
+	}).To_ReplyMarkup(), none)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := got.GetRows()[0].GetButtons()[0]
+	if b.GetPredicateName() != mtproto.Predicate_keyboardButtonRequestPeer || !b.GetNameRequested() || b.GetUsernameRequested() || !b.GetPhotoRequested() {
+		t.Fatalf("stored: %v", b)
+	}
+	x := mtproto.NewEncodeBuf(64)
+	if err = b.Encode(x, 228); err != nil {
+		t.Fatal(err)
+	}
+	d := mtproto.NewDecodeBuf(x.GetBuf())
+	back := &mtproto.KeyboardButton{}
+	if err = back.Decode(d); err != nil || back.GetNameRequested() || back.GetPhotoRequested() || back.GetButtonId() != 3 {
+		t.Fatalf("decoded: %v %v", back, err)
+	}
+}
+
+func TestPreparedPeerButton(t *testing.T) {
+	user := mtproto.MakeTLRequestPeerTypeUser(&mtproto.RequestPeerType{}).To_RequestPeerType()
+	b, err := PreparedPeerButton(mtproto.MakeTLInputKeyboardButtonRequestPeer(&mtproto.KeyboardButton{
+		Text: "Pick", ButtonId: 9, MaxQuantity: 1, UsernameRequested: true, PeerType: user,
+	}).To_KeyboardButton())
+	if err != nil || b.GetPredicateName() != mtproto.Predicate_keyboardButtonRequestPeer || b.GetButtonId() != 9 || !b.GetUsernameRequested() {
+		t.Fatalf("input form: %v %v", b, err)
+	}
+	// The typed form of layer 229 and later.
+	typed := mtproto.MakeTLKeyboardButton(&mtproto.KeyboardButton{
+		Text: "Pick",
+		Type: mtproto.MakeTLInputButtonTypeRequestPeer(&mtproto.ButtonType{ButtonId: 2, MaxQuantity: 1, NameRequested: true, PeerType: user}).To_ButtonType(),
+	}).To_KeyboardButton()
+	if b, err = PreparedPeerButton(typed); err != nil || b.GetButtonId() != 2 || !b.GetNameRequested() {
+		t.Fatalf("typed form: %v %v", b, err)
+	}
+	for name, bad := range map[string]*mtproto.KeyboardButton{
+		"callback":     mtproto.MakeTLKeyboardButtonCallback(&mtproto.KeyboardButton{Text: "x", Data: []byte("d")}).To_KeyboardButton(),
+		"no text":      mtproto.MakeTLInputKeyboardButtonRequestPeer(&mtproto.KeyboardButton{Text: " ", PeerType: user}).To_KeyboardButton(),
+		"no peer type": mtproto.MakeTLInputKeyboardButtonRequestPeer(&mtproto.KeyboardButton{Text: "Pick"}).To_KeyboardButton(),
+		"none":         nil,
+	} {
+		if _, err := PreparedPeerButton(bad); !errors.Is(err, mtproto.ErrButtonInvalid) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}

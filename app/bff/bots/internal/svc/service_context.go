@@ -120,6 +120,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	health.Watch(context.Background(), db)
 
 	d := dao.New(c)
+	purgePreparedEvery(context.Background(), d.Bots, preparedPurgeEvery)
 	media := inlinemedia.NewStore(db)
 	importer := inlinemedia.NewImporter(
 		media,

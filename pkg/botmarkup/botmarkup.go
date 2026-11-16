@@ -114,16 +114,7 @@ func normalizeButton(b *mtproto.KeyboardButton, inline bool, position int32, env
 			return nil, mtproto.ErrButtonUrlInvalid
 		}
 	case mtproto.Predicate_inputKeyboardButtonRequestPeer:
-		// keyboardButtonRequestPeer is what clients get; the fields the
-		// answer may carry are the server's to keep and answering is
-		// messages.sendBotRequestedPeer's, not served yet.
-		return mtproto.MakeTLKeyboardButtonRequestPeer(&mtproto.KeyboardButton{
-			Style:       b.GetStyle(),
-			Text:        b.GetText(),
-			ButtonId:    b.GetButtonId(),
-			PeerType:    b.GetPeerType(),
-			MaxQuantity: b.GetMaxQuantity(),
-		}).To_KeyboardButton(), nil
+		return requestPeerButton(b), nil
 	case mtproto.Predicate_inputKeyboardButtonUserProfile:
 		id := env.ResolveUser(b.GetUserId_INPUTUSER())
 		if id == 0 {
@@ -146,6 +137,55 @@ func normalizeButton(b *mtproto.KeyboardButton, inline bool, position int32, env
 		return nil, mtproto.ErrButtonTypeInvalid
 	}
 	return b, nil
+}
+
+// requestPeerButton turns inputKeyboardButtonRequestPeer into
+// keyboardButtonRequestPeer, what clients get. name_requested,
+// username_requested and photo_requested stay in the stored button for
+// messages.sendBotRequestedPeer, which gives the bot those parts of the
+// peers only when asked (messageActionRequestedPeerSentMe): messages are
+// stored as JSON of the object, and the TL constructor of
+// keyboardButtonRequestPeer has no such fields, so clients never get them.
+func requestPeerButton(b *mtproto.KeyboardButton) *mtproto.KeyboardButton {
+	return mtproto.MakeTLKeyboardButtonRequestPeer(&mtproto.KeyboardButton{
+		Style:             b.GetStyle(),
+		Text:              b.GetText(),
+		ButtonId:          b.GetButtonId(),
+		PeerType:          b.GetPeerType(),
+		MaxQuantity:       b.GetMaxQuantity(),
+		NameRequested:     b.GetNameRequested(),
+		UsernameRequested: b.GetUsernameRequested(),
+		PhotoRequested:    b.GetPhotoRequested(),
+	}).To_KeyboardButton()
+}
+
+// PreparedPeerButton checks the button a bot prepares for its mini app
+// (bots.requestWebViewButton: "an inputKeyboardButtonRequestPeer of any
+// RequestPeerType", core.telegram.org/method/bots.requestWebViewButton) and
+// returns its stored form, keyboardButtonRequestPeer with the requested
+// parts kept (requestPeerButton). A bot of layer 229 or later sends it as
+// keyboardButton with inputButtonTypeRequestPeer. The received form is taken
+// as well; any other button, one without text or without a peer type is
+// BUTTON_INVALID.
+func PreparedPeerButton(b *mtproto.KeyboardButton) (*mtproto.KeyboardButton, error) {
+	b = layercompat.CanonicalButton(b)
+	switch b.GetPredicateName() {
+	case mtproto.Predicate_inputKeyboardButtonRequestPeer, mtproto.Predicate_keyboardButtonRequestPeer:
+	default:
+		return nil, mtproto.ErrButtonInvalid
+	}
+	if strings.TrimSpace(b.GetText()) == "" {
+		return nil, mtproto.ErrButtonInvalid
+	}
+	switch b.GetPeerType().GetPredicateName() {
+	case mtproto.Predicate_requestPeerTypeUser,
+		mtproto.Predicate_requestPeerTypeChat,
+		mtproto.Predicate_requestPeerTypeBroadcast,
+		mtproto.Predicate_requestPeerTypeCreateBot:
+	default:
+		return nil, mtproto.ErrButtonInvalid
+	}
+	return requestPeerButton(b), nil
 }
 
 // loginButton turns inputKeyboardButtonUrlAuth into keyboardButtonUrlAuth

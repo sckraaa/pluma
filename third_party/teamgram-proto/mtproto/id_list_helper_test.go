@@ -34,3 +34,16 @@ func TestPickNewCreator(t *testing.T) {
 		}
 	}
 }
+
+// pluma: the peers a user shared with a bot are among the users and chats
+// sent with the user's copy of the message (task 106).
+func TestPickRequestedPeers(t *testing.T) {
+	h := NewIDListHelper()
+	h.PickByMessageAction(MakeTLMessageActionRequestedPeer(&MessageAction{
+		ButtonId:         1,
+		Peers_VECTORPEER: []*Peer{MakePeerUser(7), MakePeerChat(8), MakePeerChannel(9)},
+	}).To_MessageAction())
+	if !slices.Contains(h.UserIdList, 7) || !slices.Contains(h.ChatIdList, 8) || !slices.Contains(h.ChannelIdList, 9) {
+		t.Errorf("users %v, chats %v, channels %v", h.UserIdList, h.ChatIdList, h.ChannelIdList)
+	}
+}

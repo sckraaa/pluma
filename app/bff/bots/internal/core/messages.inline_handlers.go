@@ -513,6 +513,19 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 	if result == nil {
 		return nil, mtproto.ErrResultIdInvalid
 	}
+	// A prepared inline message goes only to the kinds of chats its bot
+	// named (messages.savePreparedInlineMessage, peer_types): the clients
+	// offer only those (tdesktop bot_attach_web_view.cpp:2026, 2105-2111),
+	// and the server holds to it for a client that does not.
+	if len(answer.PeerTypes) != 0 {
+		_, kind, err := c.inlinePeerType(answer.Bot, peer)
+		if err != nil {
+			return nil, err
+		}
+		if !peerKindAllowed(answer.PeerTypes, kind) {
+			return nil, mtproto.ErrPeerIdInvalid
+		}
+	}
 
 	// A game result sends the game the answer named (dao.GameRef): one
 	// removed since is no longer sent.

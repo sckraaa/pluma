@@ -1275,7 +1275,7 @@
   "used_by": "android ui/web/BotWebViewContainer.java:3026; ios Messages/TelegramEngineMessages.swift:2069, Peers/AddPeerMember.swift:459; tdesktop inline_bots/bot_attach_web_view.cpp:2165; tweb lib/appManagers/appAttachMenuBotsManager.ts:333",
   "decision": "implement",
   "priority": "normal",
-  "why": "Все четыре клиента вызывают; часть мини-приложений, пара к bots.requestWebViewButton."
+  "why": "Task 106, part F: the button the bot prepared for this user (bot_prepared), keyboardButton with buttonTypeRequestPeer from layer 229 (pkg/layercompat); WEBAPP_REQ_ID_INVALID, BOT_ID_INVALID."
  },
  {
   "name": "bots.invokeWebViewCustomMethod",
@@ -2661,7 +2661,7 @@
   "used_by": "Android ui/bots/BotShareSheet.java:78; iOS PreparedInlineMessages.swift:22; Desktop inline_bots/bot_attach_web_view.cpp:2011; Web appBotsManager.ts:234",
   "decision": "implement",
   "priority": "normal",
-  "why": "All four clients call it; part of mini apps with bots.savePreparedInlineMessage."
+  "why": "Task 106, part F: a new inline answer in Redis holds the result and its peer_types, which messages.sendInlineBotResult enforces; ID_INVALID, ID_EXPIRED."
  },
  {
   "name": "messages.getQuickReplies",
@@ -2850,7 +2850,7 @@
   "used_by": "Android ui/web/BotWebViewContainer.java:3040; Desktop inline_bots/bot_attach_web_view.cpp:2179; iOS TelegramEngine/Peers/AddPeerMember.swift:372; Web lib/appManagers/appMessagesManager.ts:15731",
   "decision": "implement",
   "priority": "normal",
-  "why": "keyboardButtonRequestPeer is part of regular bot behaviour; bots exist already (ADR 0043), so a press of this button fails today."
+  "why": "Task 106, part F: keyboard button of the bot's message or webapp_req_id; peers checked by peer_type, the bot added or promoted for bot_participant/bot_admin_rights (tdesktop and iOS leave it to the server); messageActionRequestedPeer for the user, messageActionRequestedPeerSentMe for the bot (msg incoming_action)."
  },
  {
   "name": "messages.sendQuickReplyMessages",
@@ -3120,7 +3120,7 @@
   "used_by": "none found в клиентах; вызывающий — учётная запись бота; результат читают клиенты через bots.getRequestedWebViewButton",
   "decision": "implement",
   "priority": "rare",
-  "why": "Без него bots.getRequestedWebViewButton нечего отдавать; делать вместе с мини-приложениями."
+  "why": "Task 106, part F: inputKeyboardButtonRequestPeer (or the typed form of layer 229+) kept 24 h in bot_prepared; BUTTON_INVALID otherwise, requestPeerTypeCreateBot PEER_TYPES_INVALID."
  },
  {
   "name": "bots.setBotBroadcastDefaultAdminRights",
@@ -3948,7 +3948,7 @@
   "used_by": "none found in user clients (bot-side). Its counterpart getPreparedInlineMessage is called: Android ui/bots/BotShareSheet.java:78; Desktop inline_bots/bot_attach_web_view.cpp:2011; iOS TelegramEngine/Messages/PreparedInlineMessages.swift:22; Web lib/appManagers/appBotsManager.ts:234",
   "decision": "implement",
   "priority": "rare",
-  "why": "Bots here are ordinary MTProto accounts (ADR 0043), so this is their entry point; without it the clients' share-from-mini-app path has nothing to read. Do it with mini apps."
+  "why": "Task 106, part F: the result checked as an inline answer (games too), peer_types (default: users, bots, groups, channels) kept 24 h in bot_prepared; USER_ID_INVALID for a bot or the caller."
  },
  {
   "name": "messages.setBotGuestChatResult",

@@ -206,6 +206,8 @@ func (s *Server) Initialize() error {
 		// pluma: task 106. The mini apps of bots.
 		mtproto.RegisterRPCMiniBotAppsServer(grpcServer, bots)
 		mtproto.RegisterRPCMainMiniBotAppsServer(grpcServer, bots)
+		// pluma: task 106. The messages bots prepare for their mini apps.
+		mtproto.RegisterRPCPreparedInlineMessagesServer(grpcServer, bots)
 
 		// reports_helper: the moderation queue (task 025, ADR 0040).
 		mtproto.RegisterRPCReportsServer(
