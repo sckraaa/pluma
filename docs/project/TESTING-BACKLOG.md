@@ -1253,3 +1253,12 @@
 - [ ] Телефон в той же сети (`run.sh lan`): `E2E_SERVER_KEY=… E2E_CDN=on E2E_DC1_ADDRESSES=<адрес машины>:10443 E2E_CDN_ADDRESS=<адрес машины>:8443 test/e2e/run.sh up`, затем `test/e2e/run.sh lan`. Android: видео 5 МБ, присланное с другого аккаунта, открывается и перематывается, второй раз (после очистки кэша) — тоже, уже с узла.
 - [ ] Симулятор iOS со сборкой I-116 против того же стенда: видео 5 МБ качается; в отладочном логе FetchV2 нет «CDN unusable».
 - [ ] Остановить узел (`test/e2e/run.sh compose stop cdn`) во время загрузки большого файла на Android и Desktop: загрузка докачивается из дома без ошибки на экране; после `test/e2e/run.sh wait` (запускает узел и проверяет, что его адрес не сменился) следующий большой файл снова идёт с узла, уже скачанные открываются.
+
+## 101 — Перевод сообщений своей моделью (часть 10: метрики, тревоги, образ в CI, выкладка)
+Часть 10 добавляет тревоги `teamgramd/deploy/prometheus/server/rules/translate.yml`, строку «Translation» в дашборд Grafana «Pluma overview», образ `pluma-translate` в CI (`images.yml`), переменные `.env.example` и `docs/ops/translation.md` (выкладка, включение, тревоги, план замера на домашнем сервере). Проверяется на сервере после выкладки и замера.
+- [ ] После выкладки коммита в GHCR есть `ghcr.io/sckraaa/pluma-translate:<коммит>`; `docker run --rm --entrypoint ls <образ> /model /licenses` показывает `License.txt`, `NOTICE` и `llama.cpp.LICENSE`.
+- [ ] До включения (`TRANSLATE_URL` пуст): ни в одном клиенте нет кнопки «Перевести» и панели перевода; в Prometheus нет метрик `translate_*`, тревоги `Translate*` не горят.
+- [ ] Замер на домашнем сервере по плану `docs/ops/translation.md` выполнен, итог записан в тот же файл и в `docs/ops/memory.md`; во время пачки переводов звонок и отправка сообщений с телефона не тормозят.
+- [ ] После включения: Grafana → «Pluma overview» → строка «Translation» — после нескольких переводов в клиенте видны запросы, элементы `engine` и `cache`, время движка, очередь и `engine up` = 1.
+- [ ] Остановить `translate` (`docker compose … -f docker-compose.translate.yaml stop translate`) и попробовать перевести в клиенте: через 10 минут приходит пуш тревоги `TranslateEngineDown`; после `up -d translate` перевод снова работает без перезапуска bff, тревога гаснет.
+- [ ] Откат: `TRANSLATE_URL=` и перезапуск bff — после перезапуска клиентов кнопки «Перевести» нет на Android, iOS и Web; вернуть адрес — кнопка снова есть.

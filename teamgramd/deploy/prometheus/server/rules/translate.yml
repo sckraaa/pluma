@@ -1,0 +1,67 @@
+# Message translation (task 101, ADR 0064, docs/ops/translation.md). The
+# metrics are bff's (translate_*, pkg/translate/metrics.go); the engine is
+# optional: without TRANSLATE_URL bff runs no scheduler, publishes none of
+# them, and none of these fire.
+groups:
+  - name: translate
+    rules:
+      # The engine has failed with "unavailable" (no answer, 5xx, 429, a
+      # refused token or path) and its health check has not passed since:
+      # every translation is answered FLOOD_WAIT_10 and nothing new reaches
+      # the engine. The gauge goes to 0 only once somebody asked for a
+      # translation, so an engine down with nobody translating stays quiet.
+      - alert: TranslateEngineDown
+        expr: max(translate_engine_up) == 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "The translation engine has been unusable for 10 minutes; translations are refused with a wait"
+          description: "docker compose ps translate; docker compose logs --tail 50 translate bff ('the engine is unavailable'); TRANSLATE_URL, TRANSLATE_MODEL, TRANSLATE_TOKEN. docs/ops/translation.md"
+
+      # The engine answers, but the items fail in it: it refuses them (a
+      # context smaller than bff's Context assumes), runs out of time, or
+      # answers with no translation. Every attempt that came back translated
+      # is one observation of translate_engine_seconds, so the ratio is of
+      # the attempts themselves: more than half of them fail. (The items of
+      # translate_items_total count only the requests answered in time, so
+      # they are no measure of what the engine was given.) The histogram has
+      # no series until an item is translated, hence the vector(0): an
+      # engine that fails every item still fires.
+      - alert: TranslateItemsFailing
+        expr: |
+          sum(increase(translate_engine_errors_total{kind=~"rejected|bad_answer|timeout|other"}[30m])) >= 5
+          and
+          sum(increase(translate_engine_errors_total{kind=~"rejected|bad_answer|timeout|other"}[30m]))
+            / clamp_min(
+                sum(increase(translate_engine_errors_total{kind=~"rejected|bad_answer|timeout|other"}[30m]))
+                + (sum(increase(translate_engine_seconds_count[30m])) or vector(0)), 1) > 0.5
+        labels: {severity: warning}
+        annotations:
+          summary: "Many translations fail in the engine"
+          description: "translate_engine_errors_total by kind; the bff log has 'failed (<kind>) after N attempts'. TRANSLATE_SLOTS and TRANSLATE_CTX of the engine against Slots and Context of bff. docs/ops/translation.md"
+
+      # A batch of a chat that is not translated within SyncWait is answered
+      # FLOOD_WAIT_X and its repeat finds it in the cache: one wait per
+      # batch is normal under load. More waits than finished requests means
+      # the engine is too slow for what is asked of it.
+      - alert: TranslateTooSlow
+        expr: |
+          sum(increase(translate_requests_total{result="wait"}[30m])) >= 10
+          and
+          sum(increase(translate_requests_total{result="wait"}[30m]))
+            / clamp_min(sum(increase(translate_requests_total{result=~"ok|wait"}[30m])), 1) > 0.5
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "Translations keep the clients waiting: the engine is too slow for the load"
+          description: "Grafana: Translation engine time and queue; docker stats translate. Fewer slots, Q6_K, more TRANSLATE_CPUS or TRANSLATE_THREADS (docs/ops/translation.md, 'Замер')"
+
+      # translation_cache cannot be read or written: every translation goes
+      # to the engine again (and a finished one is lost), so the engine gets
+      # many times its usual load. MySQL is the cause.
+      - alert: TranslateCacheFailing
+        expr: sum(increase(translate_cache_errors_total[15m])) >= 3
+        labels: {severity: warning}
+        annotations:
+          summary: "The translation cache cannot be read or written; every translation goes to the engine"
+          description: "translate_cache_errors_total by op; the bff log has 'is not cached' or 'count the cache'; MySQL: docker compose logs mysql. docs/ops/translation.md"

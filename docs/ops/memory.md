@@ -27,6 +27,7 @@
 | alertmanager, geoipupdate | 128m | |
 | alertpush, node-exporter | 64m | |
 | stt (необязательный, `docker-compose.stt.yaml`) | 768m (`STT_MEMORY`) | GigaAM-v3 e2e_rnnt int8: 340 МБ после загрузки, пик 415–435 МБ на записях от 90 с до часа — от длины не зависит (замер 2026-11-12 на машине сборки, `docs/ops/transcription.md`); 2 CPU. Parakeet TDT v3 — `STT_MEMORY=2g` (пик 1,27 ГБ) |
+| translate (необязательный, `docker-compose.translate.yaml`) | 3584m (`TRANSLATE_MEMORY`) | HY-MT1.5-1.8B `Q8_0`, 4 слота по 4096 токенов: 2 898 МиБ после загрузки, пик 2 967 МиБ; контекст выделяется при запуске, от текстов память почти не растёт (замер 2026-11-16 на машине сборки, `docs/ops/translation.md`). 2 слота — 2 412 МиБ, `Q6_K` с 4 слотами — 2 569 МиБ (пики). До 6 CPU (`TRANSLATE_CPUS`) с `cpu_shares: 256`. Цифры домашнего сервера — замер до включения |
 | sfu (необязательный, `docker-compose.sfu.yaml`) | 512m (`SFU_MEMORY`) | не замерялось; оценка: кэш повторов 512 пакетов на слой видео, при 100 участниках с 30 камерами около 150 МБ; 2 CPU (`SFU_CPUS`), `docs/ops/group-calls.md` |
 
 Kafka запускается с кучей 512 МБ (`KAFKA_HEAP_OPTS`) вместо гигабайта по умолчанию.
@@ -54,6 +55,8 @@ PLUMA_CGROUP_PARENT=pluma.slice
 systemctl status pluma.slice                    # Memory: … (max: 4.5G)
 docker inspect -f '{{.HostConfig.CgroupParent}} {{.HostConfig.Memory}}' pluma-dfs-1
 ```
+
+**Домашний сервер** (с 2026-11-14 там вся Pluma, кроме края; `docs/ops/home-server.md`): drop-in `pluma.slice.d/10-home.conf` задаёт `MemoryMax=10G`, `MemoryLow=6G`. Бюджет с переводом: остальная Pluma около 3,6 ГБ (замер 2026-11-14) + `stt` до 0,44 ГБ + `translate` не больше лимита 3584 МиБ (3,76 ГБ) — около 7,8 ГБ из 10 ГиБ (10,7 ГБ), запас около 2,9 ГБ. Ни `pluma.slice`, ни `media.slice` (до 12 ГБ) менять не нужно: 10 + 12 ГБ из 32 оставляют хосту около 10 ГБ. Если замер на сервере покажет больше, сначала уменьшить слоты (`TRANSLATE_SLOTS=2`, минус 0,5 ГиБ) или взять `Q6_K`, а не поднимать `MemoryMax`.
 
 Без `PLUMA_CGROUP_PARENT` (машина разработчика, CI, e2e) контейнеры остаются в cgroup Docker по умолчанию, а их собственные лимиты действуют как обычно.
 
