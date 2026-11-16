@@ -50,6 +50,8 @@ enum TLConstructor {
   // pluma: task 019
   CRC32_authsession_changeAuthorizationSettings = -951003082;
   CRC32_authsession_getRecentLangCode = 299421713;
+  // pluma: task 106
+  CRC32_authsession_getIpRegion = 415119041;
 }
 
 // AuthKeyStateData <--
@@ -290,6 +292,17 @@ message TL_authsession_getRecentLangCode {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: authsession.getIpRegion ip:string = String;
+// The place of an address by the GeoIP database of authsession, as the place
+// of a session is written ("City, Country" or the country); empty when it is
+// not known. The region of a site a user logged in on through a bot
+// (webAuthorization.region, task 106).
+message TL_authsession_getIpRegion {
+  TLConstructor constructor = 1;
+  string ip = 3;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_Long {
   repeated int64 datas = 1;
@@ -346,5 +359,8 @@ service RPCAuthsession {
   rpc authsession_changeAuthorizationSettings(
       TL_authsession_changeAuthorizationSettings) returns (mtproto.Int64) {}
   rpc authsession_getRecentLangCode(TL_authsession_getRecentLangCode)
+      returns (mtproto.String) {}
+  // pluma: task 106
+  rpc authsession_getIpRegion(TL_authsession_getIpRegion)
       returns (mtproto.String) {}
 }

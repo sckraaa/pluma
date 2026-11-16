@@ -25,5 +25,5 @@ import (
 // HelpGetAppConfig61E3F854
 // help.getAppConfig#61e3f854 hash:int = help.AppConfig;
 func (c *ConfigurationCore) HelpGetAppConfig61E3F854(in *mtproto.TLHelpGetAppConfig61E3F854) (*mtproto.Help_AppConfig, error) {
-	return c.svcCtx.AppConfig.Reply(in.GetHash()), nil
+	return c.svcCtx.AppConfig.Current(c.ctx).Reply(in.GetHash()), nil
 }

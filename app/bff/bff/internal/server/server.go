@@ -187,6 +187,9 @@ func (s *Server) Initialize() error {
 			WebApp:        c.WebApp,
 			BotSecrets:    c.BotSecrets,
 			Avatars:       c.Avatars,
+
+			// pluma: task 106. The session and the region of a login on a site.
+			AuthsessionClient: c.AuthSessionClient,
 		})
 		mtproto.RegisterRPCBotsServer(grpcServer, bots)
 		mtproto.RegisterRPCBotMenuButtonServer(grpcServer, bots)
@@ -195,6 +198,9 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCGamesServer(grpcServer, bots)
 		mtproto.RegisterRPCInlineBotServer(grpcServer, bots)
 		mtproto.RegisterRPCDeepLinksServer(grpcServer, bots)
+		// pluma: task 106. Logins on sites through bots and the sites logged
+		// in on.
+		mtproto.RegisterRPCSeamlessServer(grpcServer, bots)
 
 		// reports_helper: the moderation queue (task 025, ADR 0040).
 		mtproto.RegisterRPCReportsServer(

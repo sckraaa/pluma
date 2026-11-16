@@ -21,11 +21,13 @@ package svc
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/appconfig"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/dao"
+	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -38,6 +40,9 @@ const (
 	// appConfigFile is the client configuration of help.getAppConfig, next to
 	// config.json of help.getConfig.
 	appConfigFile = "./app_config.json"
+	// loginDomainsEvery is how often the login domains of bots, the
+	// url_auth_domains of the app config, are read again (task 106).
+	loginDomainsEvery = 60 * time.Second
 )
 
 type ServiceContext struct {
@@ -45,7 +50,9 @@ type ServiceContext struct {
 	// ClientConfig is config.json, the base of every help.getConfig answer;
 	// handlers clone it before filling the per-request fields.
 	ClientConfig *mtproto.TLConfig
-	AppConfig    *appconfig.AppConfig
+	// AppConfig is app_config.json with url_auth_domains, the login
+	// domains of bots, from the database (task 106).
+	AppConfig *appconfig.Live
 	// IOSUpdate asks the install service what an Ad Hoc build of the iPhone
 	// app can update to from the app (task 085); nil when that is off.
 	IOSUpdate *iosupdate.Checker
@@ -62,12 +69,13 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if c.IOSUpdate.Enabled() {
 		iosUpdate = iosupdate.NewChecker(c.IOSUpdate.StatusURL)
 	}
+	d := dao.New(c)
 	return &ServiceContext{
 		Config:       c,
 		ClientConfig: clientConfig,
-		AppConfig:    appConfig,
+		AppConfig:    appconfig.NewLive(appConfig, botstore.New(d.DB()).LoginDomains, loginDomainsEvery),
 		IOSUpdate:    iosUpdate,
-		Dao:          dao.New(c),
+		Dao:          d,
 	}
 }
 

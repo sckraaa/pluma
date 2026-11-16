@@ -20,19 +20,27 @@ package appconfig
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
 	"io"
 	"os"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type AppConfig struct {
 	Config *mtproto.JSONValue // a jsonObject, keys in the order of the file
 	Hash   int32
+
+	compact []byte // the file without insignificant whitespace
 }
 
 // Load reads and parses the file.
@@ -69,14 +77,114 @@ func Parse(data []byte) (*AppConfig, error) {
 	if err := json.Compact(&b, data); err != nil {
 		return nil, err
 	}
+	return &AppConfig{Config: v, Hash: hashOf(b.Bytes()), compact: b.Bytes()}, nil
+}
+
+// hashOf is the hash of a config, never 0: 0 means "no config cached" to
+// the clients.
+func hashOf(parts ...[]byte) int32 {
 	h := fnv.New32a()
-	h.Write(b.Bytes())
-	// 0 means "no config cached" to the clients.
+	for _, p := range parts {
+		h.Write(p)
+	}
 	hash := int32(h.Sum32() & 0x7fffffff)
 	if hash == 0 {
 		hash = 1
 	}
-	return &AppConfig{Config: v, Hash: hash}, nil
+	return hash
+}
+
+// urlAuthDomainsKey is the list of the domains whose links the clients open
+// through messages.requestUrlAuth (core.telegram.org/api/config,
+// url_auth_domains; read by tdesktop core/ui_integration.cpp:100, Android
+// MessagesController.java:3033, iOS UrlHandling.swift:1654).
+const urlAuthDomainsKey = "url_auth_domains"
+
+// WithURLAuthDomains returns the config with url_auth_domains set to domains,
+// the login domains of bots (task 106, ADR 0068 p. 6), and a hash of its
+// own; c itself for no domains, which the file already says as []. The
+// other keys keep their order and values.
+func (c *AppConfig) WithURLAuthDomains(domains []string) *AppConfig {
+	if len(domains) == 0 {
+		return c
+	}
+	list := make([]*mtproto.JSONValue, 0, len(domains))
+	for _, d := range domains {
+		list = append(list, mtproto.MakeTLJsonString(&mtproto.JSONValue{Value_STRING: d}).To_JSONValue())
+	}
+	value := mtproto.MakeTLJsonObjectValue(&mtproto.JSONObjectValue{
+		Key:   urlAuthDomainsKey,
+		Value: mtproto.MakeTLJsonArray(&mtproto.JSONValue{Value_VECTORJSONVALUE: list}).To_JSONValue(),
+	}).To_JSONObjectValue()
+	old := c.Config.GetValue_VECTORJSONOBJECTVALUE()
+	values := make([]*mtproto.JSONObjectValue, 0, len(old)+1)
+	replaced := false
+	for _, v := range old {
+		if v.GetKey() == urlAuthDomainsKey {
+			v, replaced = value, true
+		}
+		values = append(values, v)
+	}
+	if !replaced {
+		values = append(values, value)
+	}
+	return &AppConfig{
+		Config:  mtproto.MakeTLJsonObject(&mtproto.JSONValue{Value_VECTORJSONOBJECTVALUE: values}).To_JSONValue(),
+		Hash:    hashOf(c.compact, []byte("\n"+urlAuthDomainsKey+"="+strings.Join(domains, ","))),
+		compact: c.compact,
+	}
+}
+
+// Live is the config of the file with what comes from the database:
+// url_auth_domains, the login domains of bots, read again at most every
+// refresh period, so that a domain set with pluma-admin reaches the clients
+// with their next help.getAppConfig.
+type Live struct {
+	base    *AppConfig
+	domains func(ctx context.Context) ([]string, error)
+	every   time.Duration
+	now     func() time.Time
+
+	mu    sync.Mutex
+	cur   *AppConfig
+	until time.Time
+}
+
+// Timings of Live: how long a read of the domains may take, and how soon a
+// failed one is tried again (the last config read stays meanwhile).
+const (
+	domainsTimeout    = 3 * time.Second
+	domainsRetryAfter = 5 * time.Second
+)
+
+// NewLive returns the config of base with the domains read by domains, at
+// most every period.
+func NewLive(base *AppConfig, domains func(ctx context.Context) ([]string, error), every time.Duration) *Live {
+	return &Live{base: base, domains: domains, every: every, now: time.Now}
+}
+
+// Current returns the config to answer with. A failed read of the domains
+// keeps the config read last, the file's at first, and is logged.
+func (l *Live) Current(ctx context.Context) *AppConfig {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now()
+	if l.cur != nil && now.Before(l.until) {
+		return l.cur
+	}
+	qctx, cancel := context.WithTimeout(ctx, domainsTimeout)
+	defer cancel()
+	domains, err := l.domains(qctx)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("app config: login domains of bots: %v", err)
+		if l.cur == nil {
+			l.cur = l.base
+		}
+		l.until = now.Add(domainsRetryAfter)
+		return l.cur
+	}
+	l.cur, l.until = l.base.WithURLAuthDomains(domains), now.Add(l.every)
+	return l.cur
 }
 
 // Reply is the answer to help.getAppConfig with the hash of the client's

@@ -67,6 +67,18 @@ func (d *Dao) placeByIp(ip string) string {
 	return placeOf(r)
 }
 
+// IpRegion is the place of an address as placeByIp writes the place of a
+// session, "" when it is not known (no database, an address that is not
+// one, or not in the database): webAuthorization.region, which Android,
+// Desktop and Web K show only when it is not empty (DrKLO/Telegram
+// ui/Cells/SessionCell.java:279, tdesktop api/api_websites.cpp:30).
+func (d *Dao) IpRegion(ip string) string {
+	if place := d.placeByIp(ip); place != "UNKNOWN" {
+		return place
+	}
+	return ""
+}
+
 // maxCityRadius is the largest location.accuracy_radius, in kilometres, at
 // which placeOf names the city. MaxMind defines it as "the radius in
 // kilometers around the specified location where the IP address is likely to

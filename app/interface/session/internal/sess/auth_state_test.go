@@ -204,3 +204,7 @@ func (f *fakeAuthsessionClient) AuthsessionChangeAuthorizationSettings(context.C
 func (f *fakeAuthsessionClient) AuthsessionGetRecentLangCode(context.Context, *authsession.TLAuthsessionGetRecentLangCode) (*mtproto.String, error) {
 	return nil, nil
 }
+
+func (f *fakeAuthsessionClient) AuthsessionGetIpRegion(context.Context, *authsession.TLAuthsessionGetIpRegion) (*mtproto.String, error) {
+	return nil, nil
+}

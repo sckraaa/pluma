@@ -338,7 +338,7 @@ func webDocument(key []byte, d *mtproto.InputWebDocument) *mtproto.WebDocument {
 // invoice, game and rich message results are refused: nothing here makes
 // them.
 func (c *BotsCore) inlineMessage(m *mtproto.InputBotInlineMessage) (*mtproto.BotInlineMessage, error) {
-	markup, err := botmarkup.Normalize(m.GetReplyMarkup(), c.resolveUser)
+	markup, err := botmarkup.Normalize(m.GetReplyMarkup(), c.markupEnv())
 	if err != nil {
 		return nil, err
 	}

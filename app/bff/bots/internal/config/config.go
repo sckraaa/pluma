@@ -41,6 +41,9 @@ type Config struct {
 	DialogClient  zrpc.RpcClientConf
 	MediaClient   zrpc.RpcClientConf
 	MsgClient     zrpc.RpcClientConf
+	// AuthsessionClient gives the app and the device of the session a user
+	// logs in on a site from, and the region of its address (task 106).
+	AuthsessionClient zrpc.RpcClientConf
 	// DfsClient stores the media the built-in inline bots import
 	// (pkg/inlinemedia).
 	DfsClient zrpc.RpcClientConf
