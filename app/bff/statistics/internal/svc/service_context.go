@@ -21,10 +21,13 @@ import (
 
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/statistics/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/statistics/internal/dao"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/statsgraph"
 
 	"golang.org/x/sync/singleflight"
@@ -35,10 +38,17 @@ type Channels interface {
 	ChannelGetMutableChannel(ctx context.Context, in *channelpb.TLChannelGetMutableChannel) (*channelpb.MutableChannel, error)
 }
 
+// Users reads the users the statistics name (the top members of a
+// supergroup) as the viewer sees them.
+type Users interface {
+	UserGetMutableUsersV2(ctx context.Context, in *userpb.TLUserGetMutableUsersV2) (*mtproto.MutableUsers, error)
+}
+
 type ServiceContext struct {
 	Config   config.Config
 	Dao      *dao.Dao
 	Channels Channels
+	Users    Users
 	// Signer signs and checks the zoom tokens; nil when the statistics are
 	// off (no STATS_GRAPH_TOKEN_KEY).
 	Signer *statsgraph.Signer
@@ -55,6 +65,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config:   c,
 		Dao:      dao.New(sqlx.NewMySQL(&c.Mysql)),
 		Channels: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
+		Users:    user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		Flight:   new(singleflight.Group),
 	}
 	if c.Stats.Enabled() {

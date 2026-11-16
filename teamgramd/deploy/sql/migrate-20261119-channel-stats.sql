@@ -114,6 +114,51 @@ PREPARE ddl FROM @ddl;
 EXECUTE ddl;
 DEALLOCATE PREPARE ddl;
 
+-- The messages of supergroups by date, kind, sender and length, answered
+-- from an index alone: the statistics of a group read a year of its
+-- messages, and through the rows each read is the message's JSON.
+-- stats_kind is the kind a message is counted as, NULL for a deleted or a
+-- service message: 0 text (no media, or a link preview), 1 photo, 2 video,
+-- 3 voice message, 4 round video, 5 sticker, 6 GIF, 7 file, 8 music,
+-- 9 other (a poll, a location, a contact...). It reads message_filter_type
+-- (mtproto.GetMediaType), which gives voice messages and round videos one
+-- type (2): a round video is a video/mp4 document. stats_chars is the length
+-- of the text in characters. Both are virtual: added without rewriting the
+-- table, stored only in the index.
+SET @ddl = IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+               WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'channel_messages' AND COLUMN_NAME = 'stats_kind') = 0,
+  'ALTER TABLE `channel_messages` ADD COLUMN `stats_kind` tinyint GENERATED ALWAYS AS (CASE
+     WHEN `deleted` <> 0 OR COALESCE(JSON_UNQUOTE(JSON_EXTRACT(`message_data`, ''$.predicate_name'')), '''') <> ''message'' THEN NULL
+     WHEN `message_filter_type` IN (-1, 3) THEN IF(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(`message_data`, ''$.media.predicate_name'')), '''') IN ('''', ''messageMediaEmpty'', ''messageMediaWebPage''), 0, 9)
+     WHEN `message_filter_type` = 7 THEN 1
+     WHEN `message_filter_type` = 8 THEN 2
+     WHEN `message_filter_type` = 2 THEN IF(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(`message_data`, ''$.media.document.mime_type'')), '''') LIKE ''video/%'', 4, 3)
+     WHEN `message_filter_type` = 13 THEN 5
+     WHEN `message_filter_type` = 6 THEN 6
+     WHEN `message_filter_type` = 1 THEN 7
+     WHEN `message_filter_type` = 4 THEN 8
+     ELSE 9 END) VIRTUAL COMMENT ''the kind of message the statistics count, NULL for none'', ALGORITHM = INSTANT',
+  'DO 0');
+PREPARE ddl FROM @ddl;
+EXECUTE ddl;
+DEALLOCATE PREPARE ddl;
+
+SET @ddl = IF((SELECT COUNT(*) FROM information_schema.COLUMNS
+               WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'channel_messages' AND COLUMN_NAME = 'stats_chars') = 0,
+  'ALTER TABLE `channel_messages` ADD COLUMN `stats_chars` smallint GENERATED ALWAYS AS (CHAR_LENGTH(`message`)) VIRTUAL COMMENT ''the length of the text in characters'', ALGORITHM = INSTANT',
+  'DO 0');
+PREPARE ddl FROM @ddl;
+EXECUTE ddl;
+DEALLOCATE PREPARE ddl;
+
+SET @ddl = IF((SELECT COUNT(*) FROM information_schema.STATISTICS
+               WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'channel_messages' AND INDEX_NAME = 'stats_messages') = 0,
+  'ALTER TABLE `channel_messages` ADD KEY `stats_messages` (`channel_id`, `date2`, `stats_kind`, `sender_user_id`, `send_as_id`, `stats_chars`), ALGORITHM = INPLACE, LOCK = NONE',
+  'DO 0');
+PREPARE ddl FROM @ddl;
+EXECUTE ddl;
+DEALLOCATE PREPARE ddl;
+
 SET @ddl = IF((SELECT COUNT(*) FROM information_schema.STATISTICS
                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'channel_message_reactions' AND INDEX_NAME = 'channel_date') = 0,
   'ALTER TABLE `channel_message_reactions` ADD KEY `channel_date` (`channel_id`, `date`), ALGORITHM = INPLACE, LOCK = NONE',

@@ -772,6 +772,7 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 				Mysql:         c.Mysql,
 				ChannelClient: c.BizServiceClient,
+				UserClient:    c.BizServiceClient,
 				Stats:         c.Stats,
 			}))
 	})
