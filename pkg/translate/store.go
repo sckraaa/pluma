@@ -92,6 +92,16 @@ func (s *Store) SetTranslationsDisabled(ctx context.Context, userId int64, peer 
 	return nil
 }
 
+// DeleteUser removes the chats userId hid the translation bar of, whose
+// account is deleted. The cache of translations is no one's: it is not
+// touched.
+func (s *Store) DeleteUser(ctx context.Context, userId int64) error {
+	if _, err := s.db.ExecContext(ctx, "DELETE FROM peer_translation_settings WHERE user_id = ?", userId); err != nil {
+		return fmt.Errorf("translate: delete the translation settings of %d: %w", userId, err)
+	}
+	return nil
+}
+
 // TranslationsDisabled returns which of peers userId hid the translation
 // bar of: translations_disabled of userFull, chatFull and channelFull. A
 // peer that is not in the map is not hidden.

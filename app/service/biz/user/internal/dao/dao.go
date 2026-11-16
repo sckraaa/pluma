@@ -29,9 +29,13 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/config"
 	idgen_client "github.com/teamgram/teamgram-server/app/service/idgen/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
+	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/readmetrics"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
+	"github.com/teamgram/teamgram-server/pkg/webbrowser"
 )
 
 // Dao dao.
@@ -49,9 +53,19 @@ type Dao struct {
 	Ids IdGenerator
 	// Topics of the events.
 	Topics config.Topics
-	// ReadMetrics holds the read metrics and the music listens a deleted
-	// account leaves (pkg/readmetrics, task 098).
-	ReadMetrics *readmetrics.Store
+	// UserRows are the stores of the rows an account has in the tables of
+	// other packages, which DeleteUser removes with the account: the read
+	// metrics and music listens (pkg/readmetrics, task 098), Telegram
+	// Business and the quick replies (pkg/business, task 105), the bot
+	// platform (pkg/botstore, task 106), the settings of the in-app browser
+	// (pkg/webbrowser) and of the translation (pkg/translate, task 101).
+	UserRows []UserRows
+}
+
+// UserRows removes the rows of a deleted account from the tables of one
+// store; running it again is safe.
+type UserRows interface {
+	DeleteUser(ctx context.Context, userId int64) error
 }
 
 // IdGenerator issues snowflake ids (idgen).
@@ -77,7 +91,13 @@ func New(c config.Config) *Dao {
 		BoxDB:       boxDB,
 		Ids:         &ids,
 		Topics:      c.Topics,
-		ReadMetrics: readmetrics.New(db),
+		UserRows: []UserRows{
+			readmetrics.New(db),
+			business.NewStore(db),
+			botstore.New(db),
+			webbrowser.NewMySQLStore(db),
+			translate.NewStore(boxDB),
+		},
 	}
 }
 

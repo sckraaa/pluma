@@ -168,6 +168,18 @@ func (s *MySQLStore) DeleteAllExceptions(ctx context.Context, userId int64) (Set
 	return removed, nil
 }
 
+// DeleteUser removes the settings and the exceptions of userId, whose
+// account is deleted: the exceptions name the sites the user opened. Each
+// statement can run again, so a deletion that failed half way is repeated
+// whole.
+func (s *MySQLStore) DeleteUser(ctx context.Context, userId int64) error {
+	if _, err := s.db.Exec(ctx, "delete from user_web_browser_exceptions where user_id = ?", userId); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(ctx, "delete from user_web_browser_settings where user_id = ?", userId)
+	return err
+}
+
 // lock takes the account's row of user_web_browser_settings for the
 // transaction, making it if there is none (with flags_set = 0, so that the
 // defaults still apply): the writes of the exceptions of one account go
