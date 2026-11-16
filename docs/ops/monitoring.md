@@ -71,3 +71,11 @@
 | `GroupCallsConnectFailing` | больше половины соединений с SFU не проходят ICE или DTLS: адрес, порты, межсетевой экран |
 | `GroupCallsUplinkSaturated` | SFU отдаёт больше 90% заданного лимита отдачи, видео идёт в худшем качестве |
 | `GroupCallsEventsDropped` | bff не успевает читать события SFU; ушедших из звонка выведет сборщик, но позже |
+
+## Карты в геопозициях
+Правила — группа `maps` в `teamgramd/deploy/prometheus/server/rules/maps.yml`, метрики bff `webmap_render_total{result}`, `webmap_render_seconds`, `webmap_cache_total{result}`, `webmap_flood_total`, `webmap_limit_errors_total` (задача 100, ADR 0063 §8). Цели у самого сервиса `maps` нет: он в закрытой сети `maps_net`, куда Prometheus не входит, и метрик у tileserver-gl нет, поэтому `ServiceDown` о нём молчит — о нём говорят рендеры bff. Без `MAPS_URL` карты не рисуются и ничего не срабатывает; попадания в кэш Redis рендеров не вызывают. Что делать — `docs/ops/maps.md`, раздел «Неполадки».
+
+| Алерт | Что значит |
+|---|---|
+| `MapsRendererDown` | 15 минут ни одной нарисованной карты при запросах: контейнер `maps` остановлен или не стартует (нет файла данных, нехватка памяти), либо bff пересоздан без `docker-compose.maps.yaml` и не видит `maps`. Новые геопозиции показываются без карты |
+| `MapsRenderFailing` | больше 20 % рендеров за 10 минут (от 10 запросов) не удаются: `timeout` — перегрузка или нехватка CPU, `error` — стиль, которого нет в образе, или сбой сервиса, `invalid` — картинка не того размера |

@@ -10,7 +10,7 @@
 |---|---|---|
 | dfs | 1536m | 93 МБ; дочерние ffmpeg — в том же лимите |
 | session, gnetway | 512m | 240 МБ |
-| bff, biz | 384m | 125 МБ |
+| bff, biz | 384m | 125 МБ; bff с картами (задача 100) — около 1 МБ на пузырь чата и до 16–20 МБ на самую большую карту (2048×2048) сверх обычного, не больше 4 одновременно (`MAPS_CONCURRENCY`): оценка, не замер |
 | msg, sync, push, media, authsession, migrate | 256m | 90–120 МБ |
 | idgen, status | 192m | 85 МБ |
 | storage-init | 128m | — |
@@ -27,6 +27,7 @@
 | alertmanager, geoipupdate | 128m | |
 | alertpush, node-exporter | 64m | |
 | stt (необязательный, `docker-compose.stt.yaml`) | 768m (`STT_MEMORY`) | GigaAM-v3 e2e_rnnt int8: 340 МБ после загрузки, пик 415–435 МБ на записях от 90 с до часа — от длины не зависит (замер 2026-11-12 на машине сборки, `docs/ops/transcription.md`); 2 CPU. Parakeet TDT v3 — `STT_MEMORY=2g` (пик 1,27 ГБ) |
+| maps (необязательный, `docker-compose.maps.yaml`) | 2560m (`MAPS_MEMORY`) | tileserver-gl, два стиля (`ru`, `en`), пулы по одному рендереру на стиль и масштаб: около 300 МиБ в простое, пик около 2 ГиБ при всех рендерерах в работе (замер 2026-11-16, `docs/ops/maps.md`, «Память»); пулы по два — до 3 ГиБ; 2 CPU (`MAPS_CPUS`). Каждый новый язык в `MAPS_STYLES` — свои рендереры |
 | sfu (необязательный, `docker-compose.sfu.yaml`) | 512m (`SFU_MEMORY`) | не замерялось; оценка: кэш повторов 512 пакетов на слой видео, при 100 участниках с 30 камерами около 150 МБ; 2 CPU (`SFU_CPUS`), `docs/ops/group-calls.md` |
 
 Kafka запускается с кучей 512 МБ (`KAFKA_HEAP_OPTS`) вместо гигабайта по умолчанию.
@@ -54,6 +55,8 @@ PLUMA_CGROUP_PARENT=pluma.slice
 systemctl status pluma.slice                    # Memory: … (max: 4.5G)
 docker inspect -f '{{.HostConfig.CgroupParent}} {{.HostConfig.Memory}}' pluma-dfs-1
 ```
+
+**Дома** (ADR 0061, `docs/ops/home-server.md`) потолок другой: `MemoryMax=10G`, `MemoryLow=6G` в drop-in `pluma.slice.d/10-home.conf`; Pluma занимает около 3,6 ГБ (замер 2026-11-14). Карты (задача 100) добавляют около 0,3 ГБ в простое и до `MAPS_MEMORY` (2,5 ГБ) под нагрузкой: обычно около 3,9 ГБ, в худшем случае около 6,1 ГБ — в пределах 10 ГБ, но чуть выше `MemoryLow` (6 ГБ): под давлением памяти хоста ядро сможет отнимать у Pluma сверх 6 ГБ. Вырезка данных карт (`extract.sh`, около 10 ГБ) идёт на хосте вне `pluma.slice` и делит память с медиасервером — перед ней смотреть `free -g` (`docs/ops/maps.md`).
 
 Без `PLUMA_CGROUP_PARENT` (машина разработчика, CI, e2e) контейнеры остаются в cgroup Docker по умолчанию, а их собственные лимиты действуют как обычно.
 
