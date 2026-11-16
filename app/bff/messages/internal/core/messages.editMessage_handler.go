@@ -204,6 +204,10 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 		c.Logger.Errorf("messages.editMessage - error: %v", err)
 		return nil, err
 	}
+	if in.Message != nil {
+		// A code in the new text (task 098).
+		c.invalidateSentLoginCodes(in.Message.GetValue())
+	}
 
 	return rUpdates, nil
 }

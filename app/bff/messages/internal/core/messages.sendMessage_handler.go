@@ -184,6 +184,7 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 		c.Logger.Errorf("messages.sendMessage#fa88427a - error: %v", err)
 		return nil, err
 	}
+	c.invalidateSentLoginCodes(in.Message)
 
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)

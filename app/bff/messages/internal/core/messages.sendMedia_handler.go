@@ -191,6 +191,8 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		c.Logger.Errorf("messages.sendMedia#c8f16791 - error: %v", err)
 		return nil, err
 	}
+	// A code in the caption (task 098).
+	c.invalidateSentLoginCodes(in.Message)
 
 	c.attachPollReply(rUpdate)
 	c.addRecentStickers(in.Media, outMessage.Media)

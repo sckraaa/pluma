@@ -29,17 +29,25 @@ import (
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 	"github.com/teamgram/teamgram-server/pkg/webpage"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/stores/kv"
 )
 
 // StickerLists is where a sticker the account sends becomes a recent one
 // (stickerlists.Store, task 079).
 type StickerLists interface {
 	Add(ctx context.Context, userID int64, list stickerlists.List, documentID int64) error
+}
+
+// LoginCodes drops the pending login requests of a phone whose code the
+// account has sent to a chat (logincode.Invalidator, task 098).
+type LoginCodes interface {
+	Invalidate(ctx context.Context, phone string, codes []string) (int, error)
 }
 
 type ServiceContext struct {
@@ -68,6 +76,10 @@ type ServiceContext struct {
 	// Stories answers for the stories a message shares or replies to
 	// (task 084); nil when the stories are not served.
 	Stories plugin.StoryPlugin
+
+	// LoginCodes invalidates the login codes the account sends or forwards
+	// to a chat (task 098).
+	LoginCodes LoginCodes
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories plugin.StoryPlugin) *ServiceContext {
@@ -80,6 +92,10 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories pl
 	if err != nil {
 		logx.Must(err)
 	}
+	// Only the HMAC key: the secrets of the review account and of the code
+	// sender stay with authorization.
+	loginCodes, err := logincode.NewInvalidator(logincode.Config{HmacKey: c.LoginCode.HmacKey}, kv.NewStore(c.KV))
+	logx.Must(err)
 	return &ServiceContext{
 		Config:       c,
 		Dao:          d,
@@ -91,6 +107,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories pl
 		SendAs:       sendas.New(db),
 		StickerLists: stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
 		Attached:     attached.NewStore(db),
+		LoginCodes:   loginCodes,
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

@@ -71,6 +71,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -534,6 +535,9 @@ func (s *Server) Initialize() error {
 			Mysql:         c.Mysql,
 			DfsClient:     c.DfsClient,
 			ChannelClient: c.BizServiceClient,
+			// Only the HMAC key of the login codes (task 098).
+			LoginCode: logincode.Config{HmacKey: c.LoginCode.HmacKey},
+			KV:        c.KV,
 		}, nil, userStories)
 		mtproto.RegisterRPCMessagesServer(grpcServer, messagesService)
 		// pluma: task 062
