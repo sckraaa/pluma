@@ -20,7 +20,6 @@ package core
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"math"
 	"os"
 	"slices"
@@ -220,8 +219,14 @@ func TestGeoLiveFilterLocksNoOtherRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows, err := conn.QueryContext(ctx, string(text))
-	if err == nil {
+	// Every result set is read: an error of a later statement surfaces
+	// only there (pkg/migrate runStatements).
+	run := func() error {
+		rows, err := conn.QueryContext(ctx, string(text))
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
 		for {
 			for rows.Next() {
 			}
@@ -229,9 +234,9 @@ func TestGeoLiveFilterLocksNoOtherRow(t *testing.T) {
 				break
 			}
 		}
-		err = errors.Join(rows.Err(), rows.Close())
+		return rows.Err()
 	}
-	if err != nil {
+	if err = run(); err != nil {
 		t.Fatalf("the migration with another message locked: %v", err)
 	}
 	if err = conn.QueryRowContext(ctx, "SELECT @@SESSION.transaction_isolation").Scan(&after); err != nil {
