@@ -30,11 +30,14 @@ func bizStandSQL(t *testing.T, query string) {
 }
 
 // bizAgeChat moves the messages of owner's box in the private chat with
-// peer back by age, as if the chat had been quiet so long.
+// peer back by age, as if the chat had been quiet so long. The chat is
+// named by its dialog ids, as business.ChatHistoryTx reads it: an incoming
+// copy has the owner as its peer_id.
 func bizAgeChat(t *testing.T, owner, peer *user, age time.Duration) {
 	t.Helper()
-	bizStandSQL(t, fmt.Sprintf("UPDATE messages SET date2 = date2 - %d WHERE user_id = %d AND peer_type = %d AND peer_id = %d",
-		int64(age/time.Second), owner.self.GetId(), mtproto.PEER_USER, peer.self.GetId()))
+	did := mtproto.MakeDialogId(owner.self.GetId(), mtproto.PEER_USER, peer.self.GetId())
+	bizStandSQL(t, fmt.Sprintf("UPDATE messages SET date2 = date2 - %d WHERE user_id = %d AND dialog_id1 = %d AND dialog_id2 = %d",
+		int64(age/time.Second), owner.self.GetId(), did.A, did.B))
 }
 
 // bizSetLastSeen makes u last seen ago, offline since: the row of
