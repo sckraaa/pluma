@@ -329,6 +329,8 @@ func TestBusinessShortcutDeleteTurnsOffGreeting(t *testing.T) {
 
 	toAlice := peerOf(ctx, t, bob, alice)
 	bizSend(ctx, t, bob, toAlice, "Hi, anyone greeting?")
-	waitNewMessage(ctx, t, alice, "Hi, anyone greeting?")
+	// The laptop is Alice's session that asked for its state and so gets
+	// the pushes.
+	waitNewMessage(ctx, t, laptop, "Hi, anyone greeting?")
 	bizNoMore(ctx, t, bob, toAlice, welcome, 0, "a new chat after the shortcut was deleted")
 }
