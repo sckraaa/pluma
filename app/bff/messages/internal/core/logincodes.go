@@ -35,14 +35,16 @@ const loginCodesTimeout = 2 * time.Second
 // invalidate login codes that are sent or forwarded to other chats"
 // (core.telegram.org/api/auth, "Invalidating login codes"). Every chat
 // counts, Saved Messages too: a code is meant for no one, and a new one is
-// one request away.
+// one request away. A connected business bot that writes into the
+// account's chats (businessAct) puts the account's codes there just the
+// same, so only a bot's own messages are skipped.
 //
 // It runs after msg has accepted the message, in the request's goroutine,
 // for at most loginCodesTimeout. Only a text with a run of exactly
 // logincode.Length digits costs anything (one user lookup and one read of
 // Redis); a failure is logged without the codes, and the send stands.
 func (c *MessagesCore) invalidateSentLoginCodes(texts ...string) {
-	if c.MD.IsBot || c.svcCtx.LoginCodes == nil {
+	if (c.MD.IsBot && c.business == nil) || c.svcCtx.LoginCodes == nil {
 		return
 	}
 	var codes []string
