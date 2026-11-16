@@ -141,7 +141,7 @@ func TestBusinessGreeting(t *testing.T) {
 	aliceForCarol := peerOf(ctx, t, carol, alice)
 	bizSend(ctx, t, bob, aliceForBob, "Hi, are you open?")
 	m, _ := waitNewMessage(ctx, t, bob, welcome)
-	if !m.GetOffline() || m.GetFromId().GetUserId() != alice.self.GetId() {
+	if !m.GetOffline() || m.GetOut() || m.GetPeerId().GetUserId() != alice.self.GetId() {
 		t.Errorf("the greeting Bob got: %v", m)
 	}
 	waitNewMessage(ctx, t, laptop, welcome)
@@ -219,7 +219,7 @@ func TestBusinessAway(t *testing.T) {
 	set(false)
 	bizSend(ctx, t, bob, aliceForBob, "Hello?")
 	m, _ := waitNewMessage(ctx, t, bob, away)
-	if !m.GetOffline() || m.GetFromId().GetUserId() != alice.self.GetId() {
+	if !m.GetOffline() || m.GetOut() || m.GetPeerId().GetUserId() != alice.self.GetId() {
 		t.Errorf("the away message Bob got: %v", m)
 	}
 	bizSend(ctx, t, bob, aliceForBob, "Anyone?")

@@ -112,7 +112,7 @@ func TestBusinessBotUpdates(t *testing.T) {
 	// Bob writes, Alice answers him with a reply, edits and deletes it.
 	sendMessageID(ctx, t, bob, toAlice, "hello shop", randomID())
 	in := next(waitBusinessUpdate(ctx, t, bot, mtproto.Predicate_updateBotNewBusinessMessage, ofConnection)).GetMessage_MESSAGE()
-	if in.GetMessage() != "hello shop" || in.GetOut() || in.GetFromId().GetUserId() != bobId {
+	if in.GetMessage() != "hello shop" || in.GetOut() || in.GetPeerId().GetUserId() != bobId {
 		t.Fatalf("the message of Bob: %v", in)
 	}
 	o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{

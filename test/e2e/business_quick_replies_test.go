@@ -273,7 +273,7 @@ func TestBusinessQuickReplyAlbum(t *testing.T) {
 		t.Errorf("the order Bob got: %d, %d, %d", got[front].GetId(), got[back].GetId(), got[alone].GetId())
 	}
 	for text, m := range got {
-		if m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaPhoto || m.GetQuickReplyShortcutId() != nil || m.GetFromId().GetUserId() != alice.self.GetId() {
+		if m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaPhoto || m.GetQuickReplyShortcutId() != nil || m.GetOut() || m.GetPeerId().GetUserId() != alice.self.GetId() {
 			t.Errorf("Bob's %q: %v", text, m)
 		}
 	}

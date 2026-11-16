@@ -108,7 +108,7 @@ func TestBusinessBot(t *testing.T) {
 	// Bob writes: the bot hears his message and the away message that
 	// answers it, Alice's, outgoing and offline.
 	bizSend(ctx, t, bob, bobToAlice, "Is the shop open?")
-	if m := next(mtproto.Predicate_updateBotNewBusinessMessage, text("Is the shop open?")).GetMessage_MESSAGE(); m.GetOut() || m.GetFromId().GetUserId() != bobId {
+	if m := next(mtproto.Predicate_updateBotNewBusinessMessage, text("Is the shop open?")).GetMessage_MESSAGE(); m.GetOut() || m.GetPeerId().GetUserId() != bobId {
 		t.Fatalf("Bob's message to the bot: %v", m)
 	}
 	if m := next(mtproto.Predicate_updateBotNewBusinessMessage, text(away)).GetMessage_MESSAGE(); !m.GetOut() || !m.GetOffline() || m.GetPeerId().GetUserId() != bobId {
@@ -167,7 +167,7 @@ func TestBusinessBot(t *testing.T) {
 	if err = answer(carolId, "Yes, we ship to Canada"); err != nil {
 		t.Fatalf("an answer to Carol through the connection: %v", err)
 	}
-	if m, _ := waitNewMessage(ctx, t, carol, "Yes, we ship to Canada"); m.GetFromId().GetUserId() != alice.self.GetId() {
+	if m, _ := waitNewMessage(ctx, t, carol, "Yes, we ship to Canada"); m.GetOut() || m.GetPeerId().GetUserId() != alice.self.GetId() {
 		t.Errorf("Carol's copy of the bot's answer: %v", m)
 	}
 

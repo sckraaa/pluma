@@ -103,7 +103,7 @@ func TestBusinessGreetingInactivity(t *testing.T) {
 	bizAgeChat(t, alice, bob, 8*24*time.Hour)
 	bizSend(ctx, t, bob, toAlice, "Back after eight days")
 	m, _ := waitNewMessage(ctx, t, bob, welcome)
-	if !m.GetOffline() || m.GetFromId().GetUserId() != alice.self.GetId() {
+	if !m.GetOffline() || m.GetOut() || m.GetPeerId().GetUserId() != alice.self.GetId() {
 		t.Errorf("the second greeting: %v", m)
 	}
 	bizNoMore(ctx, t, bob, toAlice, welcome, 2, "after eight quiet days")
@@ -224,7 +224,7 @@ func TestBusinessAwayOffline(t *testing.T) {
 	bizSetLastSeen(t, alice, 11*time.Minute)
 	bizSend(ctx, t, bob, toAlice, "Hello?")
 	m, _ := waitNewMessage(ctx, t, bob, away)
-	if !m.GetOffline() || m.GetFromId().GetUserId() != alice.self.GetId() {
+	if !m.GetOffline() || m.GetOut() || m.GetPeerId().GetUserId() != alice.self.GetId() {
 		t.Errorf("the away message Bob got: %v", m)
 	}
 	bizSend(ctx, t, bob, toAlice, "Anyone?")

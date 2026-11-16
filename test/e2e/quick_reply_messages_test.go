@@ -162,7 +162,7 @@ func TestQuickReplyMessages(t *testing.T) {
 	updatesOf("messages.sendQuickReplyMessages", o, err)
 	for _, text := range []string{"Spring sale", "Free delivery", "Our address: Main St 1"} {
 		m, _ := waitNewMessage(ctx, t, bob, text)
-		if m.GetFromId().GetUserId() != alice.self.GetId() || m.GetQuickReplyShortcutId() != nil || m.GetFwdFrom() != nil {
+		if m.GetOut() || m.GetPeerId().GetUserId() != alice.self.GetId() || m.GetQuickReplyShortcutId() != nil || m.GetFwdFrom() != nil {
 			t.Errorf("Bob's %q: %v", text, m)
 		}
 		waitNewMessage(ctx, t, alice, text)
