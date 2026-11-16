@@ -389,11 +389,65 @@ var optionalVars = map[string]bool{
 	"RELEASES_ADMIN_TOKEN": true,
 }
 
+// defaultVars are the variables that take a default when empty, passed as
+// ${NAME:-default} with the default given here, the same in every compose
+// file that passes them.
+var defaultVars = map[string]string{
+	// The name of the provider of the login on sites (task 106): the site
+	// of Caddy (docker-compose.web.yaml) and the issuer of links.
+	"PLUMA_OAUTH_DOMAIN": "oauth.pluma.chat",
+}
+
 // passed tells whether val, the compose value of the variable name, gives it
 // to the service as it must: ${NAME:?...}, which stops compose when the
-// variable is unset or empty, or ${NAME:-} for an optional variable.
+// variable is unset or empty, ${NAME:-} for an optional variable, or
+// ${NAME:-default} for one of defaultVars.
 func passed(name, val string) bool {
+	if def, ok := defaultVars[name]; ok {
+		return val == "${"+name+":-"+def+"}"
+	}
 	return strings.HasPrefix(val, "${"+name+":?") || optionalVars[name] && val == "${"+name+":-}"
+}
+
+// TestOAuthDomain: the provider of the login on sites answers on the host
+// Caddy sends it (task 106): the issuer of links is built from the variable
+// that names Caddy's site, and both get it with the same default.
+func TestOAuthDomain(t *testing.T) {
+	cfg, err := os.ReadFile(filepath.Join(repoRoot, "teamgramd/etc2/links.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var links struct {
+		OAuth struct {
+			Issuer string `yaml:"Issuer"`
+		} `yaml:"OAuth"`
+	}
+	if err := yaml.Unmarshal(cfg, &links); err != nil {
+		t.Fatal(err)
+	}
+	if want := "https://${PLUMA_OAUTH_DOMAIN}"; links.OAuth.Issuer != want {
+		t.Errorf("links.yaml: OAuth.Issuer %q, want %q", links.OAuth.Issuer, want)
+	}
+	caddy, err := os.ReadFile(filepath.Join(repoRoot, "teamgramd/deploy/web/Caddyfile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`(?m)^\{\$PLUMA_OAUTH_DOMAIN\} \{$`).Match(caddy) {
+		t.Error("Caddyfile: no site {$PLUMA_OAUTH_DOMAIN}")
+	}
+	data, err := os.ReadFile(filepath.Join(repoRoot, "docker-compose.web.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var web struct {
+		Services map[string]composeService `yaml:"services"`
+	}
+	if err := yaml.Unmarshal(data, &web); err != nil {
+		t.Fatal(err)
+	}
+	if val := web.Services["web"].Environment["PLUMA_OAUTH_DOMAIN"]; !passed("PLUMA_OAUTH_DOMAIN", val) {
+		t.Errorf("docker-compose.web.yaml: web gets PLUMA_OAUTH_DOMAIN as %q, not with the default of links", val)
+	}
 }
 
 // loopbackOnly tells whether every published port is bound to 127.0.0.1.

@@ -422,6 +422,9 @@ services:
       # links.yaml opens the login keys of bots with it for the login on
       # sites (task 106); empty: that format of the login is off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
+      # The provider's name, the site Caddy of docker-compose.web.yaml
+      # sends here, with the same default.
+      PLUMA_OAUTH_DOMAIN: ${PLUMA_OAUTH_DOMAIN:-oauth.pluma.chat}
     secrets:
       # Mounted read-only at /run/secrets/oauth_signing_key.pem
       # (teamgramd/etc2/links.yaml): the keys of the ID tokens of

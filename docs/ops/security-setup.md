@@ -69,7 +69,7 @@ openssl rand -hex 24   # по одному значению на каждый п
 | `BOT_SECRET_ENCRYPTION_KEY` | ключ AES-256-GCM, которым bff, `links` и `pluma-admin` хранят ключи ботов, выведенные из их токенов (`bot_secret_keys`: подпись `initData` мини-приложений и данных входа на сайт бота); `openssl rand -hex 32`, ровно 64 hex-символа. Пустой — мини-приложения и вход через ботов выключены (`docs/ops/bots.md`). Замена — раздел 6 |
 | `WEBAPP_SIGNING_KEY` | seed Ed25519 (`openssl rand -hex 32`) подписи `signature` в `initData` мини-приложений; открытый ключ печатает `pluma-admin bot webapp-key`. Пустой — ни одно мини-приложение не открывается. Замена — раздел 6 |
 | `OAUTH_SIGNING_KEY_FILE` | путь к файлу ключей RSA ID-токенов `oauth.pluma.chat` (PEM, режим 600, по умолчанию `./secrets/oauth_signing_key.pem`), монтируется в `links` как secret. Файл обязан существовать, иначе compose не поднимет стек; пустой файл выключает провайдер. В бэкап не входит (раздел 6) |
-| `PLUMA_OAUTH_DOMAIN` | не секрет: имя провайдера входа на сайты для Caddy, пустое — `oauth.pluma.chat`. Другое имя меняется вместе с `OAuth.Issuer` в `teamgramd/etc2/links.yaml` (`docs/ops/deployment.md`, «Платформа ботов») |
+| `PLUMA_OAUTH_DOMAIN` | не секрет: имя провайдера входа на сайты, пустое — `oauth.pluma.chat`. Его получают Caddy (сайт) и `links` (`OAuth.Issuer`, `iss` ID-токенов) (`docs/ops/deployment.md`, «Платформа ботов») |
 
 Конфиги сервисов (`teamgramd/etc2`, `teamgramd/etc`) берут секреты из окружения через `${ИМЯ}`. Если переменная не задана, сервис не стартует и называет её. В ошибках фигурируют только имена переменных, без значений. Конфиг целиком в лог при старте больше не пишется.
 
