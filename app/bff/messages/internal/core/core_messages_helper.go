@@ -573,7 +573,16 @@ type gameSend struct {
 // (BotGameUrlClickHandler, click_handler_types.cpp:687-693); the press of
 // the button reaches the bot as the press of an inline message, which a
 // bot gets in any chat, a member of it or not.
+//
+// A connected business bot sends no game for its account: the press of a
+// business message reaches the bot as updateBusinessBotCallbackQuery,
+// which has no game_short_name to start the game with
+// (MessagesGetBotCallbackAnswer). BOT_ACCESS_FORBIDDEN, as for the other
+// parts of a send the bot cannot use (businessSend).
 func (c *MessagesCore) makeGameMedia(peer *mtproto.PeerUtil, in *mtproto.InputMedia) (*gameSend, error) {
+	if c.business != nil {
+		return nil, mtproto.ErrBotAccessForbidden
+	}
 	if peer.PeerType == mtproto.PEER_CHANNEL {
 		mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
 		if err != nil {
@@ -622,10 +631,12 @@ func (c *MessagesCore) isBotUser(ctx context.Context, userId int64) (bool, error
 // are users' messages (INPUT_MEDIA_WIDGET_NOT_ALLOWED; Android
 // jni/twidget/widget-sandbox/docs/tgw-format.md, "Who may send, and where
 // it may go"). The right to send it in a group is the right to send photos
-// (pkg/channelperm), which msg checks with the send.
+// (pkg/channelperm), which msg checks with the send. A connected business
+// bot sends as its account (businessAct), so its widget would be a user's
+// message too.
 func (c *MessagesCore) makeWidgetMedia(peer *mtproto.PeerUtil, in *mtproto.InputMedia) (*mtproto.MessageMedia, error) {
 	widget, _ := botwidgets.FromInputMedia(in)
-	if !c.MD.IsBot {
+	if !c.MD.IsBot || c.business != nil {
 		return nil, mtproto.ErrInputMediaWidgetNotAllowed
 	}
 	where := botwidgets.Group
