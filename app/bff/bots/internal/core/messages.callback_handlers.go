@@ -109,11 +109,23 @@ func hasCallback(m *mtproto.Message, data []byte) bool {
 // the chat, so the bot learns no more than the peer it already has.
 func chatInstance(botId int64, p *pressed, userId int64) int64 {
 	id := p.peer.PeerId
-	if p.peer.IsUser() {
-		// One value for a private chat, whoever presses in it.
-		id = userId
-	}
 	h := fnv.New64a()
+	if p.peer.IsUser() {
+		// One value for a private chat, whoever presses in it: the chat with
+		// the bot by the user, any other (Saved Messages too) by the pair of
+		// its users, the same from either side.
+		id = userId
+		if other := p.peer.PeerId; other != botId {
+			lo, hi := min(userId, other), max(userId, other)
+			var b [8 + 1 + 8 + 8]byte
+			binary.BigEndian.PutUint64(b[:8], uint64(botId))
+			b[8] = byte(p.peer.PeerType)
+			binary.BigEndian.PutUint64(b[9:], uint64(lo))
+			binary.BigEndian.PutUint64(b[17:], uint64(hi))
+			_, _ = h.Write(b[:])
+			return int64(h.Sum64() >> 1)
+		}
+	}
 	var b [8 + 1 + 8]byte
 	binary.BigEndian.PutUint64(b[:8], uint64(botId))
 	b[8] = byte(p.peer.PeerType)

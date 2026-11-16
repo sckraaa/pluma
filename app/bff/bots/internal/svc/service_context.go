@@ -29,6 +29,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/inlinemedia"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/webappdata"
 	"github.com/teamgram/teamgram-server/pkg/webfetch"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 
@@ -85,6 +86,10 @@ type ServiceContext struct {
 	// BOT_SECRET_ENCRYPTION_KEY it finds none and login buttons open their
 	// links as they are.
 	BotKeys BotKeys
+	// WebAppSigner signs the initData of mini apps with the server's
+	// Ed25519 key (WEBAPP_SIGNING_KEY, ADR 0068 p. 3); nil without it, and
+	// then no mini app opens (BOT_WEBVIEW_DISABLED).
+	WebAppSigner *webappdata.Signer
 }
 
 // BotKeys finds the keys of a bot's current token (*botkeys.Store).
@@ -100,6 +105,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	key, err := webfile.Key(c.WebFileKey)
 	logx.Must(err)
 	sealer, err := c.BotSecrets.Sealer()
+	logx.Must(err)
+	signer, err := c.WebApp.Signer()
 	logx.Must(err)
 	dailyBytes, err := inlinemedia.ParseDailyBytes(c.InlineBots.ImportDailyBytes)
 	logx.Must(err)
@@ -141,6 +148,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Limiter:         logincode.NewLimiter(d.KV),
 		WebFileKey:      key,
 		BotKeys:         botkeys.NewStore(db, sealer),
+		WebAppSigner:    signer,
 	}
 }
 

@@ -1248,7 +1248,7 @@
   "used_by": "android ui/web/BotWebViewContainer.java:2171; ios Messages/BotWebView.swift:455; tdesktop inline_bots/bot_attach_web_view.cpp:1913; tweb lib/appManagers/appBotsManager.ts:117",
   "decision": "implement",
   "priority": "normal",
-  "why": "Все четыре клиента вызывают; часть мини-приложений (messages.requestWebView пока missing)."
+  "why": "Task 106, part D1: records the permission and posts messageActionBotAllowed(from_request) once; answers with its Updates."
  },
  {
   "name": "bots.canSendMessage",
@@ -1257,7 +1257,7 @@
   "used_by": "android ui/web/BotWebViewContainer.java:2149; ios Messages/BotWebView.swift:434; tdesktop inline_bots/bot_attach_web_view.cpp:1903; tweb lib/appManagers/appBotsManager.ts:108",
   "decision": "implement",
   "priority": "normal",
-  "why": "Все четыре клиента вызывают; часть мини-приложений."
+  "why": "Task 106, part D1: true when the user let the bot write (bot_write_allowed) or wrote to it."
  },
  {
   "name": "bots.checkDownloadFileParams",
@@ -2634,7 +2634,7 @@
   "used_by": "Android ui/LaunchActivity.java:5675; iOS AttachMenuBots.swift:766; Desktop inline_bots/bot_attach_web_view.cpp:1112; Web appAttachMenuBotsManager.ts:288",
   "decision": "implement",
   "priority": "normal",
-  "why": "All four clients call it; part of mini apps."
+  "why": "Task 106, part D1: the direct link apps made with pluma-admin bot app; hash is the version of the app, inactive until the first launch."
  },
  {
   "name": "messages.getMyStickers",
@@ -2724,7 +2724,7 @@
   "used_by": "Android ui/bots/BotWebViewAttachedSheet.java:367; Desktop inline_bots/bot_attach_web_view.cpp:1593; iOS TelegramEngine/Messages/BotWebView.swift:215; Web lib/appManagers/appAttachMenuBotsManager.ts:248",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of mini apps, which ADR 0043 names as a following task after the bots core. Needed by requestWebView."
+  "why": "Task 106, part D1: keeps the web view of a query_id for 180 s more; QUERY_ID_INVALID when it is gone, on which the clients close it."
  },
  {
   "name": "messages.readFeaturedStickers",
@@ -2760,7 +2760,7 @@
   "used_by": "Android ui/bots/BotWebViewAttachedSheet.java:1265; Desktop inline_bots/bot_attach_web_view.cpp:1351; iOS TelegramEngine/Messages/BotWebView.swift:402; Web lib/appManagers/appAttachMenuBotsManager.ts:189",
   "decision": "implement",
   "priority": "normal",
-  "why": "Mini apps are planned after the bots core (ADR 0043). Needs getBotApp, also missing."
+  "why": "Task 106, part D1: the current constructor #53618bce; write_allowed lets the bot write (messageActionBotAllowed with the app), the first launch makes the app active. The older constructor answers ERR_ENTERPRISE_IS_BLOCKED."
  },
  {
   "name": "messages.requestMainWebView",
@@ -2769,7 +2769,7 @@
   "used_by": "Android ui/bots/BotWebViewAttachedSheet.java:1300; Desktop inline_bots/bot_attach_web_view.cpp:1320; iOS TelegramEngine/Messages/BotWebView.swift:102; Web lib/appManagers/appAttachMenuBotsManager.ts:218",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of mini apps (ADR 0043 next tasks)."
+  "why": "Task 106, part D1: the main app set with pluma-admin bot set -main-app; chat_type and chat_instance of the chat it is opened from."
  },
  {
   "name": "messages.requestSimpleWebView",
@@ -2778,7 +2778,7 @@
   "used_by": "Android ui/bots/BotWebViewAttachedSheet.java:1191; Desktop inline_bots/bot_attach_web_view.cpp:1292; iOS TelegramEngine/Messages/BotWebView.swift:48; Web lib/appManagers/appAttachMenuBotsManager.ts:205",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of mini apps (ADR 0043 next tasks). Only the current version is sent by clients at the pinned releases; the older schema versions can be served by the same code."
+  "why": "Task 106, part D1: the current constructor #413a3e73 (keyboard web_app button, switch_webview of inline results, side menu). The older constructors are not sent by the clients at the pinned releases and answer ERR_ENTERPRISE_IS_BLOCKED."
  },
  {
   "name": "messages.requestUrlAuth",
@@ -2796,7 +2796,7 @@
   "used_by": "Android ui/bots/BotWebViewAttachedSheet.java:1162; Desktop inline_bots/bot_attach_web_view.cpp:1254; iOS TelegramEngine/Messages/BotWebView.swift:306; Web lib/appManagers/appAttachMenuBotsManager.ts:228",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of mini apps (ADR 0043 next tasks). It is the method that gives a query_id for prolongWebView and sendWebViewResultMessage."
+  "why": "Task 106, part D1: the menu button and the web_app buttons in the chat with the bot, and the attachment menu entry (ADR 0068 p. 4); gives the query_id that prolongWebView keeps and sendWebViewResultMessage (part D2) answers."
  },
  {
   "name": "messages.saveDefaultSendAs",
