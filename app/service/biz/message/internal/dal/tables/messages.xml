@@ -463,7 +463,7 @@
             UPDATE
                 messages
             SET
-                message_data = :message_data, message = :message
+                message_data = :message_data, message = :message, message_filter_type = :message_filter_type
             WHERE
                 user_id = :user_id AND user_message_box_id = :user_message_box_id
         </sql>

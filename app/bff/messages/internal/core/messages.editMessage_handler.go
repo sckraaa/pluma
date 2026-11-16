@@ -144,8 +144,12 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 	}
 
 	if in.Media != nil {
-		outMessage.Media, err = c.makeMediaByInputMedia(in.Media)
-		if err != nil {
+		if in.Media.GetPredicateName() == mtproto.Predicate_inputMediaGeoLive &&
+			outMessage.GetMedia().GetPredicateName() == mtproto.Predicate_messageMediaGeoLive {
+			// A live location moves and stops by edits that send only what
+			// changes (editedLiveLocation).
+			outMessage.Media = editedLiveLocation(outMessage, in.Media.To_InputMediaGeoLive(), outMessage.EditDate.GetValue())
+		} else if outMessage.Media, err = c.makeMediaByInputMedia(in.Media); err != nil {
 			c.Logger.Errorf("messages.editMessage - media error: %v", err)
 			return nil, err
 		}

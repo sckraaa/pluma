@@ -72,7 +72,10 @@ func (d *Dao) editRowWith(b *userbox.Box, row *dataobject.MessagesDO, change fun
 	if err != nil {
 		return nil, nil, err
 	}
-	if _, err = d.MessagesDAO.UpdateEditMessageTx(b.Tx(), string(data), message.GetMessage(), b.UserId(), row.UserMessageBoxId); err != nil {
+	// The media type follows the media: an edit may replace it, and the
+	// media lists and messages.getRecentLocations select by it.
+	filterType := mtproto.GetMediaType(message)
+	if _, err = d.MessagesDAO.UpdateEditMessageTx(b.Tx(), string(data), message.GetMessage(), filterType, b.UserId(), row.UserMessageBoxId); err != nil {
 		return nil, nil, err
 	}
 	if err = d.replaceHashTags(b, boxPeer{PeerType: row.PeerType, PeerId: row.PeerId}, row.UserMessageBoxId, message, true); err != nil {
@@ -88,6 +91,7 @@ func (d *Dao) editRowWith(b *userbox.Box, row *dataobject.MessagesDO, change fun
 	update := mtproto.MakeTLUpdateEditMessage(&mtproto.Update{Message_MESSAGE: shown}).To_Update()
 	b.AddPtsUpdate(update, 1)
 	box := boxOfRow(row, shown)
+	box.MessageFilterType = filterType
 	box.Pts, box.PtsCount = update.Pts_INT32, update.PtsCount
 	return box, update, nil
 }
