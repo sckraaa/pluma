@@ -228,15 +228,12 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 	}
 	if p.inline {
 		return mtproto.MakeTLUpdateInlineBotCallbackQuery(&mtproto.Update{
-			QueryId_INT64: queryId,
-			UserId:        c.MD.UserId,
-			MsgId_FLAGINPUTBOTINLINEMESSAGEID: mtproto.MakeTLInputBotInlineMessageID64(&mtproto.InputBotInlineMessageID{
-				OwnerId:  c.MD.UserId,
-				Id_INT32: msgId,
-			}).To_InputBotInlineMessageID(),
-			ChatInstance_INT64: instance,
-			Data_FLAGBYTES:     data,
-			GameShortName:      game,
+			QueryId_INT64:                     queryId,
+			UserId:                            c.MD.UserId,
+			MsgId_FLAGINPUTBOTINLINEMESSAGEID: inlineMessageId(p.peer, c.MD.UserId, msgId),
+			ChatInstance_INT64:                instance,
+			Data_FLAGBYTES:                    data,
+			GameShortName:                     game,
 		}).To_Update(), nil, nil
 	}
 

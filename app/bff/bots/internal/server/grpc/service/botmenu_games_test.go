@@ -16,37 +16,11 @@
 package service
 
 import (
-	"context"
-	"testing"
-
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/bff/bots/internal/svc"
 )
 
-// The service is the server of both RPCBotMenu and RPCGames, and the
-// methods it does not serve (the scores of inline games, until part G2 of
-// task 106 serves them) answer ERR_ENTERPRISE_IS_BLOCKED, a 400, not gRPC's
-// Unimplemented, which the session proxy turns into a 500 that tgnet
-// retries.
-func TestBotMenuAndGamesNotServed(t *testing.T) {
-	var (
-		_ mtproto.RPCBotMenuServer = (*Service)(nil)
-		_ mtproto.RPCGamesServer   = (*Service)(nil)
-	)
-	s := New(&svc.ServiceContext{})
-	ctx := context.Background()
-	for name, call := range map[string]func() error{
-		"setInlineGameScore": func() error {
-			_, err := s.MessagesSetInlineGameScore(ctx, &mtproto.TLMessagesSetInlineGameScore{})
-			return err
-		},
-		"getInlineGameHighScores": func() error {
-			_, err := s.MessagesGetInlineGameHighScores(ctx, &mtproto.TLMessagesGetInlineGameHighScores{})
-			return err
-		},
-	} {
-		if err := call(); err != mtproto.ErrEnterpriseIsBlocked {
-			t.Errorf("%s: %v, want ERR_ENTERPRISE_IS_BLOCKED", name, err)
-		}
-	}
-}
+// The service is the server of both RPCBotMenu and RPCGames.
+var (
+	_ mtproto.RPCBotMenuServer = (*Service)(nil)
+	_ mtproto.RPCGamesServer   = (*Service)(nil)
+)
