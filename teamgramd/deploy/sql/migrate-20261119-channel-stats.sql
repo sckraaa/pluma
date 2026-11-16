@@ -199,6 +199,15 @@ DEALLOCATE PREPARE ddl;
 -- (msg channel_send.go postCopy; biz channel message_view.go tells the two
 -- apart the same way). Stories forwarded before are in stories.fwd_*.
 -- INSERT IGNORE: a copy recorded already stays as it is.
+--
+-- Both backfills read all of channel_messages. Under READ COMMITTED InnoDB
+-- reads it as a consistent read, without the shared next-key locks it
+-- takes at the other levels (MySQL 8.0 manual, "Locks Set by Different SQL
+-- Statements in InnoDB"), so the services go on writing channel messages
+-- while they run. The isolation of the session is put back after.
+SET @isolation = @@SESSION.transaction_isolation;
+SET SESSION transaction_isolation = 'READ-COMMITTED';
+
 INSERT IGNORE INTO `channel_stats_public_forwards` (`src_kind`, `src_peer_type`, `src_peer_id`, `src_id`, `dst_channel_id`, `dst_message_id`, `date`)
 SELECT 1, 4,
        CAST(JSON_UNQUOTE(JSON_EXTRACT(m.message_data, '$.fwd_from.from_id.channel_id')) AS SIGNED),
@@ -227,3 +236,5 @@ SELECT 2, 4,
    AND JSON_EXTRACT(m.message_data, '$.media.peer.channel_id') IS NOT NULL
    AND JSON_EXTRACT(m.message_data, '$.media.id') IS NOT NULL
    AND JSON_EXTRACT(m.message_data, '$.media.via_mention') IS NULL;
+
+SET SESSION transaction_isolation = @isolation;

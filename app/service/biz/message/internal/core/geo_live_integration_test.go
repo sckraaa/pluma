@@ -19,12 +19,16 @@ package core
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"math"
+	"os"
 	"slices"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
+	"github.com/teamgram/teamgram-server/pkg/migrate"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -146,5 +150,102 @@ func TestGeoLiveFilter(t *testing.T) {
 	}
 	if got, want := boxTypes(), []int32{mtproto.MEDIA_GEO_LIVE, mtproto.MEDIA_EMPTY, mtproto.MEDIA_PHOTOS_ONLY}; !slices.Equal(got, want) {
 		t.Errorf("after the edit: box media types %v, want %v", got, want)
+	}
+}
+
+// TestGeoLiveFilterLocksNoOtherRow: the migration changes the live
+// locations while a service holds the lock of another message, as the
+// services do while it runs, and does not wait for it: under READ
+// COMMITTED it keeps no lock of a row it does not change. It leaves the
+// isolation of the session as it found it.
+func TestGeoLiveFilterLocksNoOtherRow(t *testing.T) {
+	ctx := context.Background()
+	const user, peer = int64(3101), int64(3102)
+	did := mtproto.MakeDialogId(user, mtproto.PEER_USER, peer)
+	geo := mtproto.MakeTLGeoPoint(&mtproto.GeoPoint{Lat: 55.75, Long: 37.62}).To_GeoPoint()
+	live := mtproto.MakeTLMessageMediaGeoLive(&mtproto.MessageMedia{Geo: geo, Period: 900}).To_MessageMedia()
+	plain := mtproto.MakeTLMessageMediaGeo(&mtproto.MessageMedia{Geo: geo}).To_MessageMedia()
+
+	path, err := testinfra.SchemaFile(geoLiveMigration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The keys first: building one waits for the open transaction below.
+	if err = itDB.ApplySQLFile(ctx, path); err != nil {
+		t.Fatal(err)
+	}
+	for i, media := range []*mtproto.MessageMedia{plain, live} {
+		id := int32(i + 1)
+		if _, err = itRaw.Exec("INSERT INTO messages (user_id, user_message_box_id, dialog_id1, dialog_id2, dialog_message_id, sender_user_id, peer_type, peer_id, message_filter_type, message_data, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+			user, id, did.A, did.B, int64(user*100)+int64(id), peer, mtproto.PEER_USER, peer, mtproto.MEDIA_EMPTY, geoMessageData(t, id, media)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// A service holds the plain message.
+	tx, err := itRaw.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	var held int64
+	if err = tx.QueryRow("SELECT user_message_box_id FROM messages WHERE user_id = ? AND user_message_box_id = 1 FOR UPDATE", user).Scan(&held); err != nil {
+		t.Fatal(err)
+	}
+
+	// The migration on a connection of its own, as migrate runs it, which
+	// would give up after 2 s of waiting for a lock.
+	dsn, err := migrate.DSN(itDB.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if _, err = conn.ExecContext(ctx, "SET SESSION innodb_lock_wait_timeout = 2, SESSION lock_wait_timeout = 5"); err != nil {
+		t.Fatal(err)
+	}
+	var before, after string
+	if err = conn.QueryRowContext(ctx, "SELECT @@SESSION.transaction_isolation").Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := conn.QueryContext(ctx, string(text))
+	if err == nil {
+		for {
+			for rows.Next() {
+			}
+			if !rows.NextResultSet() {
+				break
+			}
+		}
+		err = errors.Join(rows.Err(), rows.Close())
+	}
+	if err != nil {
+		t.Fatalf("the migration with another message locked: %v", err)
+	}
+	if err = conn.QueryRowContext(ctx, "SELECT @@SESSION.transaction_isolation").Scan(&after); err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Errorf("isolation of the session %s after the migration, %s before", after, before)
+	}
+
+	var liveType int32
+	if err = itRaw.QueryRow("SELECT message_filter_type FROM messages WHERE user_id = ? AND user_message_box_id = 2", user).Scan(&liveType); err != nil {
+		t.Fatal(err)
+	}
+	if liveType != mtproto.MEDIA_GEO_LIVE {
+		t.Errorf("live location: media type %d, want %d", liveType, mtproto.MEDIA_GEO_LIVE)
 	}
 }

@@ -8,7 +8,7 @@
 
 - `migrate-20261119-web-browser-settings.sql` — таблицы `user_web_browser_settings` (флаги браузера аккаунта) и `user_web_browser_exceptions` (исключения по доменам, до 100 в каждом из двух списков). Только `CREATE TABLE IF NOT EXISTS`. Удаление аккаунта удаляет его строки обеих таблиц. Нет строки — значения по умолчанию: встроенный браузер с кнопкой закрытия (`pkg/webbrowser.Defaults`).
 - `migrate-20261119-read-metrics.sql` — таблицы `message_read_metrics` (`messages.reportReadMetrics`: по строке на показ сообщения) и `music_listens` (`messages.reportMusicListen`: по строке на слушателя, трек и минуту). Только `CREATE TABLE IF NOT EXISTS`. Пока таблицы только пишутся: статистика задачи 103 метрики чтения не показывает (ADR 0066, «Что не делается»), сводка для неё готова (`pkg/readmetrics.Aggregate`), но не вызывается. Удаление аккаунта удаляет строки пользователя, выход из канала — нет.
-- `migrate-20261119-geo-live-filter.sql` — переводит уже сохранённые сообщения с живой геопозицией (`messageMediaGeoLive`) на `message_filter_type = 14` в `messages` и `channel_messages` и добавляет индексы `messages.user_dialog_filter` и `channel_messages.filter` для отбора по типу медиа (`messages.getRecentLocations`, списки медиа чата). `UPDATE` один раз читает `message_data` всех строк обеих таблиц; индексы строятся онлайн (`ALGORITHM = INPLACE, LOCK = NONE`), без блокировки записи. Время на домашнем сервере не измерялось: перед выкатом — свежая резервная копия, как обычно.
+- `migrate-20261119-geo-live-filter.sql` — переводит уже сохранённые сообщения с живой геопозицией (`messageMediaGeoLive`) на `message_filter_type = 14` в `messages` и `channel_messages` и добавляет индексы `messages.user_dialog_filter` и `channel_messages.filter` для отбора по типу медиа (`messages.getRecentLocations`, списки медиа чата). `UPDATE` один раз читает `message_data` всех строк обеих таблиц в `READ COMMITTED`: блокируются только изменяемые строки (старые живые геопозиции), без блокировок промежутков, так что запись сообщений идёт и во время него; индексы строятся онлайн (`ALGORITHM = INPLACE, LOCK = NONE`), без блокировки записи. Старый `msg` до перезапуска сохраняет новые живые геопозиции с `-1`: файл прогоняется ещё раз после перезапуска (раздел «Порядок»). Время на домашнем сервере не измерялось: перед выкатом — свежая резервная копия, как обычно.
 
 ## Конфигурация
 
@@ -18,6 +18,11 @@
 ## Порядок
 
 `migrate` → `bff` → `session`. `session` с новыми маршрутами при ещё старом `bff` ответит на методы `RPCBotMenu` и `RPCGames` gRPC `Unimplemented` (500), который клиенты повторяют (у прежнего `bff` этих служб нет), а на `RPCWebBrowser` — прежней заглушкой с отказом. При обычном обновлении (`up -d` всех сервисов, `deployment.md`, раздел «Обновление») порядок соблюдается сам: `migrate` отрабатывает до сервисов, `bff` и `session` поднимаются вместе.
+
+После перезапуска `msg` — ещё раз `migrate-20261119-geo-live-filter.sql`: живые геопозиции, отправленные между миграцией и перезапуском, старый `msg` сохранил с `message_filter_type = -1`, и `messages.getRecentLocations` их не нашёл бы. Файл идемпотентен, запись в `schema_migrations` он не трогает:
+```bash
+docker exec -i mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot teamgram' < teamgramd/deploy/sql/migrate-20261119-geo-live-filter.sql
+```
 
 ## Проверка после выката
 
