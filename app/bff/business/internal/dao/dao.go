@@ -21,6 +21,7 @@ import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/business/internal/config"
+	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/business"
@@ -42,6 +43,8 @@ type Dao struct {
 	// (ADR 0020), to SyncTopic.
 	BoxDB     *sql.DB
 	SyncTopic string
+	// MsgClient serves the quick replies (task 105).
+	MsgClient msg_client.MsgClient
 }
 
 func New(c config.Config) *Dao {
@@ -57,5 +60,6 @@ func New(c config.Config) *Dao {
 		Catalog:     catalog.NewStore(db),
 		BoxDB:       boxDB,
 		SyncTopic:   c.SyncClient.Topic,
+		MsgClient:   msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 	}
 }

@@ -465,3 +465,101 @@ func (s *Service) MsgDeleteParticipantReactions(ctx context.Context, request *ms
 
 	return r, err
 }
+
+// MsgAddQuickReplyMessages
+// msg.addQuickReplyMessages user_id:long auth_key_id:long shortcut:InputQuickReplyShortcut message:Vector<OutboxMessage> = Updates;
+func (s *Service) MsgAddQuickReplyMessages(ctx context.Context, request *msg.TLMsgAddQuickReplyMessages) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.addQuickReplyMessages - metadata: {%s}", c.MD)
+
+	r, err := c.MsgAddQuickReplyMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgGetQuickReplies
+// msg.getQuickReplies user_id:long hash:long = messages.QuickReplies;
+func (s *Service) MsgGetQuickReplies(ctx context.Context, request *msg.TLMsgGetQuickReplies) (*mtproto.Messages_QuickReplies, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.getQuickReplies - metadata: {%s}", c.MD)
+
+	r, err := c.MsgGetQuickReplies(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgGetQuickReplyMessages
+// msg.getQuickReplyMessages user_id:long shortcut_id:int id:Vector<int> hash:long = messages.Messages;
+func (s *Service) MsgGetQuickReplyMessages(ctx context.Context, request *msg.TLMsgGetQuickReplyMessages) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.getQuickReplyMessages - metadata: {%s}", c.MD)
+
+	r, err := c.MsgGetQuickReplyMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgCheckQuickReplyShortcut
+// msg.checkQuickReplyShortcut user_id:long shortcut:string = Bool;
+func (s *Service) MsgCheckQuickReplyShortcut(ctx context.Context, request *msg.TLMsgCheckQuickReplyShortcut) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.checkQuickReplyShortcut - metadata: {%s}", c.MD)
+
+	r, err := c.MsgCheckQuickReplyShortcut(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgEditQuickReplyShortcut
+// msg.editQuickReplyShortcut user_id:long auth_key_id:long shortcut_id:int shortcut:string = Bool;
+func (s *Service) MsgEditQuickReplyShortcut(ctx context.Context, request *msg.TLMsgEditQuickReplyShortcut) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.editQuickReplyShortcut - metadata: {%s}", c.MD)
+
+	r, err := c.MsgEditQuickReplyShortcut(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgReorderQuickReplies
+// msg.reorderQuickReplies user_id:long auth_key_id:long order:Vector<int> = Bool;
+func (s *Service) MsgReorderQuickReplies(ctx context.Context, request *msg.TLMsgReorderQuickReplies) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.reorderQuickReplies - metadata: {%s}", c.MD)
+
+	r, err := c.MsgReorderQuickReplies(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgDeleteQuickReplyShortcut
+// msg.deleteQuickReplyShortcut user_id:long auth_key_id:long shortcut_id:int = Bool;
+func (s *Service) MsgDeleteQuickReplyShortcut(ctx context.Context, request *msg.TLMsgDeleteQuickReplyShortcut) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.deleteQuickReplyShortcut - metadata: {%s}", c.MD)
+
+	r, err := c.MsgDeleteQuickReplyShortcut(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

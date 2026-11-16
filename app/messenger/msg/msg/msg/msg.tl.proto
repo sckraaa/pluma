@@ -75,6 +75,20 @@ enum TLConstructor {
   CRC32_msg_appendTodoList = 1736696679;
   // pluma: task 062
   CRC32_msg_editTodoList = 1650536534;
+  // pluma: task 105
+  CRC32_msg_addQuickReplyMessages = -1870021481;
+  // pluma: task 105
+  CRC32_msg_getQuickReplies = -1929423195;
+  // pluma: task 105
+  CRC32_msg_getQuickReplyMessages = -795620081;
+  // pluma: task 105
+  CRC32_msg_checkQuickReplyShortcut = 560356858;
+  // pluma: task 105
+  CRC32_msg_editQuickReplyShortcut = -881831873;
+  // pluma: task 105
+  CRC32_msg_reorderQuickReplies = 166649548;
+  // pluma: task 105
+  CRC32_msg_deleteQuickReplyShortcut = -1549977524;
 }
 
 // ContentMessage <--
@@ -515,6 +529,88 @@ message TL_msg_editTodoList {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: msg.addQuickReplyMessages user_id:long auth_key_id:long shortcut:InputQuickReplyShortcut message:Vector<OutboxMessage> = Updates;
+// Adds messages to a quick reply shortcut of user_id, creating a shortcut
+// named so if it has none (a send with quick_reply_shortcut).
+// (task 105)
+message TL_msg_addQuickReplyMessages {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  mtproto.InputQuickReplyShortcut shortcut = 5;
+  repeated OutboxMessage message = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.getQuickReplies user_id:long hash:long = messages.QuickReplies;
+// The quick reply shortcuts of user_id (messages.getQuickReplies).
+// (task 105)
+message TL_msg_getQuickReplies {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 hash = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.getQuickReplyMessages user_id:long shortcut_id:int id:Vector<int> hash:long = messages.Messages;
+// The messages of a shortcut of user_id, all of them or those with id
+// (messages.getQuickReplyMessages).
+// (task 105)
+message TL_msg_getQuickReplyMessages {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 shortcut_id = 4;
+  repeated int32 id = 5;
+  int64 hash = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.checkQuickReplyShortcut user_id:long shortcut:string = Bool;
+// Whether a message can be added to the shortcut of user_id named so
+// (messages.checkQuickReplyShortcut).
+// (task 105)
+message TL_msg_checkQuickReplyShortcut {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  string shortcut = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.editQuickReplyShortcut user_id:long auth_key_id:long shortcut_id:int shortcut:string = Bool;
+// Renames a shortcut of user_id (messages.editQuickReplyShortcut).
+// (task 105)
+message TL_msg_editQuickReplyShortcut {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 shortcut_id = 5;
+  string shortcut = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.reorderQuickReplies user_id:long auth_key_id:long order:Vector<int> = Bool;
+// Orders the shortcuts of user_id (messages.reorderQuickReplies).
+// (task 105)
+message TL_msg_reorderQuickReplies {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  repeated int32 order = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.deleteQuickReplyShortcut user_id:long auth_key_id:long shortcut_id:int = Bool;
+// Deletes a shortcut of user_id with its messages
+// (messages.deleteQuickReplyShortcut).
+// (task 105)
+message TL_msg_deleteQuickReplyShortcut {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 shortcut_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 
 //--------------------------------------------------------------------------------------------
@@ -581,4 +677,18 @@ service RPCMsg {
   rpc msg_appendTodoList(TL_msg_appendTodoList) returns (mtproto.Updates) {}
   // pluma: task 062
   rpc msg_editTodoList(TL_msg_editTodoList) returns (mtproto.Updates) {}
+  // pluma: task 105
+  rpc msg_addQuickReplyMessages(TL_msg_addQuickReplyMessages) returns (mtproto.Updates) {}
+  // pluma: task 105
+  rpc msg_getQuickReplies(TL_msg_getQuickReplies) returns (mtproto.messages_QuickReplies) {}
+  // pluma: task 105
+  rpc msg_getQuickReplyMessages(TL_msg_getQuickReplyMessages) returns (mtproto.messages_Messages) {}
+  // pluma: task 105
+  rpc msg_checkQuickReplyShortcut(TL_msg_checkQuickReplyShortcut) returns (mtproto.Bool) {}
+  // pluma: task 105
+  rpc msg_editQuickReplyShortcut(TL_msg_editQuickReplyShortcut) returns (mtproto.Bool) {}
+  // pluma: task 105
+  rpc msg_reorderQuickReplies(TL_msg_reorderQuickReplies) returns (mtproto.Bool) {}
+  // pluma: task 105
+  rpc msg_deleteQuickReplyShortcut(TL_msg_deleteQuickReplyShortcut) returns (mtproto.Bool) {}
 }

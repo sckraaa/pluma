@@ -42,6 +42,13 @@ var served = map[string]bool{
 	"AccountDeleteBusinessChatLink":  true,
 	"AccountGetBusinessChatLinks":    true,
 	"AccountResolveBusinessChatLink": true,
+
+	"MessagesGetQuickReplies":          true,
+	"MessagesGetQuickReplyMessages":    true,
+	"MessagesCheckQuickReplyShortcut":  true,
+	"MessagesEditQuickReplyShortcut":   true,
+	"MessagesReorderQuickReplies":      true,
+	"MessagesDeleteQuickReplyShortcut": true,
 }
 
 // The services of Business the session routes to bff (session.yaml): one

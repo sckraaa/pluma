@@ -278,6 +278,11 @@ func (b *Box) result() *Result {
 // recent emoji statuses and the saved notification sounds are "load the
 // list again".
 // The trending sets read (task 084) are "all of them are read".
+// The quick replies of Telegram Business (task 105) are states of the
+// account: a shortcut with its id and name, a message of a shortcut by its
+// id, the whole list, a shortcut or messages gone; tdesktop applies each
+// as a replacement (data/business/data_shortcut_messages.cpp,
+// ShortcutMessages::apply and append).
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateBotCallbackQuery,
@@ -324,7 +329,12 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateRecentEmojiStatuses,
 		mtproto.Predicate_updateSavedRingtones,
 		mtproto.Predicate_updateReadFeaturedStickers,
-		mtproto.Predicate_updateReadFeaturedEmojiStickers:
+		mtproto.Predicate_updateReadFeaturedEmojiStickers,
+		mtproto.Predicate_updateQuickReplies,
+		mtproto.Predicate_updateNewQuickReply,
+		mtproto.Predicate_updateDeleteQuickReply,
+		mtproto.Predicate_updateQuickReplyMessage,
+		mtproto.Predicate_updateDeleteQuickReplyMessages:
 		return true
 	}
 	return false

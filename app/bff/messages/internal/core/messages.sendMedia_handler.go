@@ -61,6 +61,11 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		c.Logger.Errorf("messages.sendMedia: %v", err)
 		return nil, err
 	}
+	// A message for a quick reply shortcut (task 105).
+	if err = c.checkQuickReplySend(peer, in.GetQuickReplyShortcut(), in.ScheduleDate); err != nil {
+		c.Logger.Errorf("messages.sendMedia - error: %v", err)
+		return nil, err
+	}
 	// The peer the messages come from (send_as, task 079).
 	from, err := c.sendFrom(peer, in.GetSendAs())
 	if err != nil {
@@ -171,20 +176,32 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 	//
 	//	return hasBot
 	//})
+	outbox := msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
+		NoWebpage:    true,
+		Background:   in.Background,
+		RandomId:     in.RandomId,
+		Message:      withRepeatPeriod(outMessage, in.ScheduleDate, in.GetScheduleRepeatPeriod()),
+		ScheduleDate: in.ScheduleDate,
+	}).To_OutboxMessage()
+	if shortcut := in.GetQuickReplyShortcut(); shortcut != nil {
+		// The message is kept for later: no poll is stored and no story is
+		// shared until it is sent; a sticker is used now.
+		rUpdate, err := c.addQuickReplyMessages(shortcut, []*msgpb.OutboxMessage{outbox})
+		if err != nil {
+			c.Logger.Errorf("messages.sendMedia - quick reply: %v", err)
+			return nil, err
+		}
+		c.invalidateSentLoginCodes(in.Message)
+		c.addRecentStickers(in.Media, outMessage.Media)
+		return rUpdate, nil
+	}
+
 	rUpdate, err := c.svcCtx.Dao.MsgClient.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
 		UserId:    c.MD.UserId,
 		AuthKeyId: c.MD.PermAuthKeyId,
 		PeerType:  peer.PeerType,
 		PeerId:    peer.PeerId,
-		Message: []*msgpb.OutboxMessage{
-			msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
-				NoWebpage:    true,
-				Background:   in.Background,
-				RandomId:     in.RandomId,
-				Message:      withRepeatPeriod(outMessage, in.ScheduleDate, in.GetScheduleRepeatPeriod()),
-				ScheduleDate: in.ScheduleDate,
-			}).To_OutboxMessage(),
-		},
+		Message:   []*msgpb.OutboxMessage{outbox},
 	})
 
 	if err != nil {
