@@ -311,9 +311,11 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 
 	// The Business part of the profile (task 105): work hours, location
 	// and intro, which every client shows of any user (tdesktop
-	// data/data_user.cpp:1057-1061). Bots have none.
+	// data/data_user.cpp:1057-1061), and the automatic replies, which the
+	// clients read from their own userFull only (:1066-1071). Bots have
+	// none.
 	if !user.IsBot() && c.svcCtx.Dao.Business != nil {
-		if err = c.fillBusiness(userFull, peerId); err != nil {
+		if err = c.fillBusiness(userFull, peerId, peerId == c.MD.UserId); err != nil {
 			c.Logger.Errorf("users.getFullUser - error: %v", err)
 			return nil, err
 		}
@@ -427,11 +429,19 @@ func (c *UsersCore) fillBotInfo(userFull *mtproto.UserFull, botId int64) {
 }
 
 // fillBusiness sets the Business part of the profile of userId in
-// userFull, with the document of the sticker of the intro.
-func (c *UsersCore) fillBusiness(userFull *mtproto.UserFull, userId int64) error {
+// userFull, with the document of the sticker of the intro, and, for self,
+// the caller's own profile, its automatic replies.
+func (c *UsersCore) fillBusiness(userFull *mtproto.UserFull, userId int64, self bool) error {
 	p, err := c.svcCtx.Dao.Business.Profile(c.ctx, userId)
 	if err != nil {
 		return err
+	}
+	if self {
+		replies, err := c.svcCtx.Dao.Business.AutoReplies(c.ctx, userId)
+		if err != nil {
+			return err
+		}
+		setAutoReplies(userFull, replies)
 	}
 	var sticker *mtproto.Document
 	if p.Intro != nil && p.Intro.StickerID != 0 {
@@ -468,5 +478,18 @@ func setBusinessProfile(userFull *mtproto.UserFull, p business.Profile, sticker 
 			sticker = nil
 		}
 		userFull.BusinessIntro = p.Intro.ToTL(sticker)
+	}
+}
+
+// setAutoReplies sets the automatic replies of the owner of userFull:
+// business_greeting_message and business_away_message. Only the owner gets
+// them: they are its settings, which the clients read only from their own
+// userFull (tdesktop data/data_user.cpp:1066-1071).
+func setAutoReplies(userFull *mtproto.UserFull, replies []*business.AutoReply) {
+	if a := business.AutoReplyOf(replies, business.KindGreeting); a != nil {
+		userFull.BusinessGreetingMessage = a.GreetingTL()
+	}
+	if a := business.AutoReplyOf(replies, business.KindAway); a != nil {
+		userFull.BusinessAwayMessage = a.AwayTL()
 	}
 }

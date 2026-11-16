@@ -54,10 +54,12 @@ type Dao struct {
 	Business BusinessProfiles
 }
 
-// BusinessProfiles reads the Business part of profiles (pkg/business) and
-// the bar of the connected bot of a chat.
+// BusinessProfiles reads the Business part of profiles (pkg/business), the
+// automatic replies of an account and the bar of the connected bot of a
+// chat.
 type BusinessProfiles interface {
 	Profile(ctx context.Context, userID int64) (business.Profile, error)
+	AutoReplies(ctx context.Context, userID int64) ([]*business.AutoReply, error)
 	PeerBar(ctx context.Context, users business.Users, host string, userID, peerID int64) (*business.PeerBar, error)
 }
 

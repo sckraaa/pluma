@@ -33,6 +33,12 @@ func NewScheduledWorker(d *dao.Dao, plugin plugin.MsgPlugin) *core.ScheduledWork
 	return core.NewScheduledWorker(svc.NewServiceContext(d, plugin))
 }
 
+// NewAutoReplyWorker returns the worker that sends the automatic replies
+// of Telegram Business (task 105), over the storage d.
+func NewAutoReplyWorker(d *dao.Dao, plugin plugin.MsgPlugin) *core.AutoReplyWorker {
+	return core.NewAutoReplyWorker(svc.NewServiceContext(d, plugin))
+}
+
 // pollSweep is how often the polls past their closing date are closed; the
 // votes are refused from that date on whether or not the sweep got there
 // (polls.Record.IsClosed).

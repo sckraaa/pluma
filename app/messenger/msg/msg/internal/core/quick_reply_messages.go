@@ -199,6 +199,15 @@ type quickReplySend struct {
 	// server makes them.
 	ids       []int32
 	randomIds []int64
+	// randomIdsFor, when set, gives the random ids of the n messages sent
+	// in place of randomIds: the automatic replies derive them from their
+	// row, so that a send tried again is found by them (SentBefore).
+	randomIdsFor func(n int) []int64
+	// offline marks the messages sent by the server on the owner's behalf
+	// (message.offline: "sent because of a scheduled action by the
+	// sender, e.g. as away, or a greeting service message",
+	// core.telegram.org/constructor/message).
+	offline bool
 	// opt changes the send: its after runs in the owner's transaction once
 	// the messages are written.
 	opt sendOptions
@@ -231,7 +240,11 @@ func (c *MsgCore) sendQuickReplies(s quickReplySend) (*mtproto.Updates, error) {
 	if len(rows) == 0 {
 		return nil, mtproto.ErrMessageIdInvalid
 	}
-	randomOf, err := quickReplyRandomIds(rows, s.ids, s.randomIds)
+	randomIds := s.randomIds
+	if s.randomIdsFor != nil {
+		randomIds = s.randomIdsFor(len(rows))
+	}
+	randomOf, err := quickReplyRandomIds(rows, s.ids, randomIds)
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +258,11 @@ func (c *MsgCore) sendQuickReplies(s quickReplySend) (*mtproto.Updates, error) {
 	outBox, err := quickReplyOutbox(rows, randomOf, s.userId, s.peerId, int32(time.Now().Unix()), rand.Int63) //nolint:gosec // the id of an album, not a secret
 	if err != nil {
 		return nil, err
+	}
+	if s.offline {
+		for _, o := range outBox {
+			o.Message.Offline = true
+		}
 	}
 	in := &msg.TLMsgSendMessageV2{UserId: s.userId, AuthKeyId: s.authKeyId, PeerType: mtproto.PEER_USER, PeerId: s.peerId, Message: outBox}
 	if err = c.checkRestriction(in); err != nil {

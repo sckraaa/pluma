@@ -415,8 +415,22 @@ func (c *MsgCore) MsgReorderQuickReplies(in *msg.TLMsgReorderQuickReplies) (*mtp
 // updateDeleteQuickReply alone (api/business: "only an
 // updateDeleteQuickReply"). Another account's shortcut, or none, is
 // SHORTCUT_INVALID.
+//
+// The automatic replies that send the shortcut are turned off with it, in
+// the same transaction, as Android does itself before it deletes one
+// (ui/Business/QuickRepliesController.java:467-482); every device of the
+// user, the caller's too, gets updateUser about the user then, on which
+// the clients read their own userFull again, the settings of the replies
+// with it (tdesktop api/api_updates.cpp:2178-2185, data/data_user.cpp:
+// 1057-1071).
 func (c *MsgCore) MsgDeleteQuickReplyShortcut(in *msg.TLMsgDeleteQuickReplyShortcut) (*mtproto.Bool, error) {
-	_, err := c.svcCtx.Dao.RunBox(c.ctx, in.UserId, nil, func(b *userbox.Box) error {
+	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: in.UserId})
+	if err != nil {
+		c.Logger.Errorf("msg.deleteQuickReplyShortcut: user %d - error: %v", in.UserId, err)
+		return nil, err
+	}
+	self := me.ToSelfUser()
+	_, err = c.svcCtx.Dao.RunBox(c.ctx, in.UserId, nil, func(b *userbox.Box) error {
 		found, err := c.svcCtx.Dao.DeleteShortcut(b, in.ShortcutId)
 		if err != nil {
 			return err
@@ -424,7 +438,18 @@ func (c *MsgCore) MsgDeleteQuickReplyShortcut(in *msg.TLMsgDeleteQuickReplyShort
 		if !found {
 			return mtproto.ErrShortcutInvalid
 		}
-		return c.svcCtx.Dao.EmitSeqUpdateExcept(b, dao.DeleteQuickReplyUpdate(in.ShortcutId), []*mtproto.User{}, []*mtproto.Chat{}, in.AuthKeyId)
+		off, err := business.DisableShortcutTx(b.Tx(), in.UserId, in.ShortcutId)
+		if err != nil {
+			return err
+		}
+		if err = c.svcCtx.Dao.EmitSeqUpdateExcept(b, dao.DeleteQuickReplyUpdate(in.ShortcutId), []*mtproto.User{}, []*mtproto.Chat{}, in.AuthKeyId); err != nil {
+			return err
+		}
+		if len(off) == 0 {
+			return nil
+		}
+		return c.svcCtx.Dao.EmitSeqUpdate(b, mtproto.MakeTLUpdateUser(&mtproto.Update{UserId: in.UserId}).To_Update(),
+			[]*mtproto.User{self}, []*mtproto.Chat{})
 	})
 	if err != nil {
 		c.Logger.Errorf("msg.deleteQuickReplyShortcut: user %d, shortcut %d - error: %v", in.UserId, in.ShortcutId, err)
