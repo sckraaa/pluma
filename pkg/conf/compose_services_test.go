@@ -384,9 +384,6 @@ var optionalVars = map[string]bool{
 	"CDN_PUSH_CONCURRENCY":        true,
 	"CDN_MONTHLY_EGRESS_LIMIT_GB": true,
 	"CDN_REUPLOAD_WAIT":           true,
-	// The addresses of DC 1 in dc_options (task 102): none when empty;
-	// docker-compose.cdn.yaml requires them with the CDN.
-	"PLUMA_DC1_ADDRESSES": true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }

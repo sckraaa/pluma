@@ -25,9 +25,9 @@ import (
 // UploadGetCdnFile
 // upload.getCdnFile#395f69da file_token:bytes offset:long limit:int = upload.CdnFile;
 //
-// The CDN node serves it (app/service/cdn); a client that sends it to the
-// home DC is sent back to upload.getFile with FILE_TOKEN_INVALID (Android
-// FileLoadOperation.java:2583-2589, tdesktop
+// No DC of Pluma serves it (the MTProto CDN node is gone, ADR 0071): a
+// client that sends it is sent back to upload.getFile with
+// FILE_TOKEN_INVALID (Android FileLoadOperation.java:2583-2589, tdesktop
 // download_manager_mtproto.cpp:958-980). core.telegram.org lists
 // METHOD_INVALID for it, which the clients take for a failed download.
 func (c *FilesCore) UploadGetCdnFile(in *mtproto.TLUploadGetCdnFile) (*mtproto.Upload_CdnFile, error) {

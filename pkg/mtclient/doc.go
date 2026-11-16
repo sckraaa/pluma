@@ -2,15 +2,12 @@
 // through its public port the way the official clients do, so end-to-end and
 // conformance tests (task 007) can drive the whole stack.
 //
-// It covers the transports (intermediate over TCP, and obfuscated with or
-// without a "dd" secret, as a CDN DC is reached), the key exchange
+// It covers the transport (intermediate over TCP), the key exchange
 // (permanent and temporary keys, with the checks the protocol requires of a
 // client), message encryption, msg_id/seqno, containers, acknowledgements,
 // ignoring repeated server messages (counted by Duplicates), gzip_packed,
 // re-sending after bad_server_salt and bad_msg_notification,
-// rpc_result/rpc_error, pushed updates, auth.bindTempAuthKey and what a
-// client needs of a CDN DC (its key from help.getCdnConfig, the decryption
-// of upload.getCdnFile and the check of its hashes). TL types and
+// rpc_result/rpc_error, pushed updates and auth.bindTempAuthKey. TL types and
 // the AES-IGE/AuthKey primitives come from github.com/teamgram/proto (the
 // vendored third_party/teamgram-proto).
 //

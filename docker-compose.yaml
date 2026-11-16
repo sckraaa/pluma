@@ -128,7 +128,6 @@ services:
       CDN_PUSH_CONCURRENCY: ${CDN_PUSH_CONCURRENCY:-}
       CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:-}
       CDN_REUPLOAD_WAIT: ${CDN_REUPLOAD_WAIT:-}
-      PLUMA_DC1_ADDRESSES: ${PLUMA_DC1_ADDRESSES:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -377,11 +376,10 @@ services:
       # pictures; the daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}
       INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
-      # The CDN node of large files on the edge (task 102,
-      # docs/ops/cdn.md): its control API on the tunnel, its CDN DC and
-      # public address, the limits of the pushes. Empty CDN_NODE_CONTROL:
-      # the CDN is off. docker-compose.cdn.yaml requires it and mounts the
-      # certificates.
+      # The CDN node of large files (task 102, docs/ops/cdn.md): its
+      # control API, its CDN DC, the limits of the pushes. Empty
+      # CDN_NODE_CONTROL: the CDN is off; the node is not deployed (task
+      # 107), so it stays empty.
       CDN_NODE_CONTROL: ${CDN_NODE_CONTROL:-}
       CDN_DC_ID: ${CDN_DC_ID:-}
       CDN_DC_ADDRESS: ${CDN_DC_ADDRESS:-}
@@ -391,7 +389,6 @@ services:
       CDN_PUSH_CONCURRENCY: ${CDN_PUSH_CONCURRENCY:-}
       CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:-}
       CDN_REUPLOAD_WAIT: ${CDN_REUPLOAD_WAIT:-}
-      PLUMA_DC1_ADDRESSES: ${PLUMA_DC1_ADDRESSES:-}
     stop_grace_period: 30s
     depends_on:
       sync:

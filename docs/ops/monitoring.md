@@ -72,17 +72,6 @@
 | `GroupCallsUplinkSaturated` | SFU отдаёт больше 90% заданного лимита отдачи, видео идёт в худшем качестве |
 | `GroupCallsEventsDropped` | bff не успевает читать события SFU; ушедших из звонка выведет сборщик, но позже |
 
-## CDN больших файлов
-Правила — группа `cdn` в `teamgramd/deploy/prometheus/server/rules/cdn.yml` (задача 102, ADR 0065). Метрики дома (bff, только при `CDN_NODE_CONTROL`): `pluma_cdn_redirects_total{result}` (`redirect`, `not_ready`, `unhealthy`, `small`, `error`), `pluma_cdn_push_total{result}`, `pluma_cdn_push_bytes_total`, `pluma_cdn_queue{state}`, `pluma_cdn_node_healthy{dc}`, `pluma_cdn_node_egress_bytes{dc}`, `pluma_cdn_node_egress_limit_bytes{dc}`, `pluma_cdn_reupload_total{result}`. Метрики узла на краю — цель `ops.cdn` из файла `PLUMA_PROMETHEUS_TARGETS/cdn.json` (`10.77.0.1:20511`): `pluma_cdn_served_bytes_total`, `pluma_cdn_requests_total{result}`, `pluma_cdn_handshakes_total{type, result}`, `pluma_cdn_connections`, `pluma_cdn_auth_keys`, `pluma_cdn_cache_bytes`, `pluma_cdn_cache_cap_bytes`, `pluma_cdn_cache_files`, `pluma_cdn_disk_free_bytes`, `pluma_cdn_evictions_total{reason}`, `pluma_cdn_capacity_eviction_age_seconds`, `pluma_cdn_egress_month_bytes`, `pluma_cdn_puts_total{result}`. Ни в одной нет токенов, id файлов и адресов. Без CDN метрик дома нет и ничего не срабатывает. Узел вне строя — не отказ: клиенты качают из дома, поэтому все тревоги группы — warning; общий `ServiceDown` (`general.yml`, critical) на остановленный узел всё равно приходит через 2 минуты, как на `ops.sfu`. Что делать — `docs/ops/cdn.md`, раздел «Неполадки».
-
-| Алерт | Что значит |
-|---|---|
-| `CdnNodeUnhealthy` | дом 10 минут не пускает узел в редиректы; причина — `cdn_nodes.unhealthy_reason` |
-| `CdnNodeDown` | 5 минут нет метрик узла при включённом CDN: узел остановлен, туннель лежит или нет файла цели `cdn.json` (тогда и `ServiceDown` молчит) |
-| `CdnPushFailing` | больше половины заливок за 30 минут не прошли (от трёх), или за час появились копии, упавшие насовсем |
-| `CdnEgressBudget` | узел отдал 80 % `CDN_MONTHLY_EGRESS_LIMIT_GB` за месяц; на 100 % дом выводит его до 1-го числа |
-| `CdnEvictionChurn` | за 6 часов вытеснено три и больше файлов младше суток: мал `CDN_CACHE_BYTES` |
-
 ## Перевод сообщений
 Правила — `teamgramd/deploy/prometheus/server/rules/translate.yml`, метрики bff `translate_*` (задача 101, ADR 0064 §13), панели — строка «Translation» дашборда «Pluma overview». Без `TRANSLATE_URL` bff метрик перевода не публикует и ничего не срабатывает. Что делать — `docs/ops/translation.md`, раздел «Тревоги».
 
