@@ -145,6 +145,21 @@ func (b *differenceBuilder) add(update *mtproto.Update) {
 			}
 		}
 		b.reads = append(b.reads, b.final(update))
+	case mtproto.Predicate_updateMessageWidgetData:
+		// The bot's edit of the state of a widget (task 106): a message
+		// new in the range, or edited later in it, is given in its state at
+		// the end, so the state goes into it and is not an update of its
+		// own.
+		id := update.GetMsgId_INT32()
+		if m, ok := b.newMessages[id]; ok {
+			applyWidgetData(m, update)
+			return
+		}
+		if e, ok := b.edits[id]; ok {
+			applyWidgetData(e.Value.(*mtproto.Update).GetMessage_MESSAGE(), update)
+			return
+		}
+		b.push(update)
 	case mtproto.Predicate_updateNewChannelMessage,
 		mtproto.Predicate_updateDeleteChannelMessages,
 		mtproto.Predicate_updateEditChannelMessage,
@@ -239,4 +254,21 @@ func (b *differenceBuilder) otherUpdates() []*mtproto.Update {
 		out = append(out, e.Value.(*mtproto.Update))
 	}
 	return append(out, b.reads...)
+}
+
+// applyWidgetData writes the state of updateMessageWidgetData u into the
+// widget of m: a field the update carries replaces the message's, as the
+// clients apply it ("a field that is not in the update stays",
+// Android utils/twidget/WidgetMedia.java onDataEdited).
+func applyWidgetData(m *mtproto.Message, u *mtproto.Update) {
+	media := m.GetMedia()
+	if media.GetPredicateName() != mtproto.Predicate_messageMediaWidget {
+		return
+	}
+	if u.GetPublicData() != nil {
+		media.PublicData, media.PublicDataHash = u.GetPublicData(), u.GetPublicDataHash()
+	}
+	if u.GetChatData() != nil {
+		media.ChatData = u.GetChatData()
+	}
 }

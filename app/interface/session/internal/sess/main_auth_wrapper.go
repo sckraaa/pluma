@@ -768,12 +768,13 @@ func (m *MainAuthWrapper) rpcRunLoop() {
 
 // runsAside tells the requests that may take seconds for a reason outside
 // the server and so must not hold up the requests of the key behind them:
-// those waiting for a bot's answer (task 070, app/bff/bots), and
-// upload.getWebFile, which may fetch the file from another host first
-// (ADR 0062, p. 5).
+// those waiting for a bot's answer (task 070, app/bff/bots; a widget's
+// request, task 106), and upload.getWebFile, which may fetch the file from
+// another host first (ADR 0062, p. 5).
 func runsAside(req mtproto.TLObject) bool {
 	switch req.(type) {
-	case *mtproto.TLMessagesGetBotCallbackAnswer, *mtproto.TLMessagesGetInlineBotResults, *mtproto.TLUploadGetWebFile:
+	case *mtproto.TLMessagesGetBotCallbackAnswer, *mtproto.TLMessagesGetInlineBotResults, *mtproto.TLUploadGetWebFile,
+		*mtproto.TLMessagesGetBotWidgetQueryAnswer:
 		return true
 	}
 	return false

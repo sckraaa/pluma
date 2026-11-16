@@ -29,6 +29,7 @@ import (
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
 	"github.com/teamgram/teamgram-server/pkg/botgames"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/botwidgets"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
@@ -95,6 +96,10 @@ type ServiceContext struct {
 
 	// Games finds the games of bots that inputMediaGame names (task 106).
 	Games botgames.Store
+
+	// Widgets keeps the shared widgets of bots that inputMediaWidget makes
+	// and inputMediaWidgetId names (task 106).
+	Widgets botwidgets.Store
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories plugin.StoryPlugin) *ServiceContext {
@@ -126,6 +131,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories pl
 		LoginCodes:   loginCodes,
 		LoginDomains: bots,
 		Games:        bots,
+		Widgets:      bots,
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

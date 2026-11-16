@@ -180,3 +180,30 @@ func TestDifferenceSliceFold(t *testing.T) {
 		t.Errorf("next slice: %q, %q", ms, us)
 	}
 }
+
+func widgetMessage(id int32, chat string, pts int32) *mtproto.Update {
+	m := message(id, "w", mtproto.MakePeerUser(self))
+	m.Media = mtproto.MakeTLMessageMediaWidget(&mtproto.MessageMedia{Payload: []byte{1}, ChatData: wrapperspb.String(chat)}).To_MessageMedia()
+	return mtproto.MakeTLUpdateNewMessage(&mtproto.Update{Message_MESSAGE: m, Pts_INT32: pts, PtsCount: 1}).To_Update()
+}
+
+func widgetData(id int32, chat string, pts int32) *mtproto.Update {
+	return mtproto.MakeTLUpdateMessageWidgetData(&mtproto.Update{
+		Peer_PEER: mtproto.MakePeerUser(self), MsgId_INT32: id, ChatData: wrapperspb.String(chat), Pts_INT32: pts, PtsCount: 1,
+	}).To_Update()
+}
+
+// The bot's edit of a widget's state (task 106) goes into a message new in
+// the range; of an older message it is an update with the end's pts.
+func TestDifferenceWidgetData(t *testing.T) {
+	b := fold(5, nil, widgetMessage(1, "a", 2), widgetData(1, "b", 3), widgetData(9, "c", 4))
+	ms := b.messages()
+	if len(ms) != 1 || ms[0].GetMedia().GetChatData().GetValue() != "b" {
+		t.Fatalf("new messages %v, want message 1 with the chat state b", ms)
+	}
+	us := b.otherUpdates()
+	if len(us) != 1 || us[0].GetPredicateName() != mtproto.Predicate_updateMessageWidgetData ||
+		us[0].GetMsgId_INT32() != 9 || us[0].GetPts_INT32() != 5 || us[0].GetPtsCount() != 0 {
+		t.Fatalf("other updates %v, want updateMessageWidgetData of 9 at pts 5", us)
+	}
+}

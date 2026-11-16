@@ -237,6 +237,26 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 		}).To_Update(), nil, nil
 	}
 
+	peer, chats, err := c.botView(p, msgId)
+	if err != nil {
+		return nil, nil, err
+	}
+	return mtproto.MakeTLUpdateBotCallbackQuery(&mtproto.Update{
+		QueryId_INT64:      queryId,
+		UserId:             c.MD.UserId,
+		Peer_PEER:          peer,
+		MsgId_INT32:        p.botMsg,
+		ChatInstance_INT64: instance,
+		Data_FLAGBYTES:     data,
+		GameShortName:      game,
+	}).To_Update(), chats, nil
+}
+
+// botView is the message of a press as its bot names it, in an update of
+// a press or a request: the chat (the user for a private chat) with the
+// chats the update carries, and p.botMsg set to the id of the message in
+// the bot's box.
+func (c *BotsCore) botView(p *pressed, msgId int32) (*mtproto.Peer, []*mtproto.Chat, error) {
 	var (
 		peer  *mtproto.Peer
 		chats []*mtproto.Chat
@@ -266,15 +286,7 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 		}
 		p.botMsg = box.GetMessageId()
 	}
-	return mtproto.MakeTLUpdateBotCallbackQuery(&mtproto.Update{
-		QueryId_INT64:      queryId,
-		UserId:             c.MD.UserId,
-		Peer_PEER:          peer,
-		MsgId_INT32:        p.botMsg,
-		ChatInstance_INT64: instance,
-		Data_FLAGBYTES:     data,
-		GameShortName:      game,
-	}).To_Update(), chats, nil
+	return peer, chats, nil
 }
 
 func callbackResult(a *dao.CallbackAnswer) *mtproto.Messages_BotCallbackAnswer {

@@ -30,6 +30,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/botgames"
 	"github.com/teamgram/teamgram-server/pkg/botmarkup"
+	"github.com/teamgram/teamgram-server/pkg/botwidgets"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/replyheader"
@@ -239,7 +240,10 @@ func (c *BotsCore) MessagesSetInlineBotResults(in *mtproto.TLMessagesSetInlineBo
 	}
 	ids := make(map[string]struct{}, len(in.Results))
 	results := make([]*mtproto.BotInlineResult, 0, len(in.Results))
-	var games map[string]dao.GameRef
+	var (
+		games   map[string]dao.GameRef
+		widgets map[string]dao.WidgetRef
+	)
 	for _, r := range in.Results {
 		if _, dup := ids[r.GetId()]; dup {
 			return nil, mtproto.ErrResultIdDuplicate
@@ -256,6 +260,15 @@ func (c *BotsCore) MessagesSetInlineBotResults(in *mtproto.TLMessagesSetInlineBo
 					games = make(map[string]dao.GameRef)
 				}
 				games[r.GetId()] = ref
+			}
+		} else if w, ok := botwidgets.FromInlineMessage(r.GetSendMessage()); ok {
+			// A widget (task 106, widgets.go).
+			var ref dao.WidgetRef
+			if res, ref, err = c.inlineWidgetResult(r, w); err == nil {
+				if widgets == nil {
+					widgets = make(map[string]dao.WidgetRef)
+				}
+				widgets[r.GetId()] = ref
 			}
 		} else {
 			res, err = c.inlineResult(r)
@@ -274,6 +287,7 @@ func (c *BotsCore) MessagesSetInlineBotResults(in *mtproto.TLMessagesSetInlineBo
 		Private:       in.Private,
 		Bot:           c.MD.UserId,
 		Games:         games,
+		Widgets:       widgets,
 	}
 	if in.NextOffset != nil {
 		a.NextOffset = in.NextOffset.GetValue()
@@ -482,6 +496,9 @@ func outOfResult(r *mtproto.BotInlineResult, game *mtproto.Game) (*mtproto.Messa
 		out.Media = mtproto.MakeTLMessageMediaVenue(&mtproto.MessageMedia{Geo: send.GetGeo(), Title: send.GetTitle(), Address: send.GetAddress(), Provider: send.GetProvider(), VenueId: send.GetVenueId(), VenueType: send.GetVenueType()}).To_MessageMedia()
 	case mtproto.Predicate_botInlineMessageMediaContact:
 		out.Media = mtproto.MakeTLMessageMediaContact(&mtproto.MessageMedia{PhoneNumber: send.GetPhoneNumber(), FirstName: send.GetFirstName(), LastName: send.GetLastName(), Vcard: send.GetVcard()}).To_MessageMedia()
+	case mtproto.Predicate_botInlineMessageWidget:
+		// The widget is made as the user sends it, by the bot and what the
+		// answer kept of it (sendInlineResult, inlineWidgetMedia).
 	default:
 		return nil, mtproto.ErrSendMessageTypeInvalid
 	}
@@ -537,8 +554,15 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 		}
 	}
 
+	// A widget result keeps what its preview does not show (dao.WidgetRef).
+	var widget *dao.WidgetRef
+	if ref, ok := answer.Widgets[in.Id]; ok {
+		widget = &ref
+	}
+
 	out, updates, err := c.sendInlineResult(&inlineSend{
 		game:         game,
+		widget:       widget,
 		userId:       c.MD.UserId,
 		authKeyId:    c.MD.PermAuthKeyId,
 		peer:         peer,
@@ -582,6 +606,8 @@ type inlineSend struct {
 	result *mtproto.BotInlineResult
 	// game is the game of a game result (task 106).
 	game *mtproto.Game
+	// widget is what a widget result keeps for its send (task 106).
+	widget *dao.WidgetRef
 	// hideVia drops via_bot_id for a built-in bot.
 	hideVia      bool
 	silent       bool
@@ -625,6 +651,17 @@ func (c *BotsCore) sendInlineResult(s *inlineSend) (*mtproto.Message, *mtproto.U
 	out, err := outOfResult(s.result, s.game)
 	if err != nil {
 		return nil, nil, err
+	}
+	if send := s.result.GetSendMessage(); send.GetPredicateName() == mtproto.Predicate_botInlineMessageWidget {
+		// The widget of the result, made as the user sends it
+		// (inlineWidgetMedia); a widget result comes only with what its
+		// answer kept of it.
+		if s.widget == nil {
+			return nil, nil, mtproto.ErrSendMessageTypeInvalid
+		}
+		if out.Media, err = c.inlineWidgetMedia(s.botId, send, s.widget); err != nil {
+			return nil, nil, err
+		}
 	}
 	if s.game != nil {
 		// The button that starts the game, in the sender's language when

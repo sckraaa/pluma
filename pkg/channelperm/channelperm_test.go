@@ -218,6 +218,7 @@ func TestMessageActions(t *testing.T) {
 		{"gif", document(video, animated), []Action{SendGifs}},
 		{"poll", media(mtproto.MakeTLMessageMediaPoll(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendPolls}},
 		{"game", media(mtproto.MakeTLMessageMediaGame(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendGames}},
+		{"widget", media(mtproto.MakeTLMessageMediaWidget(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendPhotos}},
 		{"dice", media(mtproto.MakeTLMessageMediaDice(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendStickers}},
 		{"location", media(mtproto.MakeTLMessageMediaGeo(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendMedia}},
 		{"contact", media(mtproto.MakeTLMessageMediaContact(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendMedia}},

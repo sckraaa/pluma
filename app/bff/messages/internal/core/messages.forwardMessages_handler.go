@@ -31,6 +31,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/botwidgets"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -273,6 +274,13 @@ func (c *MessagesCore) makeForwardMessages(
 			return nil, mtproto.ErrQuizAnswerMissing
 		}
 		m.Media = polls.ForForward(m.GetMedia())
+		// A bot's widget goes as a copy that asks its bot nothing, and
+		// never without its author: "the server keeps the forward header
+		// even when the user asks to hide the sender, so a widget always
+		// shows which bot it is from" (task 106; Android
+		// jni/twidget/widget-sandbox/docs/tgw-format.md, "Who may send").
+		widget := botwidgets.Is(m.GetMedia())
+		m.Media = botwidgets.ForForward(m.GetMedia())
 		// TODO(@benqi): rid is 0
 
 		if m.GetGroupedId() != nil {
@@ -281,7 +289,7 @@ func (c *MessagesCore) makeForwardMessages(
 				groupedIds[groupedId] = rand.Int63()
 			}
 		}
-		if request.DropAuthor {
+		if request.DropAuthor && !widget {
 			// "Hide sender name": a copy, as the user's own message
 			// (drop_author; Android SendMessagesHelper.java:2535-2536). Its
 			// media go without captions with drop_media_captions.

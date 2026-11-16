@@ -88,6 +88,10 @@ type InlineAnswer struct {
 	// Games are the games of the game results by result id (task 106):
 	// botInlineMediaResult has no field that names its game.
 	Games map[string]GameRef `json:"games,omitempty"`
+	// Widgets are what the widget results show nothing of, by result id
+	// (task 106): botInlineMessageWidget has no field for whether the
+	// widget may ask its bot or becomes an object when sent.
+	Widgets map[string]WidgetRef `json:"widgets,omitempty"`
 	// PeerTypes are the kinds of chats the results may be sent to, by the
 	// names of BotsCore.inlinePeerType: the peer_types of a prepared inline
 	// message (messages.getPreparedInlineMessage, task 106). Empty: any.
@@ -312,7 +316,12 @@ func (d *Dao) LeaveWait(userId int64) {
 // wait polls get until it answers something, the request ends or AnswerWait
 // passes: the store is Redis and the waits are short and few.
 func wait[T any](ctx context.Context, get func(context.Context) (*T, error)) (*T, error) {
-	ctx, cancel := context.WithTimeout(ctx, AnswerWait)
+	return waitFor(ctx, AnswerWait, get)
+}
+
+// waitFor is wait for up to d.
+func waitFor[T any](ctx context.Context, d time.Duration, get func(context.Context) (*T, error)) (*T, error) {
+	ctx, cancel := context.WithTimeout(ctx, d)
 	defer cancel()
 	tick := time.NewTicker(answerPoll)
 	defer tick.Stop()
