@@ -1,0 +1,66 @@
+# The maps service (task 100, ADR 0063, docs/ops/maps.md): tileserver-gl
+# drawing the map images of shared locations, which bff serves through
+# upload.getWebFile. Not started by default: maps are off until MAPS_URL of
+# bff names the service. Added to the services command after the other
+# compose files:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.maps.yaml up -d maps
+#
+# The data are a file on the host (MAPS_DATA_DIR, pluma.pmtiles there, cut
+# by teamgramd/deploy/maps/extract.sh), mounted read-only. The container has
+# no published port and sits only on maps_net, an internal network shared
+# with bff: the coordinates of the users reach nothing else, and the
+# renderer has no way out at all.
+#
+# The limits are the measured need of two styles with the pools of
+# teamgramd/deploy/maps/config.json with room to spare (docs/ops/maps.md,
+# "Память"): about 300 MiB idle, a peak of about 2 GiB with every renderer
+# busy (teamgramd/deploy/maps/Dockerfile). More styles or larger pools need
+# more: MAPS_MEMORY and MAPS_CPUS in .env, never an edit of this file on a
+# server.
+services:
+  maps:
+    mem_limit: ${MAPS_MEMORY:-2560m}
+    memswap_limit: ${MAPS_MEMORY:-2560m}
+    cpus: ${MAPS_CPUS:-2}
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/maps/Dockerfile
+      args:
+        # One style per language of the labels: the same list bff asks for.
+        MAPS_LANGS: ${MAPS_STYLES:-ru,en}
+    image: ${PLUMA_MAPS_IMAGE:-pluma-maps:local}
+    restart: unless-stopped
+    # Nothing is written but the lock file of Xvfb, which the entrypoint of
+    # the image starts for the renderer, and the shader cache of Mesa, which
+    # spares a new renderer compiling its shaders again.
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      XDG_CACHE_HOME: /tmp/cache
+    volumes:
+      - ${MAPS_DATA_DIR:-/opt/pluma-maps}:/data:ro
+    # --silent logs only the requests that failed; the format leaves out
+    # the URL, which holds the coordinates.
+    command:
+      - --config
+      - /app/config.json
+      - --silent
+      - --log_format
+      - ":method :status :res[content-length] :response-time ms"
+    networks:
+      - maps_net
+    stop_grace_period: 15s
+
+  # bff reaches the service by its name on maps_net (MAPS_URL=http://maps:8080).
+  # No depends_on: bff starts and serves everything else without maps.
+  bff:
+    networks:
+      - teamgram_net
+      - maps_net
+
+networks:
+  maps_net:
+    internal: true
