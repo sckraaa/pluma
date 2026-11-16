@@ -137,22 +137,25 @@ func TestMigration(t *testing.T) {
 		if err = m.ApplySQLFile(ctx, path); err != nil {
 			t.Fatalf("run %d: %v", run, err)
 		}
-		rows, err := db.Query("SELECT src_kind, src_peer_type, src_peer_id, src_id, dst_channel_id, dst_message_id, `date` FROM channel_stats_public_forwards ORDER BY src_id")
-		if err != nil {
-			t.Fatal(err)
-		}
-		var got []forward
-		for rows.Next() {
-			var f forward
-			if err = rows.Scan(&f.Kind, &f.PeerType, &f.PeerId, &f.SrcId, &f.DstChannel, &f.DstMessage, &f.Date); err != nil {
+		got := func() []forward {
+			rows, err := db.Query("SELECT src_kind, src_peer_type, src_peer_id, src_id, dst_channel_id, dst_message_id, `date` FROM channel_stats_public_forwards ORDER BY src_id")
+			if err != nil {
 				t.Fatal(err)
 			}
-			got = append(got, f)
-		}
-		if err = rows.Err(); err != nil {
-			t.Fatal(err)
-		}
-		_ = rows.Close()
+			defer rows.Close()
+			var got []forward
+			for rows.Next() {
+				var f forward
+				if err = rows.Scan(&f.Kind, &f.PeerType, &f.PeerId, &f.SrcId, &f.DstChannel, &f.DstMessage, &f.Date); err != nil {
+					t.Fatal(err)
+				}
+				got = append(got, f)
+			}
+			if err = rows.Err(); err != nil {
+				t.Fatal(err)
+			}
+			return got
+		}()
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("run %d: public forwards %v, want %v", run, got, want)
 		}

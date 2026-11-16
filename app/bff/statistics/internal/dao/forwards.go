@@ -57,7 +57,7 @@ type ForwardCursor struct {
 
 // After is the cursor after f.
 func (f Forward) After() ForwardCursor {
-	return ForwardCursor{Date: f.Date, Story: f.Story, PeerId: f.PeerId, Id: f.Id}
+	return ForwardCursor(f)
 }
 
 // String is the cursor as next_offset gives it: base64url of

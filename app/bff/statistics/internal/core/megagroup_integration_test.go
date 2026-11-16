@@ -538,6 +538,7 @@ func TestMegagroupStatsTiming(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer explain.Close()
 	cols, _ := explain.Columns()
 	for explain.Next() {
 		vals := make([]sql.NullString, len(cols))
@@ -559,7 +560,9 @@ func TestMegagroupStatsTiming(t *testing.T) {
 			t.Errorf("the messages are not read from the index alone: %s", b.String())
 		}
 	}
-	_ = explain.Close()
+	if err := explain.Err(); err != nil {
+		t.Fatal(err)
+	}
 
 	mc := mutable(channelOpts{}, participant(channelpb.RoleCreator, 0))
 	mc.Channel.Date = now - 380*day

@@ -80,7 +80,7 @@ func (c *StatisticsCore) readable(mc *channelpb.MutableChannel) error {
 	if ch.GetDeleted() || ch.GetBlocked() {
 		return mtproto.ErrChannelPrivate
 	}
-	if !p.Member() && !(ch.Public() && mc.ToChat(me, int32(c.now)).GetPredicateName() == mtproto.Predicate_channel) {
+	if !p.Member() && (!ch.Public() || mc.ToChat(me, int32(c.now)).GetPredicateName() != mtproto.Predicate_channel) {
 		return mtproto.ErrChannelPrivate
 	}
 	return nil

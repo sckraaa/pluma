@@ -68,11 +68,6 @@ func (g *rawGraph) str(key string) (string, bool) {
 	return s, ok
 }
 
-func (g *rawGraph) flag(key string) bool {
-	b, _ := g.root[key].(bool)
-	return b
-}
-
 func longs(col []any) ([]int64, error) {
 	v := make([]int64, 0, len(col))
 	for _, e := range col {
