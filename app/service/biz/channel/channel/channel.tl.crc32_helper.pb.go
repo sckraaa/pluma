@@ -69,7 +69,7 @@ const (
 	// pluma: task 078
 	CRC32_channel_editUsernames TLConstructor = -823010727 // 0xcef1da59
 	// pluma: task 046
-	CRC32_channel_incrementMessageViews TLConstructor = 1668730682 // 0x6376cf3a
+	CRC32_channel_incrementMessageViews TLConstructor = -238863794 // 0xf1c33a4e
 	// pluma: task 046
 	CRC32_channel_addMessageForwards TLConstructor = -1892777199 // 0x8f2e8311
 	// pluma: task 043

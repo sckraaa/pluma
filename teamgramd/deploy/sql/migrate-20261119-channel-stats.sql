@@ -164,3 +164,21 @@ SELECT 1, 4,
    AND JSON_EXTRACT(m.message_data, '$.fwd_from.channel_post.value') IS NOT NULL
    AND JSON_EXTRACT(m.message_data, '$.fwd_from.from_id.channel_id') IS NOT NULL
    AND JSON_EXTRACT(m.message_data, '$.fwd_from.saved_from_peer') IS NULL;
+
+-- The stories of channels shared into channels and supergroups before this
+-- migration: a message with messageMediaStory of a channel's story (msg
+-- channel_send.go recordPublicForward records them from now on). A story
+-- of a user has no statistics; via_mention marks the notice of a mention in
+-- a private chat, never a share. INSERT IGNORE: a copy recorded already
+-- stays as it is.
+INSERT IGNORE INTO `channel_stats_public_forwards` (`src_kind`, `src_peer_type`, `src_peer_id`, `src_id`, `dst_channel_id`, `dst_message_id`, `date`)
+SELECT 2, 4,
+       CAST(JSON_UNQUOTE(JSON_EXTRACT(m.message_data, '$.media.peer.channel_id')) AS SIGNED),
+       CAST(JSON_UNQUOTE(JSON_EXTRACT(m.message_data, '$.media.id')) AS SIGNED),
+       m.channel_id, m.id, m.date2
+  FROM `channel_messages` m
+ WHERE m.deleted = 0
+   AND JSON_UNQUOTE(JSON_EXTRACT(m.message_data, '$.media.predicate_name')) = 'messageMediaStory'
+   AND JSON_EXTRACT(m.message_data, '$.media.peer.channel_id') IS NOT NULL
+   AND JSON_EXTRACT(m.message_data, '$.media.id') IS NOT NULL
+   AND JSON_EXTRACT(m.message_data, '$.media.via_mention') IS NULL;

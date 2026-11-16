@@ -566,7 +566,7 @@ func (m *defaultChannelClient) ChannelSetAvailableReactions(ctx context.Context,
 }
 
 // ChannelIncrementMessageViews
-// channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> = Bool;
+// channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> source:int = Bool;
 func (m *defaultChannelClient) ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error) {
 	md := metadata.RpcMetadataFromIncoming(ctx)
 	if md != nil {

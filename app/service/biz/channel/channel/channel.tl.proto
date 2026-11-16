@@ -73,8 +73,8 @@ enum TLConstructor {
   CRC32_channel_deleteChannel = -979916526;
   // pluma: task 072
   CRC32_channel_setBlocked = -63031132;
-  // pluma: task 046
-  CRC32_channel_incrementMessageViews = 1668730682;
+  // pluma: task 046, source: task 103
+  CRC32_channel_incrementMessageViews = -238863794;
   // pluma: task 046
   CRC32_channel_addMessageForwards = -1892777199;
   // pluma: task 043
@@ -1063,15 +1063,17 @@ message TL_channel_setAvailableReactions {
 }
 
 //--------------------------------------------------------------------------------------------
-// pluma: channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> = Bool;
+// pluma: channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> source:int = Bool;
 // Counts self_id's view of the posts id of a broadcast channel, once per user
-// (messages.getMessagesViews with increment).
-// (task 046)
+// (messages.getMessagesViews with increment). source is where the posts were
+// viewed from (pkg/channelstats ViewSource), kept by the first view.
+// (task 046, source: task 103)
 message TL_channel_incrementMessageViews {
   TLConstructor constructor = 1;
   int64 self_id = 3;
   int64 channel_id = 4;
   repeated int32 id = 5;
+  int32 source = 6;
 }
 
 //--------------------------------------------------------------------------------------------

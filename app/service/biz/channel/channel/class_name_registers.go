@@ -356,7 +356,7 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 
 	},
 	Predicate_channel_incrementMessageViews: { // pluma: task 046
-		0: 1668730682, // 0x6376cf3a
+		0: -238863794, // 0xf1c33a4e
 
 	},
 	Predicate_channel_addMessageForwards: { // pluma: task 046
@@ -693,7 +693,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-1450249355: Predicate_channel_updateColor,                      // 0xa98ef375 pluma: task 078
 	-1163138113: Predicate_channel_updateEmojiStatus,                // 0xbaabebbf pluma: task 078
 	-823010727:  Predicate_channel_editUsernames,                    // 0xcef1da59 pluma: task 078
-	1668730682:  Predicate_channel_incrementMessageViews,            // 0x6376cf3a pluma: task 046
+	-238863794:  Predicate_channel_incrementMessageViews,            // 0xf1c33a4e pluma: task 046, source: task 103
 	-1892777199: Predicate_channel_addMessageForwards,               // 0x8f2e8311 pluma: task 046
 	-1441587995: Predicate_channel_deleteHistory,                    // 0xaa131ce5 pluma: task 043
 	-1046826439: Predicate_channel_deleteParticipantHistory,         // 0xc19ab239 pluma: task 043

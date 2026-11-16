@@ -18,12 +18,13 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 )
 
 // ChannelIncrementMessageViews
-// channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> = Bool;
+// channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> source:int = Bool;
 func (c *ChannelCore) ChannelIncrementMessageViews(in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error) {
-	if err := c.svcCtx.Dao.IncrementViews(c.ctx, in.SelfId, in.ChannelId, in.Id); err != nil {
+	if err := c.svcCtx.Dao.IncrementViews(c.ctx, in.SelfId, in.ChannelId, in.Id, channelstats.ViewSource(in.Source)); err != nil {
 		c.Logger.Errorf("channel.incrementMessageViews - error: %v", err)
 		return nil, err
 	}
