@@ -27,6 +27,13 @@ func botLoggedIn(ctx context.Context, t *testing.T, owner, username string) *use
 
 func botLoggedInAtLayer(ctx context.Context, t *testing.T, owner, username string, layer int32) *user {
 	t.Helper()
+	u, _ := botLoggedInWithToken(ctx, t, owner, username, layer)
+	return u
+}
+
+// botLoggedInWithToken is botLoggedInAtLayer that also gives the bot's token.
+func botLoggedInWithToken(ctx context.Context, t *testing.T, owner, username string, layer int32) (*user, string) {
+	t.Helper()
 	out := admin(t, "bot", "create", username, "Test Bot", "-owner", owner)
 	m := botCreatedRe.FindStringSubmatch(out)
 	if m == nil {
@@ -59,7 +66,7 @@ func botLoggedInAtLayer(ctx context.Context, t *testing.T, owner, username strin
 	if !self.GetBot() || self.GetPhone() != nil {
 		t.Fatalf("the bot's own user: bot %v, phone %v", self.GetBot(), self.GetPhone())
 	}
-	return &user{c: c, self: self}
+	return &user{c: c, self: self}, m[2]
 }
 
 // resolveBot is the input peer of a bot, found by its username.

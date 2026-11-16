@@ -16,6 +16,8 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/teamgram/proto/mtproto"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/botmarkup"
@@ -36,14 +38,42 @@ func (c *MessagesCore) botMarkup(markup *mtproto.ReplyMarkup) (*mtproto.ReplyMar
 	if !me.IsBot() {
 		return nil, nil
 	}
-	return botmarkup.Normalize(markup, func(in *mtproto.InputUser) int64 {
-		u := mtproto.FromInputUser(c.MD.UserId, in)
-		if !u.IsUser() {
-			return 0
-		}
-		if _, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: u.PeerId}); err != nil {
-			return 0
-		}
-		return u.PeerId
+	return botmarkup.Normalize(markup, botmarkup.Env{
+		Self: c.MD.UserId,
+		ResolveUser: func(in *mtproto.InputUser) int64 {
+			u := mtproto.FromInputUser(c.MD.UserId, in)
+			if !u.IsUser() {
+				return 0
+			}
+			if _, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: u.PeerId}); err != nil {
+				return 0
+			}
+			return u.PeerId
+		},
+		LoginDomain: c.loginDomain,
 	})
+}
+
+// loginDomain is the login domain of a user that is a bot (task 106);
+// isBot is false for a user that is not one or no longer exists.
+func (c *MessagesCore) loginDomain(userId int64) (string, bool, error) {
+	u, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: userId})
+	if errors.Is(err, mtproto.ErrUserIdInvalid) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	if !u.IsBot() || u.Deleted() {
+		return "", false, nil
+	}
+	if c.svcCtx.LoginDomains == nil {
+		return "", true, nil
+	}
+	domain, err := c.svcCtx.LoginDomains.LoginDomain(c.ctx, userId)
+	if err != nil {
+		c.Logger.Errorf("bot markup - login domain of %d: %v", userId, err)
+		return "", true, mtproto.ErrInternalServerError
+	}
+	return domain, true, nil
 }

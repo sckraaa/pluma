@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
@@ -62,6 +63,7 @@ type Dao struct {
 	media_client.MediaClient
 	msg_client.MsgClient
 	sync_client.SyncClient
+	authsession_client.AuthsessionClient
 	Chat    chat_client.ChatClient
 	Channel channel_client.ChannelClient
 
@@ -108,6 +110,8 @@ func New(c config.Config) *Dao {
 		db:            db,
 		boxDB:         boxDB,
 		syncTopic:     c.SyncClient.Topic,
+
+		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 	}
 }
 

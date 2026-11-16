@@ -2508,7 +2508,7 @@
   "used_by": "Android ui/OAuthSheet.java:418, ui/ChatActivity.java:36994; iOS RequestMessageActionCallback.swift:370; Desktop boxes/url_auth_box.cpp:394; Web appSeamlessLoginManager.ts:44",
   "decision": "implement",
   "priority": "normal",
-  "why": "All four clients call it. Comes with messages.requestUrlAuth (also missing). Works for the owner's own bots and sites; no owner decision excludes it."
+  "why": "All four clients call it. Task 106, part C: login buttons and url_auth_domains links, writes web_authorizations and, with write_allowed, bot_write_allowed and messageActionBotAllowed. OAuth logins come with part I1."
  },
  {
   "name": "messages.checkHistoryImport",
@@ -2787,7 +2787,7 @@
   "used_by": "Android ui/WearAuthSheet.java:407; Desktop boxes/url_auth_box.cpp:76; iOS TelegramEngine/Messages/RequestMessageActionCallback.swift:280; Web lib/appManagers/appSeamlessLoginManager.ts:18",
   "decision": "implement",
   "priority": "normal",
-  "why": "keyboardButtonUrlAuth is a bot feature with no payment. Goes with acceptUrlAuth (missing). Domain whitelisting must be defined in the admin path, since BotFather is replaced by pluma-admin (ADR 0043)."
+  "why": "keyboardButtonUrlAuth is a bot feature with no payment. Task 106, part C: login buttons and url_auth_domains links; the bot's login domain is set with pluma-admin bot set -domain (ADR 0043). in_app_origin (OAuth) comes with part I1."
  },
  {
   "name": "messages.requestWebView",
@@ -2949,7 +2949,7 @@
   "used_by": "A: ui/SessionsActivity.java:724; I: Privacy/RecentWebSessions.swift:24; D: api/api_websites.cpp:51, export/export_api_wrap.cpp:1786; W: lib/appManagers/appSeamlessLoginManager.ts:56",
   "decision": "implement",
   "priority": "rare",
-  "why": "Сейчас постоянный пустой ответ, и пока это правда: messages.requestUrlAuth и acceptUrlAuth не реализованы. Делать вместе с ними (кнопки входа у ботов)."
+  "why": "Задача 106, часть C: список из web_authorizations, записи создаёт вход по кнопке входа бота или по ссылке из url_auth_domains (messages.acceptUrlAuth); выдуманный пустой ответ из fake_rpc_result.go убран."
  },
  {
   "name": "account.resetWebAuthorization",

@@ -43,4 +43,7 @@ const (
 	// pluma: task 019
 	CRC32_authsession_changeAuthorizationSettings TLConstructor = -951003082 // 0xc750d836
 	CRC32_authsession_getRecentLangCode           TLConstructor = 299421713  // 0x11d8d011
+
+	// pluma: task 106
+	CRC32_authsession_getIpRegion TLConstructor = 415119041 // 0x18be36c1
 )

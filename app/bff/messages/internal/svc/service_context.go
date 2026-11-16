@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/messages/plugin"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
@@ -42,6 +43,12 @@ import (
 // (stickerlists.Store, task 079).
 type StickerLists interface {
 	Add(ctx context.Context, userID int64, list stickerlists.List, documentID int64) error
+}
+
+// LoginDomains gives the login domain of a bot, which the link of its login
+// button must have (*botstore.Store, task 106).
+type LoginDomains interface {
+	LoginDomain(ctx context.Context, botId int64) (string, error)
 }
 
 // LoginCodes drops the pending login requests of a phone whose code the
@@ -80,6 +87,10 @@ type ServiceContext struct {
 	// LoginCodes invalidates the login codes the account sends or forwards
 	// to a chat (task 098).
 	LoginCodes LoginCodes
+
+	// LoginDomains checks the links of the login buttons of bots (task
+	// 106).
+	LoginDomains LoginDomains
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories plugin.StoryPlugin) *ServiceContext {
@@ -108,6 +119,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories pl
 		StickerLists: stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
 		Attached:     attached.NewStore(db),
 		LoginCodes:   loginCodes,
+		LoginDomains: botstore.New(db),
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

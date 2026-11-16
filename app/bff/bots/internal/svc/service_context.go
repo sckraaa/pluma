@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/inline"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/inlinemedia"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
@@ -78,6 +79,17 @@ type ServiceContext struct {
 	// WebFileKey signs the addresses of inline results' webDocument
 	// (webfile.Sign); nil: they go out unsigned, as webDocumentNoProxy.
 	WebFileKey []byte
+
+	// BotKeys are the keys of bots (pkg/botkeys, task 106): the login key
+	// signs the data a login button gives a site. Without
+	// BOT_SECRET_ENCRYPTION_KEY it finds none and login buttons open their
+	// links as they are.
+	BotKeys BotKeys
+}
+
+// BotKeys finds the keys of a bot's current token (*botkeys.Store).
+type BotKeys interface {
+	Get(ctx context.Context, botId int64) (keys botkeys.Keys, ok bool, err error)
 }
 
 // NewServiceContext connects the service. It checks the accounts of the
@@ -86,6 +98,8 @@ type ServiceContext struct {
 // until it does, the rest work.
 func NewServiceContext(c config.Config) *ServiceContext {
 	key, err := webfile.Key(c.WebFileKey)
+	logx.Must(err)
+	sealer, err := c.BotSecrets.Sealer()
 	logx.Must(err)
 	dailyBytes, err := inlinemedia.ParseDailyBytes(c.InlineBots.ImportDailyBytes)
 	logx.Must(err)
@@ -126,6 +140,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		GifSends:        gifSends{media},
 		Limiter:         logincode.NewLimiter(d.KV),
 		WebFileKey:      key,
+		BotKeys:         botkeys.NewStore(db, sealer),
 	}
 }
 

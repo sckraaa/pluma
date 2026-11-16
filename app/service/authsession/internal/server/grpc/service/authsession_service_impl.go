@@ -367,3 +367,17 @@ func (s *Service) AuthsessionGetRecentLangCode(ctx context.Context, request *aut
 
 	return r, err
 }
+
+// AuthsessionGetIpRegion
+// authsession.getIpRegion ip:string = String;
+func (s *Service) AuthsessionGetIpRegion(ctx context.Context, request *authsession.TLAuthsessionGetIpRegion) (*mtproto.String, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("authsession.getIpRegion - metadata: {%s}", c.MD)
+
+	r, err := c.AuthsessionGetIpRegion(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
