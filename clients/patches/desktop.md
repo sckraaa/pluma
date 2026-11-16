@@ -994,7 +994,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041).
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `Session::premiumBadgesShown` — только режим поддержки: звезды нет (`Badge::setContent`, `unread_badge.cpp`);
-  - `BuildPremiumSection` — по `premiumCanBuy`;
+  - `BuildPremiumSection` — по `premiumCanBuy` (с задачи 105 — только кнопки покупки, Business виден, D-103);
   - `MainMenu::setupSetEmojiStatus` скрывает ссылку статуса: сервер не обслуживает `account.updateEmojiStatus`.
 - **7.4.1 (задача 074), места, которых патч 071 не закрывал.** Там же:
   - `history_view_message.cpp` (`validateFromNameText`): звезда после имени отправителя в группе; место под значок остаётся только для эмодзи-статуса;
@@ -1017,3 +1017,13 @@ ci/lint.sh                                        # shellcheck и actionlint
   - `edit_peer_permissions_box.cpp`: «Не ограничивать бустеров» скрыто;
   - `edit_peer_color_box.cpp`: подпись о бустах в цветах группы (`CreateBoostLevelContainer`) не создаётся.
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`; якоря — на `a1e89e1`. Компиляция и окно клиента не проверены.
+
+### D-103. Telegram Business снова виден, без переключателя рекламы (задача 105)
+- **Статус.** Ветка `task/105-client-patches` pluma-desktop поверх `origin/main`, не закоммичено, не выпущено (2026-11-16). Апстрим v7.4.1, `157f5cfc`.
+- **Что и зачем.** Задача 105 (ADR 0067): сервер обслуживает Telegram Business всем с Premium, а Premium у всех (ADR 0041). Частичный откат D-084 и скрытие рекламы:
+  - кнопка Business лежит в `BuildPremiumSection` (`settings/sections/settings_main.cpp:501-575`), которую D-084 прятал целиком при `!premiumCanBuy()`. Теперь раздел — апстримовский (`if (!session->premiumPossible()) return;`, у всех с Premium он есть), а под `if (session->premiumCanBuy())` только кнопки покупки: Premium, звёзды, TON (вместе с `credits().load()` и `tonLoad()`). Кнопка Business и разделитель раздела видны всем; кнопка подарка — под своим апстримовским `premiumCanBuy`;
+  - раздел Business у пользователя с Premium открывает редакторы; `BuildSponsoredSection` (`settings_business.cpp:298-406`, «Не скрывать рекламу» и запись поиска `business/sponsored`) не вызывается (`:523`): рекламы в Pluma нет, `account.toggleSponsoredMessages` сервер не обслуживает (ADR 0067, п. 7). Функция помечена `[[maybe_unused]]` (она в безымянном пространстве имён). Ссылка `settings/business/do-not-hide-ads` (`core/deep_links/deep_links_settings.cpp:1659-1665`) только открывает раздел: `checkHighlightControl` пропускает пустую кнопку (`window/window_controller.cpp:704`).
+- **Где** (`BUSINESS_EDITS`, `business()` в `ci/patch.py`, после `premium_for_everyone`): `settings_main.cpp` — открытие условия перед `main/premium` и закрытие перед `main/business` (две правки, тело не переиндентировано); `settings_business.cpp` — `[[maybe_unused]]` у объявления и комментарий `// pluma:` вместо вызова. Из `PREMIUM_FOR_EVERYONE_EDITS` убрана правка раннего выхода `BuildPremiumSection`.
+- **Апстрим без правки.** Раздел, кнопка и экран — как у Telegram с Premium, с кнопками Premium, звёзд и переключателем рекламы.
+- **Как проверяется.** `verify_business`: каждая правка на месте ровно раз, прежнего текста нет; `BUSINESS_KEPT` — ранний выход по `premiumPossible` и кнопка Business апстрима есть ровно раз (скрыть раздел, как в 071, или сдвинутый апстрим останавливают сборку); вызова `BuildSponsoredSection(builder` нет. `BusinessTest`: ни одна правка 071 не трогает `BuildPremiumSection`, применение и повторный прогон (кнопки покупки внутри условия, Business после него, скобки сбалансированы), изменённый апстрим, откат каждой правки, раздел, скрытый как в 071, вызов, добавленный снова. `DAMAGE` — порча каждой правки и каждого опорного текста на закреплённом апстриме. Полный `patch.py` на копии апстрима `157f5cfc` — проходит, в диффе только эти места. `python3 -I ci/patch_test.py` со `./upstream`: 117 тестов, OK.
+- **Не проверено.** Компиляция (MSVC, clang, gcc) и окно клиента: кнопка Business в настройках, раздел без переключателя рекламы, поиск (строка `TESTING-BACKLOG`, задача 105).
