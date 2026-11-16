@@ -70,7 +70,7 @@ func TestWebViewResultMessage(t *testing.T) {
 	})
 	waitUpdate(ctx, t, bot, mtproto.Predicate_updateNewMessage, func(u *mtproto.Update) bool {
 		m := u.GetMessage_MESSAGE()
-		return m.GetMessage() == "Order #7 is paid" && m.GetFromId().GetUserId() == alice.self.GetId()
+		return m.GetMessage() == "Order #7 is paid" && !m.GetOut() && m.GetPeerId().GetUserId() == alice.self.GetId()
 	})
 	if err = answer(); !strings.Contains(fmt.Sprint(err), "QUERY_ID_INVALID") {
 		t.Errorf("a second answer: %v", err)
