@@ -40,11 +40,14 @@ func TestPreparedAndRequestedPeer(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
-	phone := testPhones(t, 1)[0]
+	phones := testPhones(t, 2)
+	phone := phones[0]
 	alice := login(ctx, t, phone, "Alice")
 	getState(ctx, t, alice)
 	username := fmt.Sprintf("e2e%dbot", randomID()&0xffffff)
-	bot := botLoggedIn(ctx, t, phone, username)
+	// bots.requestWebViewButton takes the typed keyboardButton of layer 229
+	// and later.
+	bot := botLoggedInAtLayer(ctx, t, phone, username, mtclient.DefaultLayer)
 	getState(ctx, t, bot)
 	toBot := resolveBot(ctx, t, alice, username)
 	botUser := inputUserOfPeer(alice.c, toBot)
@@ -112,9 +115,12 @@ func TestPreparedAndRequestedPeer(t *testing.T) {
 		t.Fatalf("a prepared message for groups to Saved Messages: %v", err)
 	}
 	title := fmt.Sprintf("Players %d", randomID()&0xffff)
+	// A basic group has a user besides its creator; a bot alone is
+	// USERS_TOO_FEW (bff chats, messages.createChat).
+	bob := login(ctx, t, phones[1], "Bob")
 	o, err = alice.c.Invoke(ctx, &mtproto.TLMessagesCreateChat92CEDDD4{
 		Constructor: alice.c.Constructor(mtproto.Predicate_messages_createChat92CEDDD4),
-		Users:       []*mtproto.InputUser{botUser},
+		Users:       []*mtproto.InputUser{botUser, inputUserOf(ctx, t, alice, bob)},
 		Title:       title,
 	})
 	if err != nil {
