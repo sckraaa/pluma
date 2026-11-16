@@ -1,6 +1,6 @@
 # 106. Платформа ботов: вход на сайты, мини-приложения, меню вложений, игры, виджеты
 
-- Статус: todo
+- Статус: готово, ждёт выкладки (2026-11-16)
 - Решение: ADR 0068 (платформа ботов; продолжает ADR 0043).
 - Зависит от: 070 (боты как аккаунты, `pkg/botstore`, ожидание ответа бота, журнал seq бота), 098 (пакет шума: пустой `messages.getAttachMenuBots`, `messages.getEmojiGameInfo` в `RPCGames`), 099 (инлайн-боты: правит `messages.inline_handlers.go` — сливается раньше 106), 026 / ADR 0036 (сервис `links`, `pluma.chat`, `/_l/avatar/<имя>`), 091 (образец секретов в `.env`, текстов в `pkg/langpack` на 37 языках).
 - Ветка: `task/106-bot-platform` (части — подветки `task/106-<буква>`, сливаются в неё по одной).
@@ -364,4 +364,40 @@ Redis (`bots` dao, ключи с TTL):
 - **100, 101, 102, 103** — не пересекаются; `server.go`/`session.yaml` — только соседние строки.
 
 ## Результат
-(заполняется по завершении)
+Платформа ботов сделана: части A1–J. Работают кнопки входа и вход на сайты, мини-приложения, меню вложений, игры, подготовленные сообщения и кнопки, правка инлайн-сообщений и виджеты в сообщениях ботов. Свой провайдер входа — `oauth.pluma.chat`. Код в партии `batch/20261115`, на прод не выкачен. Для выкладки нужны DNS `oauth.pluma.chat`, ключи (`BOT_SECRET_ENCRYPTION_KEY`, `WEBAPP_SIGNING_KEY`, файл `OAUTH_SIGNING_KEY_FILE`) и новые токены работающим ботам (`docs/ops/bots.md`).
+
+- **A1.** `migrate-20261121-bot-platform.sql` и `pkg/botstore`.
+- **A2.** Ключи ботов из токенов в `bot_secret_keys`, зашифрованы AES-256-GCM. `initData` мини-приложений подписан ключом бота и Ed25519 сервера. Служба `RPCBotWidgets` и коды ошибок (`third_party(proto)`).
+- **B.** `pluma-admin`: `bot set -domain -main-app`, `bot app`, `bot attach`, `bot game`, `bot login`.
+- **C.** `messages.requestUrlAuth` и `acceptUrlAuth` для кнопок входа, `url_auth_domains` в app config, подключённые сайты (`account.getWebAuthorizations` и сброс), служба `RPCSeamless`.
+- **D1.** `requestWebView`, `requestSimpleWebView`, `requestMainWebView`, `requestAppWebView`, `prolongWebView`, `getBotApp`, `bots.canSendMessage`, `allowSendMessage`. Без ключей ответ `BOT_WEBVIEW_DISABLED`.
+- **D2.** `sendWebViewResultMessage` и `sendWebViewData`.
+- **E.** Меню вложений: `getAttachMenuBot`, `toggleBotInAttachMenu`, `updateAttachMenuBots` на другие устройства. Это настоящая замена пустого ответа задачи 098.
+- **F.** Подготовленные сообщения и кнопки (24 ч), `sendBotRequestedPeer`.
+- **G1.** Игры: отправка, кнопка «Играть», `setGameScore`, `getGameHighScores`.
+- **G2.** `editInlineBotMessage` (`EditTypeViaBot`), счёт инлайн-игр.
+- **H.** Виджеты: шесть методов, состояние, запросы с таймаутом и пределом, `updateMessageWidgetData`.
+- **I1.** Запросы входа страницы oauth в приложениях: коды-эмодзи, `checkUrlAuthMatchCode`, `declineUrlAuth`.
+- **I2.** Провайдер OpenID Connect и формата виджета входа в `links`.
+- **J.** Сквозные тесты, порядок выкладки и замена ключей в `docs/ops`.
+
+**Исправлено после слияния.**
+- Виджеты всегда отклонялись: сессия не ставит `RpcMetadata.IsBot`, поэтому путь виджета теперь сам узнаёт, бот ли отправитель (`cde8986c7`).
+- Прокси bff больше не обрывает через 5 с колбэк бота (ожидание 10 с), виджет (15 с) и встроенные инлайн-боты (`cd6e216f1`).
+- `Issuer` берётся из `PLUMA_OAUTH_DOMAIN` (`bbf8f5ddb`).
+- Cookie привязки OAuth всегда `Secure`.
+- Бизнес-бот не шлёт виджеты и игры (`9a9d34e18`).
+- При удалении аккаунта удаляются строки платформы. `game_scores` сохраняется намеренно (`f7a8983e5`, `docs/ops/bots.md`).
+
+**Отклонения от брифа.** По коммитам и документам частей не найдены.
+
+**Решения.** Ждут подтверждения п. 1–11 раздела «Решения к подтверждению». Главное: свой провайдер на `oauth.pluma.chat`; настройка ботов только через `pluma-admin`; свой ключ Ed25519 для `signature`; новые токены ботам при выкладке.
+
+**Известное.**
+- Сессия никогда не ставит `RpcMetadata.IsBot`, и все проверки `c.MD.IsBot` в bff не действуют. Это `translateText`, `togglePeerTranslations`, `getGameHighScores`, коды входа, `getFullUser`, `editMessage`, быстрые ответы, `createStickerSet`, инлайн. Исправлен только путь виджета; нужна отдельная задача и, вероятно, ADR.
+- Изменения меню вложений из `pluma-admin` не рассылаются: клиент видит их после перезапуска.
+- Если отправитель удалил инлайн-сообщение у себя в личке, бот больше не может его править.
+
+**Не проверено.** В клиентах — пункты задачи 106 в `TESTING-BACKLOG.md`, в том числе ссылка `plm://oauth?token=` на iOS и в Web K. Поведение Telegram — раздел «Не проверено» выше.
+
+**Проверка.** Партия `batch/20261115`, полный прогон на CachyOS на `2c1b155cf`: `go build ./...` и `go vet -tags integration,e2e -unreachable=false` обоих модулей; `go test ./...` — 237 пакетов ok, proto — 3; `go test ./tools/...` (с журнальным аудитом) — 6; `-race` — 191 пакет ok; `make lint` — 0 замечаний; интеграционные тесты — 70 пакетов по одному, все ok; e2e на свежем стенде — 300 PASS, 0 FAIL, 2 SKIP (замер задержки и ручной тест). На прод не выкачено, в клиентах владельцем не проверено.
