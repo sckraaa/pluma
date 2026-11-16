@@ -436,7 +436,11 @@ func TestTranslateTextBatch(t *testing.T) {
 			return err
 		}, "INPUT_TEXT_EMPTY"},
 		{"a peer without ids", func() error {
-			_, err := translateIds(ctx, u, &mtproto.InputPeer{Constructor: u.c.Constructor(mtproto.Predicate_inputPeerSelf)}, nil, "en")
+			// An empty vector, not nil: peer and id share flags.0, and the
+			// codec writes the vector only when it is not nil, so a nil one
+			// would make a request no client sends and the server cannot
+			// decode.
+			_, err := translateIds(ctx, u, &mtproto.InputPeer{Constructor: u.c.Constructor(mtproto.Predicate_inputPeerSelf)}, []int32{}, "en")
 			return err
 		}, "MSG_ID_INVALID"},
 	} {
@@ -682,6 +686,9 @@ func TestTogglePeerTranslations(t *testing.T) {
 	laptop := login(ctx, t, phones[0], "Alice")
 	bob := login(ctx, t, phones[1], "Bob")
 	toBob := peerOf(ctx, t, alice, bob)
+	// The private chat is Alice's once it has a message: the bar of a chat
+	// she has no dialog with is no peer (ADR 0064, p. 8).
+	sendTo(ctx, t, alice, toBob, "hello "+uniq())
 	bobOnLaptop := inputUserOf(ctx, t, laptop, bob)
 	group := createChat(ctx, t, alice, "translated "+uniq(), bob)
 	_, ch := createChannel(ctx, t, alice, "translated "+uniq(), false)
