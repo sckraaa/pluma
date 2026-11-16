@@ -15,9 +15,9 @@ import (
 // The attachment menu and the dice game, which clients ask for on start
 // (task 098): iOS TelegramCore/Sources/State/AccountTaskManager.swift:110,
 // 137, Web appAttachMenuBotsManager.ts:70. The menu is empty with hash 0,
-// the game unavailable; the methods of these services the server does not
-// serve answer 400, which clients do not repeat, never a 500, which tgnet
-// does.
+// the game unavailable; a request of the menu or of the games of bots
+// (served since task 106) about no bot or no message answers 400, which
+// clients do not repeat, never a 500, which tgnet does.
 func TestStartupNoiseBotMenu(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -52,22 +52,25 @@ func TestStartupNoiseBotMenu(t *testing.T) {
 		t.Errorf("messages.getEmojiGameInfo: %s, want messages.emojiGameUnavailable", r.GetPredicateName())
 	}
 
-	for name, req := range map[string]mtproto.TLObject{
-		"messages.getAttachMenuBot": &mtproto.TLMessagesGetAttachMenuBot{
+	for _, c := range []struct {
+		name, want string
+		req        mtproto.TLObject
+	}{
+		{"messages.getAttachMenuBot of a user that is no bot", "BOT_INVALID", &mtproto.TLMessagesGetAttachMenuBot{
 			Constructor: alice.c.Constructor(mtproto.Predicate_messages_getAttachMenuBot),
 			Bot:         &mtproto.InputUser{Constructor: alice.c.Constructor(mtproto.Predicate_inputUserSelf)},
-		},
-		"messages.getGameHighScores": &mtproto.TLMessagesGetGameHighScores{
+		}},
+		{"messages.getGameHighScores of no message", "MESSAGE_ID_INVALID", &mtproto.TLMessagesGetGameHighScores{
 			Constructor: alice.c.Constructor(mtproto.Predicate_messages_getGameHighScores),
 			Peer:        &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerSelf)},
 			Id:          1,
 			UserId:      &mtproto.InputUser{Constructor: alice.c.Constructor(mtproto.Predicate_inputUserSelf)},
-		},
+		}},
 	} {
-		_, err := alice.c.Invoke(ctx, req)
+		_, err := alice.c.Invoke(ctx, c.req)
 		var e *mtclient.RPCError
-		if !errors.As(err, &e) || e.Code != 400 || e.Message != "ERR_ENTERPRISE_IS_BLOCKED" {
-			t.Errorf("%s: %v, want 400 ERR_ENTERPRISE_IS_BLOCKED", name, err)
+		if !errors.As(err, &e) || e.Code != 400 || e.Message != c.want {
+			t.Errorf("%s: %v, want 400 %s", c.name, err, c.want)
 		}
 	}
 }
