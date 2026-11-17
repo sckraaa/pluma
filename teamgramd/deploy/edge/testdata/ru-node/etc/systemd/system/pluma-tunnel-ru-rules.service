@@ -1,0 +1,14 @@
+# Written by teamgramd/deploy/edge/tunnel.sh.
+[Unit]
+Description=Firewall rules of Pluma's tunnel to the Russian node
+BindsTo=wg-quick@plumaru.service
+After=wg-quick@plumaru.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/pluma-tunnel --link ru rules node up
+ExecStop=/usr/local/sbin/pluma-tunnel --link ru rules node down
+
+[Install]
+WantedBy=wg-quick@plumaru.service
