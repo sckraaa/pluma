@@ -751,7 +751,7 @@ func (m *MainAuthWrapper) rpcRunLoop() {
 			return
 		} else {
 			threading.RunSafe(func() {
-				for _, request := range apiRequest.([]*rpcApiMessage) {
+				for _, request := range pinnedDialogsFirst(apiRequest.([]*rpcApiMessage)) {
 					md, err := m.rpcMetadata(request)
 					if err != nil {
 						// Not knowing whether the key is a bot's, the
@@ -852,6 +852,44 @@ func runsAside(req mtproto.TLObject) bool {
 		return true
 	}
 	return false
+}
+
+// pinnedDialogsFirst moves each messages.getPinnedDialogs of a batch (the
+// requests of one message or container) ahead of the messages.getDialogs
+// right before it, so the pinned list is answered first.
+//
+// Telegram Desktop asks for both at once, getDialogs first
+// (ApiWrap::requestMoreDialogs, apiwrap.cpp), and adds each chat it gets
+// to the end of its list before it applies the dialog's pin
+// (Data::Session::applyDialog, data_session.cpp). While the user moves the
+// mouse over the list, the list is frozen and only moves rows once it is
+// unfrozen two seconds later (Dialogs::List::adjustByDate,
+// dialogs_list.cpp; InnerWidget::mouseMoveEvent, kFreezeTimeout,
+// dialogs_inner_widget.cpp): a pinned chat that comes after the page of
+// other chats is drawn pinned at the bottom of the list until then. A
+// server may answer parallel requests in any order
+// (core.telegram.org/api/invoking), so answering the pinned list first stays
+// within the protocol and puts the chat on top from the start.
+//
+// Only adjacent getDialogs are passed: both are reads, so their answers do
+// not depend on their order, and no request that changes the list is
+// overtaken. The clients do not wrap getPinnedDialogs in invokeAfterMsg
+// (that wrapper is unpacked before the batch and is not seen here).
+func pinnedDialogsFirst(requests []*rpcApiMessage) []*rpcApiMessage {
+	for i := 1; i < len(requests); i++ {
+		if _, ok := requests[i].reqMsg.(*mtproto.TLMessagesGetPinnedDialogs); !ok {
+			continue
+		}
+		j := i
+		for j > 0 {
+			if _, ok := requests[j-1].reqMsg.(*mtproto.TLMessagesGetDialogs); !ok {
+				break
+			}
+			requests[j-1], requests[j] = requests[j], requests[j-1]
+			j--
+		}
+	}
+	return requests
 }
 
 // startAside runs a request on its own goroutine. It answers through
