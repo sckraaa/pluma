@@ -53,8 +53,9 @@ type ServiceContext struct {
 	ClientConfig *mtproto.TLConfig
 	// AppConfig is app_config.json with url_auth_domains, the login
 	// domains of bots, from the database (task 106), the translation
-	// switched off without an engine (task 101), and the emoji categories
-	// of the GIF tab while @gif searches by text (task 099).
+	// switched off without an engine (task 101), the emoji categories of
+	// the GIF tab while @gif searches by text (task 099), and the public
+	// map tiles of the clients' maps (task 112).
 	AppConfig *appconfig.Live
 	// IOSUpdate asks the install service what an Ad Hoc build of the iPhone
 	// app can update to from the app (task 085); nil when that is off.
@@ -76,6 +77,13 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		// @gif searches by text: each emoji category of the GIF tab is a
 		// query it answers (ADR 0062, p. 2).
 		appConfig = appConfig.WithGifSearchEmojies(inlinebots.GifSearchEmojies)
+	}
+	// The public map tiles (task 112, ADR 0070): a wrong MAPS_PUBLIC_URL
+	// stops the start instead of leaving the clients' maps silently off.
+	mapsPublic, err := c.Maps.Public()
+	logx.Must(err)
+	if mapsPublic.Enabled() {
+		appConfig = appConfig.WithMaps(mapsPublic.URL, mapsPublic.Styles)
 	}
 	logx.Must(c.IOSUpdate.Check())
 	var iosUpdate *iosupdate.Checker

@@ -54,6 +54,60 @@ services:
       - tiles_net
     stop_grace_period: 15s
 
+  # The public map tiles of the clients' interactive maps (task 112, ADR
+  # 0070, docs/ops/maps.md, "Публичная раздача"): the same image with
+  # config-public.json, which serves the light and dark style of each
+  # language, their glyphs and sprites and the vector tiles, and draws
+  # nothing (no renderer, no static image). Caddy publishes it under
+  # PLUMA_MAPS_DOMAIN with the key in the path (teamgramd/deploy/web/
+  # maps-public.caddy). Started on its own, only with that name set:
+  #
+  #   docker compose ... -f docker-compose.web.yaml -f docker-compose.maps.yaml up -d maps-tiles web
+  #
+  # The image is the maps service's, built with it (build maps).
+  # The container never holds the key: Caddy strips it from the path and
+  # passes it as X-Forwarded-Path, from which tileserver-gl, with the site's
+  # Host and X-Forwarded-Proto, builds the links of the style JSON and the
+  # TileJSON (src/utils.js getUrlObject and getTileUrls of v5.7.0, "trust
+  # proxy" on in src/server.js). It builds them only for the site's name
+  # (TILESERVER_GL_ALLOWED_HOSTS); Caddy sends no other.
+  #
+  # It sits only on maps_public_net, an internal network shared with Caddy
+  # alone: no way out, no other service. The log has no URL (the tiles of a
+  # request show where its user looks at the map), and only failed requests
+  # are logged. CORS is Caddy's (--no-cors: two Access-Control-Allow-Origin
+  # headers would fail the browser's check).
+  #
+  # The limits: a Node process reading the map file, without renderers;
+  # estimated at 150-300 MiB, to be measured (docs/ops/memory.md):
+  # MAPS_TILES_MEMORY and MAPS_TILES_CPUS in .env.
+  maps-tiles:
+    mem_limit: ${MAPS_TILES_MEMORY:-512m}
+    memswap_limit: ${MAPS_TILES_MEMORY:-512m}
+    cpus: ${MAPS_TILES_CPUS:-1}
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    image: ${PLUMA_MAPS_IMAGE:-pluma-maps:local}
+    restart: unless-stopped
+    # Nothing is written but the lock file of Xvfb, which the entrypoint of
+    # the image starts in any case.
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      TILESERVER_GL_ALLOWED_HOSTS: ${PLUMA_MAPS_DOMAIN:-}
+    volumes:
+      - ${MAPS_DATA_DIR:-/opt/pluma-maps}:/data:ro
+    command:
+      - --config
+      - /app/config-public.json
+      - --no-cors
+      - --silent
+      - --log_format
+      - ":method :status :res[content-length] :response-time ms"
+    networks:
+      - maps_public_net
+    stop_grace_period: 15s
+
   # bff reaches the service by its name on tiles_net (MAPS_URL=http://maps:8080).
   # No depends_on: bff starts and serves everything else without maps.
   #
@@ -74,4 +128,7 @@ services:
 
 networks:
   tiles_net:
+    internal: true
+  # maps-tiles and Caddy (docker-compose.web.yaml declares it the same way).
+  maps_public_net:
     internal: true

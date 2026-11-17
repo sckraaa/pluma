@@ -29,13 +29,23 @@ services:
       # docs/ops/cdn.md): Caddy proxies it to bff's origin listener on
       # teamgram_net. Empty: no such site.
       PLUMA_CDN_ORIGIN_DOMAIN: ${PLUMA_CDN_ORIGIN_DOMAIN:-}
+      # The name of the public map tiles of the clients' maps and the key
+      # in their paths (task 112, docs/ops/maps.md): Caddy proxies them to
+      # maps-tiles of docker-compose.maps.yaml on maps_public_net. Empty
+      # name: no such site.
+      PLUMA_MAPS_DOMAIN: ${PLUMA_MAPS_DOMAIN:-}
+      MAPS_PUBLIC_KEY: ${MAPS_PUBLIC_KEY:-}
     # Caddy refuses a whole Caddyfile with a site of an empty address, so the
     # site of the CDN origin is a file of its own that the Caddyfile imports
     # from /etc/caddy/cdn-origin.d, linked there at every start only when
     # PLUMA_CDN_ORIGIN_DOMAIN is set (the variable changes only with a new
-    # container). Then Caddy runs as the image's own command runs it.
+    # container); so is the site of the public map tiles, from
+    # /etc/caddy/maps-public.d with PLUMA_MAPS_DOMAIN, whose key must be
+    # there and fit (the rule of bff's MAPS_PUBLIC_URL), or Caddy does not
+    # start. Then Caddy runs as the image's own command runs it.
     tmpfs:
       - /etc/caddy/cdn-origin.d
+      - /etc/caddy/maps-public.d
     command:
       - /bin/sh
       - -ec
@@ -43,10 +53,22 @@ services:
         if [ -n "$$PLUMA_CDN_ORIGIN_DOMAIN" ]; then
           ln -s /etc/caddy/cdn-origin.caddy /etc/caddy/cdn-origin.d/cdn-origin.caddy
         fi
+        if [ -n "$$PLUMA_MAPS_DOMAIN" ]; then
+          case "$$MAPS_PUBLIC_KEY" in
+            *[!A-Za-z0-9_-]*) bad=1 ;;
+            *) bad= ;;
+          esac
+          if [ -n "$$bad" ] || [ "$${#MAPS_PUBLIC_KEY}" -lt 16 ] || [ "$${#MAPS_PUBLIC_KEY}" -gt 128 ]; then
+            echo "PLUMA_MAPS_DOMAIN needs MAPS_PUBLIC_KEY of 16-128 characters of A-Z, a-z, 0-9, '-' or '_' (docs/ops/maps.md)" >&2
+            exit 1
+          fi
+          ln -s /etc/caddy/maps-public.caddy /etc/caddy/maps-public.d/maps-public.caddy
+        fi
         exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
     volumes:
       - ./teamgramd/deploy/web/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./teamgramd/deploy/web/cdn-origin.caddy:/etc/caddy/cdn-origin.caddy:ro
+      - ./teamgramd/deploy/web/maps-public.caddy:/etc/caddy/maps-public.caddy:ro
       # The landing page of PLUMA_SITE_DOMAINS: the dist/ of pluma-site,
       # copied to the host (docs/ops/deployment.md).
       - ${PLUMA_SITE_DIR:-/srv/pluma-site}:/pluma-site:ro
@@ -66,8 +88,13 @@ services:
       - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:80:80"
       - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:443:443"
       - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:443:443/udp" # HTTP/3
+    # maps_public_net reaches maps-tiles (docker-compose.maps.yaml), which
+    # is on no other network. Caddy registers nowhere, so the order of its
+    # interfaces does not matter (TestComposeServicesRegisteredAddress), and
+    # an internal network never carries the published ports.
     networks:
       - teamgram_net
+      - maps_public_net
     depends_on:
       gnetway:
         condition: service_healthy
@@ -81,3 +108,10 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+
+networks:
+  # The network of the public map tiles: Caddy and maps-tiles alone
+  # (docker-compose.maps.yaml declares it the same way); without the maps
+  # overlay nothing else is on it.
+  maps_public_net:
+    internal: true

@@ -12,18 +12,22 @@
 
 Без `MAPS_URL` карты выключены: bff отвечает `LOCATION_INVALID`, клиенты показывают геопозицию без карты и не зависают.
 
+Интерактивную карту выбора места Android и Desktop рисуют сами (MapLibre) по векторным тайлам того же файла, которые отдаёт второй контейнер `maps-tiles` через Caddy — раздел «Публичная раздача» (задача 112, ADR 0070).
+
 ## Что где
 
 | Что | Где |
 |---|---|
 | Образ | `teamgramd/deploy/maps/Dockerfile` → `pluma-maps:local` (`PLUMA_MAPS_IMAGE`), собирается на сервере |
 | Конфиг tileserver-gl | `teamgramd/deploy/maps/config.json`; стили собирает `build-styles.mjs` по `MAPS_STYLES` при сборке образа |
-| Сервис | `docker-compose.maps.yaml`: `maps` и сеть `tiles_net` у bff |
+| Сервис | `docker-compose.maps.yaml`: `maps` и сеть `tiles_net` у bff; `maps-tiles` и сеть `maps_public_net` (публичная раздача) |
+| Публичный конфиг tileserver-gl | `config-public.json` в образе (тоже собирает `build-styles.mjs`): светлый и тёмный стиль на язык, без рендеров |
+| Сайт Caddy публичной раздачи | `teamgramd/deploy/web/maps-public.caddy`, подключается из `docker-compose.web.yaml` при `PLUMA_MAPS_DOMAIN` |
 | Регион | `teamgramd/deploy/maps/region.geojson` (генератор `make-region.sh`, список стран в `make_region.py`) |
 | Данные | `/opt/pluma-maps` (`MAPS_DATA_DIR`): `pluma-<дата>.pmtiles` и ссылка `pluma.pmtiles` на текущий |
 | Вырезка и обновление | `teamgramd/deploy/maps/extract.sh` |
 | Проверка | `teamgramd/deploy/maps/check.sh` |
-| Код bff | `pkg/staticmap`, источник `app/bff/files/internal/core/geo_source.go`, блок `Maps` в `bff.yaml` |
+| Код bff | `pkg/staticmap`, источник `app/bff/files/internal/core/geo_source.go`, блок `Maps` в `bff.yaml`; ключи app config — `app/bff/configuration/internal/appconfig` (`WithMaps`) |
 | Алерты | группа `maps`, `teamgramd/deploy/prometheus/server/rules/maps.yml` |
 
 ## Команда compose
@@ -88,6 +92,58 @@ cd /opt/pluma && MAPS_COMPOSE="$C" teamgramd/deploy/maps/check.sh
 
 Печатает по строке `ok <стиль> …` с размером и временем; при ошибке — `FAIL …` и код 1. Запускать после выкладки, перезапуска и новых данных.
 
+## Публичная раздача
+
+Задача 112, ADR 0070. Android (MapLibre Native) и Desktop (MapLibre GL JS) рисуют выбор места сами; стили, шрифты, значки и векторные тайлы им отдаёт дом:
+
+```
+клиент ─https://<PLUMA_MAPS_DOMAIN>/<MAPS_PUBLIC_KEY>/styles/ru/style.json─► VPS (443, DNAT) ─► Caddy (web)
+   Caddy: путь под ключом и из белого списка? ─ нет ─► 404
+          └─ да: ключ срезан, X-Forwarded-Path=/<ключ> ─► maps-tiles:8080 (maps_public_net, без выхода)
+                                                         ◄── /opt/pluma-maps/pluma.pmtiles (только чтение)
+```
+
+- **`maps-tiles`** — тот же образ `pluma-maps` с `config-public.json`: на каждый язык `MAPS_STYLES` светлый стиль `<язык>` и тёмный `<язык>-dark` (спрайты `dark`), шрифты, спрайты, TileJSON `data/protomaps.json` с подписью «© OpenStreetMap» и тайлы `data/protomaps/{z}/{x}/{y}.pbf`. Рендеров и статических картинок нет. Сеть — только `maps_public_net` (`internal: true`) вместе с Caddy: выхода наружу нет, порта на хосте нет. Лог — только неудачные запросы, без URL.
+- **Ключа в `maps-tiles` нет.** Caddy срезает его из пути и передаёт как `X-Forwarded-Path`; tileserver-gl строит из него, `Host` и `X-Forwarded-Proto` ссылки внутри `style.json` и TileJSON, и только для имени `PLUMA_MAPS_DOMAIN` (`TILESERVER_GL_ALLOWED_HOSTS`).
+- **Caddy** (`maps-public.caddy`) пропускает под ключом только `GET`/`HEAD` путей `styles/<id>/style.json`, `styles/<id>/sprite[@2x].{json,png}`, `fonts/<стек>/<a>-<b>.pbf`, `data/protomaps.json`, `data/protomaps/<z>/<x>/<y>.pbf` и `OPTIONS` (204); остальное — пустой 404, одинаковый и без ключа, и с чужим. CORS для любого источника (пикер Desktop — страница своей схемы в веб-вью). Тайлы, шрифты, спрайты кэшируются сутки, `style.json` и TileJSON — `no-cache`. Журнала нет.
+- **Клиенты узнают адрес из app config:** bff дописывает `tdesktop_config_map` (`maps`, `bmaps`), `pluma_maps_url`, `pluma_maps_styles` из `MAPS_PUBLIC_URL` и `MAPS_STYLES` (`docs/ops/app-config.md`, «Выбор места на карте»). Без `MAPS_PUBLIC_URL` ключей нет: Desktop без пункта «Геопозиция», Android выбирает место без карты.
+- **Что узнаёт дом:** IP устройства и номера тайлов видимой области, пока открыт выбор места. Наружу ничего не уходит, журналов нет.
+
+### Включение
+
+0. **Порядок:** `MAPS_PUBLIC_URL` задавать только когда выпущены Android и Desktop с патчами задачи 112. Desktop без патча, получив `tdesktop_config_map.maps`, покажет пункт «Геопозиция» с картой Mapbox, которая не загрузится (адрес он примет за токен Mapbox); Android без патча ключи Pluma просто не читает. Раздачу (`maps-tiles`, Caddy) можно поднять и проверить раньше — с пустым `MAPS_PUBLIC_URL`.
+1. **DNS:** A-запись `PLUMA_MAPS_DOMAIN` (предложение — `maps.pluma.chat`) на адрес VPS, как у `PLUMA_CDN_ORIGIN_DOMAIN` (`docs/ops/home-server.md`); 443 уже идёт домой. CAA зоны допускает только наш ACME-аккаунт — ничего не менять.
+2. **`.env`** (ключ генерировать на сервере и никуда не копировать):
+   ```bash
+   openssl rand -base64 24 | tr '+/' '-_'     # → MAPS_PUBLIC_KEY, 32 символа
+   ```
+   `PLUMA_MAPS_DOMAIN=maps.pluma.chat`, `MAPS_PUBLIC_KEY=<ключ>`, `MAPS_PUBLIC_URL=https://maps.pluma.chat/<ключ>` — без `/` на конце.
+3. **Образ** с тёмными стилями и `config-public.json`: `$C build maps`, затем `$C up -d maps` (новые стили рисующему не нужны, но образ общий).
+4. **Запуск** — с наложениями сайта и карт вместе (`web` входит в `maps_public_net`):
+   ```bash
+   W="$C -f docker-compose.web.yaml"
+   $W up -d maps-tiles web bff
+   MAPS_COMPOSE="$W" teamgramd/deploy/maps/check.sh
+   ```
+   Если `PLUMA_MAPS_DOMAIN` задан, а `MAPS_PUBLIC_KEY` пуст или не 16–128 символов base64url, `web` не стартует и пишет причину; при неверном `MAPS_PUBLIC_URL` не стартует bff.
+5. **Проверка снаружи:** `curl -sI https://maps.pluma.chat/<неверный ключ>/styles/ru/style.json` — 404; с верным — 200. Клиенты — строки задачи 112 в `docs/project/TESTING-BACKLOG.md`.
+
+Сеть `maps_public_net` объявлена одинаково в обоих наложениях, и `web` входит в неё по `docker-compose.web.yaml`: выкладка, пересоздающая `web` без наложения карт, связи с `maps-tiles` не рвёт. Но команда с `--remove-orphans` без `-f docker-compose.maps.yaml` удалит `maps-tiles` (и `maps`) как сироту — в скрипте выкладки наложение карт нужно в обеих командах, как сказано в «Команда compose».
+
+### Смена ключа
+
+Новый ключ в `MAPS_PUBLIC_KEY` и `MAPS_PUBLIC_URL`, затем `$W up -d web bff` (`maps-tiles` ключа не знает и не пересоздаётся). Клиенты получат новый адрес со следующим app config (Android — минуты, tdesktop — периодически); открытые экраны карты до переоткрытия перестают грузить новые тайлы.
+
+### Проверка (`check.sh`)
+
+Если `maps-tiles` запущен, `check.sh` после рисующего проверяет и его (имя и ключ читает из контейнера `web`, ключ не печатает):
+- изнутри `maps-tiles`, как его спрашивает Caddy: `style.json` каждого стиля — ссылки только под `https://<домен>/<ключ>/`; TileJSON называет OpenStreetMap; статической картинки нет;
+- через Caddy по имени сайта (из `maps_public_net`, с его сертификатом): `style.json`, тайл 0/0/0, шрифты 0–255, спрайт `@2x` — 200 с `Access-Control-Allow-Origin: *` и без `Server`; `OPTIONS` — 204; без ключа, с чужим ключом, статическая картинка и `/styles.json` — 404.
+
+### Выключение
+
+`MAPS_PUBLIC_URL=` и `PLUMA_MAPS_DOMAIN=` в `.env`, `$W up -d bff web`, `$W stop maps-tiles`. Клиенты со следующим app config теряют карту выбора места.
+
 ## Обновление данных
 
 Вручную, раз в полгода (решение к подтверждению владельцем) или при смене региона: шаги 1, 3 и 5. Новая вырезка ложится рядом со старой, ссылка переключается после проверки, старый файл удаляется только когда `check.sh` прошёл на новом; при провале ссылка возвращается на старый файл. Кэш bff (6 ч) при этом не чистится: уже нарисованные картинки досматриваются по старым данным.
@@ -108,7 +164,7 @@ cd /opt/pluma && MAPS_COMPOSE="$C" teamgramd/deploy/maps/check.sh
 
 ## Переменные
 
-Секретов нет.
+Секретов нет: `MAPS_PUBLIC_KEY` получает каждый вошедший пользователь (ADR 0070, §4), но в репозиторий и в логи он не попадает.
 
 | Переменная | Кто читает | По умолчанию | Что |
 |---|---|---|---|
@@ -124,6 +180,10 @@ cd /opt/pluma && MAPS_COMPOSE="$C" teamgramd/deploy/maps/check.sh
 | `MAPS_COMPOSE` | `extract.sh`, `check.sh` | `docker compose -f docker-compose.yaml -f docker-compose.maps.yaml` | команда compose |
 | `MAPS_EXTRACT_MEMORY_GB` | `extract.sh` | `12` | сколько доступной памяти нужно для вырезки |
 | `MAPS_CHECK_TIMEOUT` | `check.sh` | `180` | сколько секунд ждать готовности |
+| `PLUMA_MAPS_DOMAIN` | `web` (Caddy), `maps-tiles` | пусто — нет сайта | имя публичной раздачи; A-запись на VPS |
+| `MAPS_PUBLIC_KEY` | `web` (Caddy) | пусто | ключ в пути, 16–128 символов `A-Za-z0-9_-` (генерируется 32); обязателен при `PLUMA_MAPS_DOMAIN` |
+| `MAPS_PUBLIC_URL` | bff | пусто — клиенты без карты | `https://<PLUMA_MAPS_DOMAIN>/<MAPS_PUBLIC_KEY>`, без `/` на конце; уходит клиентам в app config |
+| `MAPS_TILES_MEMORY`, `MAPS_TILES_CPUS` | compose | `512m`, `1` | потолки контейнера `maps-tiles` |
 
 ## Метрики и алерты
 
@@ -151,12 +211,16 @@ cd /opt/pluma && MAPS_COMPOSE="$C" teamgramd/deploy/maps/check.sh
 | `result="timeout"` растёт | `docker stats pluma-maps-1`: упирается в `MAPS_CPUS` — поднять. Рендеров у tileserver-gl по одному на стиль и масштаб, поэтому `MAPS_CONCURRENCY` выше 4 без больших пулов (и памяти) не помогает |
 | карта серая, без дорог | точка вне региона (Египет, ОАЭ, Азия) — так и задумано; внутри региона — проверить `check.sh` |
 | Redis недоступен | карты рисуются без кэша (`webmap_cache_total{result="error"}`), предел не действует; чинить Redis |
+| выбор места на Android или Desktop без карты, `curl` с ключом — 502 | `maps-tiles` не запущен (или удалён как сирота выкладкой без наложения карт): `$W up -d maps-tiles`, затем `check.sh` |
+| `web` перезапускается, в логе `PLUMA_MAPS_DOMAIN needs MAPS_PUBLIC_KEY` | ключ пуст или не того вида: исправить `.env`, `$W up -d web` |
+| bff не стартует, в логе `MAPS_PUBLIC_URL must be https://…` | адрес не `https://<домен>/<ключ>` (часто — `/` на конце): исправить `.env`, `$C up -d bff` |
+| в `style.json` ссылки относительные или на чужое имя | `PLUMA_MAPS_DOMAIN` у `maps-tiles` не тот, что у Caddy: `$W up -d maps-tiles` |
 
 Выключить карты: `MAPS_URL=` в `.env`, `$C up -d bff`, затем `$C stop maps`. Клиенты показывают геопозиции без карты.
 
 ## Подпись и лицензии
 
-- **Данные** — © участники OpenStreetMap, ODbL, через сборки Protomaps («OpenStreetMap attribution required», https://docs.protomaps.com/basemaps/downloads). Подпись «© OpenStreetMap» рисует bff в левом нижнем углу (в правом клиенты рисуют время сообщения) на картах от 100×100; миниатюры меньше — без подписи, это разрешает https://osmfoundation.org/wiki/Licence/Attribution_Guidelines. Подпись не переводится: имя собственное и юридическая отметка.
+- **Данные** — © участники OpenStreetMap, ODbL, через сборки Protomaps («OpenStreetMap attribution required», https://docs.protomaps.com/basemaps/downloads). Подпись «© OpenStreetMap» рисует bff в левом нижнем углу (в правом клиенты рисуют время сообщения) на картах от 100×100; миниатюры меньше — без подписи, это разрешает https://osmfoundation.org/wiki/Licence/Attribution_Guidelines. Подпись не переводится: имя собственное и юридическая отметка. На интерактивной карте подпись — `attribution` TileJSON публичной раздачи, её показывает кнопка атрибуции MapLibre (Android и Desktop её не выключают).
 - **tileserver-gl** v5.7.0 — BSD 2-Clause, © 2023 MapTiler.com, © 2016 Klokan Technologies GmbH (`LICENSE.md` репозитория maptiler/tileserver-gl на теге v5.7.0; в образе файла нет, `package.json` образа — `BSD-2-Clause`).
 - **Стили** `@protomaps/basemaps` 5.7.2 — код BSD 3-Clause (Protomaps LLC, Kelso Cartography), оформление CC0, значки — производные значков Mapzen, MIT; текст — `teamgramd/deploy/maps/licenses/protomaps-basemaps.LICENSE`, в образе — `/licenses/`.
 - **Шрифты** Noto Sans — SIL OFL 1.1 (`/licenses/noto-sans.OFL.txt` в образе), из protomaps/basemaps-assets.

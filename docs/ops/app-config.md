@@ -254,6 +254,16 @@
 | `fragment_prefixes` | `[]` | D W | Анонимные номера Fragment (+888). У tdesktop по умолчанию `["888"]`. |
 | `ignore_restriction_reasons` | `[]` | A D W | Как у Telegram. |
 
+## Выбор места на карте (bff из окружения)
+
+Этих ключей в файле нет: bff дописывает их при старте, если задан `MAPS_PUBLIC_URL` (задача 112, ADR 0070, `docs/ops/maps.md`, «Публичная раздача»), и считает хэш уже с ними. Без `MAPS_PUBLIC_URL` их нет совсем, файл править не нужно.
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `tdesktop_config_map` | `{"maps": "<MAPS_PUBLIC_URL>", "bmaps": "<MAPS_PUBLIC_URL>"}` | D | Токены пикера места tdesktop: `maps` — вложение, опрос, Instant View (`inline_bots/bot_attach_web_view.cpp:286-296`, `boxes/create_poll_box.cpp:2593-2601`, `iv/editor/iv_editor_session.cpp:234-244`), `bmaps` — адрес бизнеса (`settings/business/settings_location.cpp:71-81`, v7.4.1). Без непустого `maps` пункта «Геопозиция» нет (`ui/controls/location_picker.cpp:343-351`); патченый пикер берёт значение как базу тайлов. `geo`/`bgeo` (геокодер Mapbox) не передаются: Windows и Linux пишут координаты, macOS — адрес `CLGeocoder`. Все значения — строки: одно нестроковое, и tdesktop отбрасывает объект целиком (`main/main_app_config.cpp:471-493`). |
+| `pluma_maps_url` | `"<MAPS_PUBLIC_URL>"` | A | Свой ключ Pluma: база тайлов, стилей, шрифтов и значков для карты MapLibre в патченом Android (стиль — `<база>/styles/<id>[-dark]/style.json`). Нет ключа — выбор места работает без карты. |
+| `pluma_maps_styles` | `MAPS_STYLES`, например `["ru", "en"]` | A | Свой ключ Pluma: светлые стили по языкам подписей (у каждого есть тёмный `<id>-dark`); язык выбирается по правилу `docs/ops/maps.md`, «Языки подписей». |
+
 ## Чего конфигом не исправить
 
 - **Premium-функции, которых на сервере нет.** Пользователь с Premium (теперь это все, ADR 0041) видит вход в них: клиент включает их по флагу `premium`, ключа для них нет. Что скрыто патчами клиентов и что осталось видно, — в брифе задачи 071.

@@ -32,6 +32,10 @@ import (
 // first: bff on the maps network registered its address there, the session
 // could not dial it and every request through bff failed (2026-11-17). Such a
 // service sets POD_IP to a fixed ipv4_address it has on teamgram_net.
+//
+// The services that register are those of the services image (TEAMGRAM_IMAGE,
+// go-zero); the others (Caddy on the network of the public map tiles, task
+// 112) register nowhere and are dialed by name.
 func TestComposeServicesRegisteredAddress(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(repoRoot, "docker-compose*.yaml"))
 	if err != nil {
@@ -40,23 +44,38 @@ func TestComposeServicesRegisteredAddress(t *testing.T) {
 	if len(files) == 0 {
 		t.Fatal("no compose files")
 	}
+	type service struct {
+		Image       string    `yaml:"image"`
+		Environment yaml.Node `yaml:"environment"`
+		Networks    yaml.Node `yaml:"networks"`
+	}
+	composes := make(map[string]map[string]service, len(files))
+	registers := map[string]bool{}
 	for _, f := range files {
 		data, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
 		}
 		var compose struct {
-			Services map[string]struct {
-				Environment yaml.Node `yaml:"environment"`
-				Networks    yaml.Node `yaml:"networks"`
-			} `yaml:"services"`
+			Services map[string]service `yaml:"services"`
 		}
 		if err := yaml.Unmarshal(data, &compose); err != nil {
 			t.Fatalf("%s: %v", filepath.Base(f), err)
 		}
+		composes[f] = compose.Services
 		for name, s := range compose.Services {
+			if strings.Contains(s.Image, "${TEAMGRAM_IMAGE") {
+				registers[name] = true
+			}
+		}
+	}
+	if !registers["bff"] || !registers["session"] {
+		t.Fatalf("the services of the services image are not found: %v", registers)
+	}
+	for _, f := range files {
+		for name, s := range composes[f] {
 			nets := networkNames(s.Networks)
-			if len(nets) < 2 || !slices.Contains(nets, "teamgram_net") {
+			if !registers[name] || len(nets) < 2 || !slices.Contains(nets, "teamgram_net") {
 				continue
 			}
 			addr := teamgramAddress(s.Networks)

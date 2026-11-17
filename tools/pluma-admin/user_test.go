@@ -176,6 +176,7 @@ func TestLoadsUserConfig(t *testing.T) {
 	t.Setenv("MAPS_CONCURRENCY", "")
 	t.Setenv("MAPS_CACHE_TTL", "")
 	t.Setenv("MAPS_PER_USER_PER_MINUTE", "")
+	t.Setenv("MAPS_PUBLIC_URL", "")
 	t.Setenv("BOT_SECRET_ENCRYPTION_KEY", "")
 	t.Setenv("WEBAPP_SIGNING_KEY", "")
 	t.Setenv("STATS_GRAPH_TOKEN_KEY", "")

@@ -107,6 +107,8 @@ services:
       MAPS_CONCURRENCY: ${MAPS_CONCURRENCY:-}
       MAPS_CACHE_TTL: ${MAPS_CACHE_TTL:-}
       MAPS_PER_USER_PER_MINUTE: ${MAPS_PER_USER_PER_MINUTE:-}
+      # bff.yaml names the public map tiles (task 112); empty: none.
+      MAPS_PUBLIC_URL: ${MAPS_PUBLIC_URL:-}
       # bff.yaml names the keys of the bot platform (task 106); empty: the
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
@@ -374,6 +376,10 @@ services:
       MAPS_CONCURRENCY: ${MAPS_CONCURRENCY:-}
       MAPS_CACHE_TTL: ${MAPS_CACHE_TTL:-}
       MAPS_PER_USER_PER_MINUTE: ${MAPS_PER_USER_PER_MINUTE:-}
+      # The public map tiles of the clients' maps (task 112, ADR 0070,
+      # docs/ops/maps.md), https://<PLUMA_MAPS_DOMAIN>/<MAPS_PUBLIC_KEY>,
+      # which the app config hands out; empty: the clients get no map.
+      MAPS_PUBLIC_URL: ${MAPS_PUBLIC_URL:-}
       # bff.yaml names the keys of the bot platform (task 106); empty: the
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}

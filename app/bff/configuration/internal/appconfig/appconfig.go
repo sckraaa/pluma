@@ -203,22 +203,114 @@ func (c *AppConfig) WithGifSearchEmojies(emojies []string) *AppConfig {
 	}
 }
 
+// The keys of the public map tiles of the clients' interactive maps (task
+// 112, ADR 0070).
+const (
+	// tdesktopConfigMapKey is an object of strings (tdesktop
+	// main/main_app_config.cpp:471-493 at v7.4.1: one value of another
+	// type and tdesktop ignores the whole object).
+	tdesktopConfigMapKey = "tdesktop_config_map"
+	// plumaMapsURLKey and plumaMapsStylesKey are Pluma's own, read by the
+	// patched Android app: the base of the tiles and the ids of the light
+	// styles there (each also has a dark <id>-dark).
+	plumaMapsURLKey    = "pluma_maps_url"
+	plumaMapsStylesKey = "pluma_maps_styles"
+)
+
+// tdesktopMapsKeys are the keys of tdesktop_config_map that tdesktop hands
+// its location picker as the maps token: "maps" for the location of a
+// message, a poll and an Instant View (inline_bots/bot_attach_web_view.cpp
+// :286-296, boxes/create_poll_box.cpp:2593-2601 and :2676-2684,
+// iv/editor/iv_editor_session.cpp:234-244 at v7.4.1), "bmaps" for the
+// address of a business (settings/business/settings_location.cpp:71-81).
+// The picker shows only with a token (ui/controls/location_picker.cpp
+// :343-351); the patched picker takes it for the base of the tiles. "geo"
+// and "bgeo", the token of the geocoder, are not set: there is none.
+var tdesktopMapsKeys = []string{"maps", "bmaps"}
+
+// WithMaps returns the config with the public map tiles at url and the
+// light styles there, and a hash of its own: tdesktop_config_map with
+// tdesktopMapsKeys set to url (the file's other keys of it kept),
+// pluma_maps_url and pluma_maps_styles. Each is set in place when the file
+// has it and at the end otherwise; the other keys keep their order and
+// values.
+func (c *AppConfig) WithMaps(url string, styles []string) *AppConfig {
+	var entries []*mtproto.JSONObjectValue
+	for _, v := range c.Config.GetValue_VECTORJSONOBJECTVALUE() {
+		if v.GetKey() == tdesktopConfigMapKey && v.GetValue().GetPredicateName() == mtproto.Predicate_jsonObject {
+			entries = append(entries, v.GetValue().GetValue_VECTORJSONOBJECTVALUE()...)
+		}
+	}
+	for _, key := range tdesktopMapsKeys {
+		entry := mtproto.MakeTLJsonObjectValue(&mtproto.JSONObjectValue{Key: key, Value: jsonString(url)}).To_JSONObjectValue()
+		replaced := false
+		for i, e := range entries {
+			if e.GetKey() == key {
+				entries[i], replaced = entry, true
+			}
+		}
+		if !replaced {
+			entries = append(entries, entry)
+		}
+	}
+	list := make([]*mtproto.JSONValue, 0, len(styles))
+	for _, s := range styles {
+		list = append(list, jsonString(s))
+	}
+	return c.withValues([]keyValue{
+		{
+			key:   tdesktopConfigMapKey,
+			value: mtproto.MakeTLJsonObject(&mtproto.JSONValue{Value_VECTORJSONOBJECTVALUE: entries}).To_JSONValue(),
+			text:  strings.Join(tdesktopMapsKeys, ",") + "=" + url,
+		},
+		{key: plumaMapsURLKey, value: jsonString(url), text: url},
+		{
+			key:   plumaMapsStylesKey,
+			value: mtproto.MakeTLJsonArray(&mtproto.JSONValue{Value_VECTORJSONVALUE: list}).To_JSONValue(),
+			text:  strings.Join(styles, ","),
+		},
+	})
+}
+
+// jsonString is s as a JSON value.
+func jsonString(s string) *mtproto.JSONValue {
+	return mtproto.MakeTLJsonString(&mtproto.JSONValue{Value_STRING: s}).To_JSONValue()
+}
+
 // stringKey is a key of the config and the string it is set to.
 type stringKey struct{ key, value string }
 
-// withStrings returns the config with each key set to its string, in place
+// withStrings returns the config with each key set to its string (see
+// withValues).
+func (c *AppConfig) withStrings(set []stringKey) *AppConfig {
+	values := make([]keyValue, 0, len(set))
+	for _, s := range set {
+		values = append(values, keyValue{key: s.key, value: jsonString(s.value), text: s.value})
+	}
+	return c.withValues(values)
+}
+
+// keyValue is a key of the config, the value it is set to, and the text of
+// that value the hash covers.
+type keyValue struct {
+	key   string
+	value *mtproto.JSONValue
+	text  string
+}
+
+// withValues returns the config with each key set to its value, in place
 // when the key is there and at the end otherwise. The hash covers the file
 // and the keys set, so the clients that cached the config of the file take
 // this one, and a later change of the config (WithURLAuthDomains) still
 // counts what is set here.
-func (c *AppConfig) withStrings(set []stringKey) *AppConfig {
+func (c *AppConfig) withValues(set []keyValue) *AppConfig {
 	values := make([]*mtproto.JSONObjectValue, 0, len(c.Config.GetValue_VECTORJSONOBJECTVALUE())+len(set))
 	values = append(values, c.Config.GetValue_VECTORJSONOBJECTVALUE()...)
 	compact := append([]byte(nil), c.compact...)
 	for _, s := range set {
 		value := mtproto.MakeTLJsonObjectValue(&mtproto.JSONObjectValue{
 			Key:   s.key,
-			Value: mtproto.MakeTLJsonString(&mtproto.JSONValue{Value_STRING: s.value}).To_JSONValue(),
+			Value: s.value,
 		}).To_JSONObjectValue()
 		replaced := false
 		for i, v := range values {
@@ -229,7 +321,7 @@ func (c *AppConfig) withStrings(set []stringKey) *AppConfig {
 		if !replaced {
 			values = append(values, value)
 		}
-		compact = append(compact, "\n"+s.key+"="+s.value...)
+		compact = append(compact, "\n"+s.key+"="+s.text...)
 	}
 	return &AppConfig{
 		Config:  mtproto.MakeTLJsonObject(&mtproto.JSONValue{Value_VECTORJSONOBJECTVALUE: values}).To_JSONValue(),

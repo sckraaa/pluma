@@ -1396,3 +1396,13 @@ authsession раньше не читал `params` и `proxy` из таблицы
 - [ ] У пользователя, который уже открывал чат с `@gif` до выката, имя и аватарка в списке чатов сменились без перезапуска клиента (пришёл `updateUser`); если нет — записать клиент и через сколько сменились.
 - [ ] Desktop и Web: открыть аватарку бота на весь экран — картинка чёткая (640 px), не размытая.
 - [ ] `pluma-admin inline-bots photos -replace` ставит фото заново; в профиле бота листается альбом из двух одинаковых фото (так и должно быть, прежнее остаётся в альбоме).
+
+## Выбор места на карте: публичная раздача тайлов (задача 112, ADR 0070)
+Сервер — ветка `task/112-maps-public`; строки клиентов Android и Desktop — в их ветках задачи 112.
+- [ ] После выката с `PLUMA_MAPS_DOMAIN`, `MAPS_PUBLIC_KEY`, `MAPS_PUBLIC_URL` в `.env`: `MAPS_COMPOSE="$W" teamgramd/deploy/maps/check.sh` (`$W` — команда с наложениями сайта и карт, `docs/ops/maps.md`, «Публичная раздача») печатает только `ok …` и выходит с кодом 0; в выводе нет ключа.
+- [ ] `curl -sI https://maps.pluma.chat/<неверный ключ>/styles/ru/style.json` — 404; с верным ключом — 200, `access-control-allow-origin: *`, `cache-control: no-cache`, нет `server`; `curl -s …/<ключ>/styles/ru/style.json` — все ссылки внутри (`glyphs`, `sprite`, `sources.protomaps.url`) начинаются с `https://maps.pluma.chat/<ключ>/`.
+- [ ] `curl -sI https://maps.pluma.chat/<ключ>/styles/ru/static/37.6,55.7,15/277x195.png`, `…/<ключ>/styles.json`, `…/<ключ>/styles/ru/` и `https://maps.pluma.chat/` — 404.
+- [ ] `docker stats pluma-maps-tiles-1` в простое и после десятка открытий выбора места на телефоне: записать память (оценка 150–300 МиБ, лимит 512m) в `docs/ops/memory.md`.
+- [ ] `docker logs pluma-maps-tiles-1` и лог Caddy после открытий выбора места: нет ни ключа, ни путей тайлов.
+- [ ] Desktop (Windows, macOS, Linux) с патчем задачи 112: в меню вложений есть пункт «Геопозиция» (app config отдаёт `tdesktop_config_map.maps`); остальное в app config не изменилось (перевод, GIF). `MAPS_PUBLIC_URL` включается только после выпуска такого Desktop: Desktop без патча с этим ключом показал бы пункт с картой Mapbox, которая не загрузится.
+- [ ] Неверный `MAPS_PUBLIC_URL` (например, с `/` на конце): bff не стартует, в логе `MAPS_PUBLIC_URL must be https://…` без самого адреса; вернуть верный — bff стартует, клиенты подключаются.
