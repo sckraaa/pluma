@@ -19,6 +19,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
+	"time"
 	"unicode/utf8"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
@@ -59,6 +61,9 @@ type WebAuthorization struct {
 
 const webAuthColumns = "hash, user_id, bot_id, domain, browser, platform, ip, region, write_allowed, date_created, date_active"
 
+// webAuthAttempts bounds the rounds of PutWebAuthorization (see there).
+const webAuthAttempts = 10
+
 // cut returns s cut to at most n characters.
 func cut(s string, n int) string {
 	if utf8.RuneCountInString(s) <= n {
@@ -82,7 +87,18 @@ func (s *Store) PutWebAuthorization(ctx context.Context, w WebAuthorization, now
 	w.Platform = cut(w.Platform, maxWebPlatform)
 	w.IP = cut(w.IP, maxWebIP)
 	w.Region = cut(w.Region, maxWebRegion)
-	for range randomIdAttempts {
+	// Logins of one user, bot and domain at the same moment lock the same
+	// empty range and deadlock each other; they get more rounds than a hash
+	// collision needs, each after a short random pause, so they settle on
+	// one record instead of failing.
+	for attempt := range webAuthAttempts {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return WebAuthorization{}, ctx.Err()
+			case <-time.After(time.Duration(5+rand.IntN(20*attempt)) * time.Millisecond):
+			}
+		}
 		hash, err := randomId63()
 		if err != nil {
 			return WebAuthorization{}, err
@@ -114,7 +130,7 @@ func (s *Store) PutWebAuthorization(ctx context.Context, w WebAuthorization, now
 		}
 		return out, err
 	}
-	return WebAuthorization{}, fmt.Errorf("botstore: no free web authorization hash after %d attempts", randomIdAttempts)
+	return WebAuthorization{}, fmt.Errorf("botstore: web authorization not stored after %d attempts", webAuthAttempts)
 }
 
 // WebAuthorizationOf returns the user's record of the bot and domain, nil
