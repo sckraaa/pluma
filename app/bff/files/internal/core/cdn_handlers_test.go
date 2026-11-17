@@ -268,3 +268,33 @@ func TestGetFileFallback(t *testing.T) {
 		t.Fatalf("after the fallback: %s, %d dfs calls", got, d.calls)
 	}
 }
+
+// TestGetFileExportIsNoFallback: a data export asks for files under
+// invokeWithTakeout without cdn_supported; it does not make the key avoid
+// the delivery it was just redirected to.
+func TestGetFileExportIsNoFallback(t *testing.T) {
+	home, _ := readyCdn(t, 14, 2<<20)
+	d := &fakeDfs{}
+	c := cdnCore(home, d)
+	get := func(cdnSupported bool, takeout int64) string {
+		t.Helper()
+		c.MD.Takeout = nil
+		if takeout != 0 {
+			c.MD.Takeout = &metadata.Takeout{Id: takeout}
+		}
+		res, err := c.UploadGetFile(&mtproto.TLUploadGetFile{CdnSupported: cdnSupported, Location: docLocation(14), Limit: 1 << 20})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.GetPredicateName()
+	}
+	if got := get(true, 0); got != mtproto.Predicate_upload_fileCdnRedirect {
+		t.Fatalf("first request: %s", got)
+	}
+	if got := get(false, 99); got != mtproto.Predicate_upload_file {
+		t.Fatalf("the export: %s", got)
+	}
+	if got := get(true, 0); got != mtproto.Predicate_upload_fileCdnRedirect {
+		t.Fatalf("after the export: %s, want the delivery still", got)
+	}
+}
