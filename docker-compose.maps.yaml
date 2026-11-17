@@ -57,15 +57,20 @@ services:
   # bff reaches the service by its name on tiles_net (MAPS_URL=http://maps:8080).
   # No depends_on: bff starts and serves everything else without maps.
   #
-  # The name must sort after teamgram_net: Docker gives a container its
-  # networks in name order, and bff registers in etcd the address of its
-  # first interface, which the session dials. A network that sorts first
-  # (maps_net did) registers an address the session cannot reach, and every
-  # request through bff fails (2026-11-17).
+  # With a second network bff must say which address it registers in etcd:
+  # go-zero registers the address of the container's first interface, and
+  # Docker does not keep teamgram_net first (on 2026-11-17 bff registered its
+  # tiles_net address twice, the session could not dial it and every request
+  # through bff failed). POD_IP is what go-zero registers instead, so bff gets
+  # a fixed address on teamgram_net, high in the subnet, away from the
+  # addresses Docker hands out from the bottom.
   bff:
+    environment:
+      POD_IP: ${PLUMA_BFF_IP:-172.20.255.10}
     networks:
-      - teamgram_net
-      - tiles_net
+      teamgram_net:
+        ipv4_address: ${PLUMA_BFF_IP:-172.20.255.10}
+      tiles_net: {}
 
 networks:
   tiles_net:
