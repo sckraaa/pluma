@@ -65,6 +65,15 @@ type Server struct {
 	triggerFn func(connId int64, cb func(c gnet.Conn))
 	// limits bounds the connections and key exchanges of one address.
 	limits *ipLimits
+
+	// pingWheel holds the upgraded Edge connections by the second of their
+	// next ping (connContext.nextPing); pingInterval is that interval in
+	// seconds (GnetwayConfig.EdgePingInterval).
+	pingWheel    *timeoutWheel
+	pingInterval int64
+	// edgeVias are the X-Pluma-Edge-Via values that label metrics
+	// (GnetwayConfig.EdgeVias).
+	edgeVias map[string]bool
 }
 
 // CachedNow returns the cached unix timestamp (updated every OnTick interval).
@@ -84,6 +93,9 @@ func New(svcCtx *svc.ServiceContext, c config.Config, keys []*serverkey.Key) (*S
 		err error
 	)
 
+	if err = c.Gnetway.Validate(); err != nil {
+		return nil, err
+	}
 	s.handshake, err = handshake.New(keys)
 	if err != nil {
 		return nil, err
@@ -91,6 +103,12 @@ func New(svcCtx *svc.ServiceContext, c config.Config, keys []*serverkey.Key) (*S
 
 	s.authSessionMgr = NewAuthSessionManager()
 	s.timeoutWheel = newTimeoutWheel()
+	s.pingWheel = newPingWheel()
+	s.pingInterval = int64(c.Gnetway.EdgePingInterval / time.Second)
+	s.edgeVias = make(map[string]bool)
+	for _, via := range c.Gnetway.EdgeViaNames() {
+		s.edgeVias[via] = true
+	}
 	s.httpHandshakes = handshake.NewStore(maxHttpHandshakes, httpHandshakeTTL)
 	s.saveAuthKey = s.saveAuthKeyInfo
 	s.queryKey = s.fetchAuthKey

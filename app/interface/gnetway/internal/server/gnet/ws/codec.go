@@ -45,6 +45,25 @@ type WsCodec struct {
 	Buf      bytes.Buffer // 从实际socket中读取到的数据缓存
 	wsMsgBuf wsMessageBuf // ws 消息缓存
 	Conn     WsConn
+	// Headers, when set, reads the headers of the upgrade request that the
+	// WebSocket handshake itself does not use, and decides the upgrade.
+	Headers HeaderReader
+}
+
+// HeaderReader reads the request headers of an upgrade (other than Host
+// and the WebSocket ones) and decides whether it goes on.
+type HeaderReader interface {
+	// Reset forgets the headers of an earlier read of the request: the
+	// request is read again from its start until it is complete.
+	Reset()
+	// Header is called for each header line, in order; the key is in
+	// canonical form and the arguments are valid only during the call.
+	Header(key, value []byte)
+	// Check is called once the whole request is read and valid. An error
+	// refuses the upgrade: the response is the status of a
+	// ws.RejectConnectionError (500 for another error), then the
+	// connection is closed.
+	Check() error
 }
 
 type wsMessageBuf struct {
@@ -100,6 +119,16 @@ func (w *WsCodec) Upgrade(c gnet.Conn) (ok bool, action gnet.Action) {
 		//OnBeforeUpgrade: func() (header ws.HandshakeHeader, err error) {
 		//	//
 		//},
+	}
+	if h := w.Headers; h != nil {
+		h.Reset()
+		upgrader.OnHeader = func(key, value []byte) error {
+			h.Header(key, value)
+			return nil
+		}
+		upgrader.OnBeforeUpgrade = func() (ws.HandshakeHeader, error) {
+			return nil, h.Check()
+		}
 	}
 
 	hs, err := upgrader.Upgrade(readWrite{tmpReader, c})

@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/config"
 	httpcodec "github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/http"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/pp"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/ws"
@@ -67,16 +68,28 @@ func (s *Server) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 		ctx.setClientIp(c.RemoteAddr().String())
 	}
 	ctx.ppv1 = s.c.Gnetway.IsProxyProtocolV1(c.LocalAddr().String())
-	// Behind PROXY protocol the real address comes with the header.
-	if !ctx.ppv1 && !s.countConn(c, ctx) {
-		c.SetContext(ctx)
-		return nil, gnet.Close
-	}
+	ctx.edge = s.c.Gnetway.IsEdge(c.LocalAddr().String())
 	ctx.tcp = s.c.Gnetway.IsTcp(c.LocalAddr().String())
 	ctx.websocket = s.c.Gnetway.IsWebsocket(c.LocalAddr().String())
 	ctx.http = s.c.Gnetway.IsHttp(c.LocalAddr().String())
+	ctx.entry = connEntry(ctx)
+	if ctx.edge {
+		ctx.via = config.EdgeViaOther
+	}
+	// Behind PROXY protocol the real address comes with the header, at the
+	// Edge entry with the upgrade request.
+	if !ctx.ppv1 && !ctx.edge && !s.countConn(c, ctx) {
+		c.SetContext(ctx)
+		return nil, gnet.Close
+	}
 	if ctx.websocket {
 		ctx.wsCodec = new(ws.WsCodec)
+		if ctx.edge {
+			ctx.wsCodec.Headers = &edgeUpgrade{s: s, c: c, ctx: ctx}
+		}
+	}
+	if !ctx.edge {
+		entryOpened(ctx)
 	}
 	if ctx.http {
 		ctx.httpCodec = new(httpcodec.HttpCodec)
@@ -120,6 +133,11 @@ func (s *Server) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 
 	defer func() {
 		s.timeoutWheel.Remove(c.ConnId(), ctx.closeDate)
+		if ctx.nextPing != 0 {
+			s.pingWheel.Remove(c.ConnId(), ctx.nextPing)
+			ctx.nextPing = 0
+		}
+		entryClosed(ctx, err)
 		if ctx.wsCodec != nil {
 			ctx.wsCodec.Conn.Release()
 			ctx.wsCodec = nil
@@ -222,9 +240,15 @@ func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	if !ok || ctx == nil {
 		return gnet.Close
 	}
-	if ctx.authenticated {
+	// WebSocket connections are extended by data messages alone
+	// (onWebsocketData): pings and pongs do not keep an idle one open.
+	if ctx.authenticated && !ctx.websocket {
 		s.extendDeadline(c, ctx)
 	}
+	inbound := c.InboundBuffered()
+	defer func() {
+		ctx.bytesIn += int64(inbound - c.InboundBuffered())
+	}()
 	if ctx.ppv1 {
 		ppv1, err := c.Peek(-1)
 		if err != nil {
@@ -305,6 +329,7 @@ func (s *Server) OnTick() (delay time.Duration, action gnet.Action) {
 			if now >= ctx.closeDate {
 				logx.Errorf("close conn(%s) by timeout", c)
 				metricConnTimeout.Inc()
+				ctx.closeReason = closeReasonTimeout
 				_ = c.Close()
 			} else {
 				// Connection was refreshed but still in old slot; re-add to new slot
@@ -312,6 +337,7 @@ func (s *Server) OnTick() (delay time.Duration, action gnet.Action) {
 			}
 		})
 	}
+	s.expirePings(now)
 	return
 }
 
@@ -376,6 +402,7 @@ func (s *Server) onEncryptedMessage(c gnet.Conn, ctx *connContext, authKey *auth
 	if needAck {
 		ackToken := computeQuickAckToken(authKey.AuthKey(), mtpRwaData)
 		if ackData := ctx.codec.EncodeQuickAck(ackToken); len(ackData) > 0 {
+			ctx.bytesOut += int64(len(ackData))
 			if ctx.websocket {
 				_ = wsutil.WriteServerBinary(c, ackData)
 			} else {
@@ -704,6 +731,7 @@ func UnThreadSafeWrite(c gnet.Conn, msg interface{}) error {
 		logx.Errorf("conn(%s) ctx.codec.Encode(c, msg) - error: %v ", c, err)
 		return err
 	}
+	ctx.bytesOut += int64(len(data))
 
 	if ctx.websocket {
 		// This is the echo server

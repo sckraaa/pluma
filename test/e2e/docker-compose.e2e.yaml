@@ -94,10 +94,12 @@ services:
     # them), or fixed ones for a development client: E2E_GATEWAY_PORT 10443
     # for one in an emulator, which dials 10.0.2.2:10443, E2E_GATEWAY_WS_PORT
     # for a web client, which opens ws://localhost:<port>/apiws
-    # (docs/ops/clients.md).
+    # (docs/ops/clients.md). The Edge entry (11445) is for the tests, which
+    # set the headers of its origin proxy themselves (edge_gateway_test.go).
     ports: !override
       - "127.0.0.1:${E2E_GATEWAY_PORT:-}:10443"
       - "127.0.0.1:${E2E_GATEWAY_WS_PORT:-}:11443"
+      - "127.0.0.1::11445"
 
   # The pages of pluma.chat links (task 026): the tests read a page on an
   # ephemeral loopback port (PLUMA_E2E_LINKS).
