@@ -26,7 +26,9 @@ import (
 //
 // The constructor before #60ed4229, with the same meaning; none of the
 // clients we build sends it. The answer has no updates, so every device of
-// the account, this one too, gets updateWebBrowserException by push.
+// the account, this one too, gets updateWebBrowserException by push. An
+// exception refused for a full list changes nothing: boolFalse and no push
+// (toggle).
 func (c *WebBrowserCore) AccountToggleWebBrowserSettingsException2D0A0571(in *mtproto.TLAccountToggleWebBrowserSettingsException2D0A0571) (*mtproto.Bool, error) {
 	if c.MD.IsBot {
 		err := mtproto.ErrBotMethodInvalid
@@ -37,6 +39,9 @@ func (c *WebBrowserCore) AccountToggleWebBrowserSettingsException2D0A0571(in *mt
 	if err != nil {
 		c.Logger.Errorf("account.toggleWebBrowserSettingsException#2d0a0571 - error: %v", err)
 		return nil, err
+	}
+	if update == nil {
+		return mtproto.BoolFalse, nil
 	}
 	c.pushAll("account.toggleWebBrowserSettingsException#2d0a0571", mtproto.MakeUpdatesByUpdates(update))
 	return mtproto.BoolTrue, nil

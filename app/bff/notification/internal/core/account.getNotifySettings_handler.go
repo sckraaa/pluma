@@ -60,7 +60,15 @@ func (c *NotificationCore) AccountGetNotifySettings(in *mtproto.TLAccountGetNoti
 	case mtproto.PEER_CHAT:
 		// TODO(@benqi): check peerChat exists
 	case mtproto.PEER_CHANNEL:
-		// TODO(@benqi): check peerChannel exists
+		// The channel must be one the account may read, as for
+		// account.updateNotifySettings: CHANNEL_INVALID, CHANNEL_PRIVATE and
+		// PEER_ID_INVALID are the errors of the method
+		// (core.telegram.org/method/account.getNotifySettings). tdesktop
+		// applies empty settings on any error (apiwrap.cpp:2070-2091).
+		if _, err = c.channelOf(peer); err != nil {
+			c.Logger.Errorf("account.getNotifySettings - error: %v", err)
+			return nil, err
+		}
 	case mtproto.PEER_USERS:
 	case mtproto.PEER_CHATS:
 	case mtproto.PEER_BROADCASTS:

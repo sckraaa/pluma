@@ -10,6 +10,8 @@
 package core
 
 import (
+	"context"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
@@ -88,30 +90,46 @@ func (c *DialogCore) DialogGetDialogs(in *dialog.TLDialogGetDialogs) (*dialog.Ve
 		dlgExtIdList  []int64
 	)
 
+	// A failed read of a list fails the request: a partial answer would show
+	// the client a chat list with chats missing.
+	read := func(get func(ctx context.Context, userId int64) ([]int64, error)) error {
+		idList, err := get(c.ctx, meId)
+		if err != nil {
+			c.Logger.Errorf("dialog.getDialogs - error: %v", err)
+			return err
+		}
+		dlgExtIdList = append(dlgExtIdList, idList...)
+		return nil
+	}
+
 	// excludePinned
 	if folderId == 0 {
-		// idList, _ := c.svcCtx.Dao.GetNotPinnedDialogIdList(c.ctx, meId)
-		idList, _ := c.svcCtx.Dao.GetNoCacheNotPinnedDialogIdList(c.ctx, meId)
-		dlgExtIdList = append(dlgExtIdList, idList...)
+		if err := read(c.svcCtx.Dao.GetNoCacheNotPinnedDialogIdList); err != nil {
+			return nil, err
+		}
 	} else {
-		// idList, _ := c.svcCtx.Dao.GetFolderNotPinnedDialogIdList(c.ctx, meId)
-		idList, _ := c.svcCtx.Dao.GetNoCacheFolderNotPinnedDialogIdList(c.ctx, meId)
-		dlgExtIdList = append(dlgExtIdList, idList...)
+		if err := read(c.svcCtx.Dao.GetNoCacheFolderNotPinnedDialogIdList); err != nil {
+			return nil, err
+		}
 	}
 
 	if !excludePinned {
 		if folderId == 0 {
-			// idList, _ := c.svcCtx.Dao.GetPinnedDialogIdList(c.ctx, meId)
-			idList, _ := c.svcCtx.Dao.GetNoCachePinnedDialogIdList(c.ctx, meId)
-			dlgExtIdList = append(dlgExtIdList, idList...)
+			if err := read(c.svcCtx.Dao.GetNoCachePinnedDialogIdList); err != nil {
+				return nil, err
+			}
 		} else {
-			// idList, _ := c.svcCtx.Dao.GetFolderPinnedDialogIdList(c.ctx, meId)
-			idList, _ := c.svcCtx.Dao.GetNoCacheFolderPinnedDialogIdList(c.ctx, meId)
-			dlgExtIdList = append(dlgExtIdList, idList...)
+			if err := read(c.svcCtx.Dao.GetNoCacheFolderPinnedDialogIdList); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	dlgExtList, _ := c.svcCtx.Dao.GetDialogListByIdList(c.ctx, meId, dlgExtIdList)
+	dlgExtList, err := c.svcCtx.Dao.GetDialogListByIdList(c.ctx, meId, dlgExtIdList)
+	if err != nil {
+		c.Logger.Errorf("dialog.getDialogs - error: %v", err)
+		return nil, err
+	}
 	return &dialog.Vector_DialogExt{
 		Datas: dlgExtList,
 	}, nil

@@ -24,7 +24,7 @@ func (c *DialogCore) DialogGetDialogFolder(in *dialog.TLDialogGetDialogFolder) (
 		dialogExt *dialog.DialogExt
 	)
 
-	c.svcCtx.Dao.DialogsDAO.SelectDialogsWithCB(
+	_, err := c.svcCtx.Dao.DialogsDAO.SelectDialogsWithCB(
 		c.ctx,
 		meId,
 		folderId,
@@ -70,6 +70,10 @@ func (c *DialogCore) DialogGetDialogFolder(in *dialog.TLDialogGetDialogFolder) (
 				dialogExt.Dialog.UnreadMutedMessagesCount += 1
 			}
 		})
+	if err != nil {
+		c.Logger.Errorf("dialog.getDialogFolder - error: %v", err)
+		return nil, err
+	}
 
 	if dialogExt == nil {
 		return &dialog.Vector_DialogExt{
