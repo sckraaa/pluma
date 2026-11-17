@@ -43,7 +43,7 @@ docker compose cp ./shop.png bff:/tmp/shop.png
   - `bot list` их показывает.
 
   Расхождение с реестром исправляется в базе: недостающие строки — повторным запуском того же SQL-файла, изменённые руками — возвратом значений из него (`docs/ops/inline-bots.md`, «Если имя бота занято»), а не командами бота.
-- Описания ботов клиенты получают на своём языке из `pkg/langpack/inlinebots.json` (37 языков). Имена `GIF` и `Pic` не переводятся.
+- Описания ботов клиенты получают на своём языке из `pkg/langpack/inlinebots.json` (37 языков). Имена `GIF Search` и `Image Search` (`z_pluma-inline-names.sql`) не переводятся. Фото ботам ставит `pluma-admin inline-bots photos` (`docs/ops/inline-bots.md`, «Имена и фото»).
 
 ## Прямые мини-приложения
 Открываются ссылкой `https://pluma.chat/<имя_bot>/<короткое_имя>` (у Telegram — `t.me/<бот>/<приложение>`).

@@ -288,6 +288,11 @@ func TestInlineBotsConfig(t *testing.T) {
 			if bot.GetId() != b.Id || !bot.GetBot() || bot.GetUsername().GetValue() != b.Username {
 				t.Errorf("@%s for %s: user %d, bot %v, username %q", b.Username, lang, bot.GetId(), bot.GetBot(), bot.GetUsername().GetValue())
 			}
+			// The name is the registry's, the same in every language
+			// (z_pluma-inline-names.sql, task 111).
+			if bot.GetFirstName().GetValue() != b.Name || bot.GetLastName().GetValue() != "" {
+				t.Errorf("@%s for %s: name %q %q, want %q", b.Username, lang, bot.GetFirstName().GetValue(), bot.GetLastName().GetValue(), b.Name)
+			}
 			if bot.GetBotInlinePlaceholder().GetValue() == "" || bot.GetBotInlineGeo() {
 				t.Errorf("@%s: placeholder %q, inline geo %v", b.Username, bot.GetBotInlinePlaceholder().GetValue(), bot.GetBotInlineGeo())
 			}

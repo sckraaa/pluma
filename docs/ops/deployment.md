@@ -76,6 +76,10 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml …      
    ```bash
    docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml exec bff ./pluma-admin -f ../etc2/bff.yaml service-photo
    ```
+   Так же — фото встроенных инлайн-ботов `@gif` и `@pic` (`docs/ops/inline-bots.md`, «Имена и фото»). Эту команду можно повторять: бот с фото его сохраняет.
+   ```bash
+   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml exec bff ./pluma-admin -f ../etc2/bff.yaml inline-bots photos
+   ```
 7. Проверить:
    - `docker compose … ps`: все сервисы healthy;
    - `ss -tlnp | grep -E ':(10443|5222|11443) '`: порты слушает только адрес Pluma;

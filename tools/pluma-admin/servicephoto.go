@@ -121,18 +121,13 @@ func servicePhotoCommand(args []string, configFile string, stdout io.Writer) err
 		}
 		name = "photo"
 	}
-	var c photoConfig
-	if err := conf.Load(configFile, &c); err != nil {
-		return fmt.Errorf("config %s: %w", configFile, err)
-	}
-	services := &rpcPhotoServices{
-		dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
-		media: media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
-		user:  user_client.NewUserClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
+	services, err := newPhotoServices(configFile)
+	if err != nil {
+		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	photoId, err := setServicePhoto(ctx, services, image, name)
+	photoId, err := setProfilePhoto(ctx, services, serviceUserId, image, name)
 	if err != nil {
 		return err
 	}
@@ -140,13 +135,27 @@ func servicePhotoCommand(args []string, configFile string, stdout io.Writer) err
 	return nil
 }
 
-// setServicePhoto uploads image as an anonymous owner, one id for this
-// upload alone, and makes it the account's photo; it returns the photo id.
-func setServicePhoto(ctx context.Context, s photoServices, image []byte, name string) (int64, error) {
+// newPhotoServices connects to the services of the bff config.
+func newPhotoServices(configFile string) (*rpcPhotoServices, error) {
+	var c photoConfig
+	if err := conf.Load(configFile, &c); err != nil {
+		return nil, fmt.Errorf("config %s: %w", configFile, err)
+	}
+	return &rpcPhotoServices{
+		dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
+		media: media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
+		user:  user_client.NewUserClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
+	}, nil
+}
+
+// setProfilePhoto uploads image as an anonymous owner, one id for this
+// upload alone, and makes it the main photo of the account userId; it
+// returns the photo id.
+func setProfilePhoto(ctx context.Context, s photoServices, userId int64, image []byte, name string) (int64, error) {
 	switch http.DetectContentType(image) {
 	case "image/jpeg", "image/png":
 	default:
-		return 0, errors.New("service-photo: the file is not a JPEG or PNG image")
+		return 0, errors.New("the file is not a JPEG or PNG image")
 	}
 	owner, err := randomId()
 	if err != nil {
@@ -177,7 +186,7 @@ func setServicePhoto(ctx context.Context, s photoServices, image []byte, name st
 	if photo.GetPredicateName() != mtproto.Predicate_photo || photo.GetId() == 0 {
 		return 0, errors.New("media: no photo made of the file")
 	}
-	if err := s.SetProfilePhoto(ctx, serviceUserId, photo.GetId()); err != nil {
+	if err := s.SetProfilePhoto(ctx, userId, photo.GetId()); err != nil {
 		return 0, fmt.Errorf("biz: %w", err)
 	}
 	return photo.GetId(), nil
