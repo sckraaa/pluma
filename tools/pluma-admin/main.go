@@ -33,6 +33,7 @@
 //	pluma-admin [-f bff.yaml] bot login set|edit <username> [-redirect <url>]... [-origin <origin>|off]...
 //	pluma-admin [-f bff.yaml] bot webapp-key
 //	pluma-admin [-f bff.yaml] service-photo [image]
+//	pluma-admin [-f bff.yaml] inline-bots photos [-replace]
 //	pluma-admin [-f bff.yaml] ghost set <@username|user id> on|off
 //	pluma-admin [-f bff.yaml] ghost join|leave <@username|user id> <chat>
 //	pluma-admin [-f bff.yaml] ghost list <@username|user id>
@@ -98,6 +99,11 @@
 // account (777000, "Pluma"), Pluma's by default, the way a client sets its
 // own: the account's chats get updateUser. It talks to dfs, media and biz,
 // so it runs in the bff container.
+//
+// inline-bots photos gives the built-in inline bots @gif and @pic (task 099,
+// pkg/inlinebots) their photos the same way (task 111). A bot that has a
+// photo keeps it, so it is safe to run again; -replace sets the built-in
+// photo over the bot's own. See docs/ops/inline-bots.md.
 //
 // ghost makes an account the support ghost (task 080, ADR 0048): it takes
 // part in supergroups and channels without being seen among their members,
@@ -262,6 +268,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] bot login edit <username> [-redirect <url>]... [-origin <origin>|off]...   (keeps the secret)
   pluma-admin [-f bff.yaml] bot webapp-key   (the public key of the signature of mini app data)
   pluma-admin [-f bff.yaml] service-photo [image]   (the service account's photo; Pluma's by default)
+  pluma-admin [-f bff.yaml] inline-bots photos [-replace]   (the photos of @gif and @pic; a bot with a photo keeps it without -replace)
   pluma-admin [-f bff.yaml] ghost set <@username|user id> on|off   (the support ghost: in chats, unseen)
   pluma-admin [-f bff.yaml] ghost join|leave <@username|user id> <t.me link|@name|chat id>
   pluma-admin [-f bff.yaml] ghost list <@username|user id>
@@ -345,6 +352,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return pushCommand(args, configFile, stdout)
 	case "service-photo":
 		return servicePhotoCommand(args, configFile, stdout)
+	case "inline-bots":
+		return inlineBotsCommand(args, configFile, stdout)
 	case "ghost":
 		return ghostCommand(args, configFile, stdout)
 	case "user":
