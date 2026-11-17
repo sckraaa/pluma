@@ -203,9 +203,16 @@ func (e *originEnv) file(key FileKey, data []byte) *File {
 	return prepared(e.t, e.store, key, data)
 }
 
+// answer is the status and the headers of a response whose body do has
+// read and closed.
+type answer struct {
+	StatusCode int
+	Header     http.Header
+}
+
 // do sends a request to the origin with the auth header (unless header
 // sets it) and returns the answer with its body read.
-func (e *originEnv) do(method, path string, header map[string]string) (*http.Response, []byte) {
+func (e *originEnv) do(method, path string, header map[string]string) (answer, []byte) {
 	e.t.Helper()
 	req, err := http.NewRequest(method, e.srv.URL+path, nil)
 	if err != nil {
@@ -228,7 +235,7 @@ func (e *originEnv) do(method, path string, header map[string]string) (*http.Res
 	if err != nil {
 		e.t.Fatalf("%s %s: body: %v", method, path, err)
 	}
-	return res, body
+	return answer{StatusCode: res.StatusCode, Header: res.Header}, body
 }
 
 func docKey(id int64) FileKey { return FileKey{Kind: KindDocument, Id: id} }
@@ -476,7 +483,7 @@ func TestOriginQueryIgnored(t *testing.T) {
 	res1, body1 := e.do(http.MethodGet, path, map[string]string{"Range": "bytes=100-5000"})
 	res2, body2 := e.do(http.MethodGet, path+"?md5=AAAAAAAAAAAAAAAAAAAAAA&expires=1", map[string]string{"Range": "bytes=100-5000"})
 	res3, body3 := e.do(http.MethodGet, path+"?anything=%2e%2e", map[string]string{"Range": "bytes=100-5000"})
-	for i, r := range []*http.Response{res2, res3} {
+	for i, r := range []answer{res2, res3} {
 		if r.StatusCode != res1.StatusCode || r.Header.Get("ETag") != res1.Header.Get("ETag") || r.Header.Get("Content-Range") != res1.Header.Get("Content-Range") {
 			t.Errorf("query %d changed the answer: %d %q", i, r.StatusCode, r.Header.Get("Content-Range"))
 		}
