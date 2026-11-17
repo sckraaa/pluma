@@ -32,6 +32,16 @@
 #                Google instead of test/e2e/fakepush (a phone or an emulator
 #                with Google Play services gets the notifications)
 #   E2E_APNS_KEY, E2E_APNS_KEY_ID, E2E_APNS_TEAM_ID  the same for APNs
+#   E2E_CDN_ADDRESS  ADDR:PORT where test/e2e/fakecdn, the CDN of large files,
+#                is published and which the redirects name (default:
+#                fakecdn:8080 on the network of the services, which the tests
+#                reach on a loopback port), e.g. this machine's address on the
+#                network of a development client; bff checks the CDN there
+#                too, so it needs a Linux Docker host, not Docker in a VM
+#                (colima)
+#   E2E_CDN_URL_TTL, E2E_CDN_HEALTH_EVERY, E2E_CDN_AVOID_TTL  CDN_URL_TTL,
+#                CDN_HEALTH_EVERY and CDN_AVOID_TTL of the stand (default 20s,
+#                5s and 30s; the tests of the CDN are given them)
 #
 # The secrets (passwords, the server RSA key) are generated for one run and
 # deleted by `down`; they are never written anywhere git tracks.
@@ -70,6 +80,9 @@ FAKEMAIL_URL=http://fakemail:8080
 FAKEMAPS_URL=http://fakemaps:8080
 FAKEINLINE_HOST=fakeinline
 FAKEINLINE_URL=http://$FAKEINLINE_HOST:8080
+# The Gcore CDN resource of the HTTPS CDN of large files (task 107):
+# test/e2e/fakecdn, which pulls the cipher from bff's origin.
+FAKECDN_URL=http://fakecdn:8080
 # The SFU of group calls (docker-compose.sfu.yaml, task 093): the
 # certificates of its control API, the SFU's and bff's.
 SFU_CERTS=$E2E_DIR/sfu
@@ -81,7 +94,7 @@ GROUPCALLS_CERTS=$E2E_DIR/groupcalls
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
 # Services of their own images that must not exit during the run either.
 OWN_SERVICES=(sfu)
-SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt faketranslate fakemail fakemaps fakeinline "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}")
+SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt faketranslate fakemail fakemaps fakeinline fakecdn "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
 # (the Go build cache stays in BuildKit, so the next build is quick). The
@@ -98,6 +111,7 @@ export E2E_FAKETRANSLATE_IMAGE=${E2E_FAKETRANSLATE_IMAGE:-pluma-e2e-faketranslat
 export E2E_FAKEMAIL_IMAGE=${E2E_FAKEMAIL_IMAGE:-pluma-e2e-fakemail:$E2E_PROJECT}
 export E2E_FAKEMAPS_IMAGE=${E2E_FAKEMAPS_IMAGE:-pluma-e2e-fakemaps:$E2E_PROJECT}
 export E2E_FAKEINLINE_IMAGE=${E2E_FAKEINLINE_IMAGE:-pluma-e2e-fakeinline:$E2E_PROJECT}
+export E2E_FAKECDN_IMAGE=${E2E_FAKECDN_IMAGE:-pluma-e2e-fakecdn:$E2E_PROJECT}
 export PLUMA_SFU_IMAGE=${PLUMA_SFU_IMAGE:-pluma-e2e-sfu:$E2E_PROJECT}
 # A crash must fail the test, not be hidden by a restart.
 export TEAMGRAM_RESTART=${TEAMGRAM_RESTART:-no}
@@ -157,7 +171,7 @@ gen_secrets() {
 	fi
 	(
 		umask 077
-		cat >"$ENV_FILE" <<EOF
+		cat >"$ENV_FILE" <<EOF || exit
 MYSQL_ROOT_PASSWORD=$(secret 24)
 MYSQL_PASSWORD=$(secret 24)
 REDIS_PASSWORD=$(secret 24)
@@ -211,7 +225,41 @@ SFU_TCP_PORT=$sfu_port
 PLUMA_SFU_CERTS=$SFU_CERTS
 PLUMA_GROUPCALLS_CERTS=$GROUPCALLS_CERTS
 EOF
-	)
+		gen_cdn_env >>"$ENV_FILE"
+	) || {
+		rm -f "$ENV_FILE"
+		return 1
+	}
+}
+
+# gen_cdn_env prints the HTTPS CDN of the stand for the env file (task 107,
+# ADR 0071): the delivery is test/e2e/fakecdn over http://, which only the
+# stand allows (CDN_DEV_ALLOW_HTTP), with the run's Secure Token key and
+# origin header, and intervals short enough for the tests to wait for.
+gen_cdn_env() {
+	local base=$FAKECDN_URL
+	if [[ -n ${E2E_CDN_ADDRESS:-} ]]; then
+		if [[ ! $E2E_CDN_ADDRESS =~ ^[^:/]+:[0-9]+$ ]]; then
+			log "E2E_CDN_ADDRESS is ADDR:PORT, not $E2E_CDN_ADDRESS"
+			return 1
+		fi
+		base=http://$E2E_CDN_ADDRESS
+		echo "E2E_CDN_PUBLISH=$E2E_CDN_ADDRESS:8080"
+	fi
+	cat <<EOF
+CDN_GCORE_BASE_URL=$base
+CDN_GCORE_TOKEN_KEY=$(secret 16)
+CDN_ORIGIN_AUTH=$(secret 32)
+CDN_DEV_ALLOW_HTTP=1
+CDN_URL_TTL=${E2E_CDN_URL_TTL:-20s}
+CDN_HEALTH_EVERY=${E2E_CDN_HEALTH_EVERY:-5s}
+CDN_AVOID_TTL=${E2E_CDN_AVOID_TTL:-30s}
+EOF
+}
+
+# env_value prints the value of name in the env file of the run.
+env_value() {
+	sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1
 }
 
 # free_port prints a port free for both UDP and TCP on this machine. The
@@ -398,6 +446,9 @@ cmd_test() {
 			PLUMA_E2E_FAKEMAPS=$(compose port fakemaps 8080) \
 			PLUMA_E2E_FAKEINLINE=$(compose port fakeinline 8080) \
 			PLUMA_E2E_LINKS=$(compose port links 9096) \
+			PLUMA_E2E_CDN_URL_TTL=$(env_value CDN_URL_TTL) \
+			PLUMA_E2E_CDN_HEALTH_EVERY=$(env_value CDN_HEALTH_EVERY) \
+			PLUMA_E2E_CDN_AVOID_TTL=$(env_value CDN_AVOID_TTL) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 20m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
@@ -421,7 +472,7 @@ cmd_down() {
 		compose down --volumes --remove-orphans --timeout 60 || true
 	fi
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
-		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKETRANSLATE_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$E2E_FAKEMAPS_IMAGE" "$E2E_FAKEINLINE_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
+		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKETRANSLATE_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$E2E_FAKEMAPS_IMAGE" "$E2E_FAKEINLINE_IMAGE" "$E2E_FAKECDN_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE" "$OAUTH_KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
 	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS"
