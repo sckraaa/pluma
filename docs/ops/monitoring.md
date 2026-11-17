@@ -111,3 +111,31 @@
 | Алерт | Что значит |
 |---|---|
 | `BusinessAutoReplyFailing` | больше 10 % автоответов за 15 минут брошены после 10 попыток: собеседники не получили приветствие или «нет на месте»; причина — в логе msg |
+
+## CDN больших файлов
+Правила — группа `cdn` в `teamgramd/deploy/prometheus/server/rules/cdn.yml` (задача 107, ADR 0071). Метрики публикует bff, только пока включена выдача (`CDN_GCORE_BASE_URL`); без неё метрик нет и ничего не срабатывает. Что делать по каждому алерту — `docs/ops/cdn.md`, раздел «Неполадки».
+
+Метрики bff (`pkg/cdn/metrics.go`; ни id файлов, ни токенов, ни адресов в них нет):
+- `pluma_cdn_redirects_total{dc, result}` — решения `upload.getFile` с `cdn_supported`:
+  - `redirect` — редирект;
+  - `no_caps` — клиент без признака `pluma_cdn`;
+  - `small` — файл меньше порога;
+  - `not_ready` — ещё не подготовлен, отдан из дома и поставлен в очередь;
+  - `unhealthy`, `avoided`, `budget` — выдача нездорова, ключ её избегает, месяц исчерпан;
+  - `error` — сбой, файл отдан из дома;
+- `pluma_cdn_fallback_total{dc}` — клиенты, откатившиеся домой после редиректа;
+- `pluma_cdn_delivery_healthy{dc}` — 1, пока проверка выдачи проходит;
+- `pluma_cdn_dev_http{dc}` — 1 у выдачи с `http://` (только стенд e2e);
+- `pluma_cdn_prepare_total{result}`, `pluma_cdn_prepare_bytes_total`, `pluma_cdn_queue{state}` — подготовка хэшей и её очередь;
+- `pluma_cdn_origin_requests_total{code}`, `pluma_cdn_origin_bytes_total`, `pluma_cdn_origin_inflight` — запросы Gcore к источнику дома (`code="aborted"` — ответ оборван из-за ошибки чтения dfs);
+- `pluma_cdn_usage_bytes{dc, kind}` (`origin` — точно, `edge_est` — оценка отдачи Gcore) и `pluma_cdn_usage_limit_bytes{dc}` — трафик месяца (UTC) и бюджет;
+- `pluma_cdn_reupload_total{result}` — вызовы `upload.reuploadCdnFile` (патченные клиенты его не зовут).
+
+| Алерт | Что значит |
+|---|---|
+| `CdnDeliveryUnhealthy` | проверка выдачи не проходит 10 минут: редиректов на неё нет, большие файлы идут из дома. Причина — `cdn_deliveries.unhealthy_reason` |
+| `CdnPrepareFailing` | больше половины подготовок за 30 минут не удаются (от трёх), или растёт число окончательно не подготовленных файлов; эти файлы идут из дома |
+| `CdnFallbackHigh` | больше 20 % редиректов за 30 минут (от 20) кончились откатом клиента домой: CDN отдаёт клиентам то, что они отвергают, а проверка канарейки этого не видит |
+| `CdnBudget` | выдача израсходовала 80 % месячного бюджета (`CDN_GCORE_MONTHLY_GB`); на 100 % она выходит из маршрута до 1-го числа |
+| `CdnOriginBusy` | больше 1 % запросов Gcore к источнику за 15 минут получили 503: все места заняты |
+| `CdnDevHttp` (critical) | выдача работает по `http://` (`CDN_DEV_ALLOW_HTTP=1`): так можно только стенду e2e; релизные клиенты такой URL отвергают |

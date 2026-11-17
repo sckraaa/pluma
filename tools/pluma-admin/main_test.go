@@ -274,8 +274,10 @@ func TestUsage(t *testing.T) {
 	}
 }
 
-// TestLoadsOutboxConfig: the outbox commands find the push topic of bff.
-func TestLoadsOutboxConfig(t *testing.T) {
+// setBffEnv sets the environment bff.yaml names: the secrets to test
+// values, the optional parts empty (off).
+func setBffEnv(t *testing.T) {
+	t.Helper()
 	t.Setenv("MYSQL_PASSWORD", "pw")
 	t.Setenv("REDIS_PASSWORD", "rpw")
 	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
@@ -332,6 +334,11 @@ func TestLoadsOutboxConfig(t *testing.T) {
 	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
+}
+
+// TestLoadsOutboxConfig: the outbox commands find the push topic of bff.
+func TestLoadsOutboxConfig(t *testing.T) {
+	setBffEnv(t)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c outboxConfig
 		if err := conf.Load(f, &c); err != nil {

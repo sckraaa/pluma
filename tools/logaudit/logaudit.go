@@ -12,7 +12,8 @@
 //     handshake data, login codes and their hashes, passwords and their SRP
 //     values, tokens, email addresses and API keys, the ICE credentials,
 //     DTLS fingerprints and keys and the join params of group calls, the
-//     tokens, keys and hashes of CDN files, or a config section with
+//     tokens, keys and hashes of CDN files, the signed URLs of the HTTPS CDN
+//     and the keys that sign them, or a config section with
 //     credentials (Etcd, Mysql, Redis...);
 //   - object: a TL object or data object printed whole: a parameter or local
 //     of a type from the mtproto package or from app/ (requests, updates,
@@ -158,6 +159,13 @@ var secretNames = set(
 	"rtkey", "getrtkey", "rtkeyprev", "getrtkeyprev",
 	"getencryptionkey", "encryptioniv", "getencryptioniv", "secrets",
 	"hashes", "gethashes", "filehashes", "getfilehashes",
+	// the HTTPS CDN (task 107, ADR 0071): a signed URL of a file (whoever
+	// has it fetches the cipher until it expires) and the PLH1 file_token
+	// that carries it, the keys that sign the URLs (tokenkey above), the
+	// value of X-Pluma-Origin-Auth, and the Cdn section of bff.yaml, which
+	// holds both
+	"signedurl", "getsignedurl", "cdnurl", "signkey", "redirecttoken",
+	"originauth", "originauthvalue", "authvalue", "getauthvalue", "cdn",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )

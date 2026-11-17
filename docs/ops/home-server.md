@@ -74,6 +74,11 @@ docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- https://ifco
   - вырезка (`extract.sh`) держит около 10 ГБ памяти вне `pluma.slice`: перед ней `free -g`; при занятом медиасервере резать на другой машине и переключаться `--use`;
   - с `MAPS_URL=http://maps:8080` в `.env` любая команда compose, пересоздающая bff, включает `-f docker-compose.maps.yaml` (сеть `maps_net`): `docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.maps.yaml up -d maps bff`. То же — в `pluma-deploy.sh`, иначе выкладка пересоздаст bff без карт;
   - `MAPS_COMPOSE` для `extract.sh` и `check.sh` — эта же команда.
+- **HTTPS-CDN больших файлов** (задача 107, ADR 0071, `docs/ops/cdn.md`):
+  - источник шифра — слушатель bff на 20480 только в `teamgram_net`, на хост не публикуется; Caddy дома публикует его на имени `PLUMA_CDN_ORIGIN_DOMAIN` (A-запись на 195.201.252.126, 443 уже идёт домой DNAT). На VPS ничего нового;
+  - `.env` дома (только имена): `CDN_GCORE_BASE_URL`, `CDN_GCORE_TOKEN_KEY`, `CDN_GCORE_SIGNER`, `CDN_GCORE_MONTHLY_GB`, `CDN_ORIGIN_AUTH`, `PLUMA_CDN_ORIGIN_DOMAIN`, `CDN_ROUTES`, `CDN_URL_TTL`, `CDN_KINDS`; `CDN_DEV_ALLOW_HTTP`, `CDN_NODE_CONTROL` и `PLUMA_DC1_ADDRESSES` не задавать. Пустой `CDN_GCORE_BASE_URL` — CDN выключен;
+  - проверки здоровья выдачи идут из bff наружу через туннель, как весь исходящий трафик дома;
+  - Gcore тянет у дома каждый кусок 10 МБ один раз на точку за 36 ч простоя: на отдачу канала дома приходятся первые просмотры, повторные идут с точек Gcore.
 - Сайты владельца: `/srv/pluma-caddy-sites/*.caddy`. В `sckra.dev.caddy` upstream — `10.77.0.1:3000`, это `site-relay` края.
 
 ## VPS: край

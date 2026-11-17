@@ -1349,6 +1349,26 @@ authsession раньше не читал `params` и `proxy` из таблицы
 - [ ] Стенд для dev-сборок клиентов на CachyOS: `E2E_SERVER_KEY=… E2E_CDN_ADDRESS=<адрес CachyOS в сети>:18080 test/e2e/run.sh up` — dev-сборка Android (эмулятор) или Desktop открывает документ 5 МБ через `http://<адрес>:18080`; `curl -X POST "http://$(test/e2e/run.sh compose port fakecdn 8081)/_ctl/down?on=1"` во время загрузки — файл докачивается из дома; `…/_ctl/tamper?on=1&offset=0` — откат после первого блока, испорченных байтов на экране нет; `…/_ctl/badrange?on=1` и `…/_ctl/full200?on=1` — откат, файл цел.
 - [ ] После такого стенда `test/e2e/run.sh down` с тем же `E2E_PROJECT`: `docker images | grep fakecdn` и `docker ps -a | grep <проект>` пусты.
 
+### Часть E: эксплуатация, алерты, `pluma-admin cdn canary-url`
+Включение и проверки владельца 0–6 — `docs/ops/cdn.md`; URL канарейки на час печатает `docker compose exec bff ./pluma-admin -f ../etc2/bff.yaml cdn canary-url 201`.
+- [ ] `cdn canary-url 201` при пустом `CDN_GCORE_BASE_URL` — ошибка «the CDN is off», при заданном — URL `https://<префикс>.gcorecdn.com/c/v1?md5=…&expires=…` со сроком через час и строка `curl`; эта строка с компьютера печатает `206 4096`.
+- [ ] `cdn canary-url -expired 201`: строка `curl` печатает `403` или `410` (Secure Token отвергает истёкший URL).
+- [ ] `cdn canary-url 202` — ошибка «delivery 202 is unknown or off; the deliveries on: 201», ключей и `CDN_ORIGIN_AUTH` в выводе нет.
+- [ ] Проверки владельца 0–6 из `docs/ops/cdn.md` пройдены, результаты (сети, города, коды) записаны в бриф 107.
+- [ ] Prometheus → Alerts: группа `cdn` с шестью правилами (`CdnDeliveryUnhealthy`, `CdnPrepareFailing`, `CdnFallbackHigh`, `CdnBudget`, `CdnOriginBusy`, `CdnDevHttp`), все неактивны; при пустом `CDN_GCORE_BASE_URL` метрик `pluma_cdn_*` нет и ничего не горит.
+- [ ] Поменять в `.env` `CDN_GCORE_TOKEN_KEY` на другое значение (`openssl rand -hex 16`; в портале — старое), деплой: через ≤ 3 минуты `pluma_cdn_delivery_healthy{dc="201"}` = 0, в `cdn_deliveries.unhealthy_reason` — `status`, через 10 минут на телефон приходит `CdnDeliveryUnhealthy`; вернуть значение и деплой — алерт снимается, файлы снова идут через CDN. (`CDN_ORIGIN_AUTH` для этого не годится: канарейка лежит в кэше Gcore 30 дней, проверка до источника не доходит.)
+- [ ] Android (сборка с патчем): видео 50 МБ в группе — открыть; в Grafana `pluma_cdn_redirects_total{dc="201",result="redirect"}` растёт; второй просмотр (другой пользователь) — `pluma_cdn_origin_bytes_total` почти не растёт; перемотка работает.
+- [ ] То же — Desktop (Windows или Linux) стримингом с перемоткой и сохранением; размер файла совпадает.
+- [ ] То же — iOS: просмотр и сохранение.
+- [ ] То же — Web: просмотр и скачивание; в инструментах разработчика запросы к `*.gcorecdn.com` — 206, без ошибок CORS.
+- [ ] Пользователь в России через VPN: тот же файл через `dc="201"`; без VPN — открывается (из CDN или из дома после отката).
+- [ ] Включить MTProxy на Android и iOS: медиа качаются (из дома), запросов к `*.gcorecdn.com` нет.
+- [ ] SOCKS5 на Desktop: медиа качаются через CDN через прокси.
+- [ ] Старая сборка (без патча) и официальный Telegram, если есть под рукой: медиа качаются как раньше.
+- [ ] Отключить выдачу (убрать `CDN_GCORE_BASE_URL`, деплой): всё из дома, метрик `pluma_cdn_*` нет; вернуть — снова 201.
+- [ ] Файл в секретном чате 10 МБ — Android и iOS получают (из дома), `result="redirect"` от него не растёт.
+- [ ] Через месяц: в портале Gcore трафик за месяц ≈ `pluma_cdn_usage_bytes` (origin + edge_est) и далеко от 1 ТБ.
+
 ## 108 — Сессия отмечает запросы ботов (`RpcMetadata.IsBot`)
 Нужен тестовый бот из `pluma-admin bot create` со своим процессом (например, на Telethon), вошедший токеном, и бизнес-аккаунт с этим ботом в «Telegram Business → Чат-боты».
 - [ ] После выката нового `session` бот отвечает в личке на текст, на нажатие кнопки под своим сообщением и в инлайн-режиме (`@бот запрос` в чате с другим человеком) на Android, iOS, Desktop и Web.

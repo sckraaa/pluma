@@ -1,0 +1,90 @@
+# The HTTPS CDN of large files (task 107, ADR 0071, docs/ops/cdn.md). bff
+# publishes the pluma_cdn_* metrics (pkg/cdn/metrics.go) only while a
+# delivery is on (CDN_GCORE_BASE_URL); with the CDN off none of these fire.
+# A delivery that is out costs the home's uplink, not the downloads: the
+# clients get the files from home as before, so every alert here but
+# CdnDevHttp is about money or speed, and a warning.
+groups:
+  - name: cdn
+    rules:
+      # bff's check of the delivery (a range of the canary through the CDN,
+      # then the same URL with a broken signature) has failed for 10
+      # minutes, and no file is redirected to it. The reason is in MySQL
+      # (cdn_deliveries.unhealthy_reason) and in the bff log.
+      - alert: CdnDeliveryUnhealthy
+        expr: max by (dc) (pluma_cdn_delivery_healthy) == 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "CDN delivery {{ $labels.dc }} is out of the redirects; large files come from home"
+          description: "select dc_id, unhealthy_reason, healthy_until from cdn_deliveries; docker compose logs --tail 100 bff | grep 'cdn: delivery'. token_off: the Secure Token is off in the Gcore portal. docs/ops/cdn.md, «Неполадки»"
+
+      # The preparations (the hashes of a file read from dfs) fail: more
+      # than half of those that ended in the last 30 minutes (at least
+      # three), or preparations newly failed for good. A preparation that
+      # ended with bff stopping or losing its lease is not an outcome of its
+      # own: it is claimed again.
+      - alert: CdnPrepareFailing
+        expr: |
+          (
+            sum(increase(pluma_cdn_prepare_total{result!~"ok|interrupted|lease_lost"}[30m])) >= 3
+            and
+            sum(increase(pluma_cdn_prepare_total{result!~"ok|interrupted|lease_lost"}[30m]))
+              / clamp_min(sum(increase(pluma_cdn_prepare_total{result!~"interrupted|lease_lost"}[30m])), 1) > 0.5
+          )
+          or
+          (max(pluma_cdn_queue{state="failed"}) > max(pluma_cdn_queue{state="failed"} offset 1h))
+        labels: {severity: warning}
+        annotations:
+          summary: "Preparations of files for the CDN fail; those files are served from home"
+          description: "By reason: sum by (result) (increase(pluma_cdn_prepare_total[1h])); failed ones: select last_error, count(*) from cdn_replicas where state = 4 group by last_error. docs/ops/cdn.md, «Неполадки»"
+
+      # More than a fifth of the redirects of the last 30 minutes (at least
+      # 20) ended with the client asking for the file from home: the CDN
+      # answers patched clients with something they refuse (another
+      # Content-Range, other bytes, 404, TLS), which bff's check of the
+      # canary does not see. Each key that fell back avoids the delivery
+      # for CDN_AVOID_TTL.
+      - alert: CdnFallbackHigh
+        expr: |
+          sum by (dc) (increase(pluma_cdn_fallback_total[30m]))
+            / clamp_min(sum by (dc) (increase(pluma_cdn_redirects_total{result="redirect"}[30m])), 1) > 0.2
+          and
+          sum by (dc) (increase(pluma_cdn_redirects_total{result="redirect"}[30m])) >= 20
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of the redirects to CDN delivery {{ $labels.dc }} fall back to home"
+          description: "Fetch a real file through the CDN by hand (docs/ops/cdn.md, check 1) and the canary (pluma-admin cdn canary-url {{ $labels.dc }}); the Gcore Log viewer shows the codes the clients got. docs/ops/cdn.md, «Неполадки»"
+
+      # The delivery used 80% of its month (CDN_GCORE_MONTHLY_GB, UTC):
+      # the origin's bytes plus the home's estimate of what the CDN sent.
+      # At 100% bff takes it out of the routes until the 1st.
+      - alert: CdnBudget
+        expr: |
+          sum by (dc) (pluma_cdn_usage_bytes) / max by (dc) (pluma_cdn_usage_limit_bytes > 0) > 0.8
+        labels: {severity: warning}
+        annotations:
+          summary: "CDN delivery {{ $labels.dc }} used {{ $value | humanizePercentage }} of its monthly budget"
+          description: "Compare with the traffic of the month in the Gcore portal (Statistics) before raising CDN_GCORE_MONTHLY_GB: past 1 TB a month Gcore charges or stops. docs/ops/cdn.md, «Трафик и бюджет»"
+
+      # More than 1% of the requests of the CDN to the origin in 15 minutes
+      # were refused as busy (503 past Origin.MaxConcurrent): the CDN does
+      # not cache them, and the clients behind them fall back to home.
+      - alert: CdnOriginBusy
+        expr: |
+          sum(increase(pluma_cdn_origin_requests_total{code="503"}[15m]))
+            / clamp_min(sum(increase(pluma_cdn_origin_requests_total[15m])), 1) > 0.01
+        labels: {severity: warning}
+        annotations:
+          summary: "The CDN origin at home refuses {{ $value | humanizePercentage }} of the requests as busy"
+          description: "pluma_cdn_origin_inflight against Origin.MaxConcurrent of bff.yaml; the uplink of the home (node-exporter of the tunnel); dfs: docker compose logs --tail 100 dfs. docs/ops/cdn.md, «Неполадки»"
+
+      # A delivery serves over http://, which only the e2e stand may set
+      # (CDN_DEV_ALLOW_HTTP=1): released clients refuse such URLs, so every
+      # redirect to it is a fallback, and the URLs travel in clear text.
+      - alert: CdnDevHttp
+        expr: max by (dc) (pluma_cdn_dev_http) == 1
+        labels: {severity: critical}
+        annotations:
+          summary: "CDN delivery {{ $labels.dc }} serves over http:// (CDN_DEV_ALLOW_HTTP=1)"
+          description: "Remove CDN_DEV_ALLOW_HTTP from .env, set CDN_GCORE_BASE_URL to https://, deploy. docs/ops/cdn.md, «Переменные»"
