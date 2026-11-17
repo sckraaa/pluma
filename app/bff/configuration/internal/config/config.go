@@ -21,6 +21,7 @@ package config
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
+	"github.com/teamgram/teamgram-server/pkg/staticmap"
 	"github.com/teamgram/teamgram-server/pkg/translate"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -47,4 +48,8 @@ type Config struct {
 	// ADR 0062): the app config then offers the emoji categories of the GIF
 	// tab, which it leaves empty otherwise.
 	GifSearch bool `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Maps is the Maps block of bff (task 112, ADR 0070): with its
+	// PublicURL the app config hands the clients the public map tiles of
+	// their interactive maps and the styles there.
+	Maps staticmap.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

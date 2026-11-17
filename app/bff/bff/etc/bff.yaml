@@ -73,6 +73,11 @@ WebFile:
 # off and such a request is LOCATION_INVALID. Empty settings take their
 # defaults: the styles ru,en (one per language of the labels), 10s for a
 # render, 4 renders at once, 6h in the cache, 60 new maps a minute per user.
+# PublicURL (task 112, ADR 0070) is where the clients' interactive maps load
+# their tiles, https://<PLUMA_MAPS_DOMAIN>/<MAPS_PUBLIC_KEY>: the maps-tiles
+# service behind Caddy, with the styles of Styles and their dark ones; the
+# app config hands it out (docs/ops/app-config.md). No URL: the clients get
+# no map; a wrong one stops bff.
 Maps:
   URL: "${MAPS_URL}"
   Styles: "${MAPS_STYLES}"
@@ -80,6 +85,7 @@ Maps:
   Concurrency: "${MAPS_CONCURRENCY}"
   CacheTTL: "${MAPS_CACHE_TTL}"
   PerUserPerMinute: "${MAPS_PER_USER_PER_MINUTE}"
+  PublicURL: "${MAPS_PUBLIC_URL}"
 
 # The built-in inline bots @gif and @pic (task 099, ADR 0062,
 # docs/ops/inline-bots.md). @pic searches pictures with the SearXNG of
