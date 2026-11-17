@@ -79,8 +79,19 @@ type Config struct {
 	// ${SEARXNG_URL} (http://searxng:8080); empty: @pic has no provider
 	// and answers with empty lists.
 	SearxngURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// KlipyAPIKey is the app key of KLIPY @gif finds GIFs with (part G),
+	// ${KLIPY_API_KEY}; empty: @gif has the GIFs popular within the server
+	// and no search by text.
+	KlipyAPIKey string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// ImportDailyBytes bounds the bytes imported into dfs in a UTC day,
 	// ${INLINE_IMPORT_DAILY_BYTES}; empty is 1 GiB
 	// (inlinemedia.ParseDailyBytes).
 	ImportDailyBytes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
+// GifSearch tells whether @gif searches GIFs by text (KLIPY): the app
+// config then offers the emoji categories of the GIF tab
+// (inlinebots.GifSearchEmojies).
+func (c Config) GifSearch() bool {
+	return c.KlipyAPIKey != ""
 }

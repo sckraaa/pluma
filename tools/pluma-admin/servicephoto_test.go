@@ -87,7 +87,7 @@ func TestServicePhotoImage(t *testing.T) {
 func TestSetServicePhoto(t *testing.T) {
 	img := append([]byte("\xff\xd8\xff\xe0"), bytes.Repeat([]byte{7}, photoPartSize+100)...)
 	f := &fakePhotoServices{photo: madePhoto(42)}
-	id, err := setServicePhoto(context.Background(), f, img, "pluma.jpg")
+	id, err := setProfilePhoto(context.Background(), f, serviceUserId, img, "pluma.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,23 +115,23 @@ func TestSetServicePhoto(t *testing.T) {
 // service is reported and nothing is set after it.
 func TestSetServicePhotoFails(t *testing.T) {
 	f := &fakePhotoServices{photo: madePhoto(1)}
-	if _, err := setServicePhoto(context.Background(), f, []byte("not an image at all"), "x"); err == nil || len(f.parts) != 0 {
+	if _, err := setProfilePhoto(context.Background(), f, serviceUserId, []byte("not an image at all"), "x"); err == nil || len(f.parts) != 0 {
 		t.Fatalf("a text file: err %v, %d parts uploaded", err, len(f.parts))
 	}
 
 	f = &fakePhotoServices{failUpload: errors.New("PHOTO_INVALID_DIMENSIONS")}
-	if _, err := setServicePhoto(context.Background(), f, servicePhoto, "pluma.jpg"); err == nil ||
+	if _, err := setProfilePhoto(context.Background(), f, serviceUserId, servicePhoto, "pluma.jpg"); err == nil ||
 		!strings.Contains(err.Error(), "PHOTO_INVALID_DIMENSIONS") || f.userId != 0 {
 		t.Fatalf("media failing: err %v, photo set on %d", err, f.userId)
 	}
 
 	f = &fakePhotoServices{photo: mtproto.MakeTLPhotoEmpty(&mtproto.Photo{Id: 5}).To_Photo()}
-	if _, err := setServicePhoto(context.Background(), f, servicePhoto, "pluma.jpg"); err == nil || f.userId != 0 {
+	if _, err := setProfilePhoto(context.Background(), f, serviceUserId, servicePhoto, "pluma.jpg"); err == nil || f.userId != 0 {
 		t.Fatalf("photoEmpty from media: err %v, photo set on %d", err, f.userId)
 	}
 
 	f = &fakePhotoServices{photo: madePhoto(9), failSet: errors.New("USER_ID_INVALID")}
-	if _, err := setServicePhoto(context.Background(), f, servicePhoto, "pluma.jpg"); err == nil || !strings.Contains(err.Error(), "USER_ID_INVALID") {
+	if _, err := setProfilePhoto(context.Background(), f, serviceUserId, servicePhoto, "pluma.jpg"); err == nil || !strings.Contains(err.Error(), "USER_ID_INVALID") {
 		t.Fatalf("biz failing: err %v", err)
 	}
 }
@@ -193,6 +193,7 @@ func TestServicePhotoConfig(t *testing.T) {
 	t.Setenv("CDN_AVOID_TTL", "")
 	t.Setenv("SEARXNG_URL", "")
 	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
+	t.Setenv("KLIPY_API_KEY", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {

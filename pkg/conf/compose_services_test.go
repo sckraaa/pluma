@@ -361,8 +361,10 @@ var optionalVars = map[string]bool{
 	"MAPS_CACHE_TTL":           true,
 	"MAPS_PER_USER_PER_MINUTE": true,
 	// The built-in inline bots (task 099, ADR 0062): @pic answers with
-	// empty lists without SearXNG; the import budget is 1 GiB when empty.
+	// empty lists without SearXNG, @gif has no search by text without the
+	// KLIPY key; the import budget is 1 GiB when empty.
 	"SEARXNG_URL":               true,
+	"KLIPY_API_KEY":             true,
 	"INLINE_IMPORT_DAILY_BYTES": true,
 	// The bot platform (task 106, ADR 0068): the mini apps and the login of
 	// bots are off without the key the bot keys are sealed under, and no

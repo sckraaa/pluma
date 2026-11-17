@@ -43,4 +43,8 @@ type Config struct {
 	// without its URL the app config hides the translation from the
 	// clients.
 	Translate translate.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// GifSearch is whether @gif searches GIFs by text (KLIPY, task 099,
+	// ADR 0062): the app config then offers the emoji categories of the GIF
+	// tab, which it leaves empty otherwise.
+	GifSearch bool `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

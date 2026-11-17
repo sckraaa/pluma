@@ -115,8 +115,10 @@ services:
       # channels (task 103); empty: the statistics are off.
       STATS_GRAPH_TOKEN_KEY: ${STATS_GRAPH_TOKEN_KEY:-}
       # The built-in inline bots (task 099): @pic's SearXNG, empty: no
-      # pictures; the daily import budget, empty: 1 GiB.
+      # pictures; @gif's KLIPY key, empty: no search of GIFs by text; the
+      # daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}
+      KLIPY_API_KEY: ${KLIPY_API_KEY:-}
       INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
       # The HTTPS CDN of large files (task 107, docs/ops/cdn.md): bff.yaml
       # names the delivery, the origin and the limits; empty
@@ -380,8 +382,10 @@ services:
       # channels (task 103); empty: the statistics are off.
       STATS_GRAPH_TOKEN_KEY: ${STATS_GRAPH_TOKEN_KEY:-}
       # The built-in inline bots (task 099): @pic's SearXNG, empty: no
-      # pictures; the daily import budget, empty: 1 GiB.
+      # pictures; @gif's KLIPY key, empty: no search of GIFs by text; the
+      # daily import budget, empty: 1 GiB.
       SEARXNG_URL: ${SEARXNG_URL:-}
+      KLIPY_API_KEY: ${KLIPY_API_KEY:-}
       INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
       # The HTTPS CDN of large files (task 107, docs/ops/cdn.md): bff.yaml
       # names the delivery, the origin and the limits; empty

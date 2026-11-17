@@ -47,6 +47,10 @@ type Bot struct {
 	Id       int64
 	Username string
 	Kind     Kind
+	// Name is the first name of the account, the same for every viewer
+	// (one user object for all, ADR 0062, p. 6), so it is not translated;
+	// z_pluma-inline-names.sql sets it.
+	Name string
 	// About is the key of the bot's description in
 	// pkg/langpack/inlinebots.json.
 	About string
@@ -56,8 +60,8 @@ type Bot struct {
 // antispam account is 1000001, pkg/antispam); the ids of users start at
 // 136907713 (AUTO_INCREMENT of users in 1_teamgram.sql).
 var (
-	Gif = Bot{Id: 1000101, Username: "gif", Kind: KindGif, About: "PlumaInlineGifAbout"}
-	Pic = Bot{Id: 1000102, Username: "pic", Kind: KindPhoto, About: "PlumaInlinePicAbout"}
+	Gif = Bot{Id: 1000101, Username: "gif", Kind: KindGif, Name: "GIF Search", About: "PlumaInlineGifAbout"}
+	Pic = Bot{Id: 1000102, Username: "pic", Kind: KindPhoto, Name: "Image Search", About: "PlumaInlinePicAbout"}
 )
 
 // placeholder is the bot_inline_placeholder of every bot: a symbol, not a
@@ -65,6 +69,15 @@ var (
 // be in the viewer's language (ADR 0062, p. 6). iOS shows no GIF tab without
 // a placeholder (GifContext.swift:65).
 const placeholder = "🔍"
+
+// GifSearchEmojies are the emoji categories of the GIF tab of the emoji
+// panel (gif_search_emojies of the app config) while @gif searches by text:
+// the default list of Android (MessagesController.java:1948-1957). Each is
+// a query to @gif (Android EmojiView.java:9015, iOS
+// ChatEntityKeyboardInputNode.swift:233, tdesktop
+// stickers_list_footer.cpp:137); without a search the list is empty, as
+// the categories would show empty lists (ADR 0062, p. 2).
+var GifSearchEmojies = []string{"👍", "👎", "😍", "😂", "😮", "🙄", "😥", "😡", "🥳", "😎"}
 
 // All returns the bots of the registry.
 func All() []Bot {

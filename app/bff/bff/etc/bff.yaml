@@ -84,11 +84,14 @@ Maps:
 # The built-in inline bots @gif and @pic (task 099, ADR 0062,
 # docs/ops/inline-bots.md). @pic searches pictures with the SearXNG of
 # SEARXNG_URL (http://searxng:8080 in Docker; empty: @pic answers with empty
-# lists). The media they find are imported into dfs when a query finds
+# lists). @gif searches GIFs with KLIPY with the app key KLIPY_API_KEY
+# (empty: @gif has the GIFs popular within the server and no search by
+# text). The media they find are imported into dfs when a query finds
 # them, at most INLINE_IMPORT_DAILY_BYTES a UTC day (empty: 1 GiB); past
 # it only media imported before are shown.
 InlineBots:
   SearxngURL: "${SEARXNG_URL}"
+  KlipyAPIKey: "${KLIPY_API_KEY}"
   ImportDailyBytes: "${INLINE_IMPORT_DAILY_BYTES}"
 
 # The bot platform (task 106, ADR 0068, docs/ops/bots.md). WebApp: the

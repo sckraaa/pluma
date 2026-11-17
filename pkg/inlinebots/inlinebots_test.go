@@ -22,6 +22,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -112,6 +114,37 @@ func TestAccountsFile(t *testing.T) {
 	}
 	if strings.Contains(sql, "places") || strings.Contains(sql, "1000103") {
 		t.Error("an account of @places")
+	}
+}
+
+// z_pluma-inline-names.sql gives every bot of the registry its name, and
+// runs after the file that makes the accounts: a new database applies the
+// files in byte order of their names (pkg/testinfra.SchemaFiles), and the
+// migrate service in the same order (pkg/migrate.Load).
+func TestNamesFile(t *testing.T) {
+	sql := string(repoFile(t, "teamgramd", "deploy", "sql", "z_pluma-inline-names.sql"))
+	for _, b := range All() {
+		if b.Name == "" || strings.ContainsAny(b.Name, "'\\") || len(b.Name) > 64 {
+			t.Errorf("@%s: name %q", b.Username, b.Name)
+		}
+		set := "UPDATE users SET first_name = '" + b.Name + "', last_name = ''\nWHERE id = " + itoa(b.Id) +
+			" AND is_bot = 1 AND (first_name <> '" + b.Name + "' OR last_name <> '');"
+		if !strings.Contains(sql, set) {
+			t.Errorf("@%s is not named %q", b.Username, b.Name)
+		}
+	}
+	entries, err := os.ReadDir(filepath.Join("..", "..", "teamgramd", "deploy", "sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	sort.Strings(names)
+	accounts, renames := slices.Index(names, "z_pluma-inline-bots.sql"), slices.Index(names, "z_pluma-inline-names.sql")
+	if accounts < 0 || renames < accounts {
+		t.Errorf("z_pluma-inline-names.sql (%d) runs before z_pluma-inline-bots.sql (%d)", renames, accounts)
 	}
 }
 
