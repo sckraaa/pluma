@@ -462,7 +462,7 @@
 | `help.getAppConfig61E3F854` | ok |  | app/bff/configuration/internal/core/help.getAppConfig61E3F854_handler.go:27 |
 | `help.getAppConfig98914110` | ok |  | app/bff/configuration/internal/core/help.getAppConfig98914110_handler.go:28 |
 | `help.getAppUpdate` | ok |  | app/bff/configuration/internal/core/help.getAppUpdate_handler.go:64 |
-| `help.getCdnConfig` | ok |  | app/bff/files/internal/core/help.getCdnConfig_handler.go:31 |
+| `help.getCdnConfig` | ok |  | app/bff/files/internal/core/help.getCdnConfig_handler.go:33 |
 | `help.getConfig` | ok | yes | app/bff/configuration/internal/core/help.getConfig_handler.go:43 |
 | `help.getCountriesList` | ok |  | app/bff/configuration/internal/core/help.getCountriesList_handler.go:28 |
 | `help.getDeepLinkInfo` | missing |  |  |
@@ -605,7 +605,7 @@
 | `messages.getFutureChatCreatorAfterLeave` | ok |  | app/bff/chats/internal/core/messages.getFutureChatCreatorAfterLeave_handler.go:42 |
 | `messages.getGameHighScores` | ok |  | app/bff/bots/internal/core/messages.getGameHighScores_handler.go:32 |
 | `messages.getHistory` | ok |  | app/bff/messages/internal/core/messages.getHistory_handler.go:31 |
-| `messages.getInlineBotResults` | ok |  | app/bff/bots/internal/core/messages.inline_handlers.go:92 |
+| `messages.getInlineBotResults` | ok |  | app/bff/bots/internal/core/messages.inline_handlers.go:95 |
 | `messages.getInlineGameHighScores` | ok |  | app/bff/bots/internal/core/messages.getInlineGameHighScores_handler.go:32 |
 | `messages.getMaskStickers` | ok |  | app/bff/catalog/internal/core/messages.getMaskStickers_handler.go:27 |
 | `messages.getMessageEditData` | ok |  | app/bff/messages/internal/core/messages.getMessageEditData_handler.go:64 |
@@ -621,7 +621,7 @@
 | `messages.getOutboxReadDate` | ok |  | app/bff/messages/internal/core/messages.getOutboxReadDate_handler.go:41 |
 | `messages.getPaidReactionPrivacy` | missing |  |  |
 | `messages.getPeerDialogs` | ok |  | app/bff/dialogs/internal/core/messages.getPeerDialogs_handler.go:78 |
-| `messages.getPeerSettings` | ok |  | app/bff/dialogs/internal/core/messages.getPeerSettings_handler.go:29 |
+| `messages.getPeerSettings` | ok |  | app/bff/dialogs/internal/core/messages.getPeerSettings_handler.go:32 |
 | `messages.getPersonalChannelHistory` | blocked |  | app/bff/channels/internal/core/not_served.go:29 |
 | `messages.getPinnedDialogs` | ok |  | app/bff/dialogs/internal/core/messages.getPinnedDialogs_handler.go:37 |
 | `messages.getPinnedSavedDialogs` | ok |  | app/bff/savedmessagedialogs/internal/core/messages.getPinnedSavedDialogs_handler.go:30 |
@@ -724,7 +724,7 @@
 | `messages.sendEncrypted` | ok |  | app/bff/secretchats/internal/core/messages.sendEncrypted_handler.go:95 |
 | `messages.sendEncryptedFile` | ok |  | app/bff/secretchats/internal/core/messages.sendEncryptedFile_handler.go:24 |
 | `messages.sendEncryptedService` | ok |  | app/bff/secretchats/internal/core/messages.sendEncryptedService_handler.go:24 |
-| `messages.sendInlineBotResult` | ok |  | app/bff/bots/internal/core/messages.inline_handlers.go:510 |
+| `messages.sendInlineBotResult` | ok |  | app/bff/bots/internal/core/messages.inline_handlers.go:519 |
 | `messages.sendMedia` | ok |  | app/bff/messages/internal/core/messages.sendMedia_handler.go:37 |
 | `messages.sendMessage` | ok | yes | app/bff/messages/internal/core/messages.sendMessage_handler.go:34 |
 | `messages.sendMultiMedia` | ok |  | app/bff/messages/internal/core/messages.sendMultiMedia_handler.go:35 |
@@ -749,7 +749,7 @@
 | `messages.setEncryptedTyping` | ok |  | app/bff/secretchats/internal/core/messages.setEncryptedTyping_handler.go:28 |
 | `messages.setGameScore` | ok |  | app/bff/bots/internal/core/messages.setGameScore_handler.go:43 |
 | `messages.setHistoryTTL` | ok |  | app/bff/dialogs/internal/core/messages.setHistoryTTL_handler.go:40 |
-| `messages.setInlineBotResults` | ok |  | app/bff/bots/internal/core/messages.inline_handlers.go:228 |
+| `messages.setInlineBotResults` | ok |  | app/bff/bots/internal/core/messages.inline_handlers.go:234 |
 | `messages.setInlineGameScore` | ok |  | app/bff/bots/internal/core/messages.setInlineGameScore_handler.go:33 |
 | `messages.setShareTheme` | missing |  |  |
 | `messages.setTyping` | ok |  | app/bff/dialogs/internal/core/messages.setTyping_handler.go:38 |
@@ -1017,7 +1017,7 @@
 | `stories.getAllStories` | ok |  | app/bff/stories/internal/core/stories.getAllStories_handler.go:33 |
 | `stories.getBoostersList` | blocked |  | app/bff/channels/internal/core/boosts.go:111 |
 | `stories.getBoostsStatus` | blocked |  | app/bff/channels/internal/core/boosts.go:106 |
-| `stories.getChatsToSend` | ok |  | app/bff/stories/internal/core/stories.getChatsToSend_handler.go:29 |
+| `stories.getChatsToSend` | ok |  | app/bff/stories/internal/core/stories.getChatsToSend_handler.go:31 |
 | `stories.getPeerMaxIDs535983C3` | ok |  | app/bff/stories/internal/core/stories.getPeerMaxIDs535983C3_handler.go:27 |
 | `stories.getPeerMaxIDs78499170` | ok |  | app/bff/stories/internal/core/stories.getPeerMaxIDs78499170_handler.go:34 |
 | `stories.getPeerStories` | ok |  | app/bff/stories/internal/core/stories.getPeerStories_handler.go:29 |
@@ -1064,7 +1064,7 @@
 | method | status | scenario | handler |
 |---|---|---|---|
 | `upload.getCdnFile` | ok |  | app/bff/files/internal/core/upload.getCdnFile_handler.go:33 |
-| `upload.getCdnFileHashes` | ok |  | app/bff/files/internal/core/upload.getCdnFileHashes_handler.go:31 |
+| `upload.getCdnFileHashes` | ok |  | app/bff/files/internal/core/upload.getCdnFileHashes_handler.go:32 |
 | `upload.getFile` | partial |  | app/bff/files/internal/core/upload.getFile_handler.go:29 |
 | `upload.getFileHashes` | blocked |  | app/bff/files/internal/core/upload.getFileHashes_handler.go:27 |
 | `upload.getWebFile` | ok |  | app/bff/files/internal/core/upload.getWebFile_handler.go:37 |
