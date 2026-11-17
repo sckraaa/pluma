@@ -138,6 +138,20 @@ func (u *usageCounts) of(dc int32) int64 {
 	return u.n[dc]
 }
 
+// settled waits up to a second for the count of dc to reach want and returns
+// the last count: the origin counts the bytes of an answer after it is
+// written, so the client may read the body before the count lands.
+func (u *usageCounts) settled(dc int32, want int64) int64 {
+	deadline := time.Now().Add(time.Second)
+	for {
+		got := u.of(dc)
+		if got == want || time.Now().After(deadline) {
+			return got
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
 // prepared makes the row of a file of key with data, its secrets and its
 // hashes, as a preparation for the origin leaves it.
 func prepared(t *testing.T, s Store, key FileKey, data []byte) *File {
@@ -567,8 +581,8 @@ func TestOriginCanary(t *testing.T) {
 	if res, body = e.do(http.MethodGet, CanaryPath, nil); res.StatusCode != http.StatusOK || !bytes.Equal(body, canaryBytes) {
 		t.Errorf("whole canary: %d, %d bytes", res.StatusCode, len(body))
 	}
-	if e.usage.of(testDc) != 4096+canarySize {
-		t.Errorf("counted %d bytes for the delivery, want %d", e.usage.of(testDc), 4096+canarySize)
+	if got := e.usage.settled(testDc, 4096+canarySize); got != 4096+canarySize {
+		t.Errorf("counted %d bytes for the delivery, want %d", got, 4096+canarySize)
 	}
 }
 
@@ -578,7 +592,7 @@ func TestOriginUsage(t *testing.T) {
 	e.do(http.MethodGet, ObjectPath(f.Secrets.Token), map[string]string{"Range": "bytes=0-999"})
 	e.do(http.MethodHead, ObjectPath(f.Secrets.Token), nil)
 	e.do(http.MethodGet, ObjectPath(bytes.Repeat([]byte{1}, TokenSize)), nil)
-	if got := e.usage.of(testDc); got != 1000 {
+	if got := e.usage.settled(testDc, 1000); got != 1000 {
 		t.Errorf("counted %d bytes, want 1000: only the bodies of objects", got)
 	}
 }
@@ -713,8 +727,8 @@ func TestOriginPathHMAC(t *testing.T) {
 	if got, want := res.Header.Get("Cache-Control"), "public, max-age="+strconv.FormatInt(bucket-e.clock.now().Unix(), 10); got != want {
 		t.Errorf("Cache-Control %q, want %q", got, want)
 	}
-	if e.usage.of(testDc) != 1001 {
-		t.Errorf("counted %d bytes for the delivery", e.usage.of(testDc))
+	if got := e.usage.settled(testDc, 1001); got != 1001 {
+		t.Errorf("counted %d bytes for the delivery", got)
 	}
 
 	canaryURL, _, _ := signer.SignURL(CanaryPath, e.clock.now())
