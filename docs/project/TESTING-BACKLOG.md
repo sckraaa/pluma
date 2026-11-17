@@ -1406,3 +1406,15 @@ authsession раньше не читал `params` и `proxy` из таблицы
 - [ ] `docker logs pluma-maps-tiles-1` и лог Caddy после открытий выбора места: нет ни ключа, ни путей тайлов.
 - [ ] Desktop (Windows, macOS, Linux) с патчем задачи 112: в меню вложений есть пункт «Геопозиция» (app config отдаёт `tdesktop_config_map.maps`); остальное в app config не изменилось (перевод, GIF). `MAPS_PUBLIC_URL` включается только после выпуска такого Desktop: Desktop без патча с этим ключом показал бы пункт с картой Mapbox, которая не загрузится.
 - [ ] Неверный `MAPS_PUBLIC_URL` (например, с `/` на конце): bff не стартует, в логе `MAPS_PUBLIC_URL must be https://…` без самого адреса; вернуть верный — bff стартует, клиенты подключаются.
+
+## 109 — Доступ к Pluma отовсюду без VPN: весь трафик клиентов через CDN
+### Часть 1: вход `Edge` шлюза
+Сервер — ветка `task/109-gateway-edge`. Проверяется после частей 2 (сайты Caddy `edge-origin.caddy`, `ru-edge.caddy`) и 3–6 (клиенты).
+- [ ] После выката: в логе `gnetway` при старте нет ошибки конфигурации; `docker compose exec gnetway bash -c 'exec 3<>/dev/tcp/127.0.0.1/11445'` проходит; порт 11445 не опубликован наружу (`docker compose port gnetway 11445` пусто, `ss -ltn` на хосте не показывает 11445).
+- [ ] Web K через край Gcore (`https://<префикс2>.gcorecdn.com/`): вход, сообщение туда и обратно; вкладка 5 минут без действий, затем сообщение с телефона приходит без перезагрузки. В метриках `gnetway_entry_conns{entry="edge",via="gcore"}` ≥ 1, `gnetway_edge_pings_total{via="gcore"}` растёт примерно на 3 в минуту.
+- [ ] «Настройки → Устройства» на телефоне: сессия Web K через край показывает ваш адрес и страну, а не адрес Gcore или дома.
+- [ ] То же через российский узел (`https://ru.pluma.chat/`): метки `via="ru"`, в «Устройствах» — адрес клиента из PROXY узла amf.
+- [ ] Запрос к краю мимо Caddy без `X-Pluma-Client-Addr`: `docker compose exec session bash -c 'exec 3<>/dev/tcp/gnetway/11445 && printf "GET /apiws HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n" >&3 && head -n 1 <&3'` — `HTTP/1.1 400`, метрика `gnetway_edge_no_client_addr_total` выросла на 1; в логе `gnetway` нет адресов клиента из заголовка.
+- [ ] Нативные клиенты (Android, iOS, Desktop) с недостижимым прямым адресом входят через край и держат соединение больше 5 минут простоя без переподключений (в логе клиента нет повторных соединений каждые 30 с).
+- [ ] Обычные клиенты по TCP и Web K по `web.pluma.chat` работают как раньше: простой 5 минут, затем сообщение приходит; `gnetway_entry_closed_total{entry="tcp",reason="timeout"}` не растёт заметно больше, чем до выката.
+- [ ] Через сутки после включения края: `gnetway_entry_closed_total` по причинам и `gnetway_entry_conn_bytes` у `edge` и `tcp` — записать в задачу замеров (часть 7) долю закрытий около 16–64 КБ.

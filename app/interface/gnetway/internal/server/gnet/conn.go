@@ -46,6 +46,27 @@ type connContext struct {
 	// keyQuery: the auth key of this connection is being read from
 	// authsession (queryAuthKey).
 	keyQuery *pendingKeyQuery
+
+	// edge: the connection came to the Edge entry (task 109): its address
+	// is in the upgrade request (edgeUpgrade) and it is pinged.
+	edge bool
+	// nextPing is when the Edge entry pings the connection next (unix
+	// seconds, in Server.pingWheel); 0 until the upgrade.
+	nextPing int64
+
+	// entry and via label the metrics of the connection (metrics.go):
+	// the listener kind, and for the Edge entry the edge it came through.
+	entry string
+	via   string
+	// entryCounted: the connection is counted in gnetway_entry_conns.
+	entryCounted bool
+	// bytesIn are the bytes the gateway took from the socket, bytesOut the
+	// MTProto transport bytes it wrote (without WebSocket or HTTP framing).
+	bytesIn  int64
+	bytesOut int64
+	// closeReason is why the gateway closes the connection, when it knows
+	// better than "server" (closeReason* in metrics.go).
+	closeReason string
 }
 
 func newConnContext() *connContext {
