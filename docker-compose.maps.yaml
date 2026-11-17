@@ -8,7 +8,7 @@
 #
 # The data are a file on the host (MAPS_DATA_DIR, pluma.pmtiles there, cut
 # by teamgramd/deploy/maps/extract.sh), mounted read-only. The container has
-# no published port and sits only on maps_net, an internal network shared
+# no published port and sits only on tiles_net, an internal network shared
 # with bff: the coordinates of the users reach nothing else, and the
 # renderer has no way out at all.
 #
@@ -51,16 +51,22 @@ services:
       - --log_format
       - ":method :status :res[content-length] :response-time ms"
     networks:
-      - maps_net
+      - tiles_net
     stop_grace_period: 15s
 
-  # bff reaches the service by its name on maps_net (MAPS_URL=http://maps:8080).
+  # bff reaches the service by its name on tiles_net (MAPS_URL=http://maps:8080).
   # No depends_on: bff starts and serves everything else without maps.
+  #
+  # The name must sort after teamgram_net: Docker gives a container its
+  # networks in name order, and bff registers in etcd the address of its
+  # first interface, which the session dials. A network that sorts first
+  # (maps_net did) registers an address the session cannot reach, and every
+  # request through bff fails (2026-11-17).
   bff:
     networks:
       - teamgram_net
-      - maps_net
+      - tiles_net
 
 networks:
-  maps_net:
+  tiles_net:
     internal: true

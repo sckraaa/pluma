@@ -10,7 +10,7 @@ groups:
       # Nothing rendered for a quarter of an hour while bff asked: the
       # container is stopped, cannot start (no data file, out of memory),
       # or bff was recreated without docker-compose.maps.yaml and does not
-      # reach it on maps_net. A series that has never had an "ok" counts as
+      # reach it on tiles_net. A series that has never had an "ok" counts as
       # none at all. bff creates a result series on its first render, so a
       # series that appeared within the window is counted as well: increase
       # does not see the renders it was born with, and a few failed maps after
@@ -31,7 +31,7 @@ groups:
         labels: {severity: warning}
         annotations:
           summary: "No map preview rendered for 15 minutes; new geo points show without a map"
-          description: "docker compose ... -f docker-compose.maps.yaml ps maps; logs --tail 50 maps; docker network inspect of maps_net has bff; the bff log has 'staticmap: render for user' with the error class. docs/ops/maps.md, 'Неполадки'"
+          description: "docker compose ... -f docker-compose.maps.yaml ps maps; logs --tail 50 maps; docker network inspect of tiles_net has bff; the bff log has 'staticmap: render for user' with the error class. docs/ops/maps.md, 'Неполадки'"
 
       # More than a fifth of the renders fail over 10 minutes, at least 10 of
       # them: the service is overloaded (timeout: renders or the wait for a

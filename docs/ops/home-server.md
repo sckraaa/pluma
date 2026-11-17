@@ -72,7 +72,7 @@ docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- https://ifco
   - сервис `maps` (tileserver-gl) — только дома, на краю его нет; образ `pluma-maps:local` собирается здесь же (`… -f docker-compose.maps.yaml build maps`);
   - данные — `/opt/pluma-maps` (root, 0755, файлы 0644): `pluma-<дата>.pmtiles` около 103 ГБ и ссылка `pluma.pmtiles`; на время обновления — ещё столько же. Диск общий с медиасервером: `df -h /opt` перед вырезкой;
   - вырезка (`extract.sh`) держит около 10 ГБ памяти вне `pluma.slice`: перед ней `free -g`; при занятом медиасервере резать на другой машине и переключаться `--use`;
-  - с `MAPS_URL=http://maps:8080` в `.env` любая команда compose, пересоздающая bff, включает `-f docker-compose.maps.yaml` (сеть `maps_net`): `docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.maps.yaml up -d maps bff`. То же — в `pluma-deploy.sh`, иначе выкладка пересоздаст bff без карт;
+  - с `MAPS_URL=http://maps:8080` в `.env` любая команда compose, пересоздающая bff, включает `-f docker-compose.maps.yaml` (сеть `tiles_net`): `docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.maps.yaml up -d maps bff`. То же — в `pluma-deploy.sh`, иначе выкладка пересоздаст bff без карт;
   - `MAPS_COMPOSE` для `extract.sh` и `check.sh` — эта же команда.
 - **HTTPS-CDN больших файлов** (задача 107, ADR 0071, `docs/ops/cdn.md`):
   - источник шифра — слушатель bff на 20480 только в `teamgram_net`, на хост не публикуется; Caddy дома публикует его на имени `PLUMA_CDN_ORIGIN_DOMAIN` (A-запись на 195.201.252.126, 443 уже идёт домой DNAT). На VPS ничего нового;

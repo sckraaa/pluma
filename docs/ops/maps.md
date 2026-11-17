@@ -2,12 +2,12 @@
 
 Решение — ADR 0063, задача 100. Android, Desktop и Web K показывают геопозицию, место, трансляцию, геоточку опроса и адрес бизнеса картинкой карты, которую просят у сервера (`upload.getWebFile` с `inputWebFileGeoPointLocation`). Картинку рисует свой сервис `maps` (tileserver-gl v5.7.0) дома по векторным данным Protomaps с диска хоста; bff приводит параметры, дорисовывает «© OpenStreetMap» в левом нижнем углу (на картах от 100×100) и держит готовую картинку в Redis 6 ч. iPhone рисует карту сам (MapKit) и сервер не спрашивает.
 
-Координаты из сообщений не покидают дом: у контейнера `maps` нет опубликованного порта, он подключён только к внутренней сети `maps_net` (`internal: true`, выхода наружу нет) вместе с bff, а все стили, шрифты и значки лежат в образе. Наружу ходит только `extract.sh` при вырезке данных — за номерами тайлов региона, без данных пользователей.
+Координаты из сообщений не покидают дом: у контейнера `maps` нет опубликованного порта, он подключён только к внутренней сети `tiles_net` (`internal: true`, выхода наружу нет) вместе с bff, а все стили, шрифты и значки лежат в образе. Наружу ходит только `extract.sh` при вырезке данных — за номерами тайлов региона, без данных пользователей.
 
 ```
 клиент ─upload.getWebFile─► bff ─Redis webmap:<ключ>?─► есть: части того же PNG
                               └─ нет ─► http://maps:8080/styles/<язык>/static/<lon>,<lat>,<zoom>/<w>x<h>@<s>x.png
-                                          maps (maps_net, без выхода) ◄── /opt/pluma-maps/pluma.pmtiles (только чтение)
+                                          maps (tiles_net, без выхода) ◄── /opt/pluma-maps/pluma.pmtiles (только чтение)
 ```
 
 Без `MAPS_URL` карты выключены: bff отвечает `LOCATION_INVALID`, клиенты показывают геопозицию без карты и не зависают.
@@ -18,7 +18,7 @@
 |---|---|
 | Образ | `teamgramd/deploy/maps/Dockerfile` → `pluma-maps:local` (`PLUMA_MAPS_IMAGE`), собирается на сервере |
 | Конфиг tileserver-gl | `teamgramd/deploy/maps/config.json`; стили собирает `build-styles.mjs` по `MAPS_STYLES` при сборке образа |
-| Сервис | `docker-compose.maps.yaml`: `maps` и сеть `maps_net` у bff |
+| Сервис | `docker-compose.maps.yaml`: `maps` и сеть `tiles_net` у bff |
 | Регион | `teamgramd/deploy/maps/region.geojson` (генератор `make-region.sh`, список стран в `make_region.py`) |
 | Данные | `/opt/pluma-maps` (`MAPS_DATA_DIR`): `pluma-<дата>.pmtiles` и ссылка `pluma.pmtiles` на текущий |
 | Вырезка и обновление | `teamgramd/deploy/maps/extract.sh` |
@@ -28,7 +28,7 @@
 
 ## Команда compose
 
-Как только карты включены, **каждая** команда compose, которая создаёт или пересоздаёт bff, включает `-f docker-compose.maps.yaml`: оно добавляет bff сеть `maps_net`. Без него `up -d` пересоздаст bff без этой сети, имя `maps` перестанет разрешаться, новые карты не нарисуются (ответ 500), через 15 минут — `MapsRendererDown`. Это касается и скрипта выкладки ядра: ему нужна ветка, как у `stt` — если в `.env` есть `MAPS_URL=http://maps:`, добавить `-f docker-compose.maps.yaml` и в команду сервисов (`C2`), и в команду дополнительных сервисов, а `maps` — в их список.
+Как только карты включены, **каждая** команда compose, которая создаёт или пересоздаёт bff, включает `-f docker-compose.maps.yaml`: оно добавляет bff сеть `tiles_net`. Без него `up -d` пересоздаст bff без этой сети, имя `maps` перестанет разрешаться, новые карты не нарисуются (ответ 500), через 15 минут — `MapsRendererDown`. Это касается и скрипта выкладки ядра: ему нужна ветка, как у `stt` — если в `.env` есть `MAPS_URL=http://maps:`, добавить `-f docker-compose.maps.yaml` и в команду сервисов (`C2`), и в команду дополнительных сервисов, а `maps` — в их список.
 
 Дома команда сервисов с картами:
 
@@ -69,7 +69,7 @@ C="docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f doc
 6. **Включить в bff:** в `.env` `MAPS_URL=http://maps:8080`, затем пересоздать bff с наложением карт:
    ```bash
    $C up -d bff
-   docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' pluma-bff-1   # есть pluma_maps_net
+   docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' pluma-bff-1   # есть pluma_tiles_net
    ```
    При ошибочном `MAPS_URL` (не http(s), с путём) или `MAPS_*` bff не стартует и пишет, какая переменная неверна.
 7. **Проверка в клиентах** — строки задачи 100 в `docs/project/TESTING-BACKLOG.md`.
@@ -125,7 +125,7 @@ cd /opt/pluma && MAPS_COMPOSE="$C" teamgramd/deploy/maps/check.sh
 
 ## Метрики и алерты
 
-Метрики bff (у `maps` своих нет, а Prometheus в `maps_net` не входит):
+Метрики bff (у `maps` своих нет, а Prometheus в `tiles_net` не входит):
 - `webmap_render_total{result}` — нарисованные карты: `ok`; `timeout` — сервис или ожидание места рендера дольше `MAPS_TIMEOUT`; `error` — сервис недоступен или ответил ошибкой; `invalid` — ответ не PNG нужного размера;
 - `webmap_render_seconds` — время одной карты;
 - `webmap_cache_total{result}` — `hit`, `miss`, `error` (Redis не ответил: карта рисуется и не кэшируется);
@@ -144,7 +144,7 @@ cd /opt/pluma && MAPS_COMPOSE="$C" teamgramd/deploy/maps/check.sh
 |---|---|
 | `maps` перезапускается, в логе нет файла `pluma.pmtiles` | нет данных или битая ссылка: `ls -l /opt/pluma-maps`; переключиться на имеющийся файл `extract.sh --use pluma-<дата>.pmtiles` или вырезать заново. Без файла tileserver-gl не стартует, bff отвечает 500 |
 | `docker inspect -f '{{.State.OOMKilled}}' pluma-maps-1` — `true`, `journalctl -k` — `Memory cgroup out of memory` | не хватает `MAPS_MEMORY`: поднять (например, `3g`), `$C up -d maps`, пересчитать `docs/ops/memory.md`; либо меньше стилей |
-| `MapsRendererDown`, `maps` здоров | bff не в `maps_net`: `$C up -d bff` с наложением карт (раздел «Команда compose») |
+| `MapsRendererDown`, `maps` здоров | bff не в `tiles_net`: `$C up -d bff` с наложением карт (раздел «Команда compose») |
 | `result="error"` растёт после смены `MAPS_STYLES` | образ собран со старым списком: `$C build maps && $C up -d maps` |
 | `result="timeout"` растёт | `docker stats pluma-maps-1`: упирается в `MAPS_CPUS` — поднять. Рендеров у tileserver-gl по одному на стиль и масштаб, поэтому `MAPS_CONCURRENCY` выше 4 без больших пулов (и памяти) не помогает |
 | карта серая, без дорог | точка вне региона (Египет, ОАЭ, Азия) — так и задумано; внутри региона — проверить `check.sh` |

@@ -83,7 +83,7 @@
 | `TranslateCacheFailing` | кэш переводов в MySQL не читается или не пишется: каждый перевод снова идёт в движок |
 
 ## Карты в геопозициях
-Правила — группа `maps` в `teamgramd/deploy/prometheus/server/rules/maps.yml`, метрики bff `webmap_render_total{result}`, `webmap_render_seconds`, `webmap_cache_total{result}`, `webmap_flood_total`, `webmap_limit_errors_total` (задача 100, ADR 0063 §8). Цели у самого сервиса `maps` нет: он в закрытой сети `maps_net`, куда Prometheus не входит, и метрик у tileserver-gl нет, поэтому `ServiceDown` о нём молчит — о нём говорят рендеры bff. Без `MAPS_URL` карты не рисуются и ничего не срабатывает; попадания в кэш Redis рендеров не вызывают. Что делать — `docs/ops/maps.md`, раздел «Неполадки».
+Правила — группа `maps` в `teamgramd/deploy/prometheus/server/rules/maps.yml`, метрики bff `webmap_render_total{result}`, `webmap_render_seconds`, `webmap_cache_total{result}`, `webmap_flood_total`, `webmap_limit_errors_total` (задача 100, ADR 0063 §8). Цели у самого сервиса `maps` нет: он в закрытой сети `tiles_net`, куда Prometheus не входит, и метрик у tileserver-gl нет, поэтому `ServiceDown` о нём молчит — о нём говорят рендеры bff. Без `MAPS_URL` карты не рисуются и ничего не срабатывает; попадания в кэш Redis рендеров не вызывают. Что делать — `docs/ops/maps.md`, раздел «Неполадки».
 
 | Алерт | Что значит |
 |---|---|
