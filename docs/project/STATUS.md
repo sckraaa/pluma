@@ -10,45 +10,13 @@ _Обновлено: 2026-11-17. Держать коротким._
 - Сравнительных тестов: 6 сценариев с эталонами Telegram, все проходят в CI (`test/conformance`, 9 методов API). Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
 
 ## В работе
-- **Партия 098–108 (2026-11-17) собрана в ветке `batch/20261115` (worktree `~/pluma-work/wt-b115`), второй полный прогон зелёный, не запушена и не выкачена.** Итоги — в разделах «Результат» брифов, проверки владельца — `TESTING-BACKLOG.md`:
-  - 098: шум и ошибки клиентов — заглушение каналов, настройки браузера, метрики прочтения, жалоба на реакцию, аннулирование кодов входа, живые геопозиции на карте чата;
-  - 099: `@gif` (популярное внутри Pluma) и `@pic` (SearXNG), прокси миниатюр `upload.getWebFile`. `@places` нет (решение владельца), поиск GIF по тексту ждёт письменного согласия KLIPY;
-  - 100: карты геопозиций своим tileserver-gl дома;
-  - 101: перевод сообщений HY-MT1.5 в сервисе `translate`;
-  - 102: узел CDN на VPS снят до выкладки, заменён задачей 107; остаются домашний `pkg/cdn` (политика, ключи, шифр, хэши) и его таблицы;
-  - 103: статистика каналов, групп, постов, историй и опросов;
-  - 104: альбомы и поиск историй, порядок имён пользователя;
-  - 105: Telegram Business для всех;
-  - 106: платформа ботов — вход на сайты (`oauth.pluma.chat`), мини-приложения, меню вложений, игры, виджеты;
-  - 107: HTTPS-CDN больших файлов через Gcore (ADR 0071): шифр Gcore тянет из дома, ключи и хэши только дома, редирект только патченным клиентам. Сервер готов и выключен, пока не задан `CDN_GCORE_BASE_URL`;
-  - 108: сессия отмечает запросы ботов (`RpcMetadata.IsBot`), ветки ботов в bff ожили, неверные исправлены.
-  - ADR 0062–0066 приняты в части, подтверждённой владельцем, 0071 — принят (Gcore, без карты, Россия позже); 0067–0069 — proposed.
-  - Проверка на `72fa7dbac` (CachyOS), всё зелёное:
-    - build и vet обоих модулей;
-    - модульные — 231 пакет, `-race` — 153, `go test ./tools/...` — 6;
-    - `make lint` — 0 замечаний;
-    - интеграционные — 70 пакетов;
-    - e2e — 344 PASS, 0 FAIL, 2 SKIP;
-    - `make apicoverage-check` — OK.
-  - Найдены и исправлены настоящие ошибки:
-    - прокси bff обрывал запросы через 5 с — перевод, колбэки ботов, виджеты и `getWebFile` получали 500;
-    - `media.SaveDocumentV2` не сохранял документ без атрибутов;
-    - виджеты отклонялись всегда; проверки `IsBot` не действовали нигде (108);
-    - authsession после восстановления сессии из базы терял `params` клиента: `help.getPromoData` считал день рождения по UTC.
-  - Для выкладки:
-    - Новые переменные и секреты (только имена): `BOT_SECRET_ENCRYPTION_KEY`, `WEBAPP_SIGNING_KEY`, `OAUTH_SIGNING_KEY_FILE`, `PLUMA_OAUTH_DOMAIN`, `WEBFILE_HMAC_KEY`, `STATS_GRAPH_TOKEN_KEY`, `INLINE_IMPORT_DAILY_BYTES`, `SEARXNG_URL`, `SEARXNG_SECRET`, `SEARXNG_MEMORY`, `SEARXNG_CPUS`, `MAPS_*`, `PLUMA_MAPS_IMAGE`, `TRANSLATE_*`, `PLUMA_TRANSLATE_IMAGE`; для CDN — `CDN_GCORE_*`, `CDN_ORIGIN_AUTH`, `PLUMA_CDN_ORIGIN_DOMAIN` (при выкладке пустые: CDN выключен; `.env.example`, `docs/ops/*`). На краю нового нет.
-    - Файл ключа OAuth (DNS `oauth.pluma.chat` готов). Новые токены работающим ботам (`docs/ops/bots.md`).
-    - Миграции `migrate-20261119-*`, `migrate-20261120-cdn.sql`, `migrate-20261121-bot-platform.sql`, `migrate-20261125-https-cdn.sql`, `z_pluma-inline-bots.sql`. После рестарта ещё раз прогнать `geo-live-filter` и `channel-stats` (`docs/ops/client-noise.md`, `stats.md`).
-    - Карты: вырезка данных дома (около 103 ГБ диска и около 10 ГБ памяти вне `pluma.slice`), образ, `docker-compose.maps.yaml` в каждой команде, пересоздающей bff (`docs/ops/maps.md`).
-    - Перевод: образ и замер на домашнем сервере до включения (`docs/ops/translation.md`). Раскрытие Tencent по §3(e) — шаг выпуска после проверки качества владельцем.
-    - Контейнер `searxng` (`docker-compose.search.yaml`, `docs/ops/inline-bots.md`).
-    - HTTPS-CDN после выкладки, шаги владельца (`docs/ops/cdn.md`): ресурс Gcore и его настройки, проверка 0, значения в `.env`, деплой, проверки 1–6. DNS `origin.pluma.chat` готов.
-    - PR патчей клиентов (ничего не запушено):
-      - pluma-android: `task/105-client-patches`, `task/107-android-https-cdn`;
-      - pluma-ios: `task/101-ios-emojify`, `task/102-ios-cdn` (теперь внутри `task/107-ios-https-cdn`), `task/105-client-patches`, `task/107-ios-https-cdn`;
-      - pluma-desktop: `task/105-client-patches`, `task/107-desktop-https-cdn`;
-      - pluma-web: `task/105-client-patches`, `task/107-web-https-cdn`.
-    - Патчи 107 ещё не собирались (Gradle, Xcode, Qt) и не запускались против стенда и на устройствах.
+- **Партия 098–108 выкачена 2026-11-17 (`aa4532ea3`, PR sckraaa/pluma#43).** Итоги — «Результат» брифов, проверки владельца — `TESTING-BACKLOG.md` (разделы 098–108).
+  - Работают: шум и ошибки клиентов (098), `@gif` и `@pic` с SearXNG дома (099; `@places` нет, поиск GIF по тексту ждёт согласия KLIPY), карты своим tileserver-gl (100; данные Европа, Россия, СНГ, Америки — 96 ГБ в `/opt/pluma-maps`), статистика (103), альбомы и поиск историй, имена (104), Business (105), платформа ботов и `oauth.pluma.chat` (106), отметка запросов ботов (108).
+  - Перевод (101) выключен решением владельца: дома медленно, модель с сервера убрана; ускорение — задача 110.
+  - HTTPS-CDN на Gcore (107) готов и выключен до настройки ресурса Gcore владельцем (`docs/ops/cdn.md`); ключи в `.env` уже есть, DNS `origin.pluma.chat` есть.
+  - Клиенты: PR влиты (android#19, ios#22, desktop#19, web#16), выпуски одобрены 2026-11-17.
+  - Проверки: CI master зелёный (e2e 344/344); локально на CachyOS — build, vet, модульные, `-race`, lint 0, 70 интеграционных пакетов.
+  - **Инцидент 2026-11-17 13:47–13:58 CET:** после включения карт bff встал в сеть `maps_net` первой по алфавиту и зарегистрировал в etcd адрес в ней; сессия не могла до него дойти, клиенты висели на «Обновление…». Исправлено вручную (карты в общей сети с псевдонимом `maps`, bff только в `teamgram_net`), в коде — сеть `tiles_net` и тест `TestComposeServicesNetworkFirst` (PR sckraaa/pluma#44). До его выкладки `pluma-deploy.sh` не запускать: старый оверлей вернёт ошибку.
 - **097 — исправления по отзывам (2026-11-15), выпущены: iOS 89 (ad hoc и TestFlight), Android 67.**
   - Ночная тема iOS: пузыри временами рисовались квадратами. Исходящий пузырь теперь одного фирменного цвета `#2C3A2D`, без градиента (`NIGHT_ONE_FILL`).
   - iOS: обрезка видео в новом редакторе терялась при отправке из сетки — ошибка Telegram 13.2. Теперь обрезка сохраняется, когда отпускаешь ручку. На стенде: сборка 86 отправила 20 с, сборка 88 — 9,95 с.
