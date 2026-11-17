@@ -68,7 +68,7 @@ func TestTileserverGLPublicLinks(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = ts.Terminate(context.Background()) })
 
-	get := func(path, host string, headers map[string]string) (*http.Response, []byte) {
+	get := func(path, host string, headers map[string]string) (int, http.Header, []byte) {
 		t.Helper()
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+path, nil)
 		if err != nil {
@@ -87,7 +87,7 @@ func TestTileserverGLPublicLinks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return resp, body
+		return resp.StatusCode, resp.Header, body
 	}
 	glyphs := func(body []byte) string {
 		t.Helper()
@@ -102,20 +102,20 @@ func TestTileserverGLPublicLinks(t *testing.T) {
 
 	const key = "Ab0-_cdefghijklmnopqrstuvwxyz1234"
 	caddy := map[string]string{"X-Forwarded-Proto": "https", "X-Forwarded-Path": "/" + key}
-	resp, body := get("/styles/lines/style.json", "maps.example", caddy)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("style.json: %d %s", resp.StatusCode, body)
+	status, header, body := get("/styles/lines/style.json", "maps.example", caddy)
+	if status != http.StatusOK {
+		t.Fatalf("style.json: %d %s", status, body)
 	}
 	if got, want := glyphs(body), "https://maps.example/"+key+"/fonts/{fontstack}/{range}.pbf"; got != want {
 		t.Errorf("glyphs %q, want %q", got, want)
 	}
-	if v := resp.Header.Get("Access-Control-Allow-Origin"); v != "" {
+	if v := header.Get("Access-Control-Allow-Origin"); v != "" {
 		t.Errorf("Access-Control-Allow-Origin %q from tileserver-gl: Caddy would send it twice", v)
 	}
 
-	resp, body = get("/styles/lines/style.json", "other.example", caddy)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("style.json for another host: %d %s", resp.StatusCode, body)
+	status, _, body = get("/styles/lines/style.json", "other.example", caddy)
+	if status != http.StatusOK {
+		t.Fatalf("style.json for another host: %d %s", status, body)
 	}
 	if got := glyphs(body); len(got) >= 4 && got[:4] == "http" {
 		t.Errorf("glyphs %q for a host that is not allowed", got)
@@ -124,7 +124,7 @@ func TestTileserverGLPublicLinks(t *testing.T) {
 	// No renderer: the static image, whose URL holds coordinates, is not
 	// there. (The viewer pages of tileserver-gl stay; Caddy passes only the
 	// paths of a map's resources.)
-	if resp, _ := get("/styles/lines/static/0,0,1/16x16.png", "maps.example", caddy); resp.StatusCode != http.StatusNotFound {
-		t.Errorf("a static image answered %d, want 404", resp.StatusCode)
+	if status, _, _ := get("/styles/lines/static/0,0,1/16x16.png", "maps.example", caddy); status != http.StatusNotFound {
+		t.Errorf("a static image answered %d, want 404", status)
 	}
 }
