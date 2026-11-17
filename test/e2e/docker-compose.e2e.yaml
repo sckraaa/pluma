@@ -219,13 +219,43 @@ services:
       - teamgram_net
     restart: "no"
 
+  # The Gcore CDN resource of the HTTPS CDN (test/e2e/fakecdn, task 107):
+  # bff redirects large files to it (CDN_GCORE_BASE_URL in the env file of
+  # run.sh, http://fakecdn:8080 unless E2E_CDN_ADDRESS gives another) and
+  # checks it, and it pulls the cipher from bff's origin with the run's
+  # CDN_ORIGIN_AUTH and checks the run's Secure Token key. The tests reach
+  # the CDN on an ephemeral loopback port (E2E_CDN_PUBLISH, set by run.sh
+  # for E2E_CDN_ADDRESS, publishes it where a development client reaches
+  # it), and its control API on another one that no client is given.
+  fakecdn:
+    build:
+      context: .
+      dockerfile: test/e2e/fakecdn/Dockerfile
+    image: ${E2E_FAKECDN_IMAGE:-pluma-e2e-fakecdn:local}
+    mem_limit: 384m
+    memswap_limit: 384m
+    environment:
+      FAKECDN_ORIGIN: http://bff:20480
+      FAKECDN_CACHE_MB: "256"
+      CDN_ORIGIN_AUTH: ${CDN_ORIGIN_AUTH:?run test/e2e/run.sh up}
+      CDN_GCORE_SIGNER: ${CDN_GCORE_SIGNER:-}
+      CDN_GCORE_TOKEN_KEY: ${CDN_GCORE_TOKEN_KEY:?run test/e2e/run.sh up}
+    ports:
+      - "${E2E_CDN_PUBLISH:-127.0.0.1::8080}"
+      - "127.0.0.1::8081"
+    networks:
+      - teamgram_net
+    restart: "no"
+
   bff:
     # The config with the limits of transcription and the waits of
     # translation, the mail provider of the tests and the hosts of
-    # fakeinline, written by run.sh.
+    # fakeinline, written by run.sh. The CDN of large files is fakecdn.
     volumes:
       - ${E2E_BFF_CONFIG:?run test/e2e/run.sh up}:/app/etc2/bff.yaml:ro
     depends_on:
+      fakecdn:
+        condition: service_started
       fakestt:
         condition: service_started
       faketranslate:

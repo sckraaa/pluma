@@ -7,9 +7,12 @@
 // client), message encryption, msg_id/seqno, containers, acknowledgements,
 // ignoring repeated server messages (counted by Duplicates), gzip_packed,
 // re-sending after bad_server_salt and bad_msg_notification,
-// rpc_result/rpc_error, pushed updates and auth.bindTempAuthKey. TL types and
-// the AES-IGE/AuthKey primitives come from github.com/teamgram/proto (the
-// vendored third_party/teamgram-proto).
+// rpc_result/rpc_error, pushed updates, auth.bindTempAuthKey and what a
+// patched client does with a redirect to the HTTPS CDN (cdnhttp.go: the
+// pluma_cdn param, the PLH1 file token, the Range requests, the decryption
+// and the check of the hashes). TL types and the AES-IGE/AuthKey primitives
+// come from github.com/teamgram/proto (the vendored
+// third_party/teamgram-proto).
 //
 // A typical test:
 //
