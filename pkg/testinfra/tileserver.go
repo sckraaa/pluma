@@ -42,9 +42,17 @@ type TileserverGL struct {
 // data directory /data, among them config.json, which it is started with.
 // Paths in the config are relative to /data.
 func StartTileserverGL(ctx context.Context, files map[string][]byte) (*TileserverGL, error) {
+	return StartTileserverGLWith(ctx, files, nil)
+}
+
+// StartTileserverGLWith is StartTileserverGL with the environment env and
+// the arguments args after those of the config, as the public tiles service
+// is started (docker-compose.maps.yaml, maps-tiles).
+func StartTileserverGLWith(ctx context.Context, files map[string][]byte, env map[string]string, args ...string) (*TileserverGL, error) {
 	opts := []testcontainers.ContainerCustomizer{
 		testcontainers.WithExposedPorts("8080/tcp"),
-		testcontainers.WithCmd("--config", "/data/config.json"),
+		testcontainers.WithCmd(append([]string{"--config", "/data/config.json"}, args...)...),
+		testcontainers.WithEnv(env),
 		testcontainers.WithWaitStrategyAndDeadline(2*time.Minute,
 			wait.ForHTTP("/health").WithPort("8080/tcp"),
 		),

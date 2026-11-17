@@ -162,3 +162,63 @@ func TestForumOfUsesChannelOf(t *testing.T) {
 	_, err = c.forumOf(topic(12, 1200))
 	wantRpcError(t, "private", err, "CHANNEL_PRIVATE")
 }
+
+// notifyGetter is biz user that answers UserGetNotifySettings with empty
+// settings and keeps the last request.
+type notifyGetter struct {
+	user_client.UserClient
+	got *userpb.TLUserGetNotifySettings
+}
+
+func (f *notifyGetter) UserGetNotifySettings(_ context.Context, in *userpb.TLUserGetNotifySettings) (*mtproto.PeerNotifySettings, error) {
+	f.got = in
+	return mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{}).To_PeerNotifySettings(), nil
+}
+
+// The settings of a channel are read only for a channel the account may
+// read, with the errors of account.updateNotifySettings.
+func TestGetNotifySettingsChannel(t *testing.T) {
+	ctx := context.Background()
+	users := &notifyGetter{}
+	c := &NotificationCore{
+		ctx:    ctx,
+		svcCtx: &svc.ServiceContext{Dao: &dao.Dao{UserClient: users, Channel: notifyChannels{}}},
+		Logger: logx.WithContext(ctx),
+		MD:     &metadata.RpcMetadata{UserId: notifyUser},
+	}
+	get := func(id, hash int64) (*mtproto.PeerNotifySettings, error) {
+		return c.AccountGetNotifySettings(&mtproto.TLAccountGetNotifySettings{
+			Peer: mtproto.MakeTLInputNotifyPeer(&mtproto.InputNotifyPeer{
+				Peer: mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: id, AccessHash: hash}).To_InputPeer(),
+			}).To_InputNotifyPeer(),
+		})
+	}
+
+	for _, id := range []int64{10, 11} {
+		users.got = nil
+		if _, err := get(id, id*100); err != nil {
+			t.Fatalf("channel %d: %v", id, err)
+		}
+		if g := users.got; g == nil || g.GetPeerType() != mtproto.PEER_CHANNEL || g.GetPeerId() != id || g.GetUserId() != notifyUser {
+			t.Fatalf("channel %d: biz got %v", id, g)
+		}
+	}
+
+	for _, tc := range []struct {
+		name     string
+		id, hash int64
+		want     string
+	}{
+		{"wrong access_hash", 10, 999, "PEER_ID_INVALID"},
+		{"private, never joined", 12, 1200, "CHANNEL_PRIVATE"},
+		{"kicked", 13, 1300, "CHANNEL_PRIVATE"},
+		{"no such channel", 14, 1400, "CHANNEL_INVALID"},
+	} {
+		users.got = nil
+		_, err := get(tc.id, tc.hash)
+		wantRpcError(t, tc.name, err, tc.want)
+		if users.got != nil {
+			t.Errorf("%s: biz got %v", tc.name, users.got)
+		}
+	}
+}

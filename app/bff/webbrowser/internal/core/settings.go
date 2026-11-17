@@ -67,6 +67,16 @@ func exceptionOf(e webbrowser.Exception) *mtproto.WebDomainException {
 // AccountWebBrowserSettings.swift:62-95). A domain that is in no list is
 // removed all the same: the answer is the same, so a repeated request does
 // no harm.
+//
+// A new exception for a list that already has webbrowser.MaxExceptions is
+// not kept, and toggle returns no update and no error. Android never asks
+// for it: it checks the size itself and then just does not add the domain
+// (MessagesController.java:25378-25383, ui/ArticleViewer.java:4880). iOS
+// has no limit of its own and repeats a request that fails with any error
+// but FROZEN_METHOD_INVALID with no bound (TelegramCore/Sources/Network/
+// Network.swift:1513-1525), so an error would come back every 5 s until
+// the app restarts; an answer with no update leaves its list as it is
+// (AccountWebBrowserSettings.swift:174-218).
 func (c *WebBrowserCore) toggle(del bool, openExternal *mtproto.Bool, url string) (*mtproto.Update, error) {
 	if !del && openExternal == nil {
 		// Clients always send one of the two (Android
@@ -89,7 +99,7 @@ func (c *WebBrowserCore) toggle(del bool, openExternal *mtproto.Bool, url string
 		}
 	} else if err = c.svcCtx.Store.PutException(c.ctx, c.MD.UserId, e, mtproto.FromBool(openExternal)); err != nil {
 		if errors.Is(err, webbrowser.ErrLimit) {
-			return nil, mtproto.ErrLimitInvalid
+			return nil, nil
 		}
 		return nil, err
 	}

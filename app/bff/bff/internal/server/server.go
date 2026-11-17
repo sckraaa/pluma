@@ -255,6 +255,7 @@ func (s *Server) Initialize() error {
 			IOSUpdate:         c.IOSUpdate,
 			Translate:         c.Translate,
 			GifSearch:         c.InlineBots.GifSearch(),
+			Maps:              c.Maps,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)

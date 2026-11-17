@@ -37,6 +37,6 @@ docker exec -i mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot teamgr
 
 ## Известное
 
-- iOS повторяет любой отказ `account.toggleWebBrowserSettingsException` без предела, раз в ≤5 с (`TelegramCore/Sources/Settings/AccountWebBrowserSettings.swift:173-174`, `retryRequestIfNotFrozen` в `Network/Network.swift:1513-1525`). Сам iOS число исключений не проверяет, поэтому 101-е исключение одного списка (`LIMIT_INVALID`) даёт бесконечные повторы с этого устройства, пока приложение не перезапустят. Нужна отдельная задача.
+- iOS повторяет любой отказ `account.toggleWebBrowserSettingsException` без предела, раз в ≤5 с (`TelegramCore/Sources/Settings/AccountWebBrowserSettings.swift:173-174`, `retryRequestIfNotFrozen` в `Network/Network.swift:1513-1525`). Поэтому 101-е исключение одного списка не отказ, а ответ без обновлений: сайт не добавляется, повторов нет (задача 098, «Исправлено после партии»).
 - `inputMessageCallbackQuery` в `messages.getMessages` не обслуживается (ничего не добавляет): сервер не хранит, из какого сообщения пришёл запрос кнопки бота. Клиенты его не шлют, только боты.
 - `account.getNotifySettings` не проверяет, что пользователь, группа или канал существуют (`TODO(@benqi)` в `account.getNotifySettings_handler.go:59-63`): на чужой или несуществующий id отвечает тем, что хранится для этого id у самого пользователя (без записи — значениями по умолчанию), без проверки доступа. Утечки нет: настройки свои, но ошибки `PEER_ID_INVALID`, как у Telegram, клиент не получает.

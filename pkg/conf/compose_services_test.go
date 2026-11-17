@@ -360,6 +360,8 @@ var optionalVars = map[string]bool{
 	"MAPS_CONCURRENCY":         true,
 	"MAPS_CACHE_TTL":           true,
 	"MAPS_PER_USER_PER_MINUTE": true,
+	// The public map tiles of the clients' maps (task 112): none when empty.
+	"MAPS_PUBLIC_URL": true,
 	// The built-in inline bots (task 099, ADR 0062): @pic answers with
 	// empty lists without SearXNG, @gif has no search by text without the
 	// KLIPY key; the import budget is 1 GiB when empty.

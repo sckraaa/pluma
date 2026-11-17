@@ -1,0 +1,82 @@
+# The public map tiles of the clients' interactive maps (task 112, ADR 0070,
+# docs/ops/maps.md, "Публичная раздача"): the styles, glyphs, sprites and
+# vector tiles of the maps-tiles service (docker-compose.maps.yaml), on
+# maps_public_net only, never published on the host. The clients get the
+# base https://{$PLUMA_MAPS_DOMAIN}/{$MAPS_PUBLIC_KEY} in the app config.
+#
+# The Caddyfile imports this file only when PLUMA_MAPS_DOMAIN is set
+# (docker-compose.web.yaml, which refuses to start Caddy without a key that
+# fits): a site with an empty address would stop the whole Caddyfile. The
+# certificate is Let's Encrypt's, as for the other names.
+#
+# - Only a path under the key, and under it only the resources a map loads,
+#   by GET or HEAD, reach maps-tiles; everything else is the same empty 404,
+#   so a wrong key tells nothing. The viewer pages, the lists of styles and
+#   data and the static images of tileserver-gl are never reached.
+# - maps-tiles never holds the key: it is stripped from the path and passed
+#   as X-Forwarded-Path, from which tileserver-gl builds the links of the
+#   style JSON and the TileJSON (with Host and X-Forwarded-Proto, which
+#   Caddy sets itself whatever the client sent).
+# - CORS for every origin (the Desktop picker is a page of its own scheme in
+#   a web view): the data are open, the key is what limits the access.
+# - Tiles, glyphs and sprites are cached for a day; the style JSON and the
+#   TileJSON, which carry the key and the version of the data, are checked
+#   every time. Only JSON is compressed: the tiles are gzip already.
+# - No log directive, so no access log: the paths hold the key, and the
+#   tiles show where a user looks at the map. Neither Server nor Via in the
+#   answers, Caddy's own errors (502 while maps-tiles is down) included.
+{$PLUMA_MAPS_DOMAIN} {
+	handle_path /{$MAPS_PUBLIC_KEY}/* {
+		@json {
+			method GET HEAD
+			path_regexp ^/(styles/[a-z-]{2,16}/style\.json|data/protomaps\.json)$
+		}
+		handle @json {
+			encode zstd gzip
+			reverse_proxy maps-tiles:8080 {
+				header_up X-Forwarded-Path /{$MAPS_PUBLIC_KEY}
+				header_down Cache-Control "no-cache"
+			}
+		}
+
+		@files {
+			method GET HEAD
+			path_regexp ^/(styles/[a-z-]{2,16}/sprite(@2x)?\.(json|png)|fonts/[^/]+/[0-9]+-[0-9]+\.pbf|data/protomaps/[0-9]+/[0-9]+/[0-9]+\.pbf)$
+		}
+		handle @files {
+			reverse_proxy maps-tiles:8080 {
+				header_down Cache-Control "public, max-age=86400"
+			}
+		}
+
+		# The preflight of a request with headers of its own; MapLibre's
+		# plain GETs need none.
+		@preflight {
+			method OPTIONS
+			path_regexp ^/(styles|fonts|data)/
+		}
+		handle @preflight {
+			header Access-Control-Max-Age 86400
+			respond 204
+		}
+
+		handle {
+			respond 404
+		}
+	}
+	handle {
+		respond 404
+	}
+	header {
+		Access-Control-Allow-Origin *
+		Access-Control-Allow-Methods "GET, HEAD"
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+		-Via
+	}
+	handle_errors {
+		header -Server
+	}
+}

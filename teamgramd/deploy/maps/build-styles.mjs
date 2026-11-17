@@ -1,22 +1,30 @@
-// Builds the map styles of the maps service (task 100, ADR 0063, p. 5), one
-// per language of the labels, and the tileserver-gl config that serves them:
+// Builds the map styles of the maps image (task 100, ADR 0063, p. 5; task
+// 112, ADR 0070), one per language of the labels, and the two tileserver-gl
+// configs that serve them:
 //
 //   node build-styles.mjs <langs> <config template> <output dir>
 //
 // <langs> is a comma-separated list such as "ru,en" (MAPS_STYLES of bff: it
-// asks for a style by the language). Each style is the "light" flavor of
-// @protomaps/basemaps with labels in that language
-// (https://docs.protomaps.com/basemaps/localization); it reads only local
-// files: the tiles through the "protomaps" data source of the config
-// (pluma.pmtiles in /data), the glyphs and the sprite from the image. No
-// source attribution is drawn: bff draws "© OpenStreetMap" itself, at the
-// bottom left, where the clients draw no message time.
+// asks for a style by the language, and hands the list to the clients).
+// Each light style <lang> is the "light" flavor of @protomaps/basemaps with
+// labels in that language (https://docs.protomaps.com/basemaps/localization),
+// each dark style <lang>-dark the "dark" flavor with its sprite. They read
+// only local files: the tiles through the "protomaps" data source of the
+// config (pluma.pmtiles in /data), the glyphs and the sprites from the image.
 //
-// Writes <output dir>/styles/<lang>.json and <output dir>/config.json: the
-// template with its "styles" replaced by one rendered style per language
-// (only static images are asked for; the style JSON, glyphs and sprites are
-// not served).
-
+// Writes into <output dir>:
+// - styles/<lang>.json and styles/<lang>-dark.json;
+// - config.json, of the maps service: the template with its "styles"
+//   replaced by one rendered light style per language. Only static images
+//   are asked for; the style JSON, glyphs and sprites are not served. No
+//   source attribution is drawn: bff draws "© OpenStreetMap" itself, at the
+//   bottom left, where the clients draw no message time.
+// - config-public.json, of the maps-tiles service: the same paths and data,
+//   the light and the dark style of each language served as JSON with their
+//   glyphs and sprites (serve_data), and the vector tiles, for the clients'
+//   own renderers; no renderer, no static image, no front page. The
+//   TileJSON of the data names OpenStreetMap, which the attribution control
+//   of the clients' maps shows (ODbL, ADR 0063, p. 6).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { language_script_pairs, layers, namedFlavor } from '@protomaps/basemaps';
@@ -56,12 +64,11 @@ if (dataIds.length !== 1 || dataIds[0] !== 'protomaps') {
   process.exit(2);
 }
 
-mkdirSync(join(outDir, 'styles'), { recursive: true });
-config.styles = {};
-for (const lang of langs) {
-  const style = {
+// The style of one flavor of @protomaps/basemaps with labels in lang.
+function style(name, flavor, sprite, lang) {
+  return {
     version: 8,
-    name: `pluma-${lang}`,
+    name,
     sources: {
       protomaps: {
         type: 'vector',
@@ -71,11 +78,41 @@ for (const lang of langs) {
     },
     // Relative to paths.fonts and paths.sprites of the config.
     glyphs: '{fontstack}/{range}.pbf',
-    sprite: 'light',
-    layers: layers('protomaps', namedFlavor('light'), { lang }),
+    sprite,
+    layers: layers('protomaps', namedFlavor(flavor), { lang }),
   };
-  writeFileSync(join(outDir, 'styles', `${lang}.json`), JSON.stringify(style));
+}
+
+mkdirSync(join(outDir, 'styles'), { recursive: true });
+
+const publicConfig = {
+  options: {
+    paths: config.options.paths,
+    frontPage: false,
+    serveAllFonts: false,
+    serveAllStyles: false,
+    serveStaticMaps: false,
+  },
+  styles: {},
+  data: {
+    protomaps: {
+      ...config.data.protomaps,
+      tilejson: {
+        attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>',
+      },
+    },
+  },
+};
+
+config.styles = {};
+for (const lang of langs) {
+  const dark = `${lang}-dark`;
+  writeFileSync(join(outDir, 'styles', `${lang}.json`), JSON.stringify(style(`pluma-${lang}`, 'light', 'light', lang)));
+  writeFileSync(join(outDir, 'styles', `${dark}.json`), JSON.stringify(style(`pluma-${dark}`, 'dark', 'dark', lang)));
   config.styles[lang] = { style: `${lang}.json`, serve_rendered: true, serve_data: false };
+  publicConfig.styles[lang] = { style: `${lang}.json`, serve_rendered: false, serve_data: true };
+  publicConfig.styles[dark] = { style: `${dark}.json`, serve_rendered: false, serve_data: true };
 }
 writeFileSync(join(outDir, 'config.json'), JSON.stringify(config, null, 2) + '\n');
-console.log(`styles: ${langs.join(', ')}`);
+writeFileSync(join(outDir, 'config-public.json'), JSON.stringify(publicConfig, null, 2) + '\n');
+console.log(`styles: ${langs.join(', ')}, each light and dark`);

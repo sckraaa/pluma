@@ -316,6 +316,13 @@ CREATE TABLE IF NOT EXISTS `user_web_browser_exceptions` (
 - `inputMessageCallbackQuery` в `messages.getMessages` не обслуживается: сервер не хранит, из какого сообщения пришёл запрос кнопки;
 - `account.getNotifySettings` не проверяет, существует ли пир (`TODO(@benqi)`).
 
+**Исправлено после партии** (ветка `fix/known-issues`, 2026-11-17):
+- **Предел исключений браузера.** Решение: предел 100 в каждом списке остаётся, но отказ больше не ошибка. На 101-е исключение одного списка `account.toggleWebBrowserSettingsException#60ed4229` отвечает `updates` без обновлений (`seq = 0`), старый `#2d0a0571` — `boolFalse`; ничего не сохраняется и другим устройствам не уходит. Почему так:
+  - Как отвечает Telegram, неизвестно: страницы метода на core.telegram.org нет (2026-11-17), ключа предела в app config клиенты не читают. Android держит предел в коде (100, на тестовом бэкенде 5, `messenger/MessagesController.java:25378-25383`) и на полном списке просто не добавляет домен, без сообщения (`ui/ArticleViewer.java:4880`). Значит, задуман тихий отказ, а не вытеснение старых исключений.
+  - iOS своего предела не имеет и повторяет любую ошибку, кроме `FROZEN_METHOD_INVALID`, без конца (`TelegramCore/Sources/Network/Network.swift:1513-1525`). Ответ без `updateWebBrowserException` iOS принимает и список не меняет (`Settings/AccountWebBrowserSettings.swift:174-218`): сайт просто не появляется, повторов нет.
+  - Отвергнуто: удалять самое старое исключение (молча теряет то, что человек настроил сам); `FROZEN_METHOD_INVALID` (повторы прекращает, но говорит неправду о заморозке аккаунта).
+- **`account.getNotifySettings` для канала** проверяет канал так же, как `updateNotifySettings` (`channelOf`): нет канала — `CHANNEL_INVALID`, чужой `access_hash` — `PEER_ID_INVALID`, нет доступа — `CHANNEL_PRIVATE`; это ровно ошибки метода в документации (core.telegram.org/method/account.getNotifySettings). tdesktop на любую ошибку применяет пустые настройки (`apiwrap.cpp:2070-2091`), Android и iOS этот метод зовут только для `inputNotifyUsers/Chats/Broadcasts`. Пользователь и обычная группа по-прежнему не проверяются (`TODO(@benqi)`).
+
 **Не проверено.** В клиентах — пункты задачи 098 в `TESTING-BACKLOG.md`. Поведение Telegram — раздел «Не проверено» выше.
 
 **Проверка.** Партия `batch/20261115`, полный прогон на CachyOS на `2c1b155cf`: `go build ./...` и `go vet -tags integration,e2e -unreachable=false` обоих модулей; `go test ./...` — 237 пакетов ok, proto — 3; `go test ./tools/...` (с журнальным аудитом) — 6; `-race` — 191 пакет ok; `make lint` — 0 замечаний; интеграционные тесты — 70 пакетов по одному, все ok; e2e на свежем стенде — 300 PASS, 0 FAIL, 2 SKIP (замер задержки и ручной тест). На прод не выкачено, в клиентах владельцем не проверено.

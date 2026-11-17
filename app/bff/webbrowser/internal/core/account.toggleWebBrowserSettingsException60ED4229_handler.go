@@ -25,7 +25,8 @@ import (
 // account.toggleWebBrowserSettingsException#60ed4229 flags:# delete:flags.1?true open_external_browser:flags.0?Bool url:string = Updates;
 //
 // The answer carries updateWebBrowserException, the other devices get the
-// same update.
+// same update. An exception refused for a full list changes nothing: the
+// answer has no update and nothing is pushed (toggle).
 func (c *WebBrowserCore) AccountToggleWebBrowserSettingsException60ED4229(in *mtproto.TLAccountToggleWebBrowserSettingsException60ED4229) (*mtproto.Updates, error) {
 	if c.MD.IsBot {
 		err := mtproto.ErrBotMethodInvalid
@@ -36,6 +37,9 @@ func (c *WebBrowserCore) AccountToggleWebBrowserSettingsException60ED4229(in *mt
 	if err != nil {
 		c.Logger.Errorf("account.toggleWebBrowserSettingsException - error: %v", err)
 		return nil, err
+	}
+	if update == nil {
+		return mtproto.MakeUpdatesByUpdates([]*mtproto.Update{}...), nil
 	}
 	c.pushOthers("account.toggleWebBrowserSettingsException", mtproto.MakeUpdatesByUpdates(update))
 	return mtproto.MakeUpdatesByUpdates(update), nil

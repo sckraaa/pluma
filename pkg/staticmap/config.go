@@ -71,6 +71,12 @@ type Config struct {
 	// PerUserPerMinute is how many maps that are not in the cache one user
 	// may have rendered per minute ("60").
 	PerUserPerMinute string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// PublicURL is where the clients load the vector tiles of their
+	// interactive maps from, https://<PLUMA_MAPS_DOMAIN>/<MAPS_PUBLIC_KEY>
+	// (task 112, ADR 0070): the maps-tiles service behind Caddy, independent
+	// of URL. Empty: the clients get no interactive map. Styles names its
+	// styles as well.
+	PublicURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 // settings is a parsed Config.
@@ -86,12 +92,15 @@ type settings struct {
 // Enabled reports whether maps are configured.
 func (c Config) Enabled() bool { return strings.TrimSpace(c.URL) != "" }
 
-// Validate checks an enabled configuration; a disabled one is valid.
+// Validate checks an enabled configuration and the public tiles when they
+// are set; a configuration with neither is valid.
 func (c Config) Validate() error {
-	if !c.Enabled() {
-		return nil
+	if c.Enabled() {
+		if _, err := c.parse(); err != nil {
+			return err
+		}
 	}
-	_, err := c.parse()
+	_, err := c.Public()
 	return err
 }
 
