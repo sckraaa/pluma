@@ -249,11 +249,32 @@ func TestToggleWebBrowserSettingsException(t *testing.T) {
 		}
 	}
 	sync.reset()
-	_, err = toggle(c, false, mtproto.BoolTrue, "over.com")
-	wantRPCError(t, "full list", err, "LIMIT_INVALID")
+	// A full list: an answer with no update, so that iOS, which repeats a
+	// failed request without end, stops; nothing kept, nothing pushed.
+	r, err = toggle(c, false, mtproto.BoolTrue, "over.com")
+	if err != nil {
+		t.Fatalf("full list: %v", err)
+	}
+	if r.GetPredicateName() != mtproto.Predicate_updates || r.GetUpdates() == nil || len(r.GetUpdates()) != 0 || r.GetSeq() != 0 {
+		t.Fatalf("full list: answer %v, want updates with no update", r)
+	}
 	if len(sync.notMe) != 0 {
 		t.Errorf("a refused change was pushed: %v", sync.notMe)
 	}
+	if s, _ = store.Get(ctx, testUser); len(s.External) != webbrowser.MaxExceptions {
+		t.Errorf("full list: %d kept, want %d", len(s.External), webbrowser.MaxExceptions)
+	}
+	for _, e := range s.External {
+		if e.Domain == "over.com" {
+			t.Errorf("full list: over.com kept")
+		}
+	}
+
+	// The other list is not full: the same domain goes there.
+	if r, err = toggle(c, false, mtproto.BoolFalse, "over.com"); err != nil {
+		t.Fatal(err)
+	}
+	exceptionUpdateOf(t, r)
 }
 
 // The older constructor answers boolTrue and pushes the update to every
@@ -279,6 +300,27 @@ func TestToggleWebBrowserSettingsExceptionOld(t *testing.T) {
 	}
 	if s, _ := store.Get(context.Background(), testUser); len(s.InApp) != 1 {
 		t.Errorf("kept %+v", s)
+	}
+
+	// A full list: boolFalse, nothing pushed.
+	for i := range webbrowser.MaxExceptions - 1 {
+		if _, err = toggle(c, false, mtproto.BoolFalse, fmt.Sprintf("d%d.com", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sync.reset()
+	r, err = c.AccountToggleWebBrowserSettingsException2D0A0571(&mtproto.TLAccountToggleWebBrowserSettingsException2D0A0571{
+		OpenExternalBrowser: mtproto.BoolFalse,
+		Url:                 "https://over.com",
+	})
+	if err != nil {
+		t.Fatalf("full list: %v", err)
+	}
+	if mtproto.FromBool(r) {
+		t.Errorf("full list: answer %v, want boolFalse", r)
+	}
+	if len(sync.all)+len(sync.notMe) != 0 {
+		t.Errorf("full list: pushed %d, %d", len(sync.all), len(sync.notMe))
 	}
 }
 
