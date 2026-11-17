@@ -144,13 +144,13 @@ func (dao *AuthsDAO) InsertOrUpdateTx(tx *sqlx.Tx, do *dataobject.AuthsDO) (last
 }
 
 // SelectByAuthKeyId
-// select auth_key_id, layer, api_id, device_model, system_version, app_version, system_lang_code, lang_pack, lang_code, client_ip, date_active from auths where auth_key_id = :auth_key_id and deleted = 0 limit 1
+// select auth_key_id, layer, api_id, device_model, system_version, app_version, system_lang_code, lang_pack, lang_code, proxy, params, client_ip, date_active from auths where auth_key_id = :auth_key_id and deleted = 0 limit 1
 func (dao *AuthsDAO) SelectByAuthKeyId(ctx context.Context, authKeyId int64) (rValue *dataobject.AuthsDO, err error) {
 	var (
 		query string
 		do    = &dataobject.AuthsDO{}
 	)
-	query = "select auth_key_id, layer, api_id, device_model, system_version, app_version, system_lang_code, lang_pack, lang_code, client_ip, date_active from auths where auth_key_id = ? and deleted = 0 limit 1"
+	query = "select auth_key_id, layer, api_id, device_model, system_version, app_version, system_lang_code, lang_pack, lang_code, proxy, params, client_ip, date_active from auths where auth_key_id = ? and deleted = 0 limit 1"
 
 	err = dao.db.QueryRowPartial(ctx, do, query, authKeyId)
 
