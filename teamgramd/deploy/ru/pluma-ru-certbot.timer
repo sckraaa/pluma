@@ -1,0 +1,12 @@
+# Twice a day at a random time, as the package's certbot.timer (task 109,
+# docs/ops/ru-node.md); certbot renews only a certificate near its expiry.
+[Unit]
+Description=Pluma certificate renewal, twice a day
+
+[Timer]
+OnCalendar=*-*-* 00,12:00:00
+RandomizedDelaySec=12h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

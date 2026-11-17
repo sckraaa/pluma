@@ -1,0 +1,39 @@
+# Port 80 of the owner's nginx for the names of Pluma (task 109,
+# docs/ops/ru-node.md), installed as /etc/nginx/conf.d/pluma-acme-http.conf
+# by owner-nginx.sh install. Only the HTTP-01 challenges of Let's Encrypt;
+# everything else is a redirect to https://. No access log.
+
+# Delivery 202: the certificate is issued on this node (deploy.sh
+# cert-issue, certbot --webroot into /var/lib/pluma-ru/acme).
+server {
+    listen 80;
+    server_name @@FILES_DOMAIN@@;
+    access_log off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/lib/pluma-ru/acme;
+        default_type text/plain;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# The edge: the certificate is issued at home by Caddy under the home's ACME
+# account (the CAA records of the zone allow only it), so its challenges go
+# home through the tunnel.
+server {
+    listen 80;
+    server_name @@EDGE_DOMAIN@@;
+    access_log off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        proxy_pass http://10.78.0.2:80;
+        proxy_set_header Host $host;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 10s;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}

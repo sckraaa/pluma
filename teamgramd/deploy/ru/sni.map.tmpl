@@ -1,0 +1,8 @@
+# Entries of Pluma in the owner's SNI map on 443 (task 109,
+# docs/ops/ru-node.md): included by one line in the map of
+# /etc/nginx/stream.d/sni.conf (owner-nginx.sh install). The name must not
+# end in .conf: stream.d/*.conf is included at the level of stream {}.
+#   - the edge: TLS goes on as it came to Caddy at home (TLS ends there);
+#   - delivery 202: the nginx of Pluma on this node (TLS ends here).
+@@EDGE_DOMAIN@@ pluma_ru_edge;
+@@FILES_DOMAIN@@ pluma_ru_files;

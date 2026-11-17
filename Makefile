@@ -112,7 +112,7 @@ ACTIONLINT    := go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_
 SHELLCHECK_PLATFORM := $(shell uname -s | tr A-Z a-z).$(shell uname -m | sed 's/^arm64$$/aarch64/')
 SHELLCHECK          := $(CURDIR)/.tools/shellcheck-$(SHELLCHECK_VERSION)/shellcheck
 # Our shell scripts (the upstream ones in teamgramd/bin are not checked).
-SHELL_SCRIPTS := teamgramd/deploy/turn/setup.sh .github/actions/ffmpeg/install.sh test/e2e/run.sh teamgramd/deploy/kafka/topics.sh teamgramd/deploy/backup/backup.sh teamgramd/deploy/iosinstall/put-secrets.sh teamgramd/deploy/releases/put-token.sh teamgramd/deploy/maps/make-region.sh teamgramd/deploy/maps/extract.sh teamgramd/deploy/maps/check.sh
+SHELL_SCRIPTS := teamgramd/deploy/turn/setup.sh .github/actions/ffmpeg/install.sh test/e2e/run.sh teamgramd/deploy/kafka/topics.sh teamgramd/deploy/backup/backup.sh teamgramd/deploy/iosinstall/put-secrets.sh teamgramd/deploy/releases/put-token.sh teamgramd/deploy/maps/make-region.sh teamgramd/deploy/maps/extract.sh teamgramd/deploy/maps/check.sh teamgramd/deploy/ru/deploy.sh teamgramd/deploy/ru/owner-nginx.sh teamgramd/deploy/ru/wgstat.sh
 
 # The vendored proto module is a Go module of its own: `./...` at the root
 # does not reach it, so every check runs there as well.
@@ -144,7 +144,7 @@ API_COVERAGE_DOC := docs/project/api-coverage.md
 
 # Packages with integration tests (build tag integration): every directory
 # holding a test file with that tag, so new ones are picked up.
-INTEGRATION_PKGS = $(shell grep -rl --include='*_test.go' -e '^//go:build integration' app pkg tools | xargs -n1 dirname | sort -u | sed 's|^|./|')
+INTEGRATION_PKGS = $(shell grep -rl --include='*_test.go' -e '^//go:build integration' app pkg tools teamgramd | xargs -n1 dirname | sort -u | sed 's|^|./|')
 # Packages tested at once: each starts its own MySQL (pkg/userbox two), and
 # more at once run a Docker VM of 6 GB out of memory.
 INTEGRATION_PARALLEL ?= 4

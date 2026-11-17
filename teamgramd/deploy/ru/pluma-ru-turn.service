@@ -1,0 +1,32 @@
+# TURN of 1:1 calls on the Russian node (task 109, docs/ops/ru-node.md):
+# coturn of the Ubuntu package with the settings of
+# teamgramd/deploy/turn/turnserver.conf and the node's own address and
+# secret. /etc/pluma-ru/turn.conf is written by deploy.sh (0640
+# root:turnserver), so the secret is not on the command line. The
+# package's coturn.service stays masked.
+[Unit]
+Description=Pluma TURN (coturn)
+Documentation=file:///opt/pluma-ru/src/docs/ops/ru-node.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=turnserver
+Group=turnserver
+RuntimeDirectory=pluma-ru-turn
+ExecStart=/usr/bin/turnserver -c /etc/pluma-ru/turn.conf --pidfile=/run/pluma-ru-turn/turnserver.pid
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1406,3 +1406,19 @@ authsession раньше не читал `params` и `proxy` из таблицы
 - [ ] `docker logs pluma-maps-tiles-1` и лог Caddy после открытий выбора места: нет ни ключа, ни путей тайлов.
 - [ ] Desktop (Windows, macOS, Linux) с патчем задачи 112: в меню вложений есть пункт «Геопозиция» (app config отдаёт `tdesktop_config_map.maps`); остальное в app config не изменилось (перевод, GIF). `MAPS_PUBLIC_URL` включается только после выпуска такого Desktop: Desktop без патча с этим ключом показал бы пункт с картой Mapbox, которая не загрузится.
 - [ ] Неверный `MAPS_PUBLIC_URL` (например, с `/` на конце): bff не стартует, в логе `MAPS_PUBLIC_URL must be https://…` без самого адреса; вернуть верный — bff стартует, клиенты подключаются.
+
+## 109 — Доступ к Pluma отовсюду без VPN: весь трафик клиентов через CDN
+### Часть 10: российский узел amf — файлы узла и выкладка без Docker
+Сервер — ветка `task/109-ru-node`; порядок шагов — `docs/ops/ru-node.md`, «Первое включение».
+- [ ] amf: `ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh` — код 0; в выводе нет ни одного значения из `/etc/pluma-ru/env`; `systemctl is-enabled coturn prometheus-node-exporter` — `masked`; `ss -lntup | grep -E ':9100|:3478'` — 9100 только на `10.78.0.1`, 3478 на `194.87.226.185`; сайт `https://form.amf25.ru/` открывается, как до выкладки.
+- [ ] Второй запуск того же `deploy.sh` без изменений: в выводе нет «restarting pluma-ru-turn», `systemctl show -p ActiveEnterTimestamp pluma-ru-turn` не изменился.
+- [ ] amf: `owner-nginx.sh check` — все строки `ok`, `state not installed`; `owner-nginx.sh install` — «installed», `nginx -T | grep pluma-sni.map` — строка `include` ровно одна; `https://form.amf25.ru/` открывается, форма отправляется; у владельца `certbot renew --dry-run` проходит (проверка владельца 12).
+- [ ] `deploy.sh cert-register` печатает строку CAA с `accounturi`; после записи CAA владельцем `deploy.sh cert-issue` выпускает сертификат `r1.pluma.chat` (ECDSA), `systemctl is-active pluma-ru-nginx` — `active`; `certbot renew --dry-run` с каталогами узла (`docs/ops/ru-node.md`, «Проверка») проходит и nginx после него работает.
+- [ ] Из дома: URL канарейки `pluma-admin cdn canary-url 202` через `--resolve r1.pluma.chat:443:10.78.0.1` с `Range: bytes=0-99` — 206 и `Content-Range: bytes 0-99/262144`; URL `canary-url -expired 202` — 410; URL с испорченным `md5` — 403.
+- [ ] С телефона в Европе (или через VPN) и у знакомого в России без VPN: файл ≥ 1 МБ в Web K по `https://ru.pluma.chat/` скачивается, в инструментах разработчика запросы к `r1.pluma.chat` — 206 без ошибок CORS; повторное открытие того же файла другим пользователем не нагружает дом (`journalctl -u pluma-ru-nginx` без ошибок, метрика `pluma_cdn_origin_requests_total` дома почти не растёт).
+- [ ] `http://r1.pluma.chat/x` и `http://ru.pluma.chat/x` — 301 на `https://`; `http://form.amf25.ru/` ведёт себя, как до установки.
+- [ ] Prometheus дома: цель `10.78.0.1:9100` с `node="amf"` в состоянии UP; `pluma_wg_latest_handshake_seconds` моложе 3 минут; `pluma_ru_cache_max_bytes` = 16106127360. Остановить на amf `wg-quick@plumaru` на 6 минут — приходит `RuNodeDown`, после запуска уходит.
+- [ ] Звонок двух пользователей из России без VPN (проверка владельца 11): `journalctl -u pluma-ru-turn` показывает выделение реле, звук идёт в обе стороны; в журнале нет секрета TURN.
+- [ ] `owner-nginx.sh remove` (на время, потом снова `install`): `sni.conf` совпадает с копией в `/var/lib/pluma-ru/owner-nginx-backup/`, файлов `pluma-*` в `/etc/nginx` нет, `form.amf25.ru` работает.
+- [ ] После обновления пакета nginx на amf (`unattended-upgrades`): `systemctl restart pluma-ru-nginx` — сервис поднимается, канарейка отвечает 206.
+- [ ] Память на amf через сутки работы: `systemctl status pluma-ru-nginx pluma-ru-turn pluma-ru-node-exporter` (строка Memory) — записать в `docs/ops/memory.md`.
