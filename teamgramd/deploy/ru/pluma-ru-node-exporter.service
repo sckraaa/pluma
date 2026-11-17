@@ -1,0 +1,26 @@
+# Metrics of the Russian node for Prometheus at home (task 109,
+# docs/ops/ru-node.md): node-exporter of the Ubuntu package, on the address
+# of the tunnel only, with the textfile of pluma-ru-wgstat. A unit of its
+# own, so that /etc/default/prometheus-node-exporter (a conffile of the
+# package) stays as shipped; the package's unit stays masked.
+[Unit]
+Description=Pluma node metrics (node-exporter)
+Documentation=file:///opt/pluma-ru/src/docs/ops/ru-node.md
+# The address exists once the tunnel's interface is up; wg-quick brings it
+# up locally whether or not home answers.
+After=network-online.target wg-quick@plumaru.service
+Wants=network-online.target wg-quick@plumaru.service
+
+[Service]
+User=prometheus
+Group=prometheus
+ExecStart=/usr/bin/prometheus-node-exporter --web.listen-address=10.78.0.1:9100 --collector.textfile.directory=/var/lib/pluma-ru/textfile
+Restart=always
+RestartSec=10s
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

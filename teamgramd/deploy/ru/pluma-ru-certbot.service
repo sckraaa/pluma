@@ -1,0 +1,12 @@
+# Renews the certificate of delivery 202 on the Russian node (task 109,
+# docs/ops/ru-node.md). certbot of the Ubuntu package with a configuration
+# directory of its own: the owner's certbot.timer renews only the owner's
+# certificates, and this one only Pluma's. The deploy hook stored at issue
+# (deploy.sh cert-issue) reloads pluma-ru-nginx after a renewal.
+[Unit]
+Description=Pluma certificate renewal (certbot)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/certbot -q renew --no-random-sleep-on-renew --config-dir /etc/pluma-ru/letsencrypt --work-dir /var/lib/pluma-ru/certbot --logs-dir /var/log/pluma-ru/certbot
+PrivateTmp=yes

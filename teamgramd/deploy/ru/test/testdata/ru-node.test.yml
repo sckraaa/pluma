@@ -1,0 +1,81 @@
+# promtool test rules of teamgramd/deploy/prometheus/server/rules/ru-node.yml
+# (TestAlertRulesFire, nginx_integration_test.go). Time starts at 0.
+rule_files:
+  - ru-node.yml
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      # The node answers for 2 minutes, then not.
+      - series: 'up{job="node-exporter", node="amf", instance="10.78.0.1:9100"}'
+        values: '1 1 0x20'
+      - series: 'pluma_wg_up{interface="plumaru", node="amf"}'
+        values: '1x40'
+      # A handshake every minute until minute 5, then none.
+      - series: 'pluma_wg_latest_handshake_seconds{interface="plumaru", node="amf"}'
+        values: '0+60x5 300x35'
+      # The textfile written every minute until minute 5.
+      - series: 'pluma_ru_stats_timestamp_seconds{node="amf"}'
+        values: '0+60x5 300x35'
+      - series: 'pluma_ru_cache_bytes{node="amf"}'
+        values: '120x40'
+      - series: 'pluma_ru_cache_max_bytes{node="amf"}'
+        values: '100x40'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: RuNodeDown
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: RuNodeDown
+        exp_alerts:
+          - exp_labels: {severity: warning, job: node-exporter, node: amf, instance: "10.78.0.1:9100"}
+            exp_annotations:
+              summary: "The Russian node amf does not answer through the tunnel"
+              description: "From home: ping -c3 10.78.0.1; sudo wg show plumaru. On amf: systemctl status pluma-ru-node-exporter wg-quick@plumaru. docs/ops/ru-node.md, «Неполадки»"
+      # 180 s after the last handshake (minute 8) is not stale yet.
+      - eval_time: 8m
+        alertname: RuTunnelHandshakeStale
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: RuTunnelHandshakeStale
+        exp_alerts:
+          - exp_labels: {severity: warning, interface: plumaru, node: amf}
+            exp_annotations:
+              summary: "The tunnel home ↔ amf has no fresh handshake, or no interface on amf"
+              description: "Home: sudo systemctl status wg-quick@plumaru; sudo wg show plumaru (latest handshake, transfer). amf: wg show plumaru. MTU of both ends must be 1280. docs/ops/ru-node.md, «Неполадки»"
+      - eval_time: 14m
+        alertname: RuNodeStatsStale
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: RuNodeStatsStale
+        exp_alerts:
+          - exp_labels: {severity: warning, node: amf}
+            exp_annotations:
+              summary: "The textfile metrics of amf are 11m 0s old"
+              description: "On amf: systemctl status pluma-ru-wgstat.timer pluma-ru-wgstat.service; journalctl -u pluma-ru-wgstat --since -1h. docs/ops/ru-node.md, «Неполадки»"
+      - eval_time: 29m
+        alertname: RuNodeCacheOverLimit
+        exp_alerts: []
+      - eval_time: 31m
+        alertname: RuNodeCacheOverLimit
+        exp_alerts:
+          - exp_labels: {severity: warning, node: amf}
+            exp_annotations:
+              summary: "The cache of delivery 202 on amf takes 120B, over its max_size"
+              description: "On amf: systemctl status pluma-ru-nginx; journalctl -u pluma-ru-nginx --since -1h | grep -i cache; du -sh /var/cache/pluma-ru/files. docs/ops/ru-node.md, «Неполадки»"
+
+  # The tunnel's interface is gone while the node still answers.
+  - interval: 1m
+    input_series:
+      - series: 'pluma_wg_up{interface="plumaru", node="amf"}'
+        values: '0x10'
+      - series: 'pluma_wg_latest_handshake_seconds{interface="plumaru", node="amf"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: RuTunnelHandshakeStale
+        exp_alerts:
+          - exp_labels: {severity: warning, interface: plumaru, node: amf}
+            exp_annotations:
+              summary: "The tunnel home ↔ amf has no fresh handshake, or no interface on amf"
+              description: "Home: sudo systemctl status wg-quick@plumaru; sudo wg show plumaru (latest handshake, transfer). amf: wg show plumaru. MTU of both ends must be 1280. docs/ops/ru-node.md, «Неполадки»"

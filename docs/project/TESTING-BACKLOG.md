@@ -1437,3 +1437,18 @@ authsession раньше не читал `params` и `proxy` из таблицы
 - [ ] С дома из контейнера: `wget -qO- -T5 http://10.78.0.1:9100/metrics | head -1` в контейнере bff (после части 10, node-exporter на amf) — ответ есть: источник `10.77.0.2` проходит по `AllowedIPs` amf.
 - [ ] iperf3 дом → amf и amf → дом через `plumaru` (по `10.78.0.x`): записать скорости (замер 2026-11-17: 50 и 109 Мбит/с); TCP не «зависает» на больших передачах.
 - [ ] Hetzner после всего этого: `wg show pluma` — рукопожатие свежее, клиенты подключаются через `pluma.chat`, исходящий трафик дома по-прежнему выходит с адреса Hetzner (`wget -qO- https://ifconfig.me` в контейнере bff).
+
+### Часть 10: российский узел amf — файлы узла и выкладка без Docker
+Сервер — ветка `task/109-ru-node`; порядок шагов — `docs/ops/ru-node.md`, «Первое включение».
+- [ ] amf: `ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh` — код 0; в выводе нет ни одного значения из `/etc/pluma-ru/env`; `systemctl is-enabled coturn prometheus-node-exporter` — `masked`; `ss -lntup | grep -E ':9100|:3478'` — 9100 только на `10.78.0.1`, 3478 на `194.87.226.185`; сайт `https://form.amf25.ru/` открывается, как до выкладки.
+- [ ] Второй запуск того же `deploy.sh` без изменений: в выводе нет «restarting pluma-ru-turn», `systemctl show -p ActiveEnterTimestamp pluma-ru-turn` не изменился.
+- [ ] amf: `owner-nginx.sh check` — все строки `ok`, `state not installed`; `owner-nginx.sh install` — «installed», `nginx -T | grep pluma-sni.map` — строка `include` ровно одна; `https://form.amf25.ru/` открывается, форма отправляется; у владельца `certbot renew --dry-run` проходит (проверка владельца 12).
+- [ ] `deploy.sh cert-register` печатает строку CAA с `accounturi`; после записи CAA владельцем `deploy.sh cert-issue` выпускает сертификат `r1.pluma.chat` (ECDSA), `systemctl is-active pluma-ru-nginx` — `active`; `certbot renew --dry-run` с каталогами узла (`docs/ops/ru-node.md`, «Проверка») проходит и nginx после него работает.
+- [ ] Из дома: URL канарейки `pluma-admin cdn canary-url 202` через `--resolve r1.pluma.chat:443:10.78.0.1` с `Range: bytes=0-99` — 206 и `Content-Range: bytes 0-99/262144`; URL `canary-url -expired 202` — 410; URL с испорченным `md5` — 403.
+- [ ] С телефона в Европе (или через VPN) и у знакомого в России без VPN: файл ≥ 1 МБ в Web K по `https://ru.pluma.chat/` скачивается, в инструментах разработчика запросы к `r1.pluma.chat` — 206 без ошибок CORS; повторное открытие того же файла другим пользователем не нагружает дом (`journalctl -u pluma-ru-nginx` без ошибок, метрика `pluma_cdn_origin_requests_total` дома почти не растёт).
+- [ ] `http://r1.pluma.chat/x` и `http://ru.pluma.chat/x` — 301 на `https://`; `http://form.amf25.ru/` ведёт себя, как до установки.
+- [ ] Prometheus дома: цель `10.78.0.1:9100` с `node="amf"` в состоянии UP; `pluma_wg_latest_handshake_seconds` моложе 3 минут; `pluma_ru_cache_max_bytes` = 16106127360. Остановить на amf `wg-quick@plumaru` на 6 минут — приходит `RuNodeDown`, после запуска уходит.
+- [ ] Звонок двух пользователей из России без VPN (проверка владельца 11): `journalctl -u pluma-ru-turn` показывает выделение реле, звук идёт в обе стороны; в журнале нет секрета TURN.
+- [ ] `owner-nginx.sh remove` (на время, потом снова `install`): `sni.conf` совпадает с копией в `/var/lib/pluma-ru/owner-nginx-backup/`, файлов `pluma-*` в `/etc/nginx` нет, `form.amf25.ru` работает.
+- [ ] После обновления пакета nginx на amf (`unattended-upgrades`): `systemctl restart pluma-ru-nginx` — сервис поднимается, канарейка отвечает 206.
+- [ ] Память на amf через сутки работы: `systemctl status pluma-ru-nginx pluma-ru-turn pluma-ru-node-exporter` (строка Memory) — записать в `docs/ops/memory.md`.

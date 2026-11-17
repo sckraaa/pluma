@@ -1,0 +1,35 @@
+# The nginx of Pluma on the Russian node (task 109, docs/ops/ru-node.md):
+# delivery 202 of large files. An instance of its own of the Ubuntu
+# package, separate from the owner's nginx.service. Installed by deploy.sh.
+[Unit]
+Description=Pluma delivery of files (nginx)
+Documentation=file:///opt/pluma-ru/src/docs/ops/ru-node.md
+After=network-online.target wg-quick@plumaru.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+ExecStartPre=/usr/sbin/nginx -t -q -c /etc/pluma-ru/nginx.conf -g "daemon off;"
+ExecStart=/usr/sbin/nginx -c /etc/pluma-ru/nginx.conf -g "daemon off;"
+# A new configuration is checked first: a broken one fails the reload and
+# the running one stays.
+ExecReload=/usr/sbin/nginx -t -q -c /etc/pluma-ru/nginx.conf -g "daemon off;"
+ExecReload=/bin/kill -HUP $MAINPID
+# QUIT lets the workers finish the answers they are sending.
+KillSignal=SIGQUIT
+KillMode=mixed
+TimeoutStopSec=15s
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+[Install]
+WantedBy=multi-user.target
