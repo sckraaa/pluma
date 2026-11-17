@@ -49,6 +49,8 @@ type memReader struct {
 	shortAt int64
 	// block, when set, holds every read until it is closed.
 	block chan struct{}
+	// delay makes every read take so long.
+	delay time.Duration
 	// started is told of every read that starts.
 	started chan struct{}
 	reads   int
@@ -72,10 +74,17 @@ func (m *memReader) readCount() int {
 
 func (m *memReader) ReadPart(ctx context.Context, loc *mtproto.InputFileLocation, offset int64, limit int32) ([]byte, error) {
 	m.mu.Lock()
-	block, started := m.block, m.started
+	block, started, delay := m.block, m.started, m.delay
 	m.mu.Unlock()
 	if started != nil {
 		started <- struct{}{}
+	}
+	if delay > 0 {
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 	if block != nil {
 		select {

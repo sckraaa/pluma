@@ -303,6 +303,49 @@ func TestPreparerRate(t *testing.T) {
 	}
 }
 
+// TestPreparerSlowRead checks that a dfs slower than the rate still
+// prepares a file: the bound of the whole preparation does not come from
+// the rate.
+func TestPreparerSlowRead(t *testing.T) {
+	e := newPrepEnv(t)
+	// At 800 Mbit/s 4 MiB take 42 ms; dfs gives them in about 200 ms.
+	e.reader.delay = 50 * time.Millisecond
+	f := e.queue(docKey(1), make([]byte, 4<<20), TargetHomeOrigin)
+	p := e.preparer(HomeOrigin{})
+	p.slack = 50 * time.Millisecond
+	p.Next(e.ctx)
+	if r := e.replica(f.RowId, TargetHomeOrigin); r.State != StateReady {
+		t.Errorf("state %d (%q), want ready", r.State, r.LastError)
+	}
+}
+
+// TestPreparerPartTimeout checks that a part dfs does not give is a
+// timeout, tried again.
+func TestPreparerPartTimeout(t *testing.T) {
+	e := newPrepEnv(t)
+	block := make(chan struct{})
+	defer close(block)
+	e.reader.block = block
+	f := e.queue(docKey(1), refFile(), TargetHomeOrigin)
+	p := e.preparer(HomeOrigin{})
+	p.partTimeout = 50 * time.Millisecond
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		p.Next(e.ctx)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("a stalled part holds the preparation")
+	}
+	r := e.replica(f.RowId, TargetHomeOrigin)
+	next, _ := RetryAt(1, e.clock.now().UnixMilli())
+	if r.State != StateQueued || r.LastError != prepareTimeout || r.NextTryAt != next {
+		t.Errorf("state %d, %q, next try %d; want queued, timeout, %d", r.State, r.LastError, r.NextTryAt, next)
+	}
+}
+
 func TestPreparerStop(t *testing.T) {
 	e := newPrepEnv(t)
 	block := make(chan struct{})

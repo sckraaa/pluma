@@ -73,9 +73,18 @@ const (
 	// prepareIdle is how long a preparer waits when the queue is empty,
 	// unless woken.
 	prepareIdle = 5 * time.Second
-	// prepareSlack is added to the time a preparation should take at the
-	// rate for the bound of the whole of it.
+	// prepareFloorRate is the slowest reading of a file a preparation
+	// allows, bytes a second, whatever PrepareRateMbit: the bound of the
+	// whole of it comes from it, so that a dfs slower than the rate still
+	// prepares large files; a part that stops coming is caught by
+	// preparePartTimeout long before.
+	prepareFloorRate = 1 << 20
+	// prepareSlack is added to the time a preparation takes at the
+	// slowest of the floor and the rate for the bound of the whole of it.
 	prepareSlack = 2 * time.Minute
+	// preparePartTimeout bounds the read of one ReadChunkSize part from
+	// dfs.
+	preparePartTimeout = time.Minute
 	// markTimeout bounds the record of a failed preparation.
 	markTimeout = 10 * time.Second
 )
@@ -110,6 +119,11 @@ type Preparer struct {
 	now     func() time.Time
 	idle    time.Duration
 	wake    chan struct{}
+	// floor, slack and partTimeout are prepareFloorRate, prepareSlack and
+	// preparePartTimeout but in tests.
+	floor       int64
+	slack       time.Duration
+	partTimeout time.Duration
 }
 
 // NewPreparer returns the preparer of target with the limits of set;
@@ -125,6 +139,10 @@ func NewPreparer(store Store, target Target, reader FileReader, set *Settings, o
 		now:     time.Now,
 		idle:    prepareIdle,
 		wake:    make(chan struct{}, 1),
+
+		floor:       prepareFloorRate,
+		slack:       prepareSlack,
+		partTimeout: preparePartTimeout,
 	}
 }
 
@@ -224,8 +242,10 @@ func (p *Preparer) run(ctx context.Context, c *Claim) (string, bool, error) {
 		}
 	}
 
-	// The whole preparation is bounded: at the rate it takes size/rate.
-	bound := time.Duration(float64(size)/float64(p.rate)*float64(time.Second)) + prepareSlack
+	// The whole preparation is bounded by the time it takes at the floor
+	// (or at the rate, if that is slower): the limiter only spaces the
+	// reads, and dfs may well be slower than the rate.
+	bound := time.Duration(float64(size)/float64(min(p.rate, p.floor))*float64(time.Second)) + p.slack
 	pctx, cancel := context.WithTimeout(ctx, bound)
 	defer cancel()
 
@@ -252,8 +272,14 @@ func (p *Preparer) run(ctx context.Context, c *Claim) (string, bool, error) {
 		if err := p.limiter.WaitN(pctx, int(want)); err != nil {
 			return fail(prepareTimeout, true, err)
 		}
-		b, err := p.reader.ReadPart(pctx, loc, off, ReadChunkSize)
-		if err != nil {
+		rctx, rcancel := context.WithTimeout(pctx, p.partTimeout)
+		b, err := p.reader.ReadPart(rctx, loc, off, ReadChunkSize)
+		timedOut := errors.Is(rctx.Err(), context.DeadlineExceeded)
+		rcancel()
+		switch {
+		case err != nil && timedOut:
+			return fail(prepareTimeout, true, err)
+		case err != nil:
 			return fail(prepareReadError, true, err)
 		}
 		// dfs answers a part it failed to read with no bytes (reader.go).
