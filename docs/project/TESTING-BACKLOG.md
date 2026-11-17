@@ -1406,3 +1406,17 @@ authsession раньше не читал `params` и `proxy` из таблицы
 - [ ] `docker logs pluma-maps-tiles-1` и лог Caddy после открытий выбора места: нет ни ключа, ни путей тайлов.
 - [ ] Desktop (Windows, macOS, Linux) с патчем задачи 112: в меню вложений есть пункт «Геопозиция» (app config отдаёт `tdesktop_config_map.maps`); остальное в app config не изменилось (перевод, GIF). `MAPS_PUBLIC_URL` включается только после выпуска такого Desktop: Desktop без патча с этим ключом показал бы пункт с картой Mapbox, которая не загрузится.
 - [ ] Неверный `MAPS_PUBLIC_URL` (например, с `/` на конце): bff не стартует, в логе `MAPS_PUBLIC_URL must be https://…` без самого адреса; вернуть верный — bff стартует, клиенты подключаются.
+
+## 109 — Доступ к Pluma отовсюду без VPN: весь трафик клиентов через CDN
+### Часть 9: туннель дом ↔ amf (`tunnel.sh --link ru`, `docker-compose.ru.yaml`)
+Сервер — ветка `task/109-ru-tunnel`. Клиентов эта часть не меняет: видно только через края частей 2 и 10.
+- [ ] Дом, после `tunnel.sh --link ru home …` (он заменяет `/usr/local/sbin/pluma-tunnel`, которым пользуется и служба Hetzner): `systemctl restart pluma-tunnel-rules` — служба зелёная, `ip rule` и `iptables -t mangle -S FORWARD | grep -w pluma` такие же, как до неё; `cat /etc/systemd/system/pluma-tunnel-rules.service` не изменился (в `ExecStart` нет `--link`); клиенты Android, iOS, Desktop и Web подключаются как раньше.
+- [ ] amf и дом: `tunnel.sh --link ru --dry-run /tmp/ru-check node|home <ключ> 194.87.226.185` — в `/tmp/ru-check/commands` только ожидаемые команды, на хосте ничего не поменялось (`wg show`, `iptables -t mangle -S`, `ufw status numbered` как до запуска); потом удалить `/tmp/ru-check` (там тестовый ключ).
+- [ ] Порядок первого включения (бриф, «Эксплуатация», шаг 1): `wg show plumaru` на обеих сторонах — рукопожатие моложе 2 минут; с дома `ping -M do -s 1252 -c 5 10.78.0.1` без потерь, `ping -M do -s 1253 10.78.0.1` — «message too long» (MTU 1280).
+- [ ] Дом: `ufw status numbered` — первым правилом `Anywhere on plumaru DENY IN` (и v6), выше `22/tcp`; с amf `nc -zv -w3 10.78.0.2 22` — не соединяется; повторный `tunnel.sh --link ru home …` не добавляет второе такое правило.
+- [ ] Дом: `ip rule` — правил не прибавилось; `ip route get 10.78.0.1` → `dev plumaru`; `iptables -t mangle -S FORWARD | grep plumaru` — два правила `TCPMSS` (`-o` и `-i`); amf: `iptables -t mangle -S OUTPUT | grep plumaru` — одно; на amf `sysctl net.ipv4.ip_forward` такой же, как до туннеля.
+- [ ] Дом, перезагрузка: `wg-quick@plumaru` поднимается до Docker (`systemctl list-dependencies --after docker.service | grep plumaru`), стек стартует с `docker-compose.ru.yaml`, даже если amf выключен; `ss -ltn | grep 10.78.0.2` — порты 80, 443, 8443.
+- [ ] С amf: `curl -sI http://10.78.0.2/` отвечает Caddy; с другой машины домашней сети и снаружи порт 8443 дома закрыт (`nc -zv -w3 <адрес дома в LAN> 8443` — отказ).
+- [ ] С дома из контейнера: `wget -qO- -T5 http://10.78.0.1:9100/metrics | head -1` в контейнере bff (после части 10, node-exporter на amf) — ответ есть: источник `10.77.0.2` проходит по `AllowedIPs` amf.
+- [ ] iperf3 дом → amf и amf → дом через `plumaru` (по `10.78.0.x`): записать скорости (замер 2026-11-17: 50 и 109 Мбит/с); TCP не «зависает» на больших передачах.
+- [ ] Hetzner после всего этого: `wg show pluma` — рукопожатие свежее, клиенты подключаются через `pluma.chat`, исходящий трафик дома по-прежнему выходит с адреса Hetzner (`wget -qO- https://ifconfig.me` в контейнере bff).
