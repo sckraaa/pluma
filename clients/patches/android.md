@@ -1279,7 +1279,7 @@
 - **Проверка.** Тест `RoundVideoTest`, `verify_round_video`. На устройстве не проверено.
 
 ### A-123. Telegram Business снова виден, без переключателя рекламы (задача 105)
-- **Статус.** Ветка `task/105-client-patches` pluma-android поверх `origin/main`, не закоммичено, не выпущено (2026-11-16). Апстрим 13.2.1, `7be672ea`.
+- **Статус.** Ветка `task/105-client-patches` pluma-android поверх `origin/main` (`fb761f0`), коммит `8a18ad7`, не влита, не выпущена (2026-11-16). Апстрим 13.2.1, `7be672ea`.
 - **Что и зачем.** Задача 105 (ADR 0067): сервер обслуживает Telegram Business всем с Premium, а Premium у всех (ADR 0041). Частичный откат A-109 и A-112:
   - строки «Telegram Business» в настройках (`SettingsActivity`, `Factory.of(15, …)`) и в профиле (`ProfileActivity`, `businessRow`) снова апстримовские — по `!premiumFeaturesBlocked()`, а это `premiumLocked && !isPremium()`, то есть видны всем с Premium;
   - ссылка `settings/business` (`LinkManager`) снова открывает экран Business; правка A-112 теперь закрывает только `settings/premium`;

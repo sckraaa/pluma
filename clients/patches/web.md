@@ -812,7 +812,7 @@
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_patch` (нет `id: 'gifts'`), `test_no_gift_entries`.
 
 ### W-084. Telegram Business снова виден, без переключателя рекламы (задача 105)
-- **Статус.** Ветка `task/105-client-patches` pluma-web поверх `origin/main`, не закоммичено, не выпущено (2026-11-16). Апстрим tweb 2.3 (686), `aa74832e`.
+- **Статус.** Ветка `task/105-client-patches` pluma-web поверх `origin/main` (`c3d28d8`), коммит `5283d94`, не влита, не выпущена (2026-11-16). Апстрим tweb 2.3 (686), `aa74832e`.
 - **Что и зачем.** Задача 105 (ADR 0067): сервер обслуживает Telegram Business всем с Premium, а Premium у всех (ADR 0041).
   - Строка «Telegram Business» в настройках была внутри `<Show when={!premiumBlocked()}>` вместе с Premium, звёздами и подарком (`components/sidebarLeft/tabs/settings.tsx:474-483`); Pluma этот блок не показывает (`premium_purchase_blocked`). Строка вынесена в свой `<Section>` перед блоком, остальное в блоке как было.
   - Поиск по настройкам: `TelegramBusiness` убран из `SETTINGS_SEARCH_SALE_ROWS` (частичный откат W-070), запись `AppSettingsTab:TelegramBusiness` снова в поиске. Раздел Business в редактировании профиля (`editProfile.tsx:422-…`) был виден и раньше.
