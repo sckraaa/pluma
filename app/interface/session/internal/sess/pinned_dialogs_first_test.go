@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // The pinned list of a batch is answered before the getDialogs page asked
@@ -31,6 +32,12 @@ func TestPinnedDialogsFirst(t *testing.T) {
 		}
 		pinned = func(id int64) *rpcApiMessage {
 			return &rpcApiMessage{reqMsgId: id, reqMsg: &mtproto.TLMessagesGetPinnedDialogs{}}
+		}
+		archiveDialogs = func(id int64) *rpcApiMessage {
+			return &rpcApiMessage{reqMsgId: id, reqMsg: &mtproto.TLMessagesGetDialogs{FolderId: wrapperspb.Int32(1)}}
+		}
+		archivePinned = func(id int64) *rpcApiMessage {
+			return &rpcApiMessage{reqMsgId: id, reqMsg: &mtproto.TLMessagesGetPinnedDialogs{FolderId: 1}}
 		}
 		toggle = func(id int64) *rpcApiMessage {
 			return &rpcApiMessage{reqMsgId: id, reqMsg: &mtproto.TLMessagesToggleDialogPin{}}
@@ -46,7 +53,8 @@ func TestPinnedDialogsFirst(t *testing.T) {
 	}{
 		{"Desktop start", []*rpcApiMessage{dialogs(1), pinned(2)}, []int64{2, 1}},
 		{"after other requests", []*rpcApiMessage{getState(1), dialogs(2), pinned(3), getState(4)}, []int64{1, 3, 2, 4}},
-		{"two folders", []*rpcApiMessage{dialogs(1), pinned(2), dialogs(3), pinned(4)}, []int64{2, 1, 4, 3}},
+		{"two folders", []*rpcApiMessage{dialogs(1), pinned(2), archiveDialogs(3), archivePinned(4)}, []int64{2, 1, 4, 3}},
+		{"another folder's page", []*rpcApiMessage{dialogs(1), archivePinned(2)}, []int64{1, 2}},
 		{"several pages", []*rpcApiMessage{dialogs(1), dialogs(2), pinned(3)}, []int64{3, 1, 2}},
 		{"already first", []*rpcApiMessage{pinned(1), dialogs(2)}, []int64{1, 2}},
 		{"a change between", []*rpcApiMessage{dialogs(1), toggle(2), pinned(3)}, []int64{1, 2, 3}},

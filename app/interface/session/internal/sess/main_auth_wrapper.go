@@ -877,12 +877,14 @@ func runsAside(req mtproto.TLObject) bool {
 // (that wrapper is unpacked before the batch and is not seen here).
 func pinnedDialogsFirst(requests []*rpcApiMessage) []*rpcApiMessage {
 	for i := 1; i < len(requests); i++ {
-		if _, ok := requests[i].reqMsg.(*mtproto.TLMessagesGetPinnedDialogs); !ok {
+		pinned, ok := requests[i].reqMsg.(*mtproto.TLMessagesGetPinnedDialogs)
+		if !ok {
 			continue
 		}
 		j := i
 		for j > 0 {
-			if _, ok := requests[j-1].reqMsg.(*mtproto.TLMessagesGetDialogs); !ok {
+			page, ok := requests[j-1].reqMsg.(*mtproto.TLMessagesGetDialogs)
+			if !ok || page.GetFolderId().GetValue() != pinned.GetFolderId() {
 				break
 			}
 			requests[j-1], requests[j] = requests[j], requests[j-1]
