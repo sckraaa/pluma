@@ -81,7 +81,17 @@ groups:
         labels: {severity: warning}
         annotations:
           summary: "@{{ $labels.bot }} fails more than half of its queries"
-          description: "Users get empty lists. @pic: SearXNG is down or every image engine blocks the address (docker compose logs searxng); @gif: MySQL or media. Lines 'messages.getInlineBotResults - @{{ $labels.bot }}' in the log of bff. docs/ops/inline-bots.md"
+          description: "Users get empty lists. @pic: SearXNG is down or every image engine blocks the address (docker compose logs searxng); @gif: KLIPY fails or limits the key (inline_klipy_requests_total), or MySQL or media without KLIPY. Lines 'messages.getInlineBotResults - @{{ $labels.bot }}' in the log of bff. docs/ops/inline-bots.md"
+
+      # KLIPY refuses the app key of @gif (401 or 403): the key is wrong,
+      # revoked or not yet active, and @gif answers every query with an
+      # empty list. One refusal is enough: it does not pass by itself.
+      - alert: InlineKlipyKeyRefused
+        expr: sum(increase(inline_klipy_requests_total{result="refused"}[15m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "KLIPY refuses the app key of @gif"
+          description: "@gif answers with empty lists. Check KLIPY_API_KEY in .env against the KLIPY Partner Panel and restart bff. docs/ops/inline-bots.md, «KLIPY»"
 
       # The gauge is 1 while the account of a bot does not match the registry
       # (pkg/inlinebots): the bot answers BOT_INLINE_DISABLED. bff checks again

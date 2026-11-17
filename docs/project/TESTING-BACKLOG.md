@@ -695,10 +695,22 @@
 ### Часть I: документы эксплуатации
 Выкатка по `docs/ops/inline-bots.md`, алерты группы `inline_bots` (`teamgramd/deploy/prometheus/server/rules/codes.yml`).
 - [ ] До выката дома: запрос из `docs/ops/inline-bots.md` («Выкатка», шаг 1) — у имён `gif` и `pic` нет чужих строк. После выката `pluma-admin migrate status` пишет `0 pending` (применены и `migrate-20261119-inline-bots.sql`, и `z_pluma-inline-bots.sql`), в Prometheus `inline_bot_misconfigured` = 0 у `gif` и `pic`.
-- [ ] Prometheus → Alerts: в группе `inline_bots` три правила (`InlineProviderFailing`, `InlineBotMisconfigured`, `InlineImportBudgetSpent`), все «inactive», ошибок разбора правил нет.
+- [ ] Prometheus → Alerts: в группе `inline_bots` четыре правила (`InlineProviderFailing`, `InlineBotMisconfigured`, `InlineKlipyKeyRefused`, `InlineImportBudgetSpent`), все «inactive», ошибок разбора правил нет.
 - [ ] `docker compose … stop searxng`, затем 4–5 разных запросов `@pic` в течение 15 минут с телефона: клиент показывает «ничего не найдено», через несколько минут на телефон приходит пуш `InlineProviderFailing` для `pic`; после `start searxng` и новых запросов алерт гаснет («Resolved»).
 - [ ] Ручной запуск `z_pluma-inline-bots.sql` командой из раздела «Если имя бота занято» на работающем сервере проходит без ошибок и ничего не меняет: `@gif` и `@pic` работают, в логе bff нет `is not served`.
 - [ ] Вкладка GIF и `@pic кот` на Android, iOS, Desktop и Web после выката по документу: GIF уходит без «через @gif», фото с «через @pic»; в логе bff нет текста запроса «кот».
+
+### Часть G: поиск GIF в KLIPY
+Перед проверкой `KLIPY_API_KEY` в `.env` и bff пересоздан (`docs/ops/inline-bots.md`, «KLIPY»).
+- [ ] Android, iOS, Desktop, Web: вкладка GIF открывается с популярным KLIPY (не пустая), листание вниз подгружает ещё; выбранный GIF уходит без «через @gif», собеседник видит его и он проигрывается.
+- [ ] Android, iOS, Desktop: во вкладке GIF есть эмодзи-категории (👍 👎 😍 😂 😮 🙄 😥 😡 🥳 😎), каждая показывает свои GIF (👍 — большие пальцы, 😡 — злость). Если категорий нет — перезапустить клиент (конфиг приложения обновляется не сразу).
+- [ ] Web: поиск в панели GIF по слову («кот», «cat») даёт GIF; отправленный GIF виден собеседнику на Android.
+- [ ] `@gif кот` и `@gif hello` в поле ввода каждого клиента: сетка GIF, отправка с подписью «через @gif»; запрос по-русски даёт осмысленные результаты (`locale` для `ru` не передаётся — если выдача слабая, сказать).
+- [ ] Тот же запрос второй раз (другим пользователем, в течение часа) открывается мгновенно; в Prometheus `inline_klipy_requests_total{result="ok"}` при этом не растёт.
+- [ ] С телефона в мобильной сети или через Charles/прокси: при поиске и просмотре GIF устройство не обращается к `klipy.com` (все файлы — с сервера Pluma).
+- [ ] Неверный ключ (одна буква изменена) и пересоздание bff: вкладка GIF пуста, клиент не виснет, в течение 15 минут приходит пуш `InlineKlipyKeyRefused`; в логе bff ключа нет. Вернуть ключ — снова работает.
+- [ ] Пустой `KLIPY_API_KEY` и пересоздание bff: вкладка GIF — популярное внутри Pluma, эмодзи-категорий нет (после перезапуска клиента), GIF из KLIPY в старых сообщениях по-прежнему открываются.
+- [ ] Через сутки пробы: `inline_klipy_requests_total{result="limited"}` — сколько раз упёрлись в 100 запросов в час тестового ключа; при частых упорах запросить боевой ключ в KLIPY Partner Panel.
 
 ## Карты: статические превью геопозиций со своего сервера (задача 100, ADR 0063)
 

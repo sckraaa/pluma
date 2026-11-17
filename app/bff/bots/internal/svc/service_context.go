@@ -132,12 +132,19 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		},
 		d.MediaClient,
 	)
-	// The providers of the built-in bots by kind (task 099): @gif has the
-	// GIFs popular within the server (part D) until it has a search (part
-	// G); @pic searches pictures with SearXNG (part E) when SearxngURL names
-	// one, and answers with empty lists otherwise.
+	// The providers of the built-in bots by kind (task 099): @gif searches
+	// KLIPY (part G) when KlipyAPIKey is set, and has the GIFs popular
+	// within the server (part D) otherwise, never both in one list (ADR
+	// 0062, p. 4.1); @pic searches pictures with SearXNG (part E) when
+	// SearxngURL names one, and answers with empty lists otherwise.
+	var gifs inline.Provider = inline.NewLocal(inline.NewGifCounts(db), d.MediaClient, d.KV)
+	if c.InlineBots.GifSearch() {
+		klipy, err := inline.NewKlipy(inline.KlipyURL, c.InlineBots.KlipyAPIKey, d.KV)
+		logx.Must(err)
+		gifs = klipy
+	}
 	providers := map[inlinebots.Kind]inline.Provider{
-		inlinebots.KindGif: inline.NewLocal(inline.NewGifCounts(db), d.MediaClient, d.KV),
+		inlinebots.KindGif: gifs,
 	}
 	if c.InlineBots.SearxngURL != "" {
 		pictures, err := inline.NewSearxng(c.InlineBots.SearxngURL, d.KV)

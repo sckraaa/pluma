@@ -66,6 +66,15 @@ var (
 // a placeholder (GifContext.swift:65).
 const placeholder = "🔍"
 
+// GifSearchEmojies are the emoji categories of the GIF tab of the emoji
+// panel (gif_search_emojies of the app config) while @gif searches by text:
+// the default list of Android (MessagesController.java:1948-1957). Each is
+// a query to @gif (Android EmojiView.java:9015, iOS
+// ChatEntityKeyboardInputNode.swift:233, tdesktop
+// stickers_list_footer.cpp:137); without a search the list is empty, as
+// the categories would show empty lists (ADR 0062, p. 2).
+var GifSearchEmojies = []string{"👍", "👎", "😍", "😂", "😮", "🙄", "😥", "😡", "🥳", "😎"}
+
 // All returns the bots of the registry.
 func All() []Bot {
 	return []Bot{Gif, Pic}
