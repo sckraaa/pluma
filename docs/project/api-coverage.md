@@ -151,8 +151,8 @@
 | `account.toggleNoPaidMessagesException` | missing |  |  |
 | `account.toggleSponsoredMessages` | blocked |  | app/bff/sponsoredmessages/internal/core/account.toggleSponsoredMessages_handler.go:27 |
 | `account.toggleUsername` | ok |  | app/bff/usernames/internal/core/account.toggleUsername_handler.go:42 |
-| `account.toggleWebBrowserSettingsException2D0A0571` | ok |  | app/bff/webbrowser/internal/core/account.toggleWebBrowserSettingsException2D0A0571_handler.go:30 |
-| `account.toggleWebBrowserSettingsException60ED4229` | ok |  | app/bff/webbrowser/internal/core/account.toggleWebBrowserSettingsException60ED4229_handler.go:29 |
+| `account.toggleWebBrowserSettingsException2D0A0571` | ok |  | app/bff/webbrowser/internal/core/account.toggleWebBrowserSettingsException2D0A0571_handler.go:32 |
+| `account.toggleWebBrowserSettingsException60ED4229` | ok |  | app/bff/webbrowser/internal/core/account.toggleWebBrowserSettingsException60ED4229_handler.go:30 |
 | `account.unregisterDevice` | ok |  | app/bff/notification/internal/core/account.unregisterDevice_handler.go:30 |
 | `account.updateBirthday` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateBirthday_handler.go:28 |
 | `account.updateBusinessAwayMessage` | ok |  | app/bff/business/internal/core/account.updateBusinessAwayMessage_handler.go:35 |
