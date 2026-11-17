@@ -44,6 +44,7 @@
 //	pluma-admin [-f bff.yaml] release list|withdraw|restore|mandatory|optional [<platform> <build>]
 //	pluma-admin [-f bff.yaml] import-chat accounts|map|plan|run|status|abort ...
 //	pluma-admin [-f bff.yaml] calls show <call id>
+//	pluma-admin [-f bff.yaml] cdn canary-url [-expired] <dc>
 //	pluma-admin catalog check <dir>
 //	pluma-admin catalog receive -dir <dir> [-listen :9099]
 //
@@ -136,6 +137,14 @@
 // client's last status report and the alarms he is in. User ids, heights,
 // prefixes of hashes and counters only: no phone and no key. See
 // docs/ops/group-calls.md.
+//
+// cdn canary-url prints a URL of the canary of the CDN origin (/c/v1)
+// through a delivery of the HTTPS CDN (task 107, ADR 0071), signed as bff
+// signs the URLs of files and valid for an hour, with the curl line that
+// fetches the 4 KB range bff's health check fetches. It reads the
+// deliveries of bff.yaml with bff's checks, so it runs in the bff
+// container. -expired prints one whose time has passed instead, which must
+// be refused. See docs/ops/cdn.md.
 //
 // From the repo root (services run with teamgramd/etc, secrets in .env):
 //
@@ -271,6 +280,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] import-chat status [-dir <export> | <import id>]
   pluma-admin [-f bff.yaml] import-chat abort <import id>   (drops an import that is not finished)
   pluma-admin [-f bff.yaml] calls show <call id>   (the encryption of a group call: chain, polls, epochs, reports, alarms)
+  pluma-admin [-f bff.yaml] cdn canary-url [-expired] <dc>   (a signed URL of the CDN canary for an hour, and the curl that checks it)
   pluma-admin catalog check <dir>   (decodes a collection, stores nothing)
   pluma-admin catalog receive -dir <dir> [-listen :9099]   (takes a collection; $CATALOG_UPLOAD_TOKEN)
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
@@ -351,6 +361,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return importChatCommand(args, configFile, stdout)
 	case "calls":
 		return callsCommand(args, configFile, stdout)
+	case "cdn":
+		return cdnCommand(args, configFile, stdout, time.Now())
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {

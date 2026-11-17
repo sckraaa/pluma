@@ -74,6 +74,13 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"cdn file key", `func f(r *mtproto.TLUploadFileCdnRedirect, aesKey []byte) { logx.Errorf("%x %x %x", r.GetEncryptionKey(), r.GetEncryptionIv(), aesKey) }`, []string{"secret", "secret", "secret"}},
 		{"cdn request token keys", `func f(n struct{ RtKey, RtKeyPrev []byte }) { logx.Infof("%x %x", n.RtKey, n.RtKeyPrev) }`, []string{"secret", "secret"}},
 		{"cdn file secrets and hashes", `func f(f struct{ Secrets struct{ Key []byte }; Hashes []byte }) error { return fmt.Errorf("%v %x", f.Secrets, f.Hashes) }`, []string{"secret", "secret"}},
+		// the HTTPS CDN (task 107)
+		{"cdn signed url", `func f(signedURL, cdnURL string) { logx.Infof("%s %s", signedURL, cdnURL) }`, []string{"secret", "secret"}},
+		{"cdn signing keys", `func f(c struct{ TokenKey, SignKey string }) error { return fmt.Errorf("%s %s", c.TokenKey, c.SignKey) }`, []string{"secret", "secret"}},
+		{"cdn origin auth", `func f(originAuth string, o struct{ AuthValue string }) { logx.Errorf("%s %s", originAuth, o.AuthValue) }`, []string{"secret", "secret"}},
+		{"cdn redirect token", `func f(redirectToken []byte) error { return fmt.Errorf("token %x", redirectToken) }`, []string{"secret"}},
+		{"cdn config", `func f(c struct{ Cdn struct{ Routes string } }) { logx.Infof("cdn %+v", c.Cdn) }`, []string{"secret"}},
+		{"cdn delivery and status ok", `func f(dc int32, host string, status int) { logx.Infof("delivery %d (%s): %d", dc, host, status) }`, nil},
 		{"cdn file row and size ok", `func f(rowId, size int64, dcId int32) { logx.Infof("file row %d (%d bytes) on %d", rowId, size, dcId) }`, nil},
 		// audit #8: handshake secrets
 		{"handshake state", `func f(ctx *HandshakeStateCtx) { logx.Infof("state: %s", ctx) }`, []string{"object"}},
