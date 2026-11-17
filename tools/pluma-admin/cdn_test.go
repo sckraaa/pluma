@@ -17,7 +17,7 @@ package main
 
 import (
 	"bytes"
-	"crypto/md5" //nolint:gosec // the Secure Token of Gcore is defined over MD5
+	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -91,7 +91,7 @@ func TestCdnCanaryURLGcore(t *testing.T) {
 		}
 		u := canaryURLOf(t, out.String())
 		exp := strconv.FormatInt(now.Add(time.Hour).Unix(), 10)
-		sum := md5.Sum([]byte(exp + "/c/v1 " + key)) //nolint:gosec // the Secure Token of Gcore is defined over MD5
+		sum := md5.Sum([]byte(exp + "/c/v1 " + key))
 		want := base64.RawURLEncoding.EncodeToString(sum[:])
 		if u.Path != cdn.CanaryPath || u.Query().Get("expires") != exp || u.Query().Get("md5") != want {
 			t.Errorf("%s: URL %s, want /c/v1 with md5 %s and expires %s", f, u, want, exp)
@@ -107,7 +107,7 @@ func TestCdnCanaryURLGcore(t *testing.T) {
 		}
 		u = canaryURLOf(t, out.String())
 		e, err := strconv.ParseInt(u.Query().Get("expires"), 10, 64)
-		sum = md5.Sum([]byte(u.Query().Get("expires") + "/c/v1 " + key)) //nolint:gosec // the Secure Token of Gcore is defined over MD5
+		sum = md5.Sum([]byte(u.Query().Get("expires") + "/c/v1 " + key))
 		if err != nil || e >= now.Unix() || u.Query().Get("md5") != base64.RawURLEncoding.EncodeToString(sum[:]) {
 			t.Errorf("%s -expired: URL %s, want a valid token that expired before %d", f, u, now.Unix())
 		}

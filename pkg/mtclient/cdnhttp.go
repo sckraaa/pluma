@@ -175,7 +175,7 @@ func ParseHttpsToken(token []byte, allowHTTP bool) (id []byte, exp uint32, rawUR
 	if err != nil || u.Host == "" || u.User != nil {
 		return nil, 0, "", errors.New("mtclient: the URL of a PLH1 token does not parse")
 	}
-	if !strings.HasPrefix(rawURL, "https://") && !(allowHTTP && strings.HasPrefix(rawURL, "http://")) {
+	if !strings.HasPrefix(rawURL, "https://") && (!allowHTTP || !strings.HasPrefix(rawURL, "http://")) {
 		return nil, 0, "", fmt.Errorf("mtclient: the URL of a PLH1 token has the scheme %q", u.Scheme)
 	}
 	return id, exp, rawURL, nil
@@ -272,7 +272,7 @@ func (f *HttpsFetcher) FetchRange(ctx context.Context, rawURL string, offset, li
 	if err == nil || !errors.As(err, &fe) || !fe.retryable() {
 		return b, err
 	}
-	pause := cdnRetryMin + rand.N(cdnRetryMax-cdnRetryMin+1)
+	pause := cdnRetryMin + rand.N(cdnRetryMax-cdnRetryMin+1) //nolint:gosec // G404: retry jitter, not a secret
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()

@@ -55,7 +55,7 @@ package main
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // the Secure Token of Gcore is defined over MD5
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
@@ -176,7 +176,7 @@ func newCDN(cfg config) *cdn {
 
 // gcoreToken is Gcore's Secure Token without IP binding.
 func gcoreToken(expires, path, key string) string {
-	sum := md5.Sum([]byte(expires + path + " " + key))
+	sum := md5.Sum([]byte(expires + path + " " + key)) //nolint:gosec // the Secure Token of Gcore is defined over MD5
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
@@ -433,7 +433,7 @@ func (c *cdn) fetch(k sliceKey, query string) pull {
 	if query != "" {
 		u += "?" + query
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil) //nolint:gosec // G704: the origin of the configuration; the path always starts with "/"
 	if err != nil {
 		return pull{err: err}
 	}
@@ -449,7 +449,7 @@ func (c *cdn) fetch(k sliceKey, query string) pull {
 	c.st.Slices[k.path][k.idx]++
 	c.mu.Unlock()
 
-	resp, err := c.client.Do(req)
+	resp, err := c.client.Do(req) //nolint:gosec // G704: the origin of the configuration; the path always starts with "/"
 	if err != nil {
 		return pull{err: err}
 	}
