@@ -146,6 +146,16 @@ func runService(ctx context.Context, service string, opts ...testcontainers.Cont
 	return runImage(ctx, image, opts...)
 }
 
+// RunImage starts image, which must be pinned by tag and digest, with opts,
+// watched by the pinned reaper: for the tests of files that run in an image
+// of their own (teamgramd/deploy/ru/test).
+func RunImage(ctx context.Context, image string, opts ...testcontainers.ContainerCustomizer) (*testcontainers.DockerContainer, error) {
+	if !pinnedImage.MatchString(image) {
+		return nil, fmt.Errorf("testinfra: image %q is not pinned as name:tag@sha256:digest", image)
+	}
+	return runImage(ctx, image, opts...)
+}
+
 // runImage starts image with opts, watched by the pinned reaper.
 func runImage(ctx context.Context, image string, opts ...testcontainers.ContainerCustomizer) (*testcontainers.DockerContainer, error) {
 	if err := pinReaper(ctx); err != nil {

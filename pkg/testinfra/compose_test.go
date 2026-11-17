@@ -1,6 +1,7 @@
 package testinfra
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -112,6 +113,13 @@ func TestComposeImageRequiresDigest(t *testing.T) {
 		if got := pinnedImage.MatchString(image); got != pinned {
 			t.Errorf("%s: pinned %v, want %v", image, got, pinned)
 		}
+	}
+}
+
+// RunImage refuses an image that is not pinned before it reaches Docker.
+func TestRunImageRequiresDigest(t *testing.T) {
+	if _, err := RunImage(context.Background(), "ubuntu:26.04"); err == nil || !strings.Contains(err.Error(), "not pinned") {
+		t.Fatalf("RunImage of an image by tag: %v", err)
 	}
 }
 
