@@ -171,6 +171,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 415119041,
 		}
 	},
+	-1892541567: func() mtproto.TLObject { // 0x8f321b81 pluma: task 109
+		return &TLAuthsessionGetIpCountry{
+			Constructor: -1892541567,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1615,6 +1620,44 @@ func (m *TLAuthsessionGetIpRegion) CalcByteSize(layer int32) int {
 func (m *TLAuthsessionGetIpRegion) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
 	case 0x18be36c1:
+
+		// not has flags
+
+		m.Ip = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLAuthsessionGetIpCountry (pluma: task 109)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLAuthsessionGetIpCountry) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x8f321b81:
+		x.UInt(0x8f321b81)
+
+		// no flags
+
+		x.String(m.GetIp())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLAuthsessionGetIpCountry) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLAuthsessionGetIpCountry) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x8f321b81:
 
 		// not has flags
 

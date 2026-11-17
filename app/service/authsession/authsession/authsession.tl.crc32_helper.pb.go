@@ -46,4 +46,7 @@ const (
 
 	// pluma: task 106
 	CRC32_authsession_getIpRegion TLConstructor = 415119041 // 0x18be36c1
+
+	// pluma: task 109
+	CRC32_authsession_getIpCountry TLConstructor = -1892541567 // 0x8f321b81
 )

@@ -49,6 +49,7 @@ type AuthsessionClient interface {
 	AuthsessionChangeAuthorizationSettings(ctx context.Context, in *authsession.TLAuthsessionChangeAuthorizationSettings) (*mtproto.Int64, error)
 	AuthsessionGetRecentLangCode(ctx context.Context, in *authsession.TLAuthsessionGetRecentLangCode) (*mtproto.String, error)
 	AuthsessionGetIpRegion(ctx context.Context, in *authsession.TLAuthsessionGetIpRegion) (*mtproto.String, error)
+	AuthsessionGetIpCountry(ctx context.Context, in *authsession.TLAuthsessionGetIpCountry) (*mtproto.String, error)
 }
 
 type defaultAuthsessionClient struct {
@@ -345,4 +346,15 @@ func (m *defaultAuthsessionClient) AuthsessionGetIpRegion(ctx context.Context, i
 	}
 	client := authsession.NewRPCAuthsessionClient(m.cli.Conn())
 	return client.AuthsessionGetIpRegion(ctx, in)
+}
+
+// AuthsessionGetIpCountry
+// authsession.getIpCountry ip:string = String;
+func (m *defaultAuthsessionClient) AuthsessionGetIpCountry(ctx context.Context, in *authsession.TLAuthsessionGetIpCountry) (*mtproto.String, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := authsession.NewRPCAuthsessionClient(m.cli.Conn())
+	return client.AuthsessionGetIpCountry(ctx, in)
 }

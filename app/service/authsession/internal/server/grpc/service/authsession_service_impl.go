@@ -381,3 +381,17 @@ func (s *Service) AuthsessionGetIpRegion(ctx context.Context, request *authsessi
 
 	return r, err
 }
+
+// AuthsessionGetIpCountry
+// authsession.getIpCountry ip:string = String;
+func (s *Service) AuthsessionGetIpCountry(ctx context.Context, request *authsession.TLAuthsessionGetIpCountry) (*mtproto.String, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("authsession.getIpCountry - metadata: {%s}", c.MD)
+
+	r, err := c.AuthsessionGetIpCountry(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
