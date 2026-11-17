@@ -687,7 +687,8 @@ func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 
 // push is an update pushed to a user's devices.
 type push struct {
-	notMe   bool // to the devices other than the requesting one
+	notMe   bool  // to the devices other than the requesting one
+	authKey int64 // to the one device on this key (sync.updatesMe); 0 for all
 	updates *mtproto.Updates
 }
 

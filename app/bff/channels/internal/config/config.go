@@ -37,4 +37,9 @@ type Config struct {
 	MsgClient zrpc.RpcClientConf
 	// MediaClient stores the photos of channels.editPhoto (media).
 	MediaClient zrpc.RpcClientConf
+	// StatsDc is channelFull.stats_dc of those who may view the statistics
+	// (task 103, ADR 0066): bff's Stats.StatsDc(), this server's DC while
+	// the statistics are served, 0 while they are off and can_view_stats is
+	// never set.
+	StatsDc int32 `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

@@ -19,6 +19,7 @@ type Config struct {
 	zrpc.RpcServerConf
 	AuthSession      zrpc.RpcClientConf
 	StatusClient     zrpc.RpcClientConf
+	BizServiceClient zrpc.RpcClientConf // whether the user of a key is a bot (RpcMetadata.IsBot)
 	GatewayClient    zrpc.RpcClientConf
 	BFFProxyClients  conf.BFFProxyClients
 	UseStreamGateway bool `json:",default=false"`

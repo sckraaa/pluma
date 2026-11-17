@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -151,6 +152,17 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32, byServer bool
 	deleted, err := deleteRows(b, ch, channelId, out.Ids)
 	if err != nil || byServer {
 		return deleted, err
+	}
+	// The messages of others an admin deleted count among its actions; the
+	// server's moderation is no admin.
+	others := 0
+	for _, r := range rows {
+		if slices.Contains(out.Ids, r.Id) && r.SenderUserId != b.UserId() {
+			others++
+		}
+	}
+	if err = channelstats.AdminAction(b.Tx(), channelId, b.UserId(), b.Date(), channelstats.Deleted, others); err != nil {
+		return nil, err
 	}
 	// The recent actions keep the messages of others an admin deleted, and
 	// the posts of a broadcast channel.

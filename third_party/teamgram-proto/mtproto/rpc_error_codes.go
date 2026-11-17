@@ -2112,6 +2112,223 @@ var (
 	ErrMessageNotReadYet = status.Error(ErrBadRequest, "MESSAGE_NOT_READ_YET")
 )
 
+// pluma: the errors of Telegram Business (task 105, ADR 0067). The names
+// come from the method pages of core.telegram.org (account.updateBusinessWorkHours,
+// account.createBusinessChatLink, account.resolveBusinessChatLink,
+// account.updateConnectedBot, messages.editQuickReplyShortcut) and from
+// /api/business and /api/bots/connected-business-bots; the pages read give
+// no code for some of them, which are 400 here. ADDRESS_INVALID,
+// DESCRIPTION_INVALID and NO_ACTIVITY_DAYS_INVALID are not published by
+// Telegram: their names are this server's.
+var (
+	// ErrBusinessWorkHoursEmpty
+	// | 400 | BUSINESS_WORK_HOURS_EMPTY | No work hours were specified. |
+	ErrBusinessWorkHoursEmpty = status.Error(ErrBadRequest, "BUSINESS_WORK_HOURS_EMPTY")
+
+	// ErrBusinessWorkHoursPeriodInvalid
+	// | 400 | BUSINESS_WORK_HOURS_PERIOD_INVALID | The specified work hours are invalid. |
+	ErrBusinessWorkHoursPeriodInvalid = status.Error(ErrBadRequest, "BUSINESS_WORK_HOURS_PERIOD_INVALID")
+
+	// ErrTimezoneInvalid
+	// | 400 | TIMEZONE_INVALID | The specified timezone does not exist. |
+	ErrTimezoneInvalid = status.Error(ErrBadRequest, "TIMEZONE_INVALID")
+
+	// ErrAddressInvalid
+	// | 400 | ADDRESS_INVALID | The business address is longer than 96 characters. |
+	ErrAddressInvalid = status.Error(ErrBadRequest, "ADDRESS_INVALID")
+
+	// ErrDescriptionInvalid
+	// | 400 | DESCRIPTION_INVALID | The description of the business intro is too long. |
+	ErrDescriptionInvalid = status.Error(ErrBadRequest, "DESCRIPTION_INVALID")
+
+	// ErrNoActivityDaysInvalid
+	// | 400 | NO_ACTIVITY_DAYS_INVALID | The period of inactivity of a greeting is not 7, 14, 21 or 28 days. |
+	ErrNoActivityDaysInvalid = status.Error(ErrBadRequest, "NO_ACTIVITY_DAYS_INVALID")
+
+	// ErrChatlinksTooMuch
+	// | 400 | CHATLINKS_TOO_MUCH | Too many business chat links were created. |
+	ErrChatlinksTooMuch = status.Error(ErrBadRequest, "CHATLINKS_TOO_MUCH")
+
+	// ErrChatlinkSlugEmpty
+	// | 400 | CHATLINK_SLUG_EMPTY | The specified slug is empty. |
+	ErrChatlinkSlugEmpty = status.Error(ErrBadRequest, "CHATLINK_SLUG_EMPTY")
+
+	// ErrChatlinkSlugExpired
+	// | 400 | CHATLINK_SLUG_EXPIRED | The specified business chat link has expired. |
+	ErrChatlinkSlugExpired = status.Error(ErrBadRequest, "CHATLINK_SLUG_EXPIRED")
+
+	// ErrQuickRepliesTooMuch
+	// | 400 | QUICK_REPLIES_TOO_MUCH | Too many quick reply shortcuts. |
+	ErrQuickRepliesTooMuch = status.Error(ErrBadRequest, "QUICK_REPLIES_TOO_MUCH")
+
+	// ErrReplyMessagesTooMuch
+	// | 400 | REPLY_MESSAGES_TOO_MUCH | Too many messages in a quick reply shortcut. |
+	ErrReplyMessagesTooMuch = status.Error(ErrBadRequest, "REPLY_MESSAGES_TOO_MUCH")
+
+	// ErrQuickRepliesBotNotAllowed
+	// | 400 | QUICK_REPLIES_BOT_NOT_ALLOWED | Quick replies cannot be used by bots. |
+	// pluma: on core.telegram.org/method/messages.sendMessage and
+	// messages.sendMedia (task 108).
+	ErrQuickRepliesBotNotAllowed = status.Error(ErrBadRequest, "QUICK_REPLIES_BOT_NOT_ALLOWED")
+
+	// ErrShortcutInvalid
+	// | 400 | SHORTCUT_INVALID | The specified shortcut is invalid. |
+	ErrShortcutInvalid = status.Error(ErrBadRequest, "SHORTCUT_INVALID")
+
+	// ErrShortcutOccupied
+	// | 400 | SHORTCUT_OCCUPIED | Another shortcut has this name. |
+	ErrShortcutOccupied = status.Error(ErrBadRequest, "SHORTCUT_OCCUPIED")
+
+	// ErrBotBusinessMissing
+	// | 400 | BOT_BUSINESS_MISSING | The specified bot is not a business bot. |
+	ErrBotBusinessMissing = status.Error(ErrBadRequest, "BOT_BUSINESS_MISSING")
+
+	// ErrBusinessRecipientsEmpty
+	// | 400 | BUSINESS_RECIPIENTS_EMPTY | No recipients were specified. |
+	ErrBusinessRecipientsEmpty = status.Error(ErrBadRequest, "BUSINESS_RECIPIENTS_EMPTY")
+
+	// ErrBusinessConnectionInvalid
+	// | 400 | BUSINESS_CONNECTION_INVALID | The business connection is unknown or not the bot's. |
+	ErrBusinessConnectionInvalid = status.Error(ErrBadRequest, "BUSINESS_CONNECTION_INVALID")
+
+	// ErrBusinessConnectionNotAllowed
+	// | 400 | BUSINESS_CONNECTION_NOT_ALLOWED | This method cannot be called through a business connection. |
+	ErrBusinessConnectionNotAllowed = status.Error(ErrBadRequest, "BUSINESS_CONNECTION_NOT_ALLOWED")
+
+	// ErrBotAccessForbidden
+	// | 400 | BOT_ACCESS_FORBIDDEN | The business bot has no right to do this in this chat. |
+	ErrBotAccessForbidden = status.Error(ErrBadRequest, "BOT_ACCESS_FORBIDDEN")
+)
+
+// pluma: the errors of the bot platform (task 106, ADR 0068): login on
+// sites, mini apps, prepared buttons and widgets. URL_EXPIRED and
+// OAUTH_REQUEST_INVALID are on core.telegram.org/method/messages.requestUrlAuth
+// (OAUTH_REQUEST_INVALID with code 500 there, sent here with 400: Android
+// sends the request of an OAuth link without RequestFlagFailOnServerErrors,
+// ui/LinkManager.java:1350, and tgnet resends such a request on every 500,
+// jni/tgnet/ConnectionsManager.cpp:1372-1374, so a 500 would never reach
+// its error toast); BOT_WEBVIEW_DISABLED and
+// THEME_PARAMS_INVALID on /method/messages.requestWebView;
+// WEBAPP_REQ_ID_INVALID and BOT_ID_INVALID on
+// /method/bots.getRequestedWebViewButton. WIDGET_QUERY_TYPE_UNSUPPORTED is
+// the text the Android app gives a widget query it does not support itself
+// (org/telegram/utils/twidget/WidgetMedia.java:942). PLATFORM_INVALID,
+// PEER_TYPES_INVALID and BUTTON_ID_INVALID are not published by Telegram:
+// their names are this server's.
+var (
+	// ErrUrlExpired
+	// | 400 | URL_EXPIRED | The specified OAuth request has expired. |
+	ErrUrlExpired = status.Error(ErrBadRequest, "URL_EXPIRED")
+
+	// ErrOauthRequestInvalid
+	// | 400 | OAUTH_REQUEST_INVALID | The specified OAuth request is invalid. |
+	ErrOauthRequestInvalid = status.Error(ErrBadRequest, "OAUTH_REQUEST_INVALID")
+
+	// ErrBotWebviewDisabled
+	// | 400 | BOT_WEBVIEW_DISABLED | A webview cannot be opened in the specified conditions. |
+	ErrBotWebviewDisabled = status.Error(ErrBadRequest, "BOT_WEBVIEW_DISABLED")
+
+	// ErrThemeParamsInvalid
+	// | 400 | THEME_PARAMS_INVALID | The specified theme_params field is invalid. |
+	ErrThemeParamsInvalid = status.Error(ErrBadRequest, "THEME_PARAMS_INVALID")
+
+	// ErrPlatformInvalid
+	// | 400 | PLATFORM_INVALID | The platform of a web view is not 0 to 64 letters, digits and _. |
+	ErrPlatformInvalid = status.Error(ErrBadRequest, "PLATFORM_INVALID")
+
+	// ErrPeerTypesInvalid
+	// | 400 | PEER_TYPES_INVALID | The requested peer types are invalid. |
+	ErrPeerTypesInvalid = status.Error(ErrBadRequest, "PEER_TYPES_INVALID")
+
+	// ErrButtonIdInvalid
+	// | 400 | BUTTON_ID_INVALID | The specified button ID is invalid. |
+	ErrButtonIdInvalid = status.Error(ErrBadRequest, "BUTTON_ID_INVALID")
+
+	// ErrWebappReqIdInvalid
+	// | 400 | WEBAPP_REQ_ID_INVALID | The specified webapp_req_id is invalid. |
+	ErrWebappReqIdInvalid = status.Error(ErrBadRequest, "WEBAPP_REQ_ID_INVALID")
+
+	// ErrBotIdInvalid
+	// | 400 | BOT_ID_INVALID | The specified bot ID is invalid. |
+	ErrBotIdInvalid = status.Error(ErrBadRequest, "BOT_ID_INVALID")
+
+	// ErrButtonInvalid
+	// | 400 | BUTTON_INVALID | The specified button is invalid. |
+	// (core.telegram.org/method/bots.requestWebViewButton)
+	ErrButtonInvalid = status.Error(ErrBadRequest, "BUTTON_INVALID")
+
+	// ErrIdInvalid
+	// | 400 | ID_INVALID | The passed ID is invalid. |
+	// (core.telegram.org/method/messages.getPreparedInlineMessage)
+	ErrIdInvalid = status.Error(ErrBadRequest, "ID_INVALID")
+
+	// ErrIdExpired
+	// | 400 | ID_EXPIRED | The passed prepared inline message ID has expired. |
+	// (core.telegram.org/method/messages.getPreparedInlineMessage)
+	ErrIdExpired = status.Error(ErrBadRequest, "ID_EXPIRED")
+
+	// ErrWidgetQueryTypeUnsupported
+	// | 400 | WIDGET_QUERY_TYPE_UNSUPPORTED | The widget query type is not supported. |
+	ErrWidgetQueryTypeUnsupported = status.Error(ErrBadRequest, "WIDGET_QUERY_TYPE_UNSUPPORTED")
+)
+
+// pluma: the errors of widgets in bot messages (task 106, ADR 0068 p. 8),
+// by the names of Telegram's server as the official clients' widget
+// framework lists them (Android jni/twidget/widget-sandbox/docs/tgw-format.md,
+// "Sending and delivery" and "The widget's state and requests"). Of them
+// the clients read WIDGET_RESPONSE_TIMEOUT: a request that timed out
+// (Android utils/twidget/WidgetMedia.java:919, tdesktop tgw/tgw_bridge.cpp:63).
+// Telegram's codes are not published: 400 here, as BOT_RESPONSE_TIMEOUT.
+var (
+	// ErrInputMediaWidgetTooLarge
+	// | 400 | INPUT_MEDIA_WIDGET_TOO_LARGE | The HTML of the widget or its compressed form is too large. |
+	ErrInputMediaWidgetTooLarge = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_TOO_LARGE")
+
+	// ErrInputMediaWidgetHtmlInvalid
+	// | 400 | INPUT_MEDIA_WIDGET_HTML_INVALID | The HTML of the widget is not text. |
+	ErrInputMediaWidgetHtmlInvalid = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_HTML_INVALID")
+
+	// ErrInputMediaWidgetNotAllowed
+	// | 400 | INPUT_MEDIA_WIDGET_NOT_ALLOWED | The sender may not send a widget to this chat. |
+	ErrInputMediaWidgetNotAllowed = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_NOT_ALLOWED")
+
+	// ErrInputMediaWidgetDataTooLarge
+	// | 400 | INPUT_MEDIA_WIDGET_DATA_TOO_LARGE | The chat data or the public data of the widget is too large. |
+	ErrInputMediaWidgetDataTooLarge = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_DATA_TOO_LARGE")
+
+	// ErrInputMediaWidgetDataInvalid
+	// | 400 | INPUT_MEDIA_WIDGET_DATA_INVALID | The chat data or the public data of the widget is not text. |
+	ErrInputMediaWidgetDataInvalid = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_DATA_INVALID")
+
+	// ErrWidgetDataTooLarge
+	// | 400 | WIDGET_DATA_TOO_LARGE | The edited data of the widget is too large. |
+	ErrWidgetDataTooLarge = status.Error(ErrBadRequest, "WIDGET_DATA_TOO_LARGE")
+
+	// ErrWidgetDataInvalid
+	// | 400 | WIDGET_DATA_INVALID | The edited data or the answer of the widget is not text. |
+	ErrWidgetDataInvalid = status.Error(ErrBadRequest, "WIDGET_DATA_INVALID")
+
+	// ErrWidgetResultTooLarge
+	// | 400 | WIDGET_RESULT_TOO_LARGE | The answer to the widget's request is too large. |
+	ErrWidgetResultTooLarge = status.Error(ErrBadRequest, "WIDGET_RESULT_TOO_LARGE")
+
+	// ErrWidgetQueryDataInvalid
+	// | 400 | WIDGET_QUERY_DATA_INVALID | The data of the widget's request is empty or too long. |
+	ErrWidgetQueryDataInvalid = status.Error(ErrBadRequest, "WIDGET_QUERY_DATA_INVALID")
+
+	// ErrWidgetQueryNotAllowed
+	// | 400 | WIDGET_QUERY_NOT_ALLOWED | The widget of this message may not send requests. |
+	ErrWidgetQueryNotAllowed = status.Error(ErrBadRequest, "WIDGET_QUERY_NOT_ALLOWED")
+
+	// ErrWidgetResponseTimeout
+	// | 400 | WIDGET_RESPONSE_TIMEOUT | The bot did not answer the widget's request in time. |
+	ErrWidgetResponseTimeout = status.Error(ErrBadRequest, "WIDGET_RESPONSE_TIMEOUT")
+
+	// ErrWidgetIdInvalid
+	// | 400 | WIDGET_ID_INVALID | The widget_id is unknown or of another bot. |
+	ErrWidgetIdInvalid = status.Error(ErrBadRequest, "WIDGET_ID_INVALID")
+)
+
 // 401 UNAUTHORIZED
 var (
 	// ErrSessionPasswordNeeded

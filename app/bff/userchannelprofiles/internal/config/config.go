@@ -19,6 +19,7 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -34,4 +35,7 @@ type Config struct {
 	// ChannelClient is biz channel: the main tab of a channel's profile
 	// (task 078).
 	ChannelClient zrpc.RpcClientConf
+	// Mysql keeps the connected bots of Telegram Business, which edit the
+	// name and the bio of their accounts (task 105, pkg/business).
+	Mysql sqlx.Config
 }

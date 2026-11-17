@@ -31,6 +31,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/botwidgets"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -92,6 +93,19 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 		return nil, err
 	}
 
+	// Forwards kept in a quick reply shortcut (task 105): iOS forwards into
+	// one (PendingMessageManager.swift:1378), to the account itself. They
+	// are forwards into no chat: not saved from anywhere, as Saved
+	// Messages would mark them.
+	shortcut := in.GetQuickReplyShortcut()
+	if err = c.checkQuickReplySend(toPeer, shortcut, in.ScheduleDate); err != nil {
+		c.Logger.Errorf("messages.forwardMessages - error: %v", err)
+		return nil, err
+	}
+	if shortcut != nil {
+		saved = false
+	}
+
 	// The peer the forwards come from (send_as, task 079).
 	from, err := c.sendFrom(toPeer, in.GetSendAs())
 	if err != nil {
@@ -103,6 +117,24 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 	if err != nil {
 		c.Logger.Errorf("messages.forwardMessages#708e0195 - error: %v", err)
 		return nil, err
+	}
+
+	// A login code of a forwarded text (task 098): the texts as they were
+	// forwarded; a caption drop_media_captions removed was not sent.
+	texts := make([]string, 0, len(fwdOutboxList))
+	for _, m := range fwdOutboxList {
+		texts = append(texts, m.GetMessage().GetMessage())
+	}
+	if shortcut != nil {
+		// Nothing reaches a chat: the forwards of a channel's posts are not
+		// counted.
+		rUpdates, err = c.addQuickReplyMessages(shortcut, fwdOutboxList)
+		if err != nil {
+			c.Logger.Errorf("messages.forwardMessages - quick reply: %v", err)
+			return nil, err
+		}
+		c.invalidateSentLoginCodes(texts...)
+		return rUpdates, nil
 	}
 
 	rUpdates, err = c.svcCtx.Dao.MsgClient.MsgSendMessageV2(
@@ -124,6 +156,9 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 		return nil, err
 	}
 	c.attachPollReply(rUpdates)
+	// A forwarded message of the service notifications account with a
+	// login code, or any other text with one (task 098).
+	c.invalidateSentLoginCodes(texts...)
 
 	if fromPeer.PeerType == mtproto.PEER_CHANNEL {
 		// The forward is done and answered whatever happens to its count.
@@ -239,6 +274,13 @@ func (c *MessagesCore) makeForwardMessages(
 			return nil, mtproto.ErrQuizAnswerMissing
 		}
 		m.Media = polls.ForForward(m.GetMedia())
+		// A bot's widget goes as a copy that asks its bot nothing, and
+		// never without its author: "the server keeps the forward header
+		// even when the user asks to hide the sender, so a widget always
+		// shows which bot it is from" (task 106; Android
+		// jni/twidget/widget-sandbox/docs/tgw-format.md, "Who may send").
+		widget := botwidgets.Is(m.GetMedia())
+		m.Media = botwidgets.ForForward(m.GetMedia())
 		// TODO(@benqi): rid is 0
 
 		if m.GetGroupedId() != nil {
@@ -247,7 +289,7 @@ func (c *MessagesCore) makeForwardMessages(
 				groupedIds[groupedId] = rand.Int63()
 			}
 		}
-		if request.DropAuthor {
+		if request.DropAuthor && !widget {
 			// "Hide sender name": a copy, as the user's own message
 			// (drop_author; Android SendMessagesHelper.java:2535-2536). Its
 			// media go without captions with drop_media_captions.

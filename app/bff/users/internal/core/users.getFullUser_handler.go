@@ -19,6 +19,8 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/marmota/pkg/utils"
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
@@ -28,7 +30,10 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/business"
+	"github.com/teamgram/teamgram-server/pkg/env2"
 	"github.com/teamgram/teamgram-server/pkg/premium"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 
 	"github.com/zeromicro/go-zero/core/mr"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -182,6 +187,14 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 			return nil, err
 		}
 	}
+	// Whether I hid the translation bar of the chat with the user
+	// (messages.togglePeerTranslations, task 101): the clients read it from
+	// here (Android TranslateController.java:204-216, tdesktop
+	// data/data_user.cpp:992).
+	if userFull.TranslationsDisabled, err = c.translationsDisabled(peerId); err != nil {
+		c.Logger.Errorf("users.getFullUser - error: %v", err)
+		return nil, err
+	}
 	if user.CheckPrivacyFor(mtproto.SAVED_MUSIC, me) {
 		userFull.SavedMusic = user.GetUser().GetSavedMusic()
 	}
@@ -296,6 +309,31 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 
 	// TODO: FolderId:    0,
 
+	// The Business part of the profile (task 105): work hours, location
+	// and intro, which every client shows of any user (tdesktop
+	// data/data_user.cpp:1057-1061), and the automatic replies, which the
+	// clients read from their own userFull only (:1066-1071). Bots have
+	// none.
+	if !user.IsBot() && c.svcCtx.Dao.Business != nil {
+		if err = c.fillBusiness(userFull, peerId, peerId == c.MD.UserId); err != nil {
+			c.Logger.Errorf("users.getFullUser - error: %v", err)
+			return nil, err
+		}
+	}
+
+	// The bar of the connected bot of the caller in the chat (task 105):
+	// iOS takes the peerSettings of a user from userFull.settings whenever
+	// it loads the full user (TelegramCore UpdateCachedPeerData.swift:377),
+	// so they carry business_bot_* as messages.getPeerSettings does, and
+	// the bot goes in users.
+	var businessBot *mtproto.User
+	if !user.IsBot() && !c.MD.IsBot && peerId != c.MD.UserId && c.svcCtx.Dao.Business != nil {
+		if businessBot, err = c.fillBusinessBot(userFull, me, peerId); err != nil {
+			c.Logger.Errorf("users.getFullUser - error: %v", err)
+			return nil, err
+		}
+	}
+
 	// The stories of the user (task 084): those in the feeds that the
 	// viewer may open, and whether the profile has any for it; the plugin
 	// applies the rules of each story.
@@ -328,11 +366,44 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 	unsafeUser := user.ToUnsafeUser(me)
 	patchBotUsernameFromImmutable(unsafeUser, user)
 
+	users := []*mtproto.User{unsafeUser}
+	if businessBot != nil {
+		users = append(users, businessBot)
+	}
+
 	return mtproto.MakeTLUsersUserFull(&mtproto.Users_UserFull{
 		FullUser: userFull,
 		Chats:    chats,
-		Users:    []*mtproto.User{unsafeUser},
+		Users:    users,
 	}).To_Users_UserFull(), nil
+}
+
+// fillBusinessBot sets business_bot_* of userFull.settings when the
+// connected bot of the caller serves its chat with userId, and returns the
+// bot as me sees it; nil when no bot serves the chat.
+func (c *UsersCore) fillBusinessBot(userFull *mtproto.UserFull, me *mtproto.ImmutableUser, userId int64) (*mtproto.User, error) {
+	bar, err := c.svcCtx.Dao.Business.PeerBar(c.ctx, c.svcCtx.Dao.UserClient, env2.TDotMe, c.MD.UserId, userId)
+	if err != nil || bar == nil {
+		return nil, err
+	}
+	bot, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: bar.BotID})
+	if err != nil {
+		return nil, err
+	}
+	userFull.Settings = bar.Apply(userFull.Settings)
+	return bot.ToUnsafeUser(me), nil
+}
+
+// translationsDisabled tells whether the caller hid the translation bar
+// of its chat with userId; its own id is Saved Messages, which
+// togglePeerTranslations keeps under the same peer.
+func (c *UsersCore) translationsDisabled(userId int64) (bool, error) {
+	peer := translate.TranslationPeer{Type: mtproto.PEER_USER, Id: userId}
+	disabled, err := c.svcCtx.Translations.TranslationsDisabled(c.ctx, c.MD.UserId, peer)
+	if err != nil {
+		return false, err
+	}
+	return disabled[peer], nil
 }
 
 // fillBotInfo sets userFull.bot_info, what the chat with the bot shows as the
@@ -354,5 +425,71 @@ func (c *UsersCore) fillBotInfo(userFull *mtproto.UserFull, botId int64) {
 	}
 	if texts.About != nil {
 		userFull.About = mtproto.MakeFlagsString(*texts.About)
+	}
+}
+
+// fillBusiness sets the Business part of the profile of userId in
+// userFull, with the document of the sticker of the intro, and, for self,
+// the caller's own profile, its automatic replies.
+func (c *UsersCore) fillBusiness(userFull *mtproto.UserFull, userId int64, self bool) error {
+	p, err := c.svcCtx.Dao.Business.Profile(c.ctx, userId)
+	if err != nil {
+		return err
+	}
+	if self {
+		replies, err := c.svcCtx.Dao.Business.AutoReplies(c.ctx, userId)
+		if err != nil {
+			return err
+		}
+		setAutoReplies(userFull, replies)
+	}
+	var sticker *mtproto.Document
+	if p.Intro != nil && p.Intro.StickerID != 0 {
+		if sticker, err = c.svcCtx.Dao.MediaClient.MediaGetDocument(c.ctx, &mediapb.TLMediaGetDocument{Id: p.Intro.StickerID}); err != nil {
+			return err
+		}
+	}
+	setBusinessProfile(userFull, p, sticker, time.Now(), func(err error) {
+		c.Logger.Errorf("users.getFullUser - the work hours of %d: %v", userId, err)
+	})
+	return nil
+}
+
+// setBusinessProfile sets p in userFull at now: business_work_hours with
+// open_now, which only the server sets (core.telegram.org/api/business),
+// business_location and business_intro with sticker, the document of its
+// sticker. A sticker whose document is gone leaves the intro without one.
+// Work hours whose time zone the server no longer knows (it was known when
+// they were set) are left out and reported to fail: open_now cannot be told,
+// and the rest of the profile is still answered.
+func setBusinessProfile(userFull *mtproto.UserFull, p business.Profile, sticker *mtproto.Document, now time.Time, fail func(error)) {
+	if p.Hours != nil {
+		if h, err := p.Hours.ToTL(now); err != nil {
+			fail(err)
+		} else {
+			userFull.BusinessWorkHours = h
+		}
+	}
+	if p.Location != nil {
+		userFull.BusinessLocation = p.Location.ToTL()
+	}
+	if p.Intro != nil {
+		if sticker.GetPredicateName() != mtproto.Predicate_document {
+			sticker = nil
+		}
+		userFull.BusinessIntro = p.Intro.ToTL(sticker)
+	}
+}
+
+// setAutoReplies sets the automatic replies of the owner of userFull:
+// business_greeting_message and business_away_message. Only the owner gets
+// them: they are its settings, which the clients read only from their own
+// userFull (tdesktop data/data_user.cpp:1066-1071).
+func setAutoReplies(userFull *mtproto.UserFull, replies []*business.AutoReply) {
+	if a := business.AutoReplyOf(replies, business.KindGreeting); a != nil {
+		userFull.BusinessGreetingMessage = a.GreetingTL()
+	}
+	if a := business.AutoReplyOf(replies, business.KindAway); a != nil {
+		userFull.BusinessAwayMessage = a.AwayTL()
 	}
 }

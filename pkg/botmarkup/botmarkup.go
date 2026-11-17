@@ -20,6 +20,7 @@
 package botmarkup
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/teamgram/proto/mtproto"
@@ -30,11 +31,32 @@ import (
 // "callback_data 1-64 bytes".
 const maxCallbackData = 64
 
+// Env is what Normalize looks up for the buttons that name other accounts.
+type Env struct {
+	// Self is the bot whose message the markup belongs to: the login bot of
+	// a login button that names none (bots/api LoginUrl, bot_username: "If
+	// not specified, the current bot's username will be assumed").
+	Self int64
+	// ResolveUser turns an InputUser of a button into a user id, 0 when it
+	// names nobody.
+	ResolveUser func(*mtproto.InputUser) int64
+	// LoginDomain returns the login domain of the user (bots.login_domain,
+	// "" for none); isBot is false when the user is not a bot.
+	LoginDomain func(userId int64) (domain string, isBot bool, err error)
+	// Game tells that the message carries a game (messageMediaGame): only
+	// then may its markup have keyboardButtonGame, and only as the first
+	// button of the first row (core.telegram.org/bots/api#inlinekeyboardbutton,
+	// callback_game: "This type of button must always be the first button
+	// in the first row"). Clients open the game by that button: tdesktop
+	// makes a click on the game itself press the button at row 0, column 0
+	// (history/view/media/history_view_game.cpp:58-69).
+	Game bool
+}
+
 // Normalize checks markup and returns what is stored on the message: the
 // input buttons turned into their received form, requires_password dropped
-// (the server asks for no password on a press). resolve turns an InputUser of a button into a user id, 0
-// when it names nobody.
-func Normalize(markup *mtproto.ReplyMarkup, resolve func(*mtproto.InputUser) int64) (*mtproto.ReplyMarkup, error) {
+// (the server asks for no password on a press).
+func Normalize(markup *mtproto.ReplyMarkup, env Env) (*mtproto.ReplyMarkup, error) {
 	if markup == nil {
 		return nil, nil
 	}
@@ -50,9 +72,19 @@ func Normalize(markup *mtproto.ReplyMarkup, resolve func(*mtproto.InputUser) int
 		return nil, mtproto.ErrReplyMarkupInvalid
 	}
 	inline := markup.GetPredicateName() == mtproto.Predicate_replyInlineMarkup
-	for _, row := range markup.GetRows() {
+	// position numbers the buttons of the markup from 1, row by row: the
+	// button_id of a login button, which messages.requestUrlAuth names it
+	// by (tdesktop boxes/url_auth_box.cpp:279-295 sends button->buttonId of
+	// the button pressed).
+	position := int32(0)
+	for r, row := range markup.GetRows() {
 		for i, button := range row.GetButtons() {
-			normal, err := normalizeButton(button, inline, resolve)
+			position++
+			gameAllowed := inline && env.Game && r == 0 && i == 0
+			if button.GetPredicateName() == mtproto.Predicate_keyboardButtonGame && !gameAllowed {
+				return nil, mtproto.ErrButtonTypeInvalid
+			}
+			normal, err := normalizeButton(button, inline, position, env)
 			if err != nil {
 				return nil, err
 			}
@@ -62,7 +94,7 @@ func Normalize(markup *mtproto.ReplyMarkup, resolve func(*mtproto.InputUser) int
 	return markup, nil
 }
 
-func normalizeButton(b *mtproto.KeyboardButton, inline bool, resolve func(*mtproto.InputUser) int64) (*mtproto.KeyboardButton, error) {
+func normalizeButton(b *mtproto.KeyboardButton, inline bool, position int32, env Env) (*mtproto.KeyboardButton, error) {
 	if strings.TrimSpace(b.GetText()) == "" {
 		return nil, mtproto.ErrButtonTextInvalid
 	}
@@ -83,18 +115,9 @@ func normalizeButton(b *mtproto.KeyboardButton, inline bool, resolve func(*mtpro
 			return nil, mtproto.ErrButtonUrlInvalid
 		}
 	case mtproto.Predicate_inputKeyboardButtonRequestPeer:
-		// keyboardButtonRequestPeer is what clients get; the fields the
-		// answer may carry are the server's to keep and answering is
-		// messages.sendBotRequestedPeer's, not served yet.
-		return mtproto.MakeTLKeyboardButtonRequestPeer(&mtproto.KeyboardButton{
-			Style:       b.GetStyle(),
-			Text:        b.GetText(),
-			ButtonId:    b.GetButtonId(),
-			PeerType:    b.GetPeerType(),
-			MaxQuantity: b.GetMaxQuantity(),
-		}).To_KeyboardButton(), nil
+		return requestPeerButton(b), nil
 	case mtproto.Predicate_inputKeyboardButtonUserProfile:
-		id := resolve(b.GetUserId_INPUTUSER())
+		id := env.ResolveUser(b.GetUserId_INPUTUSER())
 		if id == 0 {
 			return nil, mtproto.ErrUserIdInvalid
 		}
@@ -103,12 +126,121 @@ func normalizeButton(b *mtproto.KeyboardButton, inline bool, resolve func(*mtpro
 			Text:         b.GetText(),
 			UserId_INT64: id,
 		}).To_KeyboardButton(), nil
-	case mtproto.Predicate_inputKeyboardButtonUrlAuth,
-		mtproto.Predicate_keyboardButtonUrlAuth:
-		// A login button needs the server to take part
-		// (messages.requestUrlAuth); a plain link in its place would drop
-		// the login without telling anybody.
+	case mtproto.Predicate_inputKeyboardButtonUrlAuth:
+		if !inline {
+			return nil, mtproto.ErrButtonTypeInvalid
+		}
+		return loginButton(b, position, env)
+	case mtproto.Predicate_keyboardButtonUrlAuth:
+		// The received form carries no login bot: a login needs the server
+		// to know it (messages.requestUrlAuth), and a plain link in its
+		// place would drop the login without telling anybody.
 		return nil, mtproto.ErrButtonTypeInvalid
 	}
 	return b, nil
+}
+
+// requestPeerButton turns inputKeyboardButtonRequestPeer into
+// keyboardButtonRequestPeer, what clients get. name_requested,
+// username_requested and photo_requested stay in the stored button for
+// messages.sendBotRequestedPeer, which gives the bot those parts of the
+// peers only when asked (messageActionRequestedPeerSentMe): messages are
+// stored as JSON of the object, and the TL constructor of
+// keyboardButtonRequestPeer has no such fields, so clients never get them.
+func requestPeerButton(b *mtproto.KeyboardButton) *mtproto.KeyboardButton {
+	return mtproto.MakeTLKeyboardButtonRequestPeer(&mtproto.KeyboardButton{
+		Style:             b.GetStyle(),
+		Text:              b.GetText(),
+		ButtonId:          b.GetButtonId(),
+		PeerType:          b.GetPeerType(),
+		MaxQuantity:       b.GetMaxQuantity(),
+		NameRequested:     b.GetNameRequested(),
+		UsernameRequested: b.GetUsernameRequested(),
+		PhotoRequested:    b.GetPhotoRequested(),
+	}).To_KeyboardButton()
+}
+
+// PreparedPeerButton checks the button a bot prepares for its mini app
+// (bots.requestWebViewButton: "an inputKeyboardButtonRequestPeer of any
+// RequestPeerType", core.telegram.org/method/bots.requestWebViewButton) and
+// returns its stored form, keyboardButtonRequestPeer with the requested
+// parts kept (requestPeerButton). A bot of layer 229 or later sends it as
+// keyboardButton with inputButtonTypeRequestPeer. The received form is taken
+// as well; any other button, one without text or without a peer type is
+// BUTTON_INVALID.
+func PreparedPeerButton(b *mtproto.KeyboardButton) (*mtproto.KeyboardButton, error) {
+	b = layercompat.CanonicalButton(b)
+	switch b.GetPredicateName() {
+	case mtproto.Predicate_inputKeyboardButtonRequestPeer, mtproto.Predicate_keyboardButtonRequestPeer:
+	default:
+		return nil, mtproto.ErrButtonInvalid
+	}
+	if strings.TrimSpace(b.GetText()) == "" {
+		return nil, mtproto.ErrButtonInvalid
+	}
+	switch b.GetPeerType().GetPredicateName() {
+	case mtproto.Predicate_requestPeerTypeUser,
+		mtproto.Predicate_requestPeerTypeChat,
+		mtproto.Predicate_requestPeerTypeBroadcast,
+		mtproto.Predicate_requestPeerTypeCreateBot:
+	default:
+		return nil, mtproto.ErrButtonInvalid
+	}
+	return requestPeerButton(b), nil
+}
+
+// loginButton turns inputKeyboardButtonUrlAuth into keyboardButtonUrlAuth
+// (core.telegram.org/api/url-authorization). The login bot and
+// request_write_access stay in the stored button, in UserId_INT64 and
+// RequestWriteAccess, for messages.requestUrlAuth: messages are stored as
+// JSON of the object, and the TL constructor of keyboardButtonUrlAuth has no
+// such fields, so clients never get them. The host of the link must be the
+// login domain of the bot (bots/api LoginUrl: "The url's domain must be the
+// same as the domain linked with the bot"), BOT_DOMAIN_INVALID otherwise.
+func loginButton(b *mtproto.KeyboardButton, position int32, env Env) (*mtproto.KeyboardButton, error) {
+	host, ok := LoginHost(b.GetUrl())
+	if !ok {
+		return nil, mtproto.ErrButtonUrlInvalid
+	}
+	botId := env.Self
+	if in := b.GetBot(); in != nil && in.GetPredicateName() != mtproto.Predicate_inputUserEmpty {
+		if botId = env.ResolveUser(in); botId == 0 {
+			return nil, mtproto.ErrBotInvalid
+		}
+	}
+	if botId == 0 || env.LoginDomain == nil {
+		return nil, mtproto.ErrBotInvalid
+	}
+	domain, isBot, err := env.LoginDomain(botId)
+	if err != nil {
+		return nil, err
+	}
+	if !isBot {
+		return nil, mtproto.ErrBotInvalid
+	}
+	if domain == "" || domain != host {
+		return nil, mtproto.ErrBotDomainInvalid
+	}
+	return mtproto.MakeTLKeyboardButtonUrlAuth(&mtproto.KeyboardButton{
+		Style:              b.GetStyle(),
+		Text:               b.GetText(),
+		FwdText:            b.GetFwdText(),
+		Url:                b.GetUrl(),
+		ButtonId:           position,
+		UserId_INT64:       botId,
+		RequestWriteAccess: b.GetRequestWriteAccess(),
+	}).To_KeyboardButton(), nil
+}
+
+// LoginHost returns the host of an https link in lower case, without a
+// port: what is compared with the login domain of a bot. ok is false for
+// anything else: the address gets the signed data of the user in its query,
+// which plain http would show to everyone on the way. That bots/api
+// LoginUrl asks for an HTTPS address is recalled, not verified.
+func LoginHost(link string) (string, bool) {
+	u, err := url.Parse(link)
+	if err != nil || !strings.EqualFold(u.Scheme, "https") || u.Hostname() == "" || u.User != nil {
+		return "", false
+	}
+	return strings.TrimSuffix(strings.ToLower(u.Hostname()), "."), true
 }

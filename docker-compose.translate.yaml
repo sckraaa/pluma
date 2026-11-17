@@ -1,0 +1,48 @@
+# The translation engine of message translation (task 101, ADR 0064,
+# docs/ops/translation.md): llama-server with one translation model in
+# memory, behind the chat endpoint of the OpenAI API, which bff calls. Not
+# started by default: translation is off until TRANSLATE_URL names an
+# engine. Added to the services command after the other compose files:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.translate.yaml up -d translate
+#
+# The model is in the image: another model or quantization is another image
+# (PLUMA_TRANSLATE_IMAGE) and its name in TRANSLATE_MODEL; any other service
+# with the same endpoint replaces this one through TRANSLATE_URL alone.
+#
+# The limits are those of the measurement (docs/ops/translation.md, "Замер"):
+# HY-MT1.5-1.8B Q8_0 read into memory with 4 slots of 4096 tokens holds
+# about 2.9 GB whatever it translates (the context is allocated at start).
+# The engine yields the processor to the rest of Pluma: its CPU weight is a
+# quarter of a service's, so messages and calls go first when the cores are
+# short. Another model or other slots need other limits: TRANSLATE_MEMORY,
+# TRANSLATE_CPUS in .env, never an edit of this file on a server.
+services:
+  translate:
+    mem_limit: ${TRANSLATE_MEMORY:-3584m}
+    memswap_limit: ${TRANSLATE_MEMORY:-3584m}
+    cpus: ${TRANSLATE_CPUS:-6}
+    cpu_shares: 256
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/translate/Dockerfile
+    image: ${PLUMA_TRANSLATE_IMAGE:-pluma-translate:local}
+    restart: unless-stopped
+    # Nothing is written: neither a text nor its translation touches a disk.
+    read_only: true
+    environment:
+      # The same token as bff sends; none if empty.
+      TRANSLATE_API_TOKEN: ${TRANSLATE_TOKEN:-}
+      TRANSLATE_THREADS: ${TRANSLATE_THREADS:-6}
+      # The variables bff reads too, with its defaults: bff sends as many
+      # requests at once as there are slots, and bounds an answer by the
+      # context of one.
+      TRANSLATE_SLOTS: ${TRANSLATE_SLOTS:-4}
+      TRANSLATE_CTX: ${TRANSLATE_CTX:-16384}
+    # No published port: only bff, on the network of the services, calls it.
+    # Prometheus does not read llama-server's /metrics, which wants the
+    # token; bff's translate_* metrics are what the alerts use.
+    networks:
+      - teamgram_net
+    stop_grace_period: 30s

@@ -23,12 +23,13 @@ import (
 )
 
 // UploadGetCdnFile
-// upload.getCdnFile#2000bcc3 file_token:bytes offset:int limit:int = upload.CdnFile;
+// upload.getCdnFile#395f69da file_token:bytes offset:long limit:int = upload.CdnFile;
+//
+// No DC of Pluma serves it (the MTProto CDN node is gone, ADR 0071): a
+// client that sends it is sent back to upload.getFile with
+// FILE_TOKEN_INVALID (Android FileLoadOperation.java:2583-2589, tdesktop
+// download_manager_mtproto.cpp:958-980). core.telegram.org lists
+// METHOD_INVALID for it, which the clients take for a failed download.
 func (c *FilesCore) UploadGetCdnFile(in *mtproto.TLUploadGetCdnFile) (*mtproto.Upload_CdnFile, error) {
-	// TODO: not impl
-	c.Logger.Errorf("upload.getCdnFile blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return mtproto.MakeTLUploadCdnFile(&mtproto.Upload_CdnFile{
-		Bytes: []byte{},
-	}).To_Upload_CdnFile(), nil
+	return nil, mtproto.ErrFileTokenInvalid
 }

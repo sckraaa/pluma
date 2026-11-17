@@ -5,7 +5,7 @@
 ## Схема
 
 - **Код.** Клон репозитория в `/opt/pluma` на том коммите, который запущен. Из него берутся compose-файлы, конфиги и миграции.
-- **Образы.** Сервер их не собирает. Задача `Images` в CI собирает образы коммита `master` после того, как на нём прошли все проверки: `ghcr.io/sckraaa/pluma-server`, `pluma-alertpush`, `pluma-backup`, `pluma-iosinstall`, `pluma-codes`, `pluma-stt` (сервис распознавания речи с моделью внутри, `docs/ops/transcription.md`) и `pluma-sfu` (медиа групповых звонков, `docs/ops/group-calls.md`). У коммита только с документацией, с красным CI и с CI, отменённым следующим push, образов нет; выкатывать надо последний коммит с кодом и зелёным CI, а при необходимости образы собирает ручной запуск `images` на нужной ветке. Тег у всех — полный SHA коммита. В `.env` сервера записаны образы его коммита (`TEAMGRAM_IMAGE`, `PLUMA_ALERTPUSH_IMAGE`, `PLUMA_BACKUP_IMAGE`). Без них compose собирает образы на месте: так работает машина разработки.
+- **Образы.** Сервер их не собирает. Задача `Images` в CI собирает образы коммита `master` после того, как на нём прошли все проверки: `ghcr.io/sckraaa/pluma-server`, `pluma-alertpush`, `pluma-backup`, `pluma-iosinstall`, `pluma-codes`, `pluma-stt` (сервис распознавания речи с моделью внутри, `docs/ops/transcription.md`), `pluma-translate` (перевод сообщений, модель внутри, `docs/ops/translation.md`) и `pluma-sfu` (медиа групповых звонков, `docs/ops/group-calls.md`). У коммита только с документацией, с красным CI и с CI, отменённым следующим push, образов нет; выкатывать надо последний коммит с кодом и зелёным CI, а при необходимости образы собирает ручной запуск `images` на нужной ветке. Тег у всех — полный SHA коммита. В `.env` сервера записаны образы его коммита (`TEAMGRAM_IMAGE`, `PLUMA_ALERTPUSH_IMAGE`, `PLUMA_BACKUP_IMAGE`). Без них compose собирает образы на месте: так работает машина разработки.
 - **Свой адрес.** У Pluma может быть IPv4 рядом с основным адресом сервера (`PLUMA_PUBLIC_IPV4`, `docker-compose.public-ip.yaml`):
   - шлюз публикует порты только на нём;
   - исходящий трафик всех контейнеров уходит с него, потому что мост `teamgram_net` подменяет адрес на этот (SNAT) вместо основного.
@@ -99,7 +99,7 @@ Web K раздаёт с адреса Pluma контейнер `web` (`docker-com
   Откат — то же `ln -sfn … && mv -T` на прежний выпуск. Старые выпуски удаляются руками, кроме двух последних.
 - **Ссылки pluma.chat** (задача 026, ADR 0036). Пути сайта, которые не являются его файлами или страницами (`/<имя>`, `/+<хеш>`, `/addstickers/…`, `/s/<канал>` и т. д.), Caddy передаёт сервису `links` (основной `docker-compose.yaml`, порт `9096` внутри сети). Сервис показывает объект, как t.me, и открывает приложение. Без сервиса эти пути отвечают 502. Новую страницу сайта нужно исключить из `@links` в Caddyfile; если её адрес может быть username — добавить его в `user.ReservedUsername`. Файл `/.well-known/assetlinks.json` (Android App Links, отпечаток сертификата подписи релиза) лежит в `public/` сайта. Заняты ли уже зарезервированные имена (список — `reservedUsernames` в `app/service/biz/user/user/username.go`):
   ```bash
-  docker exec mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N teamgram -e "SELECT peer_type, peer_id, username FROM username WHERE LOWER(username) IN (\"android\",\"iphone\",\"windows\",\"linux\",\"assets\",\"collect\",\"addemoji\",\"addlist\",\"addstickers\",\"addstyle\",\"addtheme\",\"auction\",\"boost\",\"confirmphone\",\"contact\",\"giftcode\",\"invoice\",\"joinchat\",\"login\",\"proxy\",\"setlanguage\",\"share\",\"socks\",\"newbot\")"'
+  docker exec mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N teamgram -e "SELECT peer_type, peer_id, username FROM username WHERE LOWER(username) IN (\"android\",\"iphone\",\"windows\",\"linux\",\"assets\",\"collect\",\"addemoji\",\"addlist\",\"addstickers\",\"addstyle\",\"addtheme\",\"auction\",\"boost\",\"confirmphone\",\"contact\",\"giftcode\",\"invoice\",\"joinchat\",\"login\",\"proxy\",\"setlanguage\",\"share\",\"socks\",\"newbot\",\"oauth\")"'
   ```
   Пустой ответ — совпадений нет. Совпавшее имя у владельца остаётся, но его ссылка pluma.chat не откроет профиль.
 - **Другие сайты на том же адресе.** Сайты оператора вне Pluma (например, свой сервис на отдельном домене) не дописываются в `teamgramd/deploy/web/Caddyfile`: локальная правка остановит `git checkout` при выкатке. Каждый — отдельный файл `<имя>.caddy` в `/srv/pluma-caddy-sites` на хосте (другое место — `PLUMA_CADDY_SITES_DIR` в `.env`); Caddyfile подключает их последней строкой `import`. Каталог может быть пустым. После изменения файла: `docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml exec web caddy reload --config /etc/caddy/Caddyfile`. Пароли (`basic_auth`) хранятся только в этих файлах, в репозиторий не попадают.
@@ -190,6 +190,35 @@ Web K раздаёт с адреса Pluma контейнер `web` (`docker-com
 ## Прогресс на сайте
 Блок «Насколько Pluma уже Telegram» на pluma.chat берёт данные из `/progress.json`. Caddy отдаёт по этому адресу `docs/project/api-coverage.json` выкатанной версии: каталог `docs/project` смонтирован в контейнер `web` (`docker-compose.web.yaml`). Файл генерирует `go run ./tools/apicoverage` вместе с `api-coverage.md`, CI проверяет, что он актуален. После каждой выкатки цифры на сайте обновляются сами.
 - Один раз, когда монтирование только появилось, контейнер `web` пересоздаётся: `docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml up -d --no-deps web`.
+
+## Платформа ботов (задача 106)
+
+Выкат один раз, по порядку. Что умеют боты и как их настраивать — `bots.md`; секреты — `security-setup.md`, §2 и §6.
+
+До выката:
+1. **Секреты** в `.env` на хосте ядра:
+   - `BOT_SECRET_ENCRYPTION_KEY` и `WEBAPP_SIGNING_KEY` — каждый `openssl rand -hex 32`, разные. Без них сервер работает, но мини-приложения и вход через ботов выключены.
+   - Ключ ID-токенов `oauth.pluma.chat`: `(umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/oauth_signing_key.pem)`. Файл должен существовать до `up`: compose монтирует его в `links` как secret и без файла не поднимает стек вовсе. Если провайдер пока не нужен — пустой файл (`install -m 600 /dev/null secrets/oauth_signing_key.pem`).
+2. **DNS — шаг владельца.** В Cloudflare A-запись `oauth.pluma.chat` на адрес края `195.201.252.126`, как у `pluma.chat`, без проксирования. Запись CAA `pluma.chat` действует и на это имя: Caddy дома получит сертификат тем же аккаунтом Let's Encrypt (`home-server.md`, «Сертификаты и CAA»). Проверка: `dig +short oauth.pluma.chat` отвечает адресом края. Другое имя провайдера — запись DNS для него и `PLUMA_OAUTH_DOMAIN` в `.env`: из неё берут имя и сайт Caddy, и `OAuth.Issuer` конфига `links` (`teamgramd/etc2/links.yaml`); `links` отвечает как провайдер только на это имя, и оно же стоит в `iss` ID-токенов. После смены имени пересоздать `web` и `links`.
+3. **Имя `oauth`** теперь зарезервировано: `pluma.chat/oauth?startapp=…` — ссылка входа на сайт. Запрос из раздела «Ссылки pluma.chat» выше проверяет, не занято ли оно уже.
+
+Выкат:
+4. Обычное обновление (раздел «Обновление» или `pluma-deploy.sh`). Таблицы создаёт `migrate` (`migrate-20261121-bot-platform.sql`, повторный запуск безопасен).
+5. **Пересоздать `web`:**
+   ```bash
+   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml up -d --no-deps --force-recreate web
+   ```
+   Caddyfile примонтирован в контейнер файлом. `git checkout` кладёт на его место новый файл, а контейнер продолжает видеть прежний; кроме того, у `web` новая переменная `PLUMA_OAUTH_DOMAIN`. `pluma-deploy.sh` контейнер `web` не пересоздаёт.
+6. **Новые токены работающим ботам** (`bots.md`, «Развёртывание»): `bot list`, затем `bot token <имя_bot>` для каждого бота, у которого есть свой процесс. У встроенных `@gif` и `@pic` токенов нет. Токен передаётся владельцу бота, бот перезапускается с ним.
+7. Открытый ключ подписи мини-приложений (`bot webapp-key`) отдать разработчикам ботов.
+
+Проверка:
+- `pluma-admin migrate status` — `0 pending`.
+- `curl -s https://oauth.pluma.chat/.well-known/openid-configuration` — JSON с `"issuer":"https://oauth.pluma.chat"`; `curl -s https://oauth.pluma.chat/.well-known/jwks.json` — ключ RSA.
+- После первых открытий приложений и входов в логах `bff` и `links` нет строк `keys of bot … do not open`.
+- Ручные проверки в клиентах — `docs/project/TESTING-BACKLOG.md`, разделы задачи 106.
+
+Откат: миграция только добавляет таблицы и колонки, прежняя версия их не читает. Ключи ботов остаются в `bot_secret_keys` и снова работают после повторного выката; боту, получившему токен на прежней версии, после него нужен новый токен.
 
 ## Обновление слоёв (ADR 0045)
 

@@ -31,6 +31,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -792,6 +793,11 @@ func (d *Dao) ReadTopic(b *userbox.Box, channelId int64, topicId, maxId int32) e
 	if _, err = b.Tx().Exec("INSERT INTO channel_thread_reads (user_id, channel_id, top_id, read_max_id) VALUES (?, ?, ?, ?)"+
 		" ON DUPLICATE KEY UPDATE read_max_id = GREATEST(read_max_id, VALUES(read_max_id))",
 		b.UserId(), channelId, topicId, maxId); err != nil {
+		return err
+	}
+	// A forum is read topic by topic: a member who reads one is a viewer
+	// of the supergroup that day, as by channels.readHistory (Read).
+	if err = channelstats.Reader(b.Tx(), channelId, b.UserId(), b.Date()); err != nil {
 		return err
 	}
 	if _, err = b.Tx().Exec("UPDATE channel_message_mentions mm JOIN channel_messages m ON m.channel_id = mm.channel_id AND m.id = mm.message_id"+

@@ -651,6 +651,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 2145706849,
 		}
 	},
+	-864359738: func() mtproto.TLObject { // 0xcc7aeac6 pluma: task 104
+		return &TLUserEditUsernames{
+			Constructor: -864359738,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -4595,6 +4600,10 @@ func (m *TLUserUpdateBotData) Encode(x *mtproto.EncodeBuf, layer int32) error {
 		if m.GetBotHasMainApp() != nil {
 			flags |= 1 << 13
 		}
+		// user.bot_business (task 105): the bit of the user's flags2.
+		if m.GetBotBusiness() != nil {
+			flags |= 1 << 11
+		}
 
 		x.UInt(flags)
 
@@ -4622,6 +4631,10 @@ func (m *TLUserUpdateBotData) Encode(x *mtproto.EncodeBuf, layer int32) error {
 
 		if m.GetBotHasMainApp() != nil {
 			m.GetBotHasMainApp().Encode(x, layer)
+		}
+
+		if m.GetBotBusiness() != nil {
+			m.GetBotBusiness().Encode(x, layer)
 		}
 
 	default:
@@ -4672,6 +4685,11 @@ func (m *TLUserUpdateBotData) Decode(dBuf *mtproto.DecodeBuf) error {
 			m8 := &mtproto.Bool{}
 			m8.Decode(dBuf)
 			m.BotHasMainApp = m8
+		}
+		if (flags & (1 << 11)) != 0 {
+			m9 := &mtproto.Bool{}
+			m9.Decode(dBuf)
+			m.BotBusiness = m9
 		}
 		return dBuf.GetError()
 
@@ -7285,6 +7303,54 @@ func (m *TLUserSetGhost) Decode(dBuf *mtproto.DecodeBuf) error {
 		m4 := &mtproto.Bool{}
 		m4.Decode(dBuf)
 		m.Ghost = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserEditUsernames (pluma: task 104)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserEditUsernames) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xcc7aeac6:
+		x.UInt(0xcc7aeac6)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetAction())
+		x.String(m.GetUsername())
+		m.GetActive().Encode(x, layer)
+		x.VectorString(m.GetOrder())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserEditUsernames) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserEditUsernames) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xcc7aeac6:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.Action = dBuf.Int()
+		m.Username = dBuf.String()
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.Active = m4
+		m.Order = dBuf.VectorString()
 		return dBuf.GetError()
 
 	default:

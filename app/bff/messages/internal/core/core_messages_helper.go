@@ -8,14 +8,19 @@ package core
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userclient "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/botgames"
+	"github.com/teamgram/teamgram-server/pkg/botwidgets"
 	"github.com/teamgram/teamgram-server/pkg/mediaerr"
 	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
@@ -230,9 +235,18 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
 	case mtproto.Predicate_inputMediaGame:
 		// inputMediaGame#d33f43f3 id:InputGame = InputMedia;
-
-		// TODO(@benqi): Not impl inputMediaGame
-		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
+		//
+		// pluma: a game is a message of its own, which messages.sendMedia
+		// makes with gameSend (task 106); not an album item, an edit or
+		// any other media.
+		err = mtproto.ErrMediaInvalid
+	case mtproto.Predicate_inputMediaWidget, mtproto.Predicate_inputMediaWidgetId:
+		// pluma: a bot's widget is a message of its own, which
+		// messages.sendMedia makes with makeWidgetMedia (task 106): not an
+		// album item or the media of an edit, since the HTML of a widget
+		// never changes after the send (Android
+		// jni/twidget/widget-sandbox/docs/tgw-format.md).
+		err = mtproto.ErrMediaInvalid
 	case mtproto.Predicate_inputMediaInvoice:
 		// inputMediaInvoice#d9799874 flags:# title:string description:string photo:flags.0?InputWebDocument invoice:Invoice payload:bytes provider:string provider_data:DataJSON start_param:flags.1?string = InputMedia;
 
@@ -241,9 +255,14 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 	case mtproto.Predicate_inputMediaGeoLive:
 		// inputMediaGeoLive#971fa843 flags:# stopped:flags.0?true geo_point:InputGeoPoint heading:flags.2?int period:flags.1?int proximity_notification_radius:flags.3?int = InputMedia;
 
+		// pluma: with the heading and the proximity radius the clients
+		// show and alert by (messageMediaGeoLive#b940c666).
+		geoLive := media.To_InputMediaGeoLive()
 		messageMedia = mtproto.MakeTLMessageMediaGeoLive(&mtproto.MessageMedia{
-			Geo:    mtproto.MakeGeoPointByInput(media.To_InputMediaGeoLive().GetGeoPoint()),
-			Period: media.To_InputMediaGeoLive().GetPeriod().GetValue(),
+			Geo:                         mtproto.MakeGeoPointByInput(geoLive.GetGeoPoint()),
+			Heading:                     geoLive.GetHeading(),
+			Period:                      geoLive.GetPeriod().GetValue(),
+			ProximityNotificationRadius: geoLive.GetProximityNotificationRadius(),
 		}).To_MessageMedia()
 	case mtproto.Predicate_inputMediaPoll:
 		// inputMediaPoll#f94e5f1 flags:# poll:Poll correct_answers:flags.0?Vector<bytes> solution:flags.1?string solution_entities:flags.1?Vector<MessageEntity> = InputMedia;
@@ -526,4 +545,118 @@ func (c *MessagesCore) clearSentDraft(ctx context.Context, peer *mtproto.PeerUti
 	}); err != nil {
 		c.Logger.Errorf("clear draft - error: %v", err)
 	}
+}
+
+// gameSend is the game a message of messages.sendMedia carries
+// (inputMediaGame, task 106, ADR 0068 p. 7): its media, its title, which
+// the button that starts it names, and the bot of a game a user sends.
+type gameSend struct {
+	media  *mtproto.MessageMedia
+	title  string
+	viaBot int64
+}
+
+// makeGameMedia finds the game of in for c's account (botgames.Find: a bot
+// its own games, a user any game by its link or a game already sent).
+//
+// Games go to private chats, groups and supergroups, not to channels or
+// the direct messages of channels: "Games can't be sent to channel direct
+// messages chats and channel chats" (core.telegram.org/bots/api#sendgame),
+// and Android offers no channels for a game's link
+// (LaunchActivity.java:4562-4567, cantSendToChannels).
+//
+// A game a user sends goes via its bot (viaBot): the bot is who answers its
+// button, and the message names it as an inline result names its bot.
+// tdesktop takes the bot of a message from via_bot_id, then from the
+// sender (HistoryItem::getMessageBot, history_item.cpp:2287-2296), and
+// without a bot opens the game in the browser instead of its window
+// (BotGameUrlClickHandler, click_handler_types.cpp:687-693); the press of
+// the button reaches the bot as the press of an inline message, which a
+// bot gets in any chat, a member of it or not.
+//
+// A connected business bot sends no game for its account: the press of a
+// business message reaches the bot as updateBusinessBotCallbackQuery,
+// which has no game_short_name to start the game with
+// (MessagesGetBotCallbackAnswer). BOT_ACCESS_FORBIDDEN, as for the other
+// parts of a send the bot cannot use (businessSend).
+func (c *MessagesCore) makeGameMedia(peer *mtproto.PeerUtil, in *mtproto.InputMedia) (*gameSend, error) {
+	if c.business != nil {
+		return nil, mtproto.ErrBotAccessForbidden
+	}
+	if peer.PeerType == mtproto.PEER_CHANNEL {
+		mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
+		if err != nil {
+			return nil, err
+		}
+		if mc.GetChannel().GetBroadcast() || mc.GetChannel().GetMonoforum() {
+			return nil, mtproto.ErrChatSendGameForbidden
+		}
+	}
+	game, err := botgames.Find(c.ctx, c.svcCtx.Games, in.GetId_INPUTGAME(), botgames.Sender{
+		Id:    c.MD.UserId,
+		IsBot: c.MD.IsBot,
+		BotOf: c.isBotUser,
+	})
+	if err != nil {
+		return nil, err
+	}
+	tl, err := botgames.TL(c.ctx, c.svcCtx.Dao.MediaClient, game)
+	if err != nil {
+		c.Logger.Errorf("messages.sendMedia - game: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
+	out := &gameSend{media: botgames.MessageMedia(tl), title: game.Title}
+	if game.BotId != c.MD.UserId {
+		out.viaBot = game.BotId
+	}
+	return out, nil
+}
+
+// isBotUser tells whether the user is a bot that exists.
+func (c *MessagesCore) isBotUser(ctx context.Context, userId int64) (bool, error) {
+	u, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(ctx, &userpb.TLUserGetImmutableUser{Id: userId})
+	if errors.Is(err, mtproto.ErrUserIdInvalid) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return u.IsBot() && !u.Deleted(), nil
+}
+
+// makeWidgetMedia makes the widget a bot sends with messages.sendMedia
+// (inputMediaWidget, inputMediaWidgetId; task 106, ADR 0068 p. 8). A bot
+// sends widgets "to its private chat with a user and to the basic groups
+// and supergroups it is a member of"; channels "are not among them", nor
+// are users' messages (INPUT_MEDIA_WIDGET_NOT_ALLOWED; Android
+// jni/twidget/widget-sandbox/docs/tgw-format.md, "Who may send, and where
+// it may go"). The right to send it in a group is the right to send photos
+// (pkg/channelperm), which msg checks with the send. A connected business
+// bot sends as its account (businessAct), so its widget would be a user's
+// message too, although the request is still the bot's (RpcMetadata.IsBot).
+func (c *MessagesCore) makeWidgetMedia(peer *mtproto.PeerUtil, in *mtproto.InputMedia) (*mtproto.MessageMedia, error) {
+	widget, _ := botwidgets.FromInputMedia(in)
+	if !c.MD.IsBot || c.business != nil {
+		return nil, mtproto.ErrInputMediaWidgetNotAllowed
+	}
+	where := botwidgets.Group
+	switch peer.PeerType {
+	case mtproto.PEER_USER:
+		if peer.PeerId == c.MD.UserId {
+			return nil, mtproto.ErrInputMediaWidgetNotAllowed
+		}
+		where = botwidgets.PrivateWithBot
+	case mtproto.PEER_CHAT:
+	case mtproto.PEER_CHANNEL:
+		mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
+		if err != nil {
+			return nil, err
+		}
+		if mc.GetChannel().GetBroadcast() || mc.GetChannel().GetMonoforum() {
+			return nil, mtproto.ErrInputMediaWidgetNotAllowed
+		}
+	default:
+		return nil, mtproto.ErrPeerIdInvalid
+	}
+	return botwidgets.Media(c.ctx, c.svcCtx.Widgets, c.MD.UserId, widget, where, int32(time.Now().Unix()))
 }

@@ -166,6 +166,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 299421713,
 		}
 	},
+	415119041: func() mtproto.TLObject { // 0x18be36c1 pluma: task 106
+		return &TLAuthsessionGetIpRegion{
+			Constructor: 415119041,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1576,6 +1581,44 @@ func (m *TLAuthsessionGetRecentLangCode) Decode(dBuf *mtproto.DecodeBuf) error {
 
 		m.UserId = dBuf.Long()
 		m.ExceptAuthKeyId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLAuthsessionGetIpRegion (pluma: task 106)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLAuthsessionGetIpRegion) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x18be36c1:
+		x.UInt(0x18be36c1)
+
+		// no flags
+
+		x.String(m.GetIp())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLAuthsessionGetIpRegion) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLAuthsessionGetIpRegion) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x18be36c1:
+
+		// not has flags
+
+		m.Ip = dBuf.String()
 		return dBuf.GetError()
 
 	default:

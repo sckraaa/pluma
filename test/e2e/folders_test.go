@@ -111,11 +111,16 @@ func updateDialogFilter(ctx context.Context, t *testing.T, u *user, id int32, f 
 	}
 }
 
-// waitUpdate waits on u for an update of predicate for which match holds.
+// waitUpdate waits on u for an update of predicate for which match holds,
+// in updates or alone in updateShort (typing, for one).
 func waitUpdate(ctx context.Context, t *testing.T, u *user, predicate string, match func(*mtproto.Update) bool) {
 	t.Helper()
 	_, err := u.c.WaitUpdate(ctx, func(us *mtproto.Updates) bool {
-		for _, x := range us.GetUpdates() {
+		list := us.GetUpdates()
+		if us.GetPredicateName() == mtproto.Predicate_updateShort {
+			list = []*mtproto.Update{us.GetUpdate()}
+		}
+		for _, x := range list {
 			if x.GetPredicateName() == predicate && match(x) {
 				return true
 			}

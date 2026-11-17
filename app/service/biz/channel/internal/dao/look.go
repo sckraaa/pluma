@@ -16,12 +16,14 @@
 package dao
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/peernames"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -176,25 +178,6 @@ func (d *Dao) UpdateEmojiStatus(b *userbox.Box, channelId int64, documentId int6
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
 }
 
-// usernameRow is a row of username of a channel.
-type usernameRow struct {
-	Id       int64  `db:"id"`
-	Username string `db:"username"`
-	Editable bool   `db:"editable"`
-	Active   bool   `db:"active"`
-}
-
-// activeNames are the usernames of rows shown, in their order.
-func activeNames(rows []usernameRow) []string {
-	names := []string{}
-	for _, r := range rows {
-		if r.Active {
-			names = append(names, r.Username)
-		}
-	}
-	return names
-}
-
 // EditUsernames changes the usernames of the channel by b's owner, who must
 // be its creator, as for its public link (usernameEditor;
 // channels.toggleUsername is for "a supergroup or channel you own",
@@ -205,7 +188,7 @@ func activeNames(rows []usernameRow) []string {
 //
 //   - channel.UsernamesToggle shows (active) or hides username, one of the
 //     channel's: USERNAME_INVALID for another, USERNAME_NOT_MODIFIED for
-//     its state, USERNAMES_ACTIVE_TOO_MUCH past maxShownUsernames shown.
+//     its state, USERNAMES_ACTIVE_TOO_MUCH past peernames.MaxShown shown.
 //     The editable one is always shown: the channel is made
 //     private by channels.updateUsername instead, so hiding it is
 //     USERNAME_INVALID;
@@ -225,21 +208,19 @@ func (d *Dao) EditUsernames(b *userbox.Box, channelId int64, action int32, usern
 	if err := usernameEditor(b, channelId); err != nil {
 		return nil, err
 	}
-	var rows []usernameRow
-	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT id, username, editable, active FROM username WHERE peer_type = ? AND peer_id = ? ORDER BY order2, id FOR UPDATE",
-		mtproto.PEER_CHANNEL, channelId); err != nil {
+	rows, err := peernames.Load(b, mtproto.PEER_CHANNEL, channelId)
+	if err != nil {
 		return nil, err
 	}
-	before := activeNames(rows)
+	before := peernames.Active(rows)
 	switch action {
 	case channel.UsernamesToggle:
-		if err := toggleUsername(b, rows, username, active); err != nil {
-			return nil, err
+		if err = peernames.Toggle(b, rows, username, active); err != nil {
+			return nil, channelUsernamesError(err)
 		}
 	case channel.UsernamesReorder:
-		if err := reorderUsernames(b, rows, order); err != nil {
-			return nil, err
+		if err = peernames.Reorder(b, rows, order); err != nil {
+			return nil, channelUsernamesError(err)
 		}
 	case channel.UsernamesDeactivateAll:
 		res, err := b.Tx().Exec("UPDATE username SET active = 0 WHERE peer_type = ? AND peer_id = ? AND editable = 0 AND active = 1",
@@ -255,14 +236,12 @@ func (d *Dao) EditUsernames(b *userbox.Box, channelId int64, action int32, usern
 	default:
 		return nil, mtproto.ErrInputRequestInvalid
 	}
-	var now []usernameRow
-	if err := b.Tx().QueryRowsPartial(&now,
-		"SELECT id, username, editable, active FROM username WHERE peer_type = ? AND peer_id = ? ORDER BY order2, id",
-		mtproto.PEER_CHANNEL, channelId); err != nil {
+	now, err := peernames.Load(b, mtproto.PEER_CHANNEL, channelId)
+	if err != nil {
 		return nil, err
 	}
-	after := activeNames(now)
-	if err := adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionChangeUsernames(&mtproto.ChannelAdminLogEventAction{
+	after := peernames.Active(now)
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionChangeUsernames(&mtproto.ChannelAdminLogEventAction{
 		PrevValue_VECTORSTRING: before, NewValue_VECTORSTRING: after,
 	}).To_ChannelAdminLogEventAction(), strings.Join(after, " ")); err != nil {
 		return nil, err
@@ -270,90 +249,19 @@ func (d *Dao) EditUsernames(b *userbox.Box, channelId int64, action int32, usern
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
 }
 
-// maxShownUsernames is how many usernames a channel shows at most; the
-// clients tell of it on USERNAMES_ACTIVE_TOO_MUCH (tdesktop kMaxUsernames,
-// edit_peer_usernames_list.cpp:338).
-const maxShownUsernames = 10
-
-// toggleUsername shows or hides username, one of rows (EditUsernames). The
-// table compares usernames without case, and so does the match. Showing one
-// more than maxShownUsernames is USERNAMES_ACTIVE_TOO_MUCH
-// (core.telegram.org/method/channels.toggleUsername).
-func toggleUsername(b *userbox.Box, rows []usernameRow, username string, active bool) error {
-	for _, r := range rows {
-		if !strings.EqualFold(r.Username, username) {
-			continue
-		}
-		switch {
-		case r.Active == active:
-			return mtproto.ErrUsernameNotModified
-		case r.Editable:
-			return mtproto.ErrUsernameInvalid
-		case active && len(activeNames(rows)) >= maxShownUsernames:
-			return mtproto.ErrUsernamesActiveTooMuch
-		}
-		_, err := b.Tx().Exec("UPDATE username SET active = ? WHERE id = ?", active, r.Id)
-		return err
-	}
-	return mtproto.ErrUsernameInvalid
-}
-
-// usernamesOrder places the shown usernames of rows in order: the index in
-// order of each, or false when order does not list each of them once.
-func usernamesOrder(rows []usernameRow, order []string) (map[int64]int, bool) {
-	at := make(map[int64]int, len(order))
-	shown := 0
-	for _, r := range rows {
-		if !r.Active {
-			continue
-		}
-		shown++
-		found := false
-		for i, name := range order {
-			if strings.EqualFold(r.Username, name) {
-				if found {
-					return nil, false
-				}
-				at[r.Id], found = i, true
-			}
-		}
-		if !found {
-			return nil, false
-		}
-	}
-	return at, shown == len(order)
-}
-
-// reorderUsernames orders the shown usernames of rows as order
-// (EditUsernames); the hidden ones follow them, in their order.
-func reorderUsernames(b *userbox.Box, rows []usernameRow, order []string) error {
-	at, ok := usernamesOrder(rows, order)
-	if !ok {
+// channelUsernamesError is the error of channels.toggleUsername or
+// channels.reorderUsernames for an error of peernames (EditUsernames);
+// another error is returned as it is.
+func channelUsernamesError(err error) error {
+	switch {
+	case errors.Is(err, peernames.ErrNotFound), errors.Is(err, peernames.ErrEditable), errors.Is(err, peernames.ErrBadOrder):
 		return mtproto.ErrUsernameInvalid
-	}
-	same := true
-	i := 0
-	for _, r := range rows {
-		if r.Active {
-			same = same && at[r.Id] == i
-			i++
-		}
-	}
-	if same {
+	case errors.Is(err, peernames.ErrSame):
+		return mtproto.ErrUsernameNotModified
+	case errors.Is(err, peernames.ErrTooMany):
+		return mtproto.ErrUsernamesActiveTooMuch
+	case errors.Is(err, peernames.ErrSameOrder):
 		return mtproto.ErrChatNotModified
 	}
-	base := b.Date() << 32
-	hidden := int64(len(order))
-	for _, r := range rows {
-		pos := hidden
-		if r.Active {
-			pos = int64(at[r.Id])
-		} else {
-			hidden++
-		}
-		if _, err := b.Tx().Exec("UPDATE username SET order2 = ? WHERE id = ?", base+pos, r.Id); err != nil {
-			return err
-		}
-	}
-	return nil
+	return err
 }

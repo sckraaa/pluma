@@ -1,0 +1,50 @@
+# Map previews of geo points (task 100, ADR 0063, docs/ops/maps.md). The
+# metrics are bff's (webmap_*, pkg/staticmap/metrics.go): the maps service
+# sits on an internal network Prometheus is not on, and tileserver-gl has
+# no metrics of its own, so a render seen from bff is what tells. Only maps
+# missing from the Redis cache are rendered; with MAPS_URL empty nothing is
+# rendered and none of these fire.
+groups:
+  - name: maps
+    rules:
+      # Nothing rendered for a quarter of an hour while bff asked: the
+      # container is stopped, cannot start (no data file, out of memory),
+      # or bff was recreated without docker-compose.maps.yaml and does not
+      # reach it on maps_net. A series that has never had an "ok" counts as
+      # none at all. bff creates a result series on its first render, so a
+      # series that appeared within the window is counted as well: increase
+      # does not see the renders it was born with, and a few failed maps after
+      # a quiet start would otherwise never fire.
+      - alert: MapsRendererDown
+        expr: |
+          (
+            sum(increase(webmap_render_total[15m])) > 0
+            or
+            count(webmap_render_total unless webmap_render_total offset 15m) > 0
+          )
+          unless
+          (
+            sum(increase(webmap_render_total{result="ok"}[15m])) > 0
+            or
+            count(webmap_render_total{result="ok"} unless webmap_render_total{result="ok"} offset 15m) > 0
+          )
+        labels: {severity: warning}
+        annotations:
+          summary: "No map preview rendered for 15 minutes; new geo points show without a map"
+          description: "docker compose ... -f docker-compose.maps.yaml ps maps; logs --tail 50 maps; docker network inspect of maps_net has bff; the bff log has 'staticmap: render for user' with the error class. docs/ops/maps.md, 'Неполадки'"
+
+      # More than a fifth of the renders fail over 10 minutes, at least 10 of
+      # them: the service is overloaded (timeout: renders or the wait for a
+      # render slot past MAPS_TIMEOUT), answers errors (a style bff asks for
+      # is not in the image), or returns images of a wrong size (invalid).
+      - alert: MapsRenderFailing
+        expr: |
+          sum(increase(webmap_render_total[10m])) >= 10
+          and
+          sum(increase(webmap_render_total{result!="ok"}[10m]))
+            / sum(increase(webmap_render_total[10m])) > 0.2
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "More than 20% of map previews fail to render"
+          description: "sum by (result) (increase(webmap_render_total[10m])); docker stats for the maps container (memory, CPU); MAPS_STYLES of bff against the styles of the image. docs/ops/maps.md, 'Неполадки'"

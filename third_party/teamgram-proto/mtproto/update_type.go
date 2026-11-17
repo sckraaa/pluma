@@ -45,6 +45,12 @@ const (
 	PTS_UPDATE_PINNED_CHANNEL_MESSAGES = 15
 	QTS_UPDATE_MMESSAGE_POLL_VOTE      = 16
 	QTS_UPDATE_BOT_STOPPED             = 17
+
+	// pluma: the bot's edit of the state of a widget in a message (task
+	// 106), in the common box's pts as updateEditMessage (Android
+	// MessagesController.getUpdateType, tdesktop api_updates.cpp
+	// updateAndApply).
+	PTS_UPDATE_MESSAGE_WIDGET_DATA = 18
 )
 
 func GetUpdateType(update *Update) int32 {
@@ -86,6 +92,8 @@ func GetUpdateType(update *Update) int32 {
 		return QTS_UPDATE_MMESSAGE_POLL_VOTE
 	case "updateBotStopped": // mtproto.Predicate_updateBotStopped:
 		return QTS_UPDATE_BOT_STOPPED
+	case Predicate_updateMessageWidgetData: // pluma: task 106
+		return PTS_UPDATE_MESSAGE_WIDGET_DATA
 	}
 	return PTS_UPDATE_TYPE_UNKNOWN
 }

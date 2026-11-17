@@ -23,14 +23,28 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/botgames"
+	"github.com/teamgram/teamgram-server/pkg/botwidgets"
+	"github.com/teamgram/teamgram-server/pkg/business"
 
 	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/threading"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // MessagesSendMedia
 // messages.sendMedia#e25ff8e0 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtproto.Updates, error) {
+	// A connected business bot writes for its account (task 105).
+	if _, err := c.businessAct(business.MethodSendMedia, in.Peer); err != nil {
+		c.Logger.Errorf("messages.sendMedia - business connection: %v", err)
+		return nil, err
+	}
+	if err := c.businessSend(in.ScheduleDate, in.GetQuickReplyShortcut(), in.GetSendAs()); err != nil {
+		c.Logger.Errorf("messages.sendMedia - business connection: %v", err)
+		return nil, err
+	}
+
 	var (
 		peer       *mtproto.PeerUtil
 		linkChatId int64
@@ -61,6 +75,11 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		c.Logger.Errorf("messages.sendMedia: %v", err)
 		return nil, err
 	}
+	// A message for a quick reply shortcut (task 105).
+	if err = c.checkQuickReplySend(peer, in.GetQuickReplyShortcut(), in.ScheduleDate); err != nil {
+		c.Logger.Errorf("messages.sendMedia - error: %v", err)
+		return nil, err
+	}
 	// The peer the messages come from (send_as, task 079).
 	from, err := c.sendFrom(peer, in.GetSendAs())
 	if err != nil {
@@ -68,10 +87,25 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		return nil, err
 	}
 
-	replyMarkup, err := c.botMarkup(in.ReplyMarkup)
+	// A game (task 106): its media, its bot and the button that starts it
+	// (botgames.Markup).
+	var game *gameSend
+	if in.Media.GetPredicateName() == mtproto.Predicate_inputMediaGame {
+		if game, err = c.makeGameMedia(peer, in.Media); err != nil {
+			c.Logger.Errorf("messages.sendMedia - game: %v", err)
+			return nil, err
+		}
+	}
+	replyMarkup, err := c.botMarkup(in.ReplyMarkup, game != nil)
 	if err != nil {
 		c.Logger.Errorf("messages.sendMedia - reply markup: %v", err)
 		return nil, err
+	}
+	if game != nil {
+		if replyMarkup, err = botgames.Markup(replyMarkup, game.title, c.MD.LangCode); err != nil {
+			c.Logger.Errorf("messages.sendMedia - reply markup of a game: %v", err)
+			return nil, err
+		}
 	}
 
 	outMessage := mtproto.MakeTLMessage(&mtproto.Message{
@@ -112,6 +146,8 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		Factcheck:            nil,
 	}).To_Message()
 
+	c.businessMessage(outMessage)
+
 	// Fix SavedPeerId
 	if peer.IsSelfUser(c.MD.UserId) {
 		outMessage.SavedPeerId = peer.ToPeer()
@@ -150,8 +186,19 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		}).To_MessageReplies()
 	}
 
-	outMessage.Media, err = c.makeMediaByInputMedia(in.Media)
-	if err != nil {
+	if game != nil {
+		outMessage.Media = game.media
+		if game.viaBot != 0 {
+			outMessage.ViaBotId = wrapperspb.Int64(game.viaBot)
+		}
+	} else if _, widget := botwidgets.FromInputMedia(in.Media); widget {
+		// A bot's widget (task 106), made last: a shared one is an object
+		// from here on.
+		if outMessage.Media, err = c.makeWidgetMedia(peer, in.Media); err != nil {
+			c.Logger.Errorf("messages.sendMedia - widget: %v", err)
+			return nil, err
+		}
+	} else if outMessage.Media, err = c.makeMediaByInputMedia(in.Media); err != nil {
 		c.Logger.Errorf("messages.sendMedia - error: %v", err)
 		return nil, err
 	}
@@ -171,30 +218,49 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 	//
 	//	return hasBot
 	//})
+	outbox := msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
+		NoWebpage:    true,
+		Background:   in.Background,
+		RandomId:     in.RandomId,
+		Message:      withRepeatPeriod(outMessage, in.ScheduleDate, in.GetScheduleRepeatPeriod()),
+		ScheduleDate: in.ScheduleDate,
+	}).To_OutboxMessage()
+	if shortcut := in.GetQuickReplyShortcut(); shortcut != nil {
+		// The message is kept for later: no poll is stored and no story is
+		// shared until it is sent; a sticker is used now.
+		rUpdate, err := c.addQuickReplyMessages(shortcut, []*msgpb.OutboxMessage{outbox})
+		if err != nil {
+			c.Logger.Errorf("messages.sendMedia - quick reply: %v", err)
+			return nil, err
+		}
+		c.invalidateSentLoginCodes(in.Message)
+		c.addRecentStickers(in.Media, outMessage.Media)
+		return rUpdate, nil
+	}
+
 	rUpdate, err := c.svcCtx.Dao.MsgClient.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
 		UserId:    c.MD.UserId,
 		AuthKeyId: c.MD.PermAuthKeyId,
 		PeerType:  peer.PeerType,
 		PeerId:    peer.PeerId,
-		Message: []*msgpb.OutboxMessage{
-			msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
-				NoWebpage:    true,
-				Background:   in.Background,
-				RandomId:     in.RandomId,
-				Message:      withRepeatPeriod(outMessage, in.ScheduleDate, in.GetScheduleRepeatPeriod()),
-				ScheduleDate: in.ScheduleDate,
-			}).To_OutboxMessage(),
-		},
+		Message:   []*msgpb.OutboxMessage{outbox},
 	})
 
 	if err != nil {
 		c.Logger.Errorf("messages.sendMedia#c8f16791 - error: %v", err)
 		return nil, err
 	}
+	// A code in the caption (task 098).
+	c.invalidateSentLoginCodes(in.Message)
 
 	c.attachPollReply(rUpdate)
-	c.addRecentStickers(in.Media, outMessage.Media)
 	c.storyShared(in.Media, in.RandomId)
+	// The recent stickers and the draft are the account's, not the bot's:
+	// a bot's send leaves them.
+	if c.business != nil {
+		return c.businessReply(rUpdate)
+	}
+	c.addRecentStickers(in.Media, outMessage.Media)
 
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)

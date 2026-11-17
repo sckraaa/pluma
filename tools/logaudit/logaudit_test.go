@@ -37,6 +37,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -47,10 +48,46 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		body string
 		want []string
 	}{
+		// the bot platform (task 106)
+		{"init data", `func f(initData string) { logx.Infof("open %s", initData) }`, []string{"secret"}},
+		{"web app key", `func f(webAppKey []byte) error { return fmt.Errorf("key %x", webAppKey) }`, []string{"secret"}},
+		{"match code", `func f(in *mtproto.TLMessagesAcceptUrlAuth) { logx.Infof("code %s", in.GetMatchCode()) }`, []string{"secret"}},
+		{"client secret", `func f(clientSecret string) { logx.Errorf("client %q", clientSecret) }`, []string{"secret"}},
+		{"bot id ok", `func f(botId int64) { logx.Infof("bot %d", botId) }`, nil},
+		// the translation of messages (task 101)
+		{"translation", `func f(translation, sourceText string) { logx.Infof("%s from %s", translation, sourceText) }`, []string{"secret", "secret"}},
+		{"text of an item", `func f(item *mtproto.TextWithEntities) { logx.Infof("item %q", item.GetText()) }`, []string{"secret"}},
+		{"text of a request", `func f(in *mtproto.TLMessagesTranslateText, t *mtproto.TLTextWithEntities) error { return fmt.Errorf("%s: %s", in.GetText(), t.Text) }`, []string{"secret", "secret"}},
+		{"text length ok", `func f(item *mtproto.TextWithEntities) { logx.Infof("item of %d", len(item.GetText())) }`, nil},
+		{"model prompt", `func f(req struct{ Prompt string }) error { return fmt.Errorf("prompt %q failed", req.Prompt) }`, []string{"secret"}},
+		{"model answer", `func f(content, completion string) { logx.Errorf("answer %s / %s", content, completion) }`, []string{"secret", "secret"}},
+		{"compose result", `func f(r *mtproto.Messages_ComposedMessageWithAI) { logx.Infof("%v", r.GetResultText()) }`, []string{"secret"}},
+		{"translated", `func f(translated []string) { logx.Infof("%v", translated) }`, []string{"secret"}},
+		{"translation length ok", `func f(translation string, toLang string) { logx.Infof("%d characters to %s", len(translation), toLang) }`, nil},
+		// the statistics of channels (task 103)
+		{"zoom token", `func f(g *mtproto.StatsGraph, statsToken string) { logx.Infof("%s %s", g.GetZoomToken(), statsToken) }`, []string{"secret", "secret"}},
+		{"stats token key", `func f(c struct{ Stats struct{ ThisDc int32; TokenKey string } }) error { return fmt.Errorf("dc %d key %s", c.Stats.ThisDc, c.Stats.TokenKey) }`, []string{"secret"}},
+		{"stats channel ok", `func f(channelId int64, method string) { logx.Infof("%s of %d", method, channelId) }`, nil},
+		// the CDN of large files (task 102)
+		{"cdn file token", `func f(in *mtproto.TLUploadGetCdnFile, fileToken []byte) { logx.Infof("%x %x", in.GetFileToken(), fileToken) }`, []string{"secret", "secret"}},
+		{"cdn request token", `func f(in *mtproto.TLUploadReuploadCdnFile) error { return fmt.Errorf("bad %x", in.RequestToken) }`, []string{"secret"}},
+		{"cdn file key", `func f(r *mtproto.TLUploadFileCdnRedirect, aesKey []byte) { logx.Errorf("%x %x %x", r.GetEncryptionKey(), r.GetEncryptionIv(), aesKey) }`, []string{"secret", "secret", "secret"}},
+		{"cdn request token keys", `func f(n struct{ RtKey, RtKeyPrev []byte }) { logx.Infof("%x %x", n.RtKey, n.RtKeyPrev) }`, []string{"secret", "secret"}},
+		{"cdn file secrets and hashes", `func f(f struct{ Secrets struct{ Key []byte }; Hashes []byte }) error { return fmt.Errorf("%v %x", f.Secrets, f.Hashes) }`, []string{"secret", "secret"}},
+		// the HTTPS CDN (task 107)
+		{"cdn signed url", `func f(signedURL, cdnURL string) { logx.Infof("%s %s", signedURL, cdnURL) }`, []string{"secret", "secret"}},
+		{"cdn signing keys", `func f(c struct{ TokenKey, SignKey string }) error { return fmt.Errorf("%s %s", c.TokenKey, c.SignKey) }`, []string{"secret", "secret"}},
+		{"cdn origin auth", `func f(originAuth string, o struct{ AuthValue string }) { logx.Errorf("%s %s", originAuth, o.AuthValue) }`, []string{"secret", "secret"}},
+		{"cdn redirect token", `func f(redirectToken []byte) error { return fmt.Errorf("token %x", redirectToken) }`, []string{"secret"}},
+		{"cdn config", `func f(c struct{ Cdn struct{ Routes string } }) { logx.Infof("cdn %+v", c.Cdn) }`, []string{"secret"}},
+		{"cdn delivery and status ok", `func f(dc int32, host string, status int) { logx.Infof("delivery %d (%s): %d", dc, host, status) }`, nil},
+		{"cdn file row and size ok", `func f(rowId, size int64, dcId int32) { logx.Infof("file row %d (%d bytes) on %d", rowId, size, dcId) }`, nil},
 		// audit #8: handshake secrets
 		{"handshake state", `func f(ctx *HandshakeStateCtx) { logx.Infof("state: %s", ctx) }`, []string{"object"}},
 		{"new_nonce", `func f(ctx *HandshakeStateCtx) { logx.Infof("n: %x", ctx.NewNonce) }`, []string{"secret"}},
 		{"dh a", `func f(ctx *HandshakeStateCtx) { logx.Debugf("a: %v", ctx.A) }`, []string{"secret"}},
+		{"shared handshake key", `func f(k *handshake.DHGenKey) { logx.Infof("key: %v", k) }`, []string{"object"}},
+		{"shared handshake result", `func f(r *ReqDHParamsResult) { logx.Infof("res: %+v", r) }`, []string{"object"}},
 		{"g_b", `func f(in *mtproto.Client_DHInnerData) { logx.Infof("g_b: %s", in.GetGB()) }`, []string{"secret"}},
 		{"inner data", `func f(in *mtproto.TLClient_DHInnerData) { logx.Infof("inner: %#v", in.String()) }`, []string{"object"}},
 		// audit #9: key material in errors and packet dumps
@@ -69,6 +106,8 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"slice of messages", `func f(msgs []*mtproto.TLMessage2) { logx.Infof("%#v", msgs) }`, []string{"object"}},
 		{"login code", `func f(phoneCode, phoneCodeHash string) { logx.Infof("code %s hash %s", phoneCode, phoneCodeHash) }`, []string{"secret", "secret"}},
 		{"code getter", `func f(in *mtproto.TLAuthSignIn) { logx.Infof("%s", in.GetPhoneCode_STRING()) }`, []string{"secret"}},
+		{"shown login codes", `func f(in *mtproto.TLAccountInvalidateSignInCodes, candidates []string) { logx.Infof("%v %v", in.GetCodes(), candidates) }`, []string{"secret", "secret"}},
+		{"shown login codes count ok", `func f(in *mtproto.TLAccountInvalidateSignInCodes, n int) { logx.Infof("%d of %d", n, len(in.GetCodes())) }`, nil},
 		{"srp proof", `func f(in *mtproto.InputCheckPasswordSRP) { logx.Infof("A %x M1 %x", in.GetA(), in.M1) }`, []string{"secret", "secret"}},
 		{"srp values", `func f(p *mtproto.Account_Password, s *mtproto.Account_PasswordInputSettings) { logx.Infof("%x %x", p.GetSrp_B(), s.GetNewPasswordHash()) }`, []string{"secret", "secret"}},
 		{"srp id ok", `func f(in *mtproto.InputCheckPasswordSRP) { logx.Infof("srp_id %d", in.GetSrpId()) }`, nil},
@@ -87,6 +126,14 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"chain height ok", `func f(height int32, callId int64) { logx.Infof("call %d at height %d", callId, height) }`, nil},
 		{"config with credentials", `func f(c struct{ Etcd struct{ Hosts []string; Pass string } }) { logx.Errorf("etcd %+v", c.Etcd) }`, []string{"secret"}},
 		{"config hosts ok", `func f(c struct{ Etcd struct{ Hosts []string; Pass string } }) { logx.Errorf("etcd %v", c.Etcd.Hosts) }`, nil},
+		{"geo point", `func f(in *mtproto.InputGeoPoint) { logx.Infof("at %f %f", in.GetLat(), in.Long) }`, []string{"secret", "secret"}},
+		{"geo point whole", `func f(in *mtproto.InputWebFileLocation) error { return fmt.Errorf("map %v", in.GetGeoPoint()) }`, []string{"secret"}},
+		{"inline query text", `func f(inlineQuery string, webFileUrl string) { logx.Infof("asked %s for %s", inlineQuery, webFileUrl) }`, []string{"secret", "secret"}},
+		{"inline query point", `func f(in *mtproto.Update) { logx.Errorf("near %v", in.GetGeo()) }`, []string{"secret"}},
+		{"business address", `func f(in *mtproto.TLAccountUpdateBusinessLocation, address string) { logx.Infof("%v %s", in.GetAddress(), address) }`, []string{"secret", "secret"}},
+		{"chat link slug", `func f(in *mtproto.TLAccountResolveBusinessChatLink, slug string) { logx.Errorf("%s %s", in.GetSlug(), slug) }`, []string{"secret", "secret"}},
+		{"business connection", `func f(in *mtproto.TLInvokeWithBusinessConnection, md *metadata.RpcMetadata, connectionId string) { logx.Infof("%s %s %s", in.GetConnectionId(), md.GetBusinessConnectionId(), connectionId) }`, []string{"secret", "secret", "secret"}},
+		{"geo zoom ok", `func f(in *mtproto.InputWebFileLocation) { logx.Infof("zoom %d, %dx%d", in.GetZoom(), in.GetW(), in.GetH()) }`, nil},
 		// not findings
 		{"error", `func f(err error) { logx.Errorf("request: %v", err) }`, nil},
 		{"len", `func f(b []byte) { logx.Errorf("payload: %d bytes", len(b)) }`, nil},

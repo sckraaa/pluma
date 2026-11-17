@@ -1,0 +1,55 @@
+# The picture search of @pic (task 099, ADR 0062, docs/ops/inline-bots.md):
+# a SearXNG that bff asks for pictures by text, on the network of the
+# services. Not started by default: @pic answers with empty lists until
+# SEARXNG_URL names it (http://searxng:8080). Added to the services command
+# after the other compose files:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.search.yaml up -d searxng
+#
+# It reaches the search engines over the ordinary route of the host (at home,
+# the tunnel to the VPS, ADR 0061): the engines see the address of the VPS,
+# never a user's. It keeps no state: the settings are in the repository
+# (teamgramd/deploy/searxng/settings.yml), its caches in memory.
+#
+# The memory limit is an estimate until it is measured under the real load
+# (docs/ops/inline-bots.md); SEARXNG_MEMORY in .env, never an edit of this
+# file on a server.
+services:
+  searxng:
+    mem_limit: ${SEARXNG_MEMORY:-512m}
+    memswap_limit: ${SEARXNG_MEMORY:-512m}
+    cpus: ${SEARXNG_CPUS:-1}
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    # A pinned build: SearXNG has no releases, every build is a tag. A newer
+    # one is taken by changing both the tag and the digest here.
+    image: searxng/searxng:2026.11.15-2d500cb6b@sha256:932f69dca010db9880bddebb2171f05d8e1a25d04a59149ff65409993d680024
+    restart: unless-stopped
+    # The user of the image: nothing runs as root.
+    user: "977:977"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?set SEARXNG_SECRET in .env (openssl rand -hex 32)}
+      # The entrypoint would chown the mounted settings; they stay as they are.
+      FORCE_OWNERSHIP: "false"
+    volumes:
+      - ./teamgramd/deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    # The two volumes of the image are memory, so that no anonymous volume is
+    # left behind: the directory of the settings, and the caches.
+    tmpfs:
+      - /etc/searxng:size=1m,uid=977,gid=977,mode=0755
+      - /var/cache/searxng:size=64m,uid=977,gid=977,mode=0700
+      - /tmp:size=16m,uid=977,gid=977,mode=1777
+    # No published port: only bff, on the network of the services, calls it.
+    networks:
+      - teamgram_net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    stop_grace_period: 30s

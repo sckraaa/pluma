@@ -88,9 +88,12 @@ func (s *Service) MessagesReadReactions(ctx context.Context, request *mtproto.TL
 	return c.MessagesReadReactions(request)
 }
 
-// MessagesReportReaction is not served: messages.reportReaction#3f64c076 peer:InputPeer id:int reaction_peer:InputPeer = Bool;
+// MessagesReportReaction
+// messages.reportReaction#3f64c076 peer:InputPeer id:int reaction_peer:InputPeer = Bool;
 func (s *Service) MessagesReportReaction(ctx context.Context, request *mtproto.TLMessagesReportReaction) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.reportReaction - metadata: {%s}", c.MD)
+	return c.MessagesReportReaction(request)
 }
 
 // MessagesGetTopReactions

@@ -42,6 +42,9 @@ const (
 	// pluma: task 019
 	Predicate_authsession_changeAuthorizationSettings = "authsession_changeAuthorizationSettings"
 	Predicate_authsession_getRecentLangCode           = "authsession_getRecentLangCode"
+
+	// pluma: task 106
+	Predicate_authsession_getIpRegion = "authsession_getIpRegion"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -153,6 +156,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 299421713, // 0x11d8d011
 
 	},
+	Predicate_authsession_getIpRegion: { // pluma: task 106
+		0: 415119041, // 0x18be36c1
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -183,6 +190,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	2010870522:  Predicate_authsession_dropTempAuthKeys,            // 0x77db72fa pluma: task 008
 	-951003082:  Predicate_authsession_changeAuthorizationSettings, // 0xc750d836 pluma: task 019
 	299421713:   Predicate_authsession_getRecentLangCode,           // 0x11d8d011 pluma: task 019
+	415119041:   Predicate_authsession_getIpRegion,                 // 0x18be36c1 pluma: task 106
 
 }
 

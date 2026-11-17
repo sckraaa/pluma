@@ -26,6 +26,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -39,6 +40,22 @@ func availableMinId(p *channelpb.ImmutableChannelParticipant) *wrapperspb.Int32V
 		return nil
 	}
 	return mtproto.MakeFlagsInt32(p.GetAvailableMinId() - 1)
+}
+
+// statsFlags are channelFull.can_view_stats and stats_dc for participant p
+// of ch (task 103, ADR 0066): both for whom channelperm.CanViewStats lets
+// see the statistics, neither while they are off (statsDc 0). stats_dc goes
+// with the flag: Web K offers the statistics only with both
+// (appProfileManager.ts:1444-1455 at the pinned release), and iOS without
+// it sends the requests to DC 0 (TelegramCore Statistics/
+// PeerStatistics.swift:318-319). Android and tdesktop read the flag alone
+// (StatisticActivity.java:133, ProfileActivity.java:12348;
+// window_peer_menu.cpp:1314-1333).
+func statsFlags(ch *channelpb.ImmutableChannel, p *channelpb.ImmutableChannelParticipant, statsDc int32) (bool, *wrapperspb.Int32Value) {
+	if statsDc <= 0 || !channelperm.CanViewStats(ch.Perm(), p.Perm()) {
+		return false, nil
+	}
+	return true, mtproto.MakeFlagsInt32(statsDc)
 }
 
 // ChannelsGetFullChannel
@@ -111,6 +128,10 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		}
 	}
 	full.AvailableMinId = availableMinId(me)
+	// The statistics of the channel; a change of rights reaches the
+	// clients as updateChannel, on which they ask for the full channel
+	// again.
+	full.CanViewStats, full.StatsDc = statsFlags(ch, me, c.svcCtx.Config.StatsDc)
 	// The tab its profile opens on (task 078, channels.setMainProfileTab);
 	// none leaves it to the clients.
 	full.MainTab = mtproto.ToProfileTabByType(ch.GetMainTab())
@@ -206,6 +227,14 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 		return nil, err
 	}
+	// Whether I hid the translation bar of the channel
+	// (messages.togglePeerTranslations, task 101): the clients read it from
+	// here (Android TranslateController.java:204-216, tdesktop
+	// data/data_channel.cpp:1525).
+	if full.TranslationsDisabled, err = c.translationsDisabled(ch.GetId()); err != nil {
+		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+		return nil, err
+	}
 	// The group call of the channel (task 093, ADR 0059).
 	// groupcall_default_join_as stays unset: joining as a channel is not
 	// offered (ADR 0060).
@@ -265,6 +294,17 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		Chats:    chats,
 		Users:    users.GetUserListByIdList(c.MD.UserId, ids...),
 	}).To_Messages_ChatFull(), nil
+}
+
+// translationsDisabled tells whether the caller hid the translation bar
+// of channelId.
+func (c *ChannelsCore) translationsDisabled(channelId int64) (bool, error) {
+	peer := translate.TranslationPeer{Type: mtproto.PEER_CHANNEL, Id: channelId}
+	disabled, err := c.svcCtx.Translations.TranslationsDisabled(c.ctx, c.MD.UserId, peer)
+	if err != nil {
+		return false, err
+	}
+	return disabled[peer], nil
 }
 
 // availableReactions are the reactions of the channel: the standard ones

@@ -23,9 +23,19 @@ import (
 
 // MessagesTranslateRichMessage
 // messages.translateRichMessage#1a542004 flags:# peer:flags.0?InputPeer id:flags.0?Vector<int> text:flags.1?Vector<InputRichMessage> to_lang:string tone:flags.2?string = messages.TranslatedRichMessage;
+//
+// Refused (ADR 0064, p. 8): the method translates message.rich_message, the
+// blocks of a rich message, and Pluma keeps no rich messages
+// (messages.saveDraft drops the field, sendMessage does not read it). The
+// clients ask it only for a message that has one: Android
+// messenger/TranslateController.java:1506, iOS TelegramCore/.../Messages/
+// Translate.swift:330-332, tdesktop history_view_translate_tracker.cpp:373
+// (item->richPage()); every other message goes through
+// messages.translateText (app/bff/translation). Its translation by the
+// same model comes with the task that starts to keep rich messages.
+// ERR_ENTERPRISE_IS_BLOCKED (400) is not repeated by the clients; never
+// TRANSLATIONS_DISABLED_ALT, on which Android and iOS translate on the
+// device with a third-party service.
 func (c *MessagesCore) MessagesTranslateRichMessage(in *mtproto.TLMessagesTranslateRichMessage) (*mtproto.Messages_TranslatedRichMessage, error) {
-	// TODO: not impl
-	c.Logger.Errorf("messages.translateRichMessage blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }

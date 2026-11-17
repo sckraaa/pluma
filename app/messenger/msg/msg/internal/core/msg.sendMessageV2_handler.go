@@ -38,6 +38,10 @@ func (c *MsgCore) MsgSendMessageV2(in *msg.TLMsgSendMessageV2) (*mtproto.Updates
 		c.Logger.Errorf("msg.sendMessageV2: {user_id: %d, peer: %d/%d} - error: no messages", in.GetUserId(), in.GetPeerType(), in.GetPeerId())
 		return nil, mtproto.ErrInputRequestInvalid
 	}
+	if err := checkIncomingActions(in); err != nil {
+		c.Logger.Errorf("msg.sendMessageV2: user %d, peer %d/%d: %v", in.GetUserId(), in.GetPeerType(), in.GetPeerId(), err)
+		return nil, err
+	}
 	if err := c.checkRestriction(in); err != nil {
 		c.Logger.Errorf("msg.sendMessageV2: user %d, peer %d/%d: %v", in.GetUserId(), in.GetPeerType(), in.GetPeerId(), err)
 		return nil, err
@@ -107,7 +111,13 @@ func sendReply(boxes []*mtproto.MessageBox, users func([]int64) []*mtproto.User,
 // toUserId: the sender's box, the push to the sender's other devices and
 // one inbox event with all the messages to the recipient (unless it
 // blocked the sender), in one transaction. A send repeated with the same
-// random ids gets the first reply (dao.SentBefore).
+// random ids gets the first reply (dao.SentBefore). The connected bot of
+// Telegram Business of the sender that serves the chat is told of the
+// messages (task 105): the account's own messages of a business chat are
+// the bot's too, those it sent through the bot among them (Bot API,
+// Message.sender_business_bot: "for outgoing messages sent on behalf of
+// the connected business account"; not verified that Telegram sends the
+// bot the account's other outgoing messages).
 func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, outBoxList []*msg.OutboxMessage, opt sendOptions) (*mtproto.Updates, error) {
 	idHelper := mtproto.NewIDListHelper(fromUserId, toUserId)
 	for _, outBox := range outBoxList {
@@ -144,7 +154,12 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 	if err != nil {
 		return nil, err
 	}
+	incoming := incomingActions(outBoxList, msgs)
 	auto, err := c.autoTTLMessage(fromUserId, toUserId, msgs)
+	if err != nil {
+		return nil, err
+	}
+	businessChat, err := c.svcCtx.Dao.BusinessChatOf(c.ctx, fromUserId, toUserId, users)
 	if err != nil {
 		return nil, err
 	}
@@ -216,11 +231,18 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 					FromId:   fromUserId,
 					PeerType: mtproto.PEER_USER,
 					PeerId:   toUserId,
-					BoxList:  boxes,
+					BoxList:  recipientBoxes(boxes, incoming),
 					Users:    users.GetUserListByIdList(toUserId, idHelper.UserIdList...),
 				}); err != nil {
 					return err
 				}
+			}
+			bot, err := c.svcCtx.Dao.BusinessBotTx(b, businessChat)
+			if err != nil {
+				return err
+			}
+			if err = c.svcCtx.Dao.EmitBusinessMessages(b, bot, toUserId, false, boxMessages(boxes)...); err != nil {
+				return err
 			}
 			return opt.runAfter(b, sentIds(boxes))
 		})
@@ -228,6 +250,73 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 		return nil, err
 	}
 	return rUpdates, nil
+}
+
+// boxMessages are the messages of boxes, in order.
+func boxMessages(boxes []*mtproto.MessageBox) []*mtproto.Message {
+	out := make([]*mtproto.Message, len(boxes))
+	for i, box := range boxes {
+		out[i] = box.GetMessage()
+	}
+	return out
+}
+
+// checkIncomingActions checks the incoming actions of a send
+// (OutboxMessage.incoming_action): only a service message sent now to a
+// private chat with another user has one, since only there does a second
+// side get a copy of its own.
+func checkIncomingActions(in *msg.TLMsgSendMessageV2) error {
+	for _, outBox := range in.GetMessage() {
+		if outBox.GetIncomingAction() == nil {
+			continue
+		}
+		if in.GetPeerType() != mtproto.PEER_USER || in.GetPeerId() == in.GetUserId() ||
+			outBox.GetScheduleDate() != nil ||
+			outBox.GetMessage().GetPredicateName() != mtproto.Predicate_messageService {
+			return mtproto.ErrInputRequestInvalid
+		}
+	}
+	return nil
+}
+
+// incomingActions maps the dialog_message_id of each message of a send that
+// has an incoming action to that action; nil when none has one. msgs are
+// outBoxList's (outgoing keeps the order).
+func incomingActions(outBoxList []*msg.OutboxMessage, msgs []dao.Outgoing) map[int64]*mtproto.MessageAction {
+	var actions map[int64]*mtproto.MessageAction
+	for i, outBox := range outBoxList {
+		if a := outBox.GetIncomingAction(); a != nil {
+			if actions == nil {
+				actions = make(map[int64]*mtproto.MessageAction)
+			}
+			actions[msgs[i].DialogMessageId] = a
+		}
+	}
+	return actions
+}
+
+// recipientBoxes are the sender's boxes as the recipient of a private chat
+// gets them: a service message with an incoming action carries it in place
+// of the sender's action, so that each side keeps its own (the user sees
+// messageActionWebViewDataSent, the bot messageActionWebViewDataSentMe with
+// the data). The copies share the dialog_message_id, which deletes and
+// edits go by. The sender's boxes are left as they are.
+func recipientBoxes(boxes []*mtproto.MessageBox, incoming map[int64]*mtproto.MessageAction) []*mtproto.MessageBox {
+	if len(incoming) == 0 {
+		return boxes
+	}
+	out := make([]*mtproto.MessageBox, len(boxes))
+	for i, box := range boxes {
+		a, ok := incoming[box.GetDialogMessageId()]
+		if !ok {
+			out[i] = box
+			continue
+		}
+		c := proto.Clone(box).(*mtproto.MessageBox)
+		c.Message.Action = proto.Clone(a).(*mtproto.MessageAction)
+		out[i] = c
+	}
+	return out
 }
 
 // privateUsers loads the users of messages from fromUserId to toUserId and

@@ -20,17 +20,16 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/cdn"
 )
 
 // HelpGetCdnConfig
 // help.getCdnConfig#52029342 = CdnConfig;
+//
+// The keys of the MTProto CDN DCs, which the clients check the key a CDN
+// DC offers in resPQ against: none, with the CDN on or off, since the
+// deliveries of Pluma are HTTPS and no client connects to their dc_id
+// (task 107, ADR 0071 §9).
 func (c *FilesCore) HelpGetCdnConfig(in *mtproto.TLHelpGetCdnConfig) (*mtproto.CdnConfig, error) {
-	// TODO: not impl
-	c.Logger.Errorf("help.getCdnConfig blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	rValue := mtproto.MakeTLCdnConfig(&mtproto.CdnConfig{
-		PublicKeys: []*mtproto.CdnPublicKey{},
-	}).To_CdnConfig()
-
-	return rValue, nil
+	return cdn.EmptyCdnConfig(), nil
 }

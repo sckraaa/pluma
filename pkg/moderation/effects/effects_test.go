@@ -41,6 +41,16 @@ func TestIdsToDelete(t *testing.T) {
 	}
 }
 
+// The message of a reaction report is the innocent author's: nothing of it
+// is deleted, even for a decision to delete.
+func TestIdsToDeleteOfReactionReport(t *testing.T) {
+	report := &moderation.Report{ReporterUserId: 1, Kind: moderation.KindReaction, TargetUserId: 3}
+	got := idsToDelete(report, &moderation.Snapshot{Reaction: "e👍", Messages: []moderation.SnapshotMessage{{Id: 10, FromId: 2}}})
+	if len(got) != 0 {
+		t.Errorf("ids of a reaction report: %v", got)
+	}
+}
+
 // noMessages fails the test when a deletion of messages is asked for.
 type noMessages struct {
 	Msg

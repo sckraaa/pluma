@@ -1491,15 +1491,15 @@ func (dao *MessagesDAO) UpdateUnPinnedByIdListTx(tx *sqlx.Tx, userId int64, idLi
 }
 
 // UpdateEditMessage
-// update messages set message_data = :message_data, message = :message where user_id = :user_id and user_message_box_id = :user_message_box_id
-func (dao *MessagesDAO) UpdateEditMessage(ctx context.Context, messageData string, message string, userId int64, userMessageBoxId int32) (rowsAffected int64, err error) {
+// update messages set message_data = :message_data, message = :message, message_filter_type = :message_filter_type where user_id = :user_id and user_message_box_id = :user_message_box_id
+func (dao *MessagesDAO) UpdateEditMessage(ctx context.Context, messageData string, message string, messageFilterType int32, userId int64, userMessageBoxId int32) (rowsAffected int64, err error) {
 	var (
 		query   string
 		rResult sql.Result
 	)
-	query = strings.Replace("update __TABLE__ set message_data = ?, message = ? where user_id = ? and user_message_box_id = ?", "__TABLE__", dao.CalcTableName(userId), -1)
+	query = strings.ReplaceAll("update __TABLE__ set message_data = ?, message = ?, message_filter_type = ? where user_id = ? and user_message_box_id = ?", "__TABLE__", dao.CalcTableName(userId))
 
-	rResult, err = dao.db.Exec(ctx, query, messageData, message, userId, userMessageBoxId)
+	rResult, err = dao.db.Exec(ctx, query, messageData, message, messageFilterType, userId, userMessageBoxId)
 
 	if err != nil {
 		logx.WithContext(ctx).Errorf("exec in UpdateEditMessage(_), error: %v", err)
@@ -1515,15 +1515,15 @@ func (dao *MessagesDAO) UpdateEditMessage(ctx context.Context, messageData strin
 }
 
 // UpdateEditMessageTx
-// update messages set message_data = :message_data, message = :message where user_id = :user_id and user_message_box_id = :user_message_box_id
-func (dao *MessagesDAO) UpdateEditMessageTx(tx *sqlx.Tx, messageData string, message string, userId int64, userMessageBoxId int32) (rowsAffected int64, err error) {
+// update messages set message_data = :message_data, message = :message, message_filter_type = :message_filter_type where user_id = :user_id and user_message_box_id = :user_message_box_id
+func (dao *MessagesDAO) UpdateEditMessageTx(tx *sqlx.Tx, messageData string, message string, messageFilterType int32, userId int64, userMessageBoxId int32) (rowsAffected int64, err error) {
 	var (
 		query   string
 		rResult sql.Result
 	)
-	query = strings.Replace("update __TABLE__ set message_data = ?, message = ? where user_id = ? and user_message_box_id = ?", "__TABLE__", dao.CalcTableName(userId), -1)
+	query = strings.ReplaceAll("update __TABLE__ set message_data = ?, message = ?, message_filter_type = ? where user_id = ? and user_message_box_id = ?", "__TABLE__", dao.CalcTableName(userId))
 
-	rResult, err = tx.Exec(query, messageData, message, userId, userMessageBoxId)
+	rResult, err = tx.Exec(query, messageData, message, messageFilterType, userId, userMessageBoxId)
 
 	if err != nil {
 		logx.WithContext(tx.Context()).Errorf("exec in UpdateEditMessage(_), error: %v", err)

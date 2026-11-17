@@ -88,9 +88,53 @@ services:
       STT_MODEL: ${STT_MODEL:-}
       STT_LANGUAGE: ${STT_LANGUAGE:-}
       STT_TIMEOUT: ${STT_TIMEOUT:-}
+      # bff.yaml names the translation engine of messages (task 101); empty: off.
+      TRANSLATE_URL: ${TRANSLATE_URL:-}
+      TRANSLATE_TOKEN: ${TRANSLATE_TOKEN:-}
+      TRANSLATE_MODEL: ${TRANSLATE_MODEL:-}
+      TRANSLATE_PROFILE: ${TRANSLATE_PROFILE:-}
+      TRANSLATE_SLOTS: ${TRANSLATE_SLOTS:-}
+      TRANSLATE_CTX: ${TRANSLATE_CTX:-}
       # bff.yaml names the mail of the recovery email (task 091); empty: off.
       MAIL_API_KEY: ${MAIL_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # bff.yaml names the key of the web file proxy (task 099); empty: off.
+      WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
+      # bff.yaml names the maps service (task 100); empty: off.
+      MAPS_URL: ${MAPS_URL:-}
+      MAPS_STYLES: ${MAPS_STYLES:-}
+      MAPS_TIMEOUT: ${MAPS_TIMEOUT:-}
+      MAPS_CONCURRENCY: ${MAPS_CONCURRENCY:-}
+      MAPS_CACHE_TTL: ${MAPS_CACHE_TTL:-}
+      MAPS_PER_USER_PER_MINUTE: ${MAPS_PER_USER_PER_MINUTE:-}
+      # bff.yaml names the keys of the bot platform (task 106); empty: the
+      # mini apps and the login of bots are off.
+      BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
+      WEBAPP_SIGNING_KEY: ${WEBAPP_SIGNING_KEY:-}
+      # bff.yaml names the key of the zoom tokens of the statistics of
+      # channels (task 103); empty: the statistics are off.
+      STATS_GRAPH_TOKEN_KEY: ${STATS_GRAPH_TOKEN_KEY:-}
+      # The built-in inline bots (task 099): @pic's SearXNG, empty: no
+      # pictures; the daily import budget, empty: 1 GiB.
+      SEARXNG_URL: ${SEARXNG_URL:-}
+      INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
+      # The HTTPS CDN of large files (task 107, docs/ops/cdn.md): bff.yaml
+      # names the delivery, the origin and the limits; empty
+      # CDN_GCORE_BASE_URL: off.
+      CDN_GCORE_SIGNER: ${CDN_GCORE_SIGNER:-}
+      CDN_GCORE_BASE_URL: ${CDN_GCORE_BASE_URL:-}
+      CDN_GCORE_TOKEN_KEY: ${CDN_GCORE_TOKEN_KEY:-}
+      CDN_GCORE_MONTHLY_GB: ${CDN_GCORE_MONTHLY_GB:-}
+      CDN_ROUTES: ${CDN_ROUTES:-}
+      CDN_ORIGIN_LISTEN: ${CDN_ORIGIN_LISTEN:-}
+      CDN_ORIGIN_AUTH: ${CDN_ORIGIN_AUTH:-}
+      CDN_URL_TTL: ${CDN_URL_TTL:-}
+      CDN_PREPARE_RATE_MBIT: ${CDN_PREPARE_RATE_MBIT:-}
+      CDN_MIN_FILE_SIZE: ${CDN_MIN_FILE_SIZE:-}
+      CDN_KINDS: ${CDN_KINDS:-}
+      CDN_DEV_ALLOW_HTTP: ${CDN_DEV_ALLOW_HTTP:-}
+      CDN_HEALTH_EVERY: ${CDN_HEALTH_EVERY:-}
+      CDN_AVOID_TTL: ${CDN_AVOID_TTL:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -305,10 +349,57 @@ services:
       STT_MODEL: ${STT_MODEL:-}
       STT_LANGUAGE: ${STT_LANGUAGE:-}
       STT_TIMEOUT: ${STT_TIMEOUT:-}
+      # The translation engine of messages (task 101,
+      # docs/ops/translation.md); no URL: the translation is off.
+      TRANSLATE_URL: ${TRANSLATE_URL:-}
+      TRANSLATE_TOKEN: ${TRANSLATE_TOKEN:-}
+      TRANSLATE_MODEL: ${TRANSLATE_MODEL:-}
+      TRANSLATE_PROFILE: ${TRANSLATE_PROFILE:-}
+      TRANSLATE_SLOTS: ${TRANSLATE_SLOTS:-}
+      TRANSLATE_CTX: ${TRANSLATE_CTX:-}
       # The mail of the recovery email of the cloud password (task 091,
       # docs/ops/email.md); no key: the recovery email is off.
       MAIL_API_KEY: ${MAIL_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # bff.yaml names the key of the web file proxy (task 099); empty: off.
+      WEBFILE_HMAC_KEY: ${WEBFILE_HMAC_KEY:-}
+      # The maps service of the map previews of geo points (task 100,
+      # docs/ops/maps.md), http://maps:8080 with docker-compose.maps.yaml;
+      # no URL: maps are off. The rest take their defaults when empty.
+      MAPS_URL: ${MAPS_URL:-}
+      MAPS_STYLES: ${MAPS_STYLES:-}
+      MAPS_TIMEOUT: ${MAPS_TIMEOUT:-}
+      MAPS_CONCURRENCY: ${MAPS_CONCURRENCY:-}
+      MAPS_CACHE_TTL: ${MAPS_CACHE_TTL:-}
+      MAPS_PER_USER_PER_MINUTE: ${MAPS_PER_USER_PER_MINUTE:-}
+      # bff.yaml names the keys of the bot platform (task 106); empty: the
+      # mini apps and the login of bots are off.
+      BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
+      WEBAPP_SIGNING_KEY: ${WEBAPP_SIGNING_KEY:-}
+      # bff.yaml names the key of the zoom tokens of the statistics of
+      # channels (task 103); empty: the statistics are off.
+      STATS_GRAPH_TOKEN_KEY: ${STATS_GRAPH_TOKEN_KEY:-}
+      # The built-in inline bots (task 099): @pic's SearXNG, empty: no
+      # pictures; the daily import budget, empty: 1 GiB.
+      SEARXNG_URL: ${SEARXNG_URL:-}
+      INLINE_IMPORT_DAILY_BYTES: ${INLINE_IMPORT_DAILY_BYTES:-}
+      # The HTTPS CDN of large files (task 107, docs/ops/cdn.md): bff.yaml
+      # names the delivery, the origin and the limits; empty
+      # CDN_GCORE_BASE_URL: off.
+      CDN_GCORE_SIGNER: ${CDN_GCORE_SIGNER:-}
+      CDN_GCORE_BASE_URL: ${CDN_GCORE_BASE_URL:-}
+      CDN_GCORE_TOKEN_KEY: ${CDN_GCORE_TOKEN_KEY:-}
+      CDN_GCORE_MONTHLY_GB: ${CDN_GCORE_MONTHLY_GB:-}
+      CDN_ROUTES: ${CDN_ROUTES:-}
+      CDN_ORIGIN_LISTEN: ${CDN_ORIGIN_LISTEN:-}
+      CDN_ORIGIN_AUTH: ${CDN_ORIGIN_AUTH:-}
+      CDN_URL_TTL: ${CDN_URL_TTL:-}
+      CDN_PREPARE_RATE_MBIT: ${CDN_PREPARE_RATE_MBIT:-}
+      CDN_MIN_FILE_SIZE: ${CDN_MIN_FILE_SIZE:-}
+      CDN_KINDS: ${CDN_KINDS:-}
+      CDN_DEV_ALLOW_HTTP: ${CDN_DEV_ALLOW_HTTP:-}
+      CDN_HEALTH_EVERY: ${CDN_HEALTH_EVERY:-}
+      CDN_AVOID_TTL: ${CDN_AVOID_TTL:-}
     stop_grace_period: 30s
     depends_on:
       sync:
@@ -339,12 +430,26 @@ services:
       <<: *health
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9096"]
     environment:
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      <<: *db-env
+      # links.yaml opens the login keys of bots with it for the login on
+      # sites (task 106); empty: that format of the login is off.
+      BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
+      # The provider's name, the site Caddy of docker-compose.web.yaml
+      # sends here, with the same default.
+      PLUMA_OAUTH_DOMAIN: ${PLUMA_OAUTH_DOMAIN:-oauth.pluma.chat}
+    secrets:
+      # Mounted read-only at /run/secrets/oauth_signing_key.pem
+      # (teamgramd/etc2/links.yaml): the keys of the ID tokens of
+      # oauth.pluma.chat; an empty file turns the provider off.
+      - source: oauth_signing_key
+        target: oauth_signing_key.pem
     stop_grace_period: 15s
     depends_on:
       biz:
         condition: service_healthy
       dfs:
+        condition: service_healthy
+      authsession:
         condition: service_healthy
 
   gnetway:
@@ -394,6 +499,10 @@ secrets:
   fcm_credentials:
     # Host path of the FCM service account key (JSON, mode 0600, never in git); an empty file turns FCM off.
     file: ${FCM_CREDENTIALS_FILE:-./secrets/fcm_credentials.json}
+  oauth_signing_key:
+    # Host path of the RSA keys of the ID tokens of oauth.pluma.chat (PEM, mode 0600, never in git;
+    # docs/ops/bots.md); an empty file turns the login on sites through it off.
+    file: ${OAUTH_SIGNING_KEY_FILE:-./secrets/oauth_signing_key.pem}
 
 networks:
   teamgram_net:

@@ -212,7 +212,8 @@ func TestCheckSeqJournalFindsGaps(t *testing.T) {
 	}
 }
 
-// TrimQueryUpdates takes out only the presses and queries past their time.
+// TrimQueryUpdates takes out only the presses, queries, answered web views
+// and widgets' requests past their time.
 func TestTrimQueryUpdates(t *testing.T) {
 	db := openPool(t, boxDSN(itDB.DSN()), 2)
 	u := itUser()
@@ -220,14 +221,23 @@ func TestTrimQueryUpdates(t *testing.T) {
 		b.AddSeqUpdate(mtproto.MakeTLUpdateBotCallbackQuery(&mtproto.Update{QueryId_INT64: 1, Peer_PEER: mtproto.MakePeerUser(1)}).To_Update())
 		return nil
 	}
+	answered := func(b *Box) error {
+		b.AddSeqUpdate(mtproto.MakeTLUpdateWebViewResultSent(&mtproto.Update{QueryId_INT64: 2}).To_Update())
+		return nil
+	}
+	widget := func(b *Box) error {
+		b.AddSeqUpdate(mtproto.MakeTLUpdateBotWidgetQuery(&mtproto.Update{QueryId_INT64: 3, Peer_PEER: mtproto.MakePeerUser(1)}).To_Update())
+		return nil
+	}
 	ctx := context.Background()
-	for _, fn := range []func(b *Box) error{press, setNotify(1), press} {
+	for _, fn := range []func(b *Box) error{press, setNotify(1), answered, widget, press} {
 		if _, err := Run(ctx, db, u, fn); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// The first two rows are old: one a press, one the state of the account.
-	if _, err := db.Exec("UPDATE user_seq_updates SET date2 = date2 - ? WHERE user_id = ? AND seq <= ?", QueryUpdateTTL+5, u, BaseSeq+2); err != nil {
+	// The first four rows are old: a press, the state of the account, an
+	// answered web view and a widget's request.
+	if _, err := db.Exec("UPDATE user_seq_updates SET date2 = date2 - ? WHERE user_id = ? AND seq <= ?", QueryUpdateTTL+5, u, BaseSeq+4); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Run(ctx, db, u, func(b *Box) error { return b.TrimQueryUpdates() }); err != nil {
@@ -237,7 +247,7 @@ func TestTrimQueryUpdates(t *testing.T) {
 	for _, e := range seqJournalOf(t, db, u) {
 		got = append(got, e.seq)
 	}
-	if want := []int32{BaseSeq + 2, BaseSeq + 3}; !slices.Equal(got, want) {
+	if want := []int32{BaseSeq + 2, BaseSeq + 5}; !slices.Equal(got, want) {
 		t.Errorf("seq left %v, want %v", got, want)
 	}
 }

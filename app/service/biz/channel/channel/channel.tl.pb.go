@@ -89,8 +89,8 @@ const (
 	TLConstructor_CRC32_channel_deleteChannel TLConstructor = -979916526
 	// pluma: task 072
 	TLConstructor_CRC32_channel_setBlocked TLConstructor = -63031132
-	// pluma: task 046
-	TLConstructor_CRC32_channel_incrementMessageViews TLConstructor = 1668730682
+	// pluma: task 046, source: task 103
+	TLConstructor_CRC32_channel_incrementMessageViews TLConstructor = -238863794
 	// pluma: task 046
 	TLConstructor_CRC32_channel_addMessageForwards TLConstructor = -1892777199
 	// pluma: task 043
@@ -299,7 +299,7 @@ var (
 		-2083237595: "CRC32_channel_getAdminedPublicChannels",
 		-979916526:  "CRC32_channel_deleteChannel",
 		-63031132:   "CRC32_channel_setBlocked",
-		1668730682:  "CRC32_channel_incrementMessageViews",
+		-238863794:  "CRC32_channel_incrementMessageViews",
 		-1892777199: "CRC32_channel_addMessageForwards",
 		-1441587995: "CRC32_channel_deleteHistory",
 		-1046826439: "CRC32_channel_deleteParticipantHistory",
@@ -417,7 +417,7 @@ var (
 		"CRC32_channel_getAdminedPublicChannels":         -2083237595,
 		"CRC32_channel_deleteChannel":                    -979916526,
 		"CRC32_channel_setBlocked":                       -63031132,
-		"CRC32_channel_incrementMessageViews":            1668730682,
+		"CRC32_channel_incrementMessageViews":            -238863794,
 		"CRC32_channel_addMessageForwards":               -1892777199,
 		"CRC32_channel_deleteHistory":                    -1441587995,
 		"CRC32_channel_deleteParticipantHistory":         -1046826439,
@@ -5725,16 +5725,18 @@ func (x *TLChannelSetAvailableReactions) GetReactions() []string {
 }
 
 // --------------------------------------------------------------------------------------------
-// pluma: channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> = Bool;
+// pluma: channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> source:int = Bool;
 // Counts self_id's view of the posts id of a broadcast channel, once per user
-// (messages.getMessagesViews with increment).
-// (task 046)
+// (messages.getMessagesViews with increment). source is where the posts were
+// viewed from (pkg/channelstats ViewSource), kept by the first view.
+// (task 046, source: task 103)
 type TLChannelIncrementMessageViews struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
 	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
 	ChannelId     int64                  `protobuf:"varint,4,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
 	Id            []int32                `protobuf:"varint,5,rep,packed,name=id,proto3" json:"id,omitempty"`
+	Source        int32                  `protobuf:"varint,6,opt,name=source,proto3" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5795,6 +5797,13 @@ func (x *TLChannelIncrementMessageViews) GetId() []int32 {
 		return x.Id
 	}
 	return nil
+}
+
+func (x *TLChannelIncrementMessageViews) GetSource() int32 {
+	if x != nil {
+		return x.Source
+	}
+	return 0
 }
 
 // --------------------------------------------------------------------------------------------
@@ -11973,13 +11982,14 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\n" +
 	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12%\n" +
 	"\x0ereactions_type\x18\x06 \x01(\x05R\rreactionsType\x12\x1c\n" +
-	"\treactions\x18\a \x03(\tR\treactions\"\xa4\x01\n" +
+	"\treactions\x18\a \x03(\tR\treactions\"\xbc\x01\n" +
 	" TL_channel_incrementMessageViews\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
 	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x04 \x01(\x03R\tchannelId\x12\x0e\n" +
-	"\x02id\x18\x05 \x03(\x05R\x02id\"\xbe\x01\n" +
+	"\x02id\x18\x05 \x03(\x05R\x02id\x12\x16\n" +
+	"\x06source\x18\x06 \x01(\x05R\x06source\"\xbe\x01\n" +
 	"\x1dTL_channel_addMessageForwards\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
 	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x1d\n" +
@@ -12507,7 +12517,7 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x0esource_chat_id\x18\x05 \x01(\x03R\fsourceChatId\"o\n" +
 	"\x16TL_channel_importAbort\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x1b\n" +
-	"\timport_id\x18\x03 \x01(\x03R\bimportId*\x93&\n" +
+	"\timport_id\x18\x03 \x01(\x03R\bimportId*\x98&\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12\x1e\n" +
 	"\x16CRC32_immutableChannel\x10ύ\xad\xb7\x06\x12)\n" +
@@ -12535,8 +12545,8 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x1cCRC32_channel_updateUsername\x10\xc8\xfa\xe4\xc7\x01\x123\n" +
 	"&CRC32_channel_getAdminedPublicChannels\x10\xa5\xa2ў\xf8\xff\xff\xff\xff\x01\x12(\n" +
 	"\x1bCRC32_channel_deleteChannel\x10\x92\xd2ެ\xfc\xff\xff\xff\xff\x01\x12%\n" +
-	"\x18CRC32_channel_setBlocked\x10\xa4\xf1\xf8\xe1\xff\xff\xff\xff\xff\x01\x12+\n" +
-	"#CRC32_channel_incrementMessageViews\x10\xba\x9eۛ\x06\x12-\n" +
+	"\x18CRC32_channel_setBlocked\x10\xa4\xf1\xf8\xe1\xff\xff\xff\xff\xff\x01\x120\n" +
+	"#CRC32_channel_incrementMessageViews\x10\xce\xf4\x8c\x8e\xff\xff\xff\xff\xff\x01\x12-\n" +
 	" CRC32_channel_addMessageForwards\x10\x91\x86\xba\xf9\xf8\xff\xff\xff\xff\x01\x12(\n" +
 	"\x1bCRC32_channel_deleteHistory\x10\xe5\xb9\xcc\xd0\xfa\xff\xff\xff\xff\x01\x123\n" +
 	"&CRC32_channel_deleteParticipantHistory\x10\xb9\xe4\xea\x8c\xfc\xff\xff\xff\xff\x01\x12&\n" +

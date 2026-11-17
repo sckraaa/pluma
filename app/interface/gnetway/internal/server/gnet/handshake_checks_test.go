@@ -13,6 +13,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/crypto"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 
 	"github.com/panjf2000/gnet/v2"
 )
@@ -83,7 +84,7 @@ func TestResPQIsNew(t *testing.T) {
 		}
 		seen[tc.pq] = true
 
-		st, ok := c.ctx.(*connContext).handshakes.states.get(tc.nonce, testNow)
+		st, ok := c.ctx.(*connContext).handshakes.states.Get(tc.nonce, testNow)
 		if !ok || st.Pq != binary.BigEndian.Uint64([]byte(tc.pq)) ||
 			uint64(binary.BigEndian.Uint32([]byte(tc.p))) != st.P || uint64(binary.BigEndian.Uint32([]byte(tc.q))) != st.Q {
 			t.Fatal("the handshake state does not hold pq and its factors")
@@ -265,45 +266,11 @@ func TestSetClientDHParamsChecksHash(t *testing.T) {
 	}
 }
 
-func TestIsGoodDHValue(t *testing.T) {
-	one := big.NewInt(1)
-	p := gBigIntDH2048P
-	low := new(big.Int).Lsh(one, 2048-64)
-	high := new(big.Int).Sub(p, low)
-	add := func(a, b *big.Int) *big.Int { return new(big.Int).Add(a, b) }
-	sub := func(a, b *big.Int) *big.Int { return new(big.Int).Sub(a, b) }
-	gB := new(big.Int).Exp(gBigIntDH2048G, new(big.Int).SetBytes(crypto.GenerateNonce(256)), p)
-
-	for _, c := range []struct {
-		name string
-		v    *big.Int
-		ok   bool
-	}{
-		{"0", big.NewInt(0), false},
-		{"1", one, false},
-		{"2", big.NewInt(2), false},
-		{"2^(2048-64) - 1", sub(low, one), false},
-		{"2^(2048-64)", low, false},
-		{"2^(2048-64) + 1", add(low, one), true},
-		{"g^b", gB, true},
-		{"dh_prime - 2^(2048-64) - 1", sub(high, one), true},
-		{"dh_prime - 2^(2048-64)", high, false},
-		{"dh_prime - 2^(2048-64) + 1", add(high, one), false},
-		{"dh_prime - 1", sub(p, one), false},
-		{"dh_prime", p, false},
-		{"dh_prime + 1", add(p, one), false},
-	} {
-		if isGoodDHValue(c.v) != c.ok {
-			t.Errorf("%s: isGoodDHValue = %v", c.name, !c.ok)
-		}
-	}
-}
-
 // TestSetClientDHParamsChecksGB: g_b must be in 2^(2048-64) < g_b <
 // dh_prime - 2^(2048-64), which also excludes 1 and dh_prime - 1.
 func TestSetClientDHParamsChecksGB(t *testing.T) {
 	one := big.NewInt(1)
-	p := gBigIntDH2048P
+	p := handshake.DHPrime()
 	low := new(big.Int).Lsh(one, 2048-64)
 	high := new(big.Int).Sub(p, low)
 	for _, c := range []struct {
@@ -367,7 +334,7 @@ func TestDHGenRetryOnCollision(t *testing.T) {
 	h.waitWrites(c, 3)
 	retryId := tc.onDHGenRetry(h.lastUnencrypted(c))
 	h.do(func() {
-		st, ok := c.ctx.(*connContext).handshakes.states.get(tc.nonce, testNow)
+		st, ok := c.ctx.(*connContext).handshakes.states.Get(tc.nonce, testNow)
 		if !ok || st.State != STATE_DH_params_res || st.RetryId != retryId || len(h.saved) != 0 {
 			t.Fatalf("after dh_gen_retry: state %v, retry_id %d (want %d), %d keys", ok, st.RetryId, retryId, len(h.saved))
 		}
@@ -382,7 +349,7 @@ func TestDHGenRetryOnCollision(t *testing.T) {
 		if len(h.saved) != 1 || h.saved[0].AuthKeyId != id || !bytes.Equal(h.saved[0].AuthKey, tc.authKey) {
 			t.Fatal("the key of the second attempt was not saved")
 		}
-		if n := c.ctx.(*connContext).handshakes.states.len(); n != 0 {
+		if n := c.ctx.(*connContext).handshakes.states.Len(); n != 0 {
 			t.Fatalf("%d handshakes left", n)
 		}
 	})
@@ -431,7 +398,7 @@ func TestDHGenFailOnStorageError(t *testing.T) {
 	h.waitWrites(c, 3)
 	tc.onDHGenFail(h.lastUnencrypted(c))
 	h.do(func() {
-		if n := c.ctx.(*connContext).handshakes.states.len(); n != 0 || len(h.saved) != 0 {
+		if n := c.ctx.(*connContext).handshakes.states.Len(); n != 0 || len(h.saved) != 0 {
 			t.Fatalf("after dh_gen_fail: %d handshakes, %d keys", n, len(h.saved))
 		}
 	})
@@ -463,10 +430,10 @@ func TestSetAuthKeyResult(t *testing.T) {
 // p_q_inner_data that matches the handshake is accepted.
 func FuzzProcessReqDHParams(f *testing.F) {
 	h := newTestHarness(f)
-	pq, p, q := newPQ()
+	pq, p, q := handshake.NewPQ()
 	tc := newTestClient(f, &h.key.PublicKey)
 	tc.serverNonce = crypto.GenerateNonce(16)
-	tc.pq = putPQ(pq)
+	tc.pq = handshake.PutPQ(pq)
 	tc.p = string(binary.BigEndian.AppendUint32(nil, uint32(p)))
 	tc.q = string(binary.BigEndian.AppendUint32(nil, uint32(q)))
 	st := HandshakeStateCtx{State: STATE_DH_params, Nonce: tc.nonce, ServerNonce: tc.serverNonce, Pq: pq, P: p, Q: q}
@@ -494,8 +461,8 @@ func FuzzProcessReqDHParams(f *testing.F) {
 			PublicKeyFingerprint: tc.fingerprint,
 			EncryptedData:        string(rsaPadWith(t, &h.key.PublicKey, data, nil)),
 		}
-		res, err := h.s.handshake.processReqDHParams(&st, req, testNow)
-		if err == nil && (res.answer == nil || len(res.newNonce) != 32 || len(res.a) != dhSecretSize) {
+		res, err := h.s.handshake.ProcessReqDHParams(&st, req, testNow)
+		if err == nil && (res.Answer == nil || len(res.NewNonce) != 32 || len(res.A) != handshake.DHSecretSize) {
 			t.Fatal("accepted without a full answer")
 		}
 	})
@@ -507,13 +474,13 @@ func FuzzProcessReqDHParams(f *testing.F) {
 func FuzzProcessSetClientDHParams(f *testing.F) {
 	tc := newTestClient(f, &newTestHarness(f).key.PublicKey)
 	tc.serverNonce = crypto.GenerateNonce(16)
-	tc.g, tc.dhPrime, tc.gA = 3, gBigIntDH2048P, new(big.Int).Exp(gBigIntDH2048G, big.NewInt(1<<40+1), gBigIntDH2048P)
+	tc.g, tc.dhPrime, tc.gA = 3, handshake.DHPrime(), new(big.Int).Exp(handshake.DHGenerator(), big.NewInt(1<<40+1), handshake.DHPrime())
 	st := HandshakeStateCtx{
 		State:       STATE_dh_gen,
 		Nonce:       tc.nonce,
 		ServerNonce: tc.serverNonce,
 		NewNonce:    tc.newNonce,
-		A:           crypto.GenerateNonce(dhSecretSize),
+		A:           crypto.GenerateNonce(handshake.DHSecretSize),
 	}
 	key, iv := tc.tmpAes()
 
@@ -532,7 +499,7 @@ func FuzzProcessSetClientDHParams(f *testing.F) {
 		if err != nil {
 			return
 		}
-		res, err := processSetClientDHParams(&st, &mtproto.TLSetClient_DHParams{
+		res, err := handshake.ProcessSetClientDHParams(&st, &mtproto.TLSetClient_DHParams{
 			Nonce:         st.Nonce,
 			ServerNonce:   st.ServerNonce,
 			EncryptedData: string(enc),
@@ -540,7 +507,7 @@ func FuzzProcessSetClientDHParams(f *testing.F) {
 		if err != nil {
 			return
 		}
-		if len(res.authKey) != 256 {
+		if len(res.AuthKey) != 256 {
 			t.Fatal("accepted without a key")
 		}
 	})

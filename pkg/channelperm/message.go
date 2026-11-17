@@ -31,6 +31,11 @@ func MessageActions(m *mtproto.Message) []Action {
 		out = append(out, SendPlain)
 	case mtproto.Predicate_messageMediaPhoto:
 		out = append(out, SendPhotos)
+	case mtproto.Predicate_messageMediaWidget:
+		// A bot's widget (task 106) "is checked like a photo"
+		// (Android jni/twidget/widget-sandbox/docs/tgw-format.md, "Who may
+		// send, and where it may go").
+		out = append(out, SendPhotos)
 	case mtproto.Predicate_messageMediaDocument:
 		out = append(out, documentAction(media.GetDocument()))
 	case mtproto.Predicate_messageMediaPoll, mtproto.Predicate_messageMediaToDo:

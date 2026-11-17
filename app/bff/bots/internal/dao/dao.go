@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
@@ -34,6 +35,7 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
@@ -62,6 +64,7 @@ type Dao struct {
 	media_client.MediaClient
 	msg_client.MsgClient
 	sync_client.SyncClient
+	authsession_client.AuthsessionClient
 	Chat    chat_client.ChatClient
 	Channel channel_client.ChannelClient
 
@@ -77,6 +80,12 @@ type Dao struct {
 	// StickerLists keeps the recent stickers an inline result sends
 	// (task 081).
 	StickerLists StickerLists
+	// UserSeq journals the updates with seq of a user's own state, such as
+	// updateAttachMenuBots, and pushes them to the user's sessions.
+	UserSeq SeqPusher
+	// Business finds the connected bot of Telegram Business whose message
+	// a button is pressed in (task 105).
+	Business *business.Store
 
 	waitsMu sync.Mutex
 	waits   map[int64]int // requests of a user waiting for bots (EnterWait)
@@ -105,9 +114,13 @@ func New(c config.Config) *Dao {
 		KV:            kv.NewStore(c.KV),
 		SendAs:        sendas.New(db),
 		StickerLists:  stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
+		UserSeq:       BoxPush{DB: boxDB, Topic: c.SyncClient.Topic},
+		Business:      business.NewStore(db),
 		db:            db,
 		boxDB:         boxDB,
 		syncTopic:     c.SyncClient.Topic,
+
+		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 	}
 }
 
@@ -124,6 +137,38 @@ func (d *Dao) PushToBot(ctx context.Context, botId int64, u *mtproto.Update, use
 	})
 	if err != nil {
 		return fmt.Errorf("bots: update to bot %d: %w", botId, err)
+	}
+	return nil
+}
+
+// SeqPusher journals u, an update with seq (userbox.SeqUpdate), for an
+// account and pushes it to every session of the account (BoxPush).
+type SeqPusher interface {
+	PushSeq(ctx context.Context, userId int64, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error
+}
+
+// BoxPush is SeqPusher over the boxes of the accounts: the journal and the
+// push are one transaction of the account's box, so a session that misses
+// the push gets the update with its updates.getDifference.
+type BoxPush struct {
+	DB    *sql.DB
+	Topic string // the sync topic of the service
+}
+
+// PushSeq journals u for userId and pushes it to every session of the
+// account, the one of the request included (sync_client.EmitSeqUpdate).
+// The expired query updates of the account go first, as for a bot
+// (PushToBot): an account gets updateWebViewResultSent, and nothing else
+// removes them from its journal.
+func (p BoxPush) PushSeq(ctx context.Context, userId int64, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error {
+	_, err := userbox.Run(ctx, p.DB, userId, func(b *userbox.Box) error {
+		if err := b.TrimQueryUpdates(); err != nil {
+			return err
+		}
+		return sync_client.EmitSeqUpdate(b, p.Topic, u, users, chats)
+	})
+	if err != nil {
+		return fmt.Errorf("bots: update to user %d: %w", userId, err)
 	}
 	return nil
 }

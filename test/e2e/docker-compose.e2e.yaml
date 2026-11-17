@@ -57,10 +57,11 @@ services:
     # A full run writes more spans than the production limit is sized for.
     mem_limit: 1g
     memswap_limit: 1g
-    # Spans are kept in memory: the production setup stores them in
-    # Elasticsearch, which tests do not start.
+    # Spans are kept in memory, the newest traces only, as in production
+    # (docker-compose-env.yaml): with no bound a full run outgrew even 1 GB.
     environment: !override
       - SPAN_STORAGE_TYPE=memory
+      - MEMORY_MAX_TRACES=10000
     depends_on: !reset []
     restart: "no"
 
@@ -97,6 +98,12 @@ services:
     ports: !override
       - "127.0.0.1:${E2E_GATEWAY_PORT:-}:10443"
       - "127.0.0.1:${E2E_GATEWAY_WS_PORT:-}:11443"
+
+  # The pages of pluma.chat links (task 026): the tests read a page on an
+  # ephemeral loopback port (PLUMA_E2E_LINKS).
+  links:
+    ports:
+      - "127.0.0.1::9096"
 
   # APNs and FCM of the tests (test/e2e/fakepush): the push service sends
   # there, the tests read what came on an ephemeral loopback port.
@@ -144,6 +151,25 @@ services:
       - teamgram_net
     restart: "no"
 
+  # The translation engine of messages (test/e2e/faketranslate, task 101):
+  # bff sends it the prompts of the model as to the translate service of
+  # docker-compose.translate.yaml (TRANSLATE_URL in the env file of
+  # run.sh); the tests plan its answers and count the requests on an
+  # ephemeral loopback port.
+  faketranslate:
+    build:
+      context: .
+      dockerfile: test/e2e/faketranslate/Dockerfile
+    image: ${E2E_FAKETRANSLATE_IMAGE:-pluma-e2e-faketranslate:local}
+    environment:
+      TRANSLATE_API_TOKEN: ${TRANSLATE_TOKEN:?run test/e2e/run.sh up}
+      TRANSLATE_MODEL: ${TRANSLATE_MODEL:?run test/e2e/run.sh up}
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - teamgram_net
+    restart: "no"
+
   # The mail provider of the recovery email (test/e2e/fakemail): bff sends
   # it emails as to Resend; the tests plan its errors and read the codes on
   # an ephemeral loopback port.
@@ -160,15 +186,85 @@ services:
       - teamgram_net
     restart: "no"
 
+  # The maps service of the map previews (test/e2e/fakemaps, task 100): bff
+  # renders maps there (MAPS_URL in the env file of run.sh); the tests plan
+  # its answers and read the requests on an ephemeral loopback port.
+  fakemaps:
+    build:
+      context: .
+      dockerfile: test/e2e/fakemaps/Dockerfile
+    image: ${E2E_FAKEMAPS_IMAGE:-pluma-e2e-fakemaps:local}
+    environment:
+      MAPS_STYLES: ${MAPS_STYLES:-}
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - teamgram_net
+    restart: "no"
+
+  # The web of the built-in inline bots and of web files
+  # (test/e2e/fakeinline, task 099): the SearXNG of @pic (SEARXNG_URL in the
+  # env file of run.sh) and the sites of the pictures it finds and inline
+  # bots name, which bff may fetch from although they are on the network of
+  # the services (WebFetch.AllowHosts in the bff config of run.sh). The tests
+  # plan its answers and read the requests on an ephemeral loopback port.
+  fakeinline:
+    build:
+      context: .
+      dockerfile: test/e2e/fakeinline/Dockerfile
+    image: ${E2E_FAKEINLINE_IMAGE:-pluma-e2e-fakeinline:local}
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - teamgram_net
+    restart: "no"
+
+  # The Gcore CDN resource of the HTTPS CDN (test/e2e/fakecdn, task 107):
+  # bff redirects large files to it (CDN_GCORE_BASE_URL in the env file of
+  # run.sh, http://fakecdn:8080 unless E2E_CDN_ADDRESS gives another) and
+  # checks it, and it pulls the cipher from bff's origin with the run's
+  # CDN_ORIGIN_AUTH and checks the run's Secure Token key. The tests reach
+  # the CDN on an ephemeral loopback port (E2E_CDN_PUBLISH, set by run.sh
+  # for E2E_CDN_ADDRESS, publishes it where a development client reaches
+  # it), and its control API on another one that no client is given.
+  fakecdn:
+    build:
+      context: .
+      dockerfile: test/e2e/fakecdn/Dockerfile
+    image: ${E2E_FAKECDN_IMAGE:-pluma-e2e-fakecdn:local}
+    mem_limit: 384m
+    memswap_limit: 384m
+    environment:
+      FAKECDN_ORIGIN: http://bff:20480
+      FAKECDN_CACHE_MB: "256"
+      CDN_ORIGIN_AUTH: ${CDN_ORIGIN_AUTH:?run test/e2e/run.sh up}
+      CDN_GCORE_SIGNER: ${CDN_GCORE_SIGNER:-}
+      CDN_GCORE_TOKEN_KEY: ${CDN_GCORE_TOKEN_KEY:?run test/e2e/run.sh up}
+    ports:
+      - "${E2E_CDN_PUBLISH:-127.0.0.1::8080}"
+      - "127.0.0.1::8081"
+    networks:
+      - teamgram_net
+    restart: "no"
+
   bff:
-    # The config with the limits of transcription and the mail provider of
-    # the tests, written by run.sh.
+    # The config with the limits of transcription and the waits of
+    # translation, the mail provider of the tests and the hosts of
+    # fakeinline, written by run.sh. The CDN of large files is fakecdn.
     volumes:
       - ${E2E_BFF_CONFIG:?run test/e2e/run.sh up}:/app/etc2/bff.yaml:ro
     depends_on:
+      fakecdn:
+        condition: service_started
       fakestt:
         condition: service_started
+      faketranslate:
+        condition: service_started
       fakemail:
+        condition: service_started
+      fakemaps:
+        condition: service_started
+      fakeinline:
         condition: service_started
 
   # The SFU of group calls (docker-compose.sfu.yaml): its media ports on the

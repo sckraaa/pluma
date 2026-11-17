@@ -168,6 +168,8 @@ const (
 	TLConstructor_CRC32_user_getTopicNotifyExceptions TLConstructor = -852948814
 	// pluma: task 080
 	TLConstructor_CRC32_user_setGhost TLConstructor = 2145706849
+	// pluma: task 104
+	TLConstructor_CRC32_user_editUsernames TLConstructor = -864359738
 )
 
 // Enum value maps for TLConstructor.
@@ -298,6 +300,7 @@ var (
 		1032369295:  "CRC32_user_getTopicNotifySettings",
 		-852948814:  "CRC32_user_getTopicNotifyExceptions",
 		2145706849:  "CRC32_user_setGhost",
+		-864359738:  "CRC32_user_editUsernames",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                            0,
@@ -425,6 +428,7 @@ var (
 		"CRC32_user_getTopicNotifySettings":        1032369295,
 		"CRC32_user_getTopicNotifyExceptions":      -852948814,
 		"CRC32_user_setGhost":                      2145706849,
+		"CRC32_user_editUsernames":                 -864359738,
 	}
 )
 
@@ -4578,6 +4582,97 @@ func (x *TLUserSetGhost) GetGhost() *mtproto.Bool {
 }
 
 // --------------------------------------------------------------------------------------------
+// pluma: user.editUsernames user_id:long action:int username:string active:Bool order:Vector<string> = Bool;
+// The usernames of the account beside its editable one (task 104), by
+// action (UsernamesToggle, UsernamesReorder): username and active for a
+// toggle, order for a reorder. The change and updateUserName with seq to
+// the account's devices and to those who see it are one box transaction
+// of the account. True when something changed.
+type TLUserEditUsernames struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=user.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Action        int32                  `protobuf:"varint,4,opt,name=action,proto3" json:"action,omitempty"`
+	Username      string                 `protobuf:"bytes,5,opt,name=username,proto3" json:"username,omitempty"`
+	Active        *mtproto.Bool          `protobuf:"bytes,6,opt,name=active,proto3" json:"active,omitempty"`
+	Order         []string               `protobuf:"bytes,7,rep,name=order,proto3" json:"order,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLUserEditUsernames) Reset() {
+	*x = TLUserEditUsernames{}
+	mi := &file_user_tl_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLUserEditUsernames) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLUserEditUsernames) ProtoMessage() {}
+
+func (x *TLUserEditUsernames) ProtoReflect() protoreflect.Message {
+	mi := &file_user_tl_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLUserEditUsernames.ProtoReflect.Descriptor instead.
+func (*TLUserEditUsernames) Descriptor() ([]byte, []int) {
+	return file_user_tl_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *TLUserEditUsernames) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLUserEditUsernames) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLUserEditUsernames) GetAction() int32 {
+	if x != nil {
+		return x.Action
+	}
+	return 0
+}
+
+func (x *TLUserEditUsernames) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *TLUserEditUsernames) GetActive() *mtproto.Bool {
+	if x != nil {
+		return x.Active
+	}
+	return nil
+}
+
+func (x *TLUserEditUsernames) GetOrder() []string {
+	if x != nil {
+		return x.Order
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
 type TLUserUpdateUsername struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=user.TLConstructor" json:"constructor,omitempty"`
@@ -4589,7 +4684,7 @@ type TLUserUpdateUsername struct {
 
 func (x *TLUserUpdateUsername) Reset() {
 	*x = TLUserUpdateUsername{}
-	mi := &file_user_tl_proto_msgTypes[65]
+	mi := &file_user_tl_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4601,7 +4696,7 @@ func (x *TLUserUpdateUsername) String() string {
 func (*TLUserUpdateUsername) ProtoMessage() {}
 
 func (x *TLUserUpdateUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[65]
+	mi := &file_user_tl_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4614,7 +4709,7 @@ func (x *TLUserUpdateUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserUpdateUsername.ProtoReflect.Descriptor instead.
 func (*TLUserUpdateUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{65}
+	return file_user_tl_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *TLUserUpdateUsername) GetConstructor() TLConstructor {
@@ -4656,7 +4751,7 @@ type TLUserUpdateProfilePhoto struct {
 
 func (x *TLUserUpdateProfilePhoto) Reset() {
 	*x = TLUserUpdateProfilePhoto{}
-	mi := &file_user_tl_proto_msgTypes[66]
+	mi := &file_user_tl_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4668,7 +4763,7 @@ func (x *TLUserUpdateProfilePhoto) String() string {
 func (*TLUserUpdateProfilePhoto) ProtoMessage() {}
 
 func (x *TLUserUpdateProfilePhoto) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[66]
+	mi := &file_user_tl_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4681,7 +4776,7 @@ func (x *TLUserUpdateProfilePhoto) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserUpdateProfilePhoto.ProtoReflect.Descriptor instead.
 func (*TLUserUpdateProfilePhoto) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{66}
+	return file_user_tl_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *TLUserUpdateProfilePhoto) GetConstructor() TLConstructor {
@@ -4731,7 +4826,7 @@ type TLUserDeleteProfilePhotos struct {
 
 func (x *TLUserDeleteProfilePhotos) Reset() {
 	*x = TLUserDeleteProfilePhotos{}
-	mi := &file_user_tl_proto_msgTypes[67]
+	mi := &file_user_tl_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4743,7 +4838,7 @@ func (x *TLUserDeleteProfilePhotos) String() string {
 func (*TLUserDeleteProfilePhotos) ProtoMessage() {}
 
 func (x *TLUserDeleteProfilePhotos) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[67]
+	mi := &file_user_tl_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4756,7 +4851,7 @@ func (x *TLUserDeleteProfilePhotos) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserDeleteProfilePhotos.ProtoReflect.Descriptor instead.
 func (*TLUserDeleteProfilePhotos) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{67}
+	return file_user_tl_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *TLUserDeleteProfilePhotos) GetConstructor() TLConstructor {
@@ -4791,7 +4886,7 @@ type TLUserGetProfilePhotos struct {
 
 func (x *TLUserGetProfilePhotos) Reset() {
 	*x = TLUserGetProfilePhotos{}
-	mi := &file_user_tl_proto_msgTypes[68]
+	mi := &file_user_tl_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4803,7 +4898,7 @@ func (x *TLUserGetProfilePhotos) String() string {
 func (*TLUserGetProfilePhotos) ProtoMessage() {}
 
 func (x *TLUserGetProfilePhotos) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[68]
+	mi := &file_user_tl_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4816,7 +4911,7 @@ func (x *TLUserGetProfilePhotos) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetProfilePhotos.ProtoReflect.Descriptor instead.
 func (*TLUserGetProfilePhotos) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{68}
+	return file_user_tl_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *TLUserGetProfilePhotos) GetConstructor() TLConstructor {
@@ -4846,7 +4941,7 @@ type TLUserSetBotCommands struct {
 
 func (x *TLUserSetBotCommands) Reset() {
 	*x = TLUserSetBotCommands{}
-	mi := &file_user_tl_proto_msgTypes[69]
+	mi := &file_user_tl_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4858,7 +4953,7 @@ func (x *TLUserSetBotCommands) String() string {
 func (*TLUserSetBotCommands) ProtoMessage() {}
 
 func (x *TLUserSetBotCommands) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[69]
+	mi := &file_user_tl_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4871,7 +4966,7 @@ func (x *TLUserSetBotCommands) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetBotCommands.ProtoReflect.Descriptor instead.
 func (*TLUserSetBotCommands) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{69}
+	return file_user_tl_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *TLUserSetBotCommands) GetConstructor() TLConstructor {
@@ -4913,7 +5008,7 @@ type TLUserIsBot struct {
 
 func (x *TLUserIsBot) Reset() {
 	*x = TLUserIsBot{}
-	mi := &file_user_tl_proto_msgTypes[70]
+	mi := &file_user_tl_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4925,7 +5020,7 @@ func (x *TLUserIsBot) String() string {
 func (*TLUserIsBot) ProtoMessage() {}
 
 func (x *TLUserIsBot) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[70]
+	mi := &file_user_tl_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4938,7 +5033,7 @@ func (x *TLUserIsBot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserIsBot.ProtoReflect.Descriptor instead.
 func (*TLUserIsBot) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{70}
+	return file_user_tl_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *TLUserIsBot) GetConstructor() TLConstructor {
@@ -4966,7 +5061,7 @@ type TLUserGetBotInfo struct {
 
 func (x *TLUserGetBotInfo) Reset() {
 	*x = TLUserGetBotInfo{}
-	mi := &file_user_tl_proto_msgTypes[71]
+	mi := &file_user_tl_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4978,7 +5073,7 @@ func (x *TLUserGetBotInfo) String() string {
 func (*TLUserGetBotInfo) ProtoMessage() {}
 
 func (x *TLUserGetBotInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[71]
+	mi := &file_user_tl_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4991,7 +5086,7 @@ func (x *TLUserGetBotInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetBotInfo.ProtoReflect.Descriptor instead.
 func (*TLUserGetBotInfo) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{71}
+	return file_user_tl_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *TLUserGetBotInfo) GetConstructor() TLConstructor {
@@ -5019,7 +5114,7 @@ type TLUserCheckBots struct {
 
 func (x *TLUserCheckBots) Reset() {
 	*x = TLUserCheckBots{}
-	mi := &file_user_tl_proto_msgTypes[72]
+	mi := &file_user_tl_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5031,7 +5126,7 @@ func (x *TLUserCheckBots) String() string {
 func (*TLUserCheckBots) ProtoMessage() {}
 
 func (x *TLUserCheckBots) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[72]
+	mi := &file_user_tl_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5044,7 +5139,7 @@ func (x *TLUserCheckBots) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserCheckBots.ProtoReflect.Descriptor instead.
 func (*TLUserCheckBots) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{72}
+	return file_user_tl_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *TLUserCheckBots) GetConstructor() TLConstructor {
@@ -5073,7 +5168,7 @@ type TLUserGetFullUser struct {
 
 func (x *TLUserGetFullUser) Reset() {
 	*x = TLUserGetFullUser{}
-	mi := &file_user_tl_proto_msgTypes[73]
+	mi := &file_user_tl_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5085,7 +5180,7 @@ func (x *TLUserGetFullUser) String() string {
 func (*TLUserGetFullUser) ProtoMessage() {}
 
 func (x *TLUserGetFullUser) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[73]
+	mi := &file_user_tl_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5098,7 +5193,7 @@ func (x *TLUserGetFullUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetFullUser.ProtoReflect.Descriptor instead.
 func (*TLUserGetFullUser) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{73}
+	return file_user_tl_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *TLUserGetFullUser) GetConstructor() TLConstructor {
@@ -5135,7 +5230,7 @@ type TLUserUpdateEmojiStatus struct {
 
 func (x *TLUserUpdateEmojiStatus) Reset() {
 	*x = TLUserUpdateEmojiStatus{}
-	mi := &file_user_tl_proto_msgTypes[74]
+	mi := &file_user_tl_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5147,7 +5242,7 @@ func (x *TLUserUpdateEmojiStatus) String() string {
 func (*TLUserUpdateEmojiStatus) ProtoMessage() {}
 
 func (x *TLUserUpdateEmojiStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[74]
+	mi := &file_user_tl_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5160,7 +5255,7 @@ func (x *TLUserUpdateEmojiStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserUpdateEmojiStatus.ProtoReflect.Descriptor instead.
 func (*TLUserUpdateEmojiStatus) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{74}
+	return file_user_tl_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *TLUserUpdateEmojiStatus) GetConstructor() TLConstructor {
@@ -5202,7 +5297,7 @@ type TLUserGetUserDataById struct {
 
 func (x *TLUserGetUserDataById) Reset() {
 	*x = TLUserGetUserDataById{}
-	mi := &file_user_tl_proto_msgTypes[75]
+	mi := &file_user_tl_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5214,7 +5309,7 @@ func (x *TLUserGetUserDataById) String() string {
 func (*TLUserGetUserDataById) ProtoMessage() {}
 
 func (x *TLUserGetUserDataById) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[75]
+	mi := &file_user_tl_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5227,7 +5322,7 @@ func (x *TLUserGetUserDataById) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetUserDataById.ProtoReflect.Descriptor instead.
 func (*TLUserGetUserDataById) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{75}
+	return file_user_tl_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *TLUserGetUserDataById) GetConstructor() TLConstructor {
@@ -5255,7 +5350,7 @@ type TLUserGetUserDataListByIdList struct {
 
 func (x *TLUserGetUserDataListByIdList) Reset() {
 	*x = TLUserGetUserDataListByIdList{}
-	mi := &file_user_tl_proto_msgTypes[76]
+	mi := &file_user_tl_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5267,7 +5362,7 @@ func (x *TLUserGetUserDataListByIdList) String() string {
 func (*TLUserGetUserDataListByIdList) ProtoMessage() {}
 
 func (x *TLUserGetUserDataListByIdList) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[76]
+	mi := &file_user_tl_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5280,7 +5375,7 @@ func (x *TLUserGetUserDataListByIdList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetUserDataListByIdList.ProtoReflect.Descriptor instead.
 func (*TLUserGetUserDataListByIdList) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{76}
+	return file_user_tl_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *TLUserGetUserDataListByIdList) GetConstructor() TLConstructor {
@@ -5308,7 +5403,7 @@ type TLUserGetUserDataByToken struct {
 
 func (x *TLUserGetUserDataByToken) Reset() {
 	*x = TLUserGetUserDataByToken{}
-	mi := &file_user_tl_proto_msgTypes[77]
+	mi := &file_user_tl_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5320,7 +5415,7 @@ func (x *TLUserGetUserDataByToken) String() string {
 func (*TLUserGetUserDataByToken) ProtoMessage() {}
 
 func (x *TLUserGetUserDataByToken) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[77]
+	mi := &file_user_tl_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5333,7 +5428,7 @@ func (x *TLUserGetUserDataByToken) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetUserDataByToken.ProtoReflect.Descriptor instead.
 func (*TLUserGetUserDataByToken) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{77}
+	return file_user_tl_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *TLUserGetUserDataByToken) GetConstructor() TLConstructor {
@@ -5364,7 +5459,7 @@ type TLUserSearch struct {
 
 func (x *TLUserSearch) Reset() {
 	*x = TLUserSearch{}
-	mi := &file_user_tl_proto_msgTypes[78]
+	mi := &file_user_tl_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5376,7 +5471,7 @@ func (x *TLUserSearch) String() string {
 func (*TLUserSearch) ProtoMessage() {}
 
 func (x *TLUserSearch) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[78]
+	mi := &file_user_tl_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5389,7 +5484,7 @@ func (x *TLUserSearch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSearch.ProtoReflect.Descriptor instead.
 func (*TLUserSearch) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{78}
+	return file_user_tl_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *TLUserSearch) GetConstructor() TLConstructor {
@@ -5438,13 +5533,14 @@ type TLUserUpdateBotData struct {
 	BotAttachMenu        *mtproto.Bool           `protobuf:"bytes,7,opt,name=bot_attach_menu,json=botAttachMenu,proto3" json:"bot_attach_menu,omitempty"`
 	BotInlinePlaceholder *wrapperspb.StringValue `protobuf:"bytes,8,opt,name=bot_inline_placeholder,json=botInlinePlaceholder,proto3" json:"bot_inline_placeholder,omitempty"`
 	BotHasMainApp        *mtproto.Bool           `protobuf:"bytes,9,opt,name=bot_has_main_app,json=botHasMainApp,proto3" json:"bot_has_main_app,omitempty"`
+	BotBusiness          *mtproto.Bool           `protobuf:"bytes,10,opt,name=bot_business,json=botBusiness,proto3" json:"bot_business,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
 
 func (x *TLUserUpdateBotData) Reset() {
 	*x = TLUserUpdateBotData{}
-	mi := &file_user_tl_proto_msgTypes[79]
+	mi := &file_user_tl_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5456,7 +5552,7 @@ func (x *TLUserUpdateBotData) String() string {
 func (*TLUserUpdateBotData) ProtoMessage() {}
 
 func (x *TLUserUpdateBotData) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[79]
+	mi := &file_user_tl_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5469,7 +5565,7 @@ func (x *TLUserUpdateBotData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserUpdateBotData.ProtoReflect.Descriptor instead.
 func (*TLUserUpdateBotData) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{79}
+	return file_user_tl_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *TLUserUpdateBotData) GetConstructor() TLConstructor {
@@ -5528,6 +5624,13 @@ func (x *TLUserUpdateBotData) GetBotHasMainApp() *mtproto.Bool {
 	return nil
 }
 
+func (x *TLUserUpdateBotData) GetBotBusiness() *mtproto.Bool {
+	if x != nil {
+		return x.BotBusiness
+	}
+	return nil
+}
+
 // --------------------------------------------------------------------------------------------
 type TLUserGetImmutableUserV2 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -5542,7 +5645,7 @@ type TLUserGetImmutableUserV2 struct {
 
 func (x *TLUserGetImmutableUserV2) Reset() {
 	*x = TLUserGetImmutableUserV2{}
-	mi := &file_user_tl_proto_msgTypes[80]
+	mi := &file_user_tl_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5554,7 +5657,7 @@ func (x *TLUserGetImmutableUserV2) String() string {
 func (*TLUserGetImmutableUserV2) ProtoMessage() {}
 
 func (x *TLUserGetImmutableUserV2) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[80]
+	mi := &file_user_tl_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5567,7 +5670,7 @@ func (x *TLUserGetImmutableUserV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetImmutableUserV2.ProtoReflect.Descriptor instead.
 func (*TLUserGetImmutableUserV2) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{80}
+	return file_user_tl_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *TLUserGetImmutableUserV2) GetConstructor() TLConstructor {
@@ -5619,7 +5722,7 @@ type TLUserGetMutableUsersV2 struct {
 
 func (x *TLUserGetMutableUsersV2) Reset() {
 	*x = TLUserGetMutableUsersV2{}
-	mi := &file_user_tl_proto_msgTypes[81]
+	mi := &file_user_tl_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5631,7 +5734,7 @@ func (x *TLUserGetMutableUsersV2) String() string {
 func (*TLUserGetMutableUsersV2) ProtoMessage() {}
 
 func (x *TLUserGetMutableUsersV2) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[81]
+	mi := &file_user_tl_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5644,7 +5747,7 @@ func (x *TLUserGetMutableUsersV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetMutableUsersV2.ProtoReflect.Descriptor instead.
 func (*TLUserGetMutableUsersV2) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{81}
+	return file_user_tl_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *TLUserGetMutableUsersV2) GetConstructor() TLConstructor {
@@ -5695,7 +5798,7 @@ type TLUserCreateNewTestUser struct {
 
 func (x *TLUserCreateNewTestUser) Reset() {
 	*x = TLUserCreateNewTestUser{}
-	mi := &file_user_tl_proto_msgTypes[82]
+	mi := &file_user_tl_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5707,7 +5810,7 @@ func (x *TLUserCreateNewTestUser) String() string {
 func (*TLUserCreateNewTestUser) ProtoMessage() {}
 
 func (x *TLUserCreateNewTestUser) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[82]
+	mi := &file_user_tl_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5720,7 +5823,7 @@ func (x *TLUserCreateNewTestUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserCreateNewTestUser.ProtoReflect.Descriptor instead.
 func (*TLUserCreateNewTestUser) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{82}
+	return file_user_tl_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *TLUserCreateNewTestUser) GetConstructor() TLConstructor {
@@ -5763,7 +5866,7 @@ type TLUserEditCloseFriends struct {
 
 func (x *TLUserEditCloseFriends) Reset() {
 	*x = TLUserEditCloseFriends{}
-	mi := &file_user_tl_proto_msgTypes[83]
+	mi := &file_user_tl_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5775,7 +5878,7 @@ func (x *TLUserEditCloseFriends) String() string {
 func (*TLUserEditCloseFriends) ProtoMessage() {}
 
 func (x *TLUserEditCloseFriends) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[83]
+	mi := &file_user_tl_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5788,7 +5891,7 @@ func (x *TLUserEditCloseFriends) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserEditCloseFriends.ProtoReflect.Descriptor instead.
 func (*TLUserEditCloseFriends) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{83}
+	return file_user_tl_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *TLUserEditCloseFriends) GetConstructor() TLConstructor {
@@ -5824,7 +5927,7 @@ type TLUserSetStoriesMaxId struct {
 
 func (x *TLUserSetStoriesMaxId) Reset() {
 	*x = TLUserSetStoriesMaxId{}
-	mi := &file_user_tl_proto_msgTypes[84]
+	mi := &file_user_tl_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5836,7 +5939,7 @@ func (x *TLUserSetStoriesMaxId) String() string {
 func (*TLUserSetStoriesMaxId) ProtoMessage() {}
 
 func (x *TLUserSetStoriesMaxId) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[84]
+	mi := &file_user_tl_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5849,7 +5952,7 @@ func (x *TLUserSetStoriesMaxId) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetStoriesMaxId.ProtoReflect.Descriptor instead.
 func (*TLUserSetStoriesMaxId) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{84}
+	return file_user_tl_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *TLUserSetStoriesMaxId) GetConstructor() TLConstructor {
@@ -5887,7 +5990,7 @@ type TLUserSetColor struct {
 
 func (x *TLUserSetColor) Reset() {
 	*x = TLUserSetColor{}
-	mi := &file_user_tl_proto_msgTypes[85]
+	mi := &file_user_tl_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5899,7 +6002,7 @@ func (x *TLUserSetColor) String() string {
 func (*TLUserSetColor) ProtoMessage() {}
 
 func (x *TLUserSetColor) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[85]
+	mi := &file_user_tl_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5912,7 +6015,7 @@ func (x *TLUserSetColor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetColor.ProtoReflect.Descriptor instead.
 func (*TLUserSetColor) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{85}
+	return file_user_tl_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *TLUserSetColor) GetConstructor() TLConstructor {
@@ -5962,7 +6065,7 @@ type TLUserUpdateBirthday struct {
 
 func (x *TLUserUpdateBirthday) Reset() {
 	*x = TLUserUpdateBirthday{}
-	mi := &file_user_tl_proto_msgTypes[86]
+	mi := &file_user_tl_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5974,7 +6077,7 @@ func (x *TLUserUpdateBirthday) String() string {
 func (*TLUserUpdateBirthday) ProtoMessage() {}
 
 func (x *TLUserUpdateBirthday) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[86]
+	mi := &file_user_tl_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5987,7 +6090,7 @@ func (x *TLUserUpdateBirthday) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserUpdateBirthday.ProtoReflect.Descriptor instead.
 func (*TLUserUpdateBirthday) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{86}
+	return file_user_tl_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *TLUserUpdateBirthday) GetConstructor() TLConstructor {
@@ -6022,7 +6125,7 @@ type TLUserGetBirthdays struct {
 
 func (x *TLUserGetBirthdays) Reset() {
 	*x = TLUserGetBirthdays{}
-	mi := &file_user_tl_proto_msgTypes[87]
+	mi := &file_user_tl_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6034,7 +6137,7 @@ func (x *TLUserGetBirthdays) String() string {
 func (*TLUserGetBirthdays) ProtoMessage() {}
 
 func (x *TLUserGetBirthdays) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[87]
+	mi := &file_user_tl_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6047,7 +6150,7 @@ func (x *TLUserGetBirthdays) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetBirthdays.ProtoReflect.Descriptor instead.
 func (*TLUserGetBirthdays) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{87}
+	return file_user_tl_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *TLUserGetBirthdays) GetConstructor() TLConstructor {
@@ -6077,7 +6180,7 @@ type TLUserSetStoriesHidden struct {
 
 func (x *TLUserSetStoriesHidden) Reset() {
 	*x = TLUserSetStoriesHidden{}
-	mi := &file_user_tl_proto_msgTypes[88]
+	mi := &file_user_tl_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6089,7 +6192,7 @@ func (x *TLUserSetStoriesHidden) String() string {
 func (*TLUserSetStoriesHidden) ProtoMessage() {}
 
 func (x *TLUserSetStoriesHidden) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[88]
+	mi := &file_user_tl_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6102,7 +6205,7 @@ func (x *TLUserSetStoriesHidden) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetStoriesHidden.ProtoReflect.Descriptor instead.
 func (*TLUserSetStoriesHidden) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{88}
+	return file_user_tl_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *TLUserSetStoriesHidden) GetConstructor() TLConstructor {
@@ -6145,7 +6248,7 @@ type TLUserUpdatePersonalChannel struct {
 
 func (x *TLUserUpdatePersonalChannel) Reset() {
 	*x = TLUserUpdatePersonalChannel{}
-	mi := &file_user_tl_proto_msgTypes[89]
+	mi := &file_user_tl_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6157,7 +6260,7 @@ func (x *TLUserUpdatePersonalChannel) String() string {
 func (*TLUserUpdatePersonalChannel) ProtoMessage() {}
 
 func (x *TLUserUpdatePersonalChannel) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[89]
+	mi := &file_user_tl_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6170,7 +6273,7 @@ func (x *TLUserUpdatePersonalChannel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserUpdatePersonalChannel.ProtoReflect.Descriptor instead.
 func (*TLUserUpdatePersonalChannel) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{89}
+	return file_user_tl_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *TLUserUpdatePersonalChannel) GetConstructor() TLConstructor {
@@ -6205,7 +6308,7 @@ type TLUserGetUserIdByPhone struct {
 
 func (x *TLUserGetUserIdByPhone) Reset() {
 	*x = TLUserGetUserIdByPhone{}
-	mi := &file_user_tl_proto_msgTypes[90]
+	mi := &file_user_tl_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6217,7 +6320,7 @@ func (x *TLUserGetUserIdByPhone) String() string {
 func (*TLUserGetUserIdByPhone) ProtoMessage() {}
 
 func (x *TLUserGetUserIdByPhone) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[90]
+	mi := &file_user_tl_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6230,7 +6333,7 @@ func (x *TLUserGetUserIdByPhone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetUserIdByPhone.ProtoReflect.Descriptor instead.
 func (*TLUserGetUserIdByPhone) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{90}
+	return file_user_tl_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *TLUserGetUserIdByPhone) GetConstructor() TLConstructor {
@@ -6259,7 +6362,7 @@ type TLUserSetAuthorizationTTL struct {
 
 func (x *TLUserSetAuthorizationTTL) Reset() {
 	*x = TLUserSetAuthorizationTTL{}
-	mi := &file_user_tl_proto_msgTypes[91]
+	mi := &file_user_tl_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6271,7 +6374,7 @@ func (x *TLUserSetAuthorizationTTL) String() string {
 func (*TLUserSetAuthorizationTTL) ProtoMessage() {}
 
 func (x *TLUserSetAuthorizationTTL) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[91]
+	mi := &file_user_tl_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6284,7 +6387,7 @@ func (x *TLUserSetAuthorizationTTL) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetAuthorizationTTL.ProtoReflect.Descriptor instead.
 func (*TLUserSetAuthorizationTTL) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{91}
+	return file_user_tl_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *TLUserSetAuthorizationTTL) GetConstructor() TLConstructor {
@@ -6319,7 +6422,7 @@ type TLUserGetAuthorizationTTL struct {
 
 func (x *TLUserGetAuthorizationTTL) Reset() {
 	*x = TLUserGetAuthorizationTTL{}
-	mi := &file_user_tl_proto_msgTypes[92]
+	mi := &file_user_tl_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6331,7 +6434,7 @@ func (x *TLUserGetAuthorizationTTL) String() string {
 func (*TLUserGetAuthorizationTTL) ProtoMessage() {}
 
 func (x *TLUserGetAuthorizationTTL) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[92]
+	mi := &file_user_tl_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6344,7 +6447,7 @@ func (x *TLUserGetAuthorizationTTL) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetAuthorizationTTL.ProtoReflect.Descriptor instead.
 func (*TLUserGetAuthorizationTTL) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{92}
+	return file_user_tl_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *TLUserGetAuthorizationTTL) GetConstructor() TLConstructor {
@@ -6374,7 +6477,7 @@ type TLUserUpdatePremium struct {
 
 func (x *TLUserUpdatePremium) Reset() {
 	*x = TLUserUpdatePremium{}
-	mi := &file_user_tl_proto_msgTypes[93]
+	mi := &file_user_tl_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6386,7 +6489,7 @@ func (x *TLUserUpdatePremium) String() string {
 func (*TLUserUpdatePremium) ProtoMessage() {}
 
 func (x *TLUserUpdatePremium) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[93]
+	mi := &file_user_tl_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6399,7 +6502,7 @@ func (x *TLUserUpdatePremium) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserUpdatePremium.ProtoReflect.Descriptor instead.
 func (*TLUserUpdatePremium) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{93}
+	return file_user_tl_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *TLUserUpdatePremium) GetConstructor() TLConstructor {
@@ -6441,7 +6544,7 @@ type TLUserGetBotInfoV2 struct {
 
 func (x *TLUserGetBotInfoV2) Reset() {
 	*x = TLUserGetBotInfoV2{}
-	mi := &file_user_tl_proto_msgTypes[94]
+	mi := &file_user_tl_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6453,7 +6556,7 @@ func (x *TLUserGetBotInfoV2) String() string {
 func (*TLUserGetBotInfoV2) ProtoMessage() {}
 
 func (x *TLUserGetBotInfoV2) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[94]
+	mi := &file_user_tl_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6466,7 +6569,7 @@ func (x *TLUserGetBotInfoV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetBotInfoV2.ProtoReflect.Descriptor instead.
 func (*TLUserGetBotInfoV2) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{94}
+	return file_user_tl_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *TLUserGetBotInfoV2) GetConstructor() TLConstructor {
@@ -6497,7 +6600,7 @@ type TLUserSaveMusic struct {
 
 func (x *TLUserSaveMusic) Reset() {
 	*x = TLUserSaveMusic{}
-	mi := &file_user_tl_proto_msgTypes[95]
+	mi := &file_user_tl_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6509,7 +6612,7 @@ func (x *TLUserSaveMusic) String() string {
 func (*TLUserSaveMusic) ProtoMessage() {}
 
 func (x *TLUserSaveMusic) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[95]
+	mi := &file_user_tl_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6522,7 +6625,7 @@ func (x *TLUserSaveMusic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSaveMusic.ProtoReflect.Descriptor instead.
 func (*TLUserSaveMusic) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{95}
+	return file_user_tl_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *TLUserSaveMusic) GetConstructor() TLConstructor {
@@ -6571,7 +6674,7 @@ type TLUserGetSavedMusicIdList struct {
 
 func (x *TLUserGetSavedMusicIdList) Reset() {
 	*x = TLUserGetSavedMusicIdList{}
-	mi := &file_user_tl_proto_msgTypes[96]
+	mi := &file_user_tl_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6583,7 +6686,7 @@ func (x *TLUserGetSavedMusicIdList) String() string {
 func (*TLUserGetSavedMusicIdList) ProtoMessage() {}
 
 func (x *TLUserGetSavedMusicIdList) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[96]
+	mi := &file_user_tl_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6596,7 +6699,7 @@ func (x *TLUserGetSavedMusicIdList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetSavedMusicIdList.ProtoReflect.Descriptor instead.
 func (*TLUserGetSavedMusicIdList) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{96}
+	return file_user_tl_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *TLUserGetSavedMusicIdList) GetConstructor() TLConstructor {
@@ -6625,7 +6728,7 @@ type TLUserSetMainProfileTab struct {
 
 func (x *TLUserSetMainProfileTab) Reset() {
 	*x = TLUserSetMainProfileTab{}
-	mi := &file_user_tl_proto_msgTypes[97]
+	mi := &file_user_tl_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6637,7 +6740,7 @@ func (x *TLUserSetMainProfileTab) String() string {
 func (*TLUserSetMainProfileTab) ProtoMessage() {}
 
 func (x *TLUserSetMainProfileTab) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[97]
+	mi := &file_user_tl_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6650,7 +6753,7 @@ func (x *TLUserSetMainProfileTab) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetMainProfileTab.ProtoReflect.Descriptor instead.
 func (*TLUserSetMainProfileTab) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{97}
+	return file_user_tl_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *TLUserSetMainProfileTab) GetConstructor() TLConstructor {
@@ -6686,7 +6789,7 @@ type TLUserSetDefaultHistoryTTL struct {
 
 func (x *TLUserSetDefaultHistoryTTL) Reset() {
 	*x = TLUserSetDefaultHistoryTTL{}
-	mi := &file_user_tl_proto_msgTypes[98]
+	mi := &file_user_tl_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6698,7 +6801,7 @@ func (x *TLUserSetDefaultHistoryTTL) String() string {
 func (*TLUserSetDefaultHistoryTTL) ProtoMessage() {}
 
 func (x *TLUserSetDefaultHistoryTTL) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[98]
+	mi := &file_user_tl_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6711,7 +6814,7 @@ func (x *TLUserSetDefaultHistoryTTL) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetDefaultHistoryTTL.ProtoReflect.Descriptor instead.
 func (*TLUserSetDefaultHistoryTTL) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{98}
+	return file_user_tl_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *TLUserSetDefaultHistoryTTL) GetConstructor() TLConstructor {
@@ -6746,7 +6849,7 @@ type TLUserGetDefaultHistoryTTL struct {
 
 func (x *TLUserGetDefaultHistoryTTL) Reset() {
 	*x = TLUserGetDefaultHistoryTTL{}
-	mi := &file_user_tl_proto_msgTypes[99]
+	mi := &file_user_tl_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6758,7 +6861,7 @@ func (x *TLUserGetDefaultHistoryTTL) String() string {
 func (*TLUserGetDefaultHistoryTTL) ProtoMessage() {}
 
 func (x *TLUserGetDefaultHistoryTTL) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[99]
+	mi := &file_user_tl_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6771,7 +6874,7 @@ func (x *TLUserGetDefaultHistoryTTL) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetDefaultHistoryTTL.ProtoReflect.Descriptor instead.
 func (*TLUserGetDefaultHistoryTTL) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{99}
+	return file_user_tl_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *TLUserGetDefaultHistoryTTL) GetConstructor() TLConstructor {
@@ -6799,7 +6902,7 @@ type TLUserGetAccountUsername struct {
 
 func (x *TLUserGetAccountUsername) Reset() {
 	*x = TLUserGetAccountUsername{}
-	mi := &file_user_tl_proto_msgTypes[100]
+	mi := &file_user_tl_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6811,7 +6914,7 @@ func (x *TLUserGetAccountUsername) String() string {
 func (*TLUserGetAccountUsername) ProtoMessage() {}
 
 func (x *TLUserGetAccountUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[100]
+	mi := &file_user_tl_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6824,7 +6927,7 @@ func (x *TLUserGetAccountUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetAccountUsername.ProtoReflect.Descriptor instead.
 func (*TLUserGetAccountUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{100}
+	return file_user_tl_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *TLUserGetAccountUsername) GetConstructor() TLConstructor {
@@ -6853,7 +6956,7 @@ type TLUserCheckAccountUsername struct {
 
 func (x *TLUserCheckAccountUsername) Reset() {
 	*x = TLUserCheckAccountUsername{}
-	mi := &file_user_tl_proto_msgTypes[101]
+	mi := &file_user_tl_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6865,7 +6968,7 @@ func (x *TLUserCheckAccountUsername) String() string {
 func (*TLUserCheckAccountUsername) ProtoMessage() {}
 
 func (x *TLUserCheckAccountUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[101]
+	mi := &file_user_tl_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6878,7 +6981,7 @@ func (x *TLUserCheckAccountUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserCheckAccountUsername.ProtoReflect.Descriptor instead.
 func (*TLUserCheckAccountUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{101}
+	return file_user_tl_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *TLUserCheckAccountUsername) GetConstructor() TLConstructor {
@@ -6913,7 +7016,7 @@ type TLUserGetChannelUsername struct {
 
 func (x *TLUserGetChannelUsername) Reset() {
 	*x = TLUserGetChannelUsername{}
-	mi := &file_user_tl_proto_msgTypes[102]
+	mi := &file_user_tl_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6925,7 +7028,7 @@ func (x *TLUserGetChannelUsername) String() string {
 func (*TLUserGetChannelUsername) ProtoMessage() {}
 
 func (x *TLUserGetChannelUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[102]
+	mi := &file_user_tl_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6938,7 +7041,7 @@ func (x *TLUserGetChannelUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetChannelUsername.ProtoReflect.Descriptor instead.
 func (*TLUserGetChannelUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{102}
+	return file_user_tl_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *TLUserGetChannelUsername) GetConstructor() TLConstructor {
@@ -6967,7 +7070,7 @@ type TLUserCheckChannelUsername struct {
 
 func (x *TLUserCheckChannelUsername) Reset() {
 	*x = TLUserCheckChannelUsername{}
-	mi := &file_user_tl_proto_msgTypes[103]
+	mi := &file_user_tl_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6979,7 +7082,7 @@ func (x *TLUserCheckChannelUsername) String() string {
 func (*TLUserCheckChannelUsername) ProtoMessage() {}
 
 func (x *TLUserCheckChannelUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[103]
+	mi := &file_user_tl_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6992,7 +7095,7 @@ func (x *TLUserCheckChannelUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserCheckChannelUsername.ProtoReflect.Descriptor instead.
 func (*TLUserCheckChannelUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{103}
+	return file_user_tl_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *TLUserCheckChannelUsername) GetConstructor() TLConstructor {
@@ -7029,7 +7132,7 @@ type TLUserUpdateUsernameByPeer struct {
 
 func (x *TLUserUpdateUsernameByPeer) Reset() {
 	*x = TLUserUpdateUsernameByPeer{}
-	mi := &file_user_tl_proto_msgTypes[104]
+	mi := &file_user_tl_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7041,7 +7144,7 @@ func (x *TLUserUpdateUsernameByPeer) String() string {
 func (*TLUserUpdateUsernameByPeer) ProtoMessage() {}
 
 func (x *TLUserUpdateUsernameByPeer) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[104]
+	mi := &file_user_tl_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7054,7 +7157,7 @@ func (x *TLUserUpdateUsernameByPeer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserUpdateUsernameByPeer.ProtoReflect.Descriptor instead.
 func (*TLUserUpdateUsernameByPeer) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{104}
+	return file_user_tl_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *TLUserUpdateUsernameByPeer) GetConstructor() TLConstructor {
@@ -7096,7 +7199,7 @@ type TLUserCheckUsername struct {
 
 func (x *TLUserCheckUsername) Reset() {
 	*x = TLUserCheckUsername{}
-	mi := &file_user_tl_proto_msgTypes[105]
+	mi := &file_user_tl_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7108,7 +7211,7 @@ func (x *TLUserCheckUsername) String() string {
 func (*TLUserCheckUsername) ProtoMessage() {}
 
 func (x *TLUserCheckUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[105]
+	mi := &file_user_tl_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7121,7 +7224,7 @@ func (x *TLUserCheckUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserCheckUsername.ProtoReflect.Descriptor instead.
 func (*TLUserCheckUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{105}
+	return file_user_tl_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *TLUserCheckUsername) GetConstructor() TLConstructor {
@@ -7151,7 +7254,7 @@ type TLUserUpdateUsernameByUsername struct {
 
 func (x *TLUserUpdateUsernameByUsername) Reset() {
 	*x = TLUserUpdateUsernameByUsername{}
-	mi := &file_user_tl_proto_msgTypes[106]
+	mi := &file_user_tl_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7163,7 +7266,7 @@ func (x *TLUserUpdateUsernameByUsername) String() string {
 func (*TLUserUpdateUsernameByUsername) ProtoMessage() {}
 
 func (x *TLUserUpdateUsernameByUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[106]
+	mi := &file_user_tl_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7176,7 +7279,7 @@ func (x *TLUserUpdateUsernameByUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserUpdateUsernameByUsername.ProtoReflect.Descriptor instead.
 func (*TLUserUpdateUsernameByUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{106}
+	return file_user_tl_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *TLUserUpdateUsernameByUsername) GetConstructor() TLConstructor {
@@ -7218,7 +7321,7 @@ type TLUserDeleteUsername struct {
 
 func (x *TLUserDeleteUsername) Reset() {
 	*x = TLUserDeleteUsername{}
-	mi := &file_user_tl_proto_msgTypes[107]
+	mi := &file_user_tl_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7230,7 +7333,7 @@ func (x *TLUserDeleteUsername) String() string {
 func (*TLUserDeleteUsername) ProtoMessage() {}
 
 func (x *TLUserDeleteUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[107]
+	mi := &file_user_tl_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7243,7 +7346,7 @@ func (x *TLUserDeleteUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserDeleteUsername.ProtoReflect.Descriptor instead.
 func (*TLUserDeleteUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{107}
+	return file_user_tl_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *TLUserDeleteUsername) GetConstructor() TLConstructor {
@@ -7271,7 +7374,7 @@ type TLUserResolveUsername struct {
 
 func (x *TLUserResolveUsername) Reset() {
 	*x = TLUserResolveUsername{}
-	mi := &file_user_tl_proto_msgTypes[108]
+	mi := &file_user_tl_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7283,7 +7386,7 @@ func (x *TLUserResolveUsername) String() string {
 func (*TLUserResolveUsername) ProtoMessage() {}
 
 func (x *TLUserResolveUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[108]
+	mi := &file_user_tl_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7296,7 +7399,7 @@ func (x *TLUserResolveUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserResolveUsername.ProtoReflect.Descriptor instead.
 func (*TLUserResolveUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{108}
+	return file_user_tl_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *TLUserResolveUsername) GetConstructor() TLConstructor {
@@ -7324,7 +7427,7 @@ type TLUserGetListByUsernameList struct {
 
 func (x *TLUserGetListByUsernameList) Reset() {
 	*x = TLUserGetListByUsernameList{}
-	mi := &file_user_tl_proto_msgTypes[109]
+	mi := &file_user_tl_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7336,7 +7439,7 @@ func (x *TLUserGetListByUsernameList) String() string {
 func (*TLUserGetListByUsernameList) ProtoMessage() {}
 
 func (x *TLUserGetListByUsernameList) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[109]
+	mi := &file_user_tl_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7349,7 +7452,7 @@ func (x *TLUserGetListByUsernameList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetListByUsernameList.ProtoReflect.Descriptor instead.
 func (*TLUserGetListByUsernameList) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{109}
+	return file_user_tl_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *TLUserGetListByUsernameList) GetConstructor() TLConstructor {
@@ -7378,7 +7481,7 @@ type TLUserDeleteUsernameByPeer struct {
 
 func (x *TLUserDeleteUsernameByPeer) Reset() {
 	*x = TLUserDeleteUsernameByPeer{}
-	mi := &file_user_tl_proto_msgTypes[110]
+	mi := &file_user_tl_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7390,7 +7493,7 @@ func (x *TLUserDeleteUsernameByPeer) String() string {
 func (*TLUserDeleteUsernameByPeer) ProtoMessage() {}
 
 func (x *TLUserDeleteUsernameByPeer) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[110]
+	mi := &file_user_tl_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7403,7 +7506,7 @@ func (x *TLUserDeleteUsernameByPeer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserDeleteUsernameByPeer.ProtoReflect.Descriptor instead.
 func (*TLUserDeleteUsernameByPeer) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{110}
+	return file_user_tl_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *TLUserDeleteUsernameByPeer) GetConstructor() TLConstructor {
@@ -7440,7 +7543,7 @@ type TLUserSearchUsername struct {
 
 func (x *TLUserSearchUsername) Reset() {
 	*x = TLUserSearchUsername{}
-	mi := &file_user_tl_proto_msgTypes[111]
+	mi := &file_user_tl_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7452,7 +7555,7 @@ func (x *TLUserSearchUsername) String() string {
 func (*TLUserSearchUsername) ProtoMessage() {}
 
 func (x *TLUserSearchUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[111]
+	mi := &file_user_tl_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7465,7 +7568,7 @@ func (x *TLUserSearchUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSearchUsername.ProtoReflect.Descriptor instead.
 func (*TLUserSearchUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{111}
+	return file_user_tl_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *TLUserSearchUsername) GetConstructor() TLConstructor {
@@ -7510,7 +7613,7 @@ type TLUserToggleUsername struct {
 
 func (x *TLUserToggleUsername) Reset() {
 	*x = TLUserToggleUsername{}
-	mi := &file_user_tl_proto_msgTypes[112]
+	mi := &file_user_tl_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7522,7 +7625,7 @@ func (x *TLUserToggleUsername) String() string {
 func (*TLUserToggleUsername) ProtoMessage() {}
 
 func (x *TLUserToggleUsername) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[112]
+	mi := &file_user_tl_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7535,7 +7638,7 @@ func (x *TLUserToggleUsername) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserToggleUsername.ProtoReflect.Descriptor instead.
 func (*TLUserToggleUsername) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{112}
+	return file_user_tl_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *TLUserToggleUsername) GetConstructor() TLConstructor {
@@ -7586,7 +7689,7 @@ type TLUserReorderUsernames struct {
 
 func (x *TLUserReorderUsernames) Reset() {
 	*x = TLUserReorderUsernames{}
-	mi := &file_user_tl_proto_msgTypes[113]
+	mi := &file_user_tl_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7598,7 +7701,7 @@ func (x *TLUserReorderUsernames) String() string {
 func (*TLUserReorderUsernames) ProtoMessage() {}
 
 func (x *TLUserReorderUsernames) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[113]
+	mi := &file_user_tl_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7611,7 +7714,7 @@ func (x *TLUserReorderUsernames) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserReorderUsernames.ProtoReflect.Descriptor instead.
 func (*TLUserReorderUsernames) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{113}
+	return file_user_tl_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *TLUserReorderUsernames) GetConstructor() TLConstructor {
@@ -7653,7 +7756,7 @@ type TLUserDeactivateAllChannelUsernames struct {
 
 func (x *TLUserDeactivateAllChannelUsernames) Reset() {
 	*x = TLUserDeactivateAllChannelUsernames{}
-	mi := &file_user_tl_proto_msgTypes[114]
+	mi := &file_user_tl_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7665,7 +7768,7 @@ func (x *TLUserDeactivateAllChannelUsernames) String() string {
 func (*TLUserDeactivateAllChannelUsernames) ProtoMessage() {}
 
 func (x *TLUserDeactivateAllChannelUsernames) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[114]
+	mi := &file_user_tl_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7678,7 +7781,7 @@ func (x *TLUserDeactivateAllChannelUsernames) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use TLUserDeactivateAllChannelUsernames.ProtoReflect.Descriptor instead.
 func (*TLUserDeactivateAllChannelUsernames) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{114}
+	return file_user_tl_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *TLUserDeactivateAllChannelUsernames) GetConstructor() TLConstructor {
@@ -7706,7 +7809,7 @@ type TLUserGetSavedContacts struct {
 
 func (x *TLUserGetSavedContacts) Reset() {
 	*x = TLUserGetSavedContacts{}
-	mi := &file_user_tl_proto_msgTypes[115]
+	mi := &file_user_tl_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7718,7 +7821,7 @@ func (x *TLUserGetSavedContacts) String() string {
 func (*TLUserGetSavedContacts) ProtoMessage() {}
 
 func (x *TLUserGetSavedContacts) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[115]
+	mi := &file_user_tl_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7731,7 +7834,7 @@ func (x *TLUserGetSavedContacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetSavedContacts.ProtoReflect.Descriptor instead.
 func (*TLUserGetSavedContacts) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{115}
+	return file_user_tl_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *TLUserGetSavedContacts) GetConstructor() TLConstructor {
@@ -7759,7 +7862,7 @@ type TLUserResetSavedContacts struct {
 
 func (x *TLUserResetSavedContacts) Reset() {
 	*x = TLUserResetSavedContacts{}
-	mi := &file_user_tl_proto_msgTypes[116]
+	mi := &file_user_tl_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7771,7 +7874,7 @@ func (x *TLUserResetSavedContacts) String() string {
 func (*TLUserResetSavedContacts) ProtoMessage() {}
 
 func (x *TLUserResetSavedContacts) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[116]
+	mi := &file_user_tl_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7784,7 +7887,7 @@ func (x *TLUserResetSavedContacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserResetSavedContacts.ProtoReflect.Descriptor instead.
 func (*TLUserResetSavedContacts) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{116}
+	return file_user_tl_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *TLUserResetSavedContacts) GetConstructor() TLConstructor {
@@ -7813,7 +7916,7 @@ type TLUserGetTopPeers struct {
 
 func (x *TLUserGetTopPeers) Reset() {
 	*x = TLUserGetTopPeers{}
-	mi := &file_user_tl_proto_msgTypes[117]
+	mi := &file_user_tl_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7825,7 +7928,7 @@ func (x *TLUserGetTopPeers) String() string {
 func (*TLUserGetTopPeers) ProtoMessage() {}
 
 func (x *TLUserGetTopPeers) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[117]
+	mi := &file_user_tl_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7838,7 +7941,7 @@ func (x *TLUserGetTopPeers) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetTopPeers.ProtoReflect.Descriptor instead.
 func (*TLUserGetTopPeers) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{117}
+	return file_user_tl_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *TLUserGetTopPeers) GetConstructor() TLConstructor {
@@ -7874,7 +7977,7 @@ type TLUserToggleTopPeers struct {
 
 func (x *TLUserToggleTopPeers) Reset() {
 	*x = TLUserToggleTopPeers{}
-	mi := &file_user_tl_proto_msgTypes[118]
+	mi := &file_user_tl_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7886,7 +7989,7 @@ func (x *TLUserToggleTopPeers) String() string {
 func (*TLUserToggleTopPeers) ProtoMessage() {}
 
 func (x *TLUserToggleTopPeers) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[118]
+	mi := &file_user_tl_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7899,7 +8002,7 @@ func (x *TLUserToggleTopPeers) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserToggleTopPeers.ProtoReflect.Descriptor instead.
 func (*TLUserToggleTopPeers) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{118}
+	return file_user_tl_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *TLUserToggleTopPeers) GetConstructor() TLConstructor {
@@ -7937,7 +8040,7 @@ type TLUserResetTopPeerRating struct {
 
 func (x *TLUserResetTopPeerRating) Reset() {
 	*x = TLUserResetTopPeerRating{}
-	mi := &file_user_tl_proto_msgTypes[119]
+	mi := &file_user_tl_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7949,7 +8052,7 @@ func (x *TLUserResetTopPeerRating) String() string {
 func (*TLUserResetTopPeerRating) ProtoMessage() {}
 
 func (x *TLUserResetTopPeerRating) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[119]
+	mi := &file_user_tl_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7962,7 +8065,7 @@ func (x *TLUserResetTopPeerRating) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserResetTopPeerRating.ProtoReflect.Descriptor instead.
 func (*TLUserResetTopPeerRating) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{119}
+	return file_user_tl_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *TLUserResetTopPeerRating) GetConstructor() TLConstructor {
@@ -8017,7 +8120,7 @@ type TLUserNewAuthorization struct {
 
 func (x *TLUserNewAuthorization) Reset() {
 	*x = TLUserNewAuthorization{}
-	mi := &file_user_tl_proto_msgTypes[120]
+	mi := &file_user_tl_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8029,7 +8132,7 @@ func (x *TLUserNewAuthorization) String() string {
 func (*TLUserNewAuthorization) ProtoMessage() {}
 
 func (x *TLUserNewAuthorization) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[120]
+	mi := &file_user_tl_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8042,7 +8145,7 @@ func (x *TLUserNewAuthorization) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserNewAuthorization.ProtoReflect.Descriptor instead.
 func (*TLUserNewAuthorization) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{120}
+	return file_user_tl_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *TLUserNewAuthorization) GetConstructor() TLConstructor {
@@ -8085,7 +8188,7 @@ type TLUserGetSavedGifIdList struct {
 
 func (x *TLUserGetSavedGifIdList) Reset() {
 	*x = TLUserGetSavedGifIdList{}
-	mi := &file_user_tl_proto_msgTypes[121]
+	mi := &file_user_tl_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8097,7 +8200,7 @@ func (x *TLUserGetSavedGifIdList) String() string {
 func (*TLUserGetSavedGifIdList) ProtoMessage() {}
 
 func (x *TLUserGetSavedGifIdList) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[121]
+	mi := &file_user_tl_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8110,7 +8213,7 @@ func (x *TLUserGetSavedGifIdList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetSavedGifIdList.ProtoReflect.Descriptor instead.
 func (*TLUserGetSavedGifIdList) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{121}
+	return file_user_tl_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *TLUserGetSavedGifIdList) GetConstructor() TLConstructor {
@@ -8145,7 +8248,7 @@ type TLUserSetContactPersonalPhoto struct {
 
 func (x *TLUserSetContactPersonalPhoto) Reset() {
 	*x = TLUserSetContactPersonalPhoto{}
-	mi := &file_user_tl_proto_msgTypes[122]
+	mi := &file_user_tl_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8157,7 +8260,7 @@ func (x *TLUserSetContactPersonalPhoto) String() string {
 func (*TLUserSetContactPersonalPhoto) ProtoMessage() {}
 
 func (x *TLUserSetContactPersonalPhoto) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[122]
+	mi := &file_user_tl_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8170,7 +8273,7 @@ func (x *TLUserSetContactPersonalPhoto) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetContactPersonalPhoto.ProtoReflect.Descriptor instead.
 func (*TLUserSetContactPersonalPhoto) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{122}
+	return file_user_tl_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *TLUserSetContactPersonalPhoto) GetConstructor() TLConstructor {
@@ -8224,7 +8327,7 @@ type TLUserAddSuggestedPhoto struct {
 
 func (x *TLUserAddSuggestedPhoto) Reset() {
 	*x = TLUserAddSuggestedPhoto{}
-	mi := &file_user_tl_proto_msgTypes[123]
+	mi := &file_user_tl_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8236,7 +8339,7 @@ func (x *TLUserAddSuggestedPhoto) String() string {
 func (*TLUserAddSuggestedPhoto) ProtoMessage() {}
 
 func (x *TLUserAddSuggestedPhoto) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[123]
+	mi := &file_user_tl_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8249,7 +8352,7 @@ func (x *TLUserAddSuggestedPhoto) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserAddSuggestedPhoto.ProtoReflect.Descriptor instead.
 func (*TLUserAddSuggestedPhoto) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{123}
+	return file_user_tl_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *TLUserAddSuggestedPhoto) GetConstructor() TLConstructor {
@@ -8292,7 +8395,7 @@ type TLUserGetStatusWatchers struct {
 
 func (x *TLUserGetStatusWatchers) Reset() {
 	*x = TLUserGetStatusWatchers{}
-	mi := &file_user_tl_proto_msgTypes[124]
+	mi := &file_user_tl_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8304,7 +8407,7 @@ func (x *TLUserGetStatusWatchers) String() string {
 func (*TLUserGetStatusWatchers) ProtoMessage() {}
 
 func (x *TLUserGetStatusWatchers) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[124]
+	mi := &file_user_tl_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8317,7 +8420,7 @@ func (x *TLUserGetStatusWatchers) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetStatusWatchers.ProtoReflect.Descriptor instead.
 func (*TLUserGetStatusWatchers) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{124}
+	return file_user_tl_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *TLUserGetStatusWatchers) GetConstructor() TLConstructor {
@@ -8350,7 +8453,7 @@ type TLUserSaveGif struct {
 
 func (x *TLUserSaveGif) Reset() {
 	*x = TLUserSaveGif{}
-	mi := &file_user_tl_proto_msgTypes[125]
+	mi := &file_user_tl_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8362,7 +8465,7 @@ func (x *TLUserSaveGif) String() string {
 func (*TLUserSaveGif) ProtoMessage() {}
 
 func (x *TLUserSaveGif) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[125]
+	mi := &file_user_tl_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8375,7 +8478,7 @@ func (x *TLUserSaveGif) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSaveGif.ProtoReflect.Descriptor instead.
 func (*TLUserSaveGif) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{125}
+	return file_user_tl_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *TLUserSaveGif) GetConstructor() TLConstructor {
@@ -8420,7 +8523,7 @@ type TLUserGetReactionsNotifySettings struct {
 
 func (x *TLUserGetReactionsNotifySettings) Reset() {
 	*x = TLUserGetReactionsNotifySettings{}
-	mi := &file_user_tl_proto_msgTypes[126]
+	mi := &file_user_tl_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8432,7 +8535,7 @@ func (x *TLUserGetReactionsNotifySettings) String() string {
 func (*TLUserGetReactionsNotifySettings) ProtoMessage() {}
 
 func (x *TLUserGetReactionsNotifySettings) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[126]
+	mi := &file_user_tl_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8445,7 +8548,7 @@ func (x *TLUserGetReactionsNotifySettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetReactionsNotifySettings.ProtoReflect.Descriptor instead.
 func (*TLUserGetReactionsNotifySettings) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{126}
+	return file_user_tl_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *TLUserGetReactionsNotifySettings) GetConstructor() TLConstructor {
@@ -8480,7 +8583,7 @@ type TLUserSetReactionsNotifySettings struct {
 
 func (x *TLUserSetReactionsNotifySettings) Reset() {
 	*x = TLUserSetReactionsNotifySettings{}
-	mi := &file_user_tl_proto_msgTypes[127]
+	mi := &file_user_tl_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8492,7 +8595,7 @@ func (x *TLUserSetReactionsNotifySettings) String() string {
 func (*TLUserSetReactionsNotifySettings) ProtoMessage() {}
 
 func (x *TLUserSetReactionsNotifySettings) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[127]
+	mi := &file_user_tl_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8505,7 +8608,7 @@ func (x *TLUserSetReactionsNotifySettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetReactionsNotifySettings.ProtoReflect.Descriptor instead.
 func (*TLUserSetReactionsNotifySettings) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{127}
+	return file_user_tl_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *TLUserSetReactionsNotifySettings) GetConstructor() TLConstructor {
@@ -8554,7 +8657,7 @@ type TLUserSetTopicNotifySettings struct {
 
 func (x *TLUserSetTopicNotifySettings) Reset() {
 	*x = TLUserSetTopicNotifySettings{}
-	mi := &file_user_tl_proto_msgTypes[128]
+	mi := &file_user_tl_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8566,7 +8669,7 @@ func (x *TLUserSetTopicNotifySettings) String() string {
 func (*TLUserSetTopicNotifySettings) ProtoMessage() {}
 
 func (x *TLUserSetTopicNotifySettings) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[128]
+	mi := &file_user_tl_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8579,7 +8682,7 @@ func (x *TLUserSetTopicNotifySettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserSetTopicNotifySettings.ProtoReflect.Descriptor instead.
 func (*TLUserSetTopicNotifySettings) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{128}
+	return file_user_tl_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *TLUserSetTopicNotifySettings) GetConstructor() TLConstructor {
@@ -8633,7 +8736,7 @@ type TLUserGetTopicNotifySettings struct {
 
 func (x *TLUserGetTopicNotifySettings) Reset() {
 	*x = TLUserGetTopicNotifySettings{}
-	mi := &file_user_tl_proto_msgTypes[129]
+	mi := &file_user_tl_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8645,7 +8748,7 @@ func (x *TLUserGetTopicNotifySettings) String() string {
 func (*TLUserGetTopicNotifySettings) ProtoMessage() {}
 
 func (x *TLUserGetTopicNotifySettings) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[129]
+	mi := &file_user_tl_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8658,7 +8761,7 @@ func (x *TLUserGetTopicNotifySettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetTopicNotifySettings.ProtoReflect.Descriptor instead.
 func (*TLUserGetTopicNotifySettings) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{129}
+	return file_user_tl_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *TLUserGetTopicNotifySettings) GetConstructor() TLConstructor {
@@ -8705,7 +8808,7 @@ type TLUserGetTopicNotifyExceptions struct {
 
 func (x *TLUserGetTopicNotifyExceptions) Reset() {
 	*x = TLUserGetTopicNotifyExceptions{}
-	mi := &file_user_tl_proto_msgTypes[130]
+	mi := &file_user_tl_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8717,7 +8820,7 @@ func (x *TLUserGetTopicNotifyExceptions) String() string {
 func (*TLUserGetTopicNotifyExceptions) ProtoMessage() {}
 
 func (x *TLUserGetTopicNotifyExceptions) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[130]
+	mi := &file_user_tl_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8730,7 +8833,7 @@ func (x *TLUserGetTopicNotifyExceptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLUserGetTopicNotifyExceptions.ProtoReflect.Descriptor instead.
 func (*TLUserGetTopicNotifyExceptions) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{130}
+	return file_user_tl_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *TLUserGetTopicNotifyExceptions) GetConstructor() TLConstructor {
@@ -8765,7 +8868,7 @@ type Vector_LastSeenData struct {
 
 func (x *Vector_LastSeenData) Reset() {
 	*x = Vector_LastSeenData{}
-	mi := &file_user_tl_proto_msgTypes[131]
+	mi := &file_user_tl_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8777,7 +8880,7 @@ func (x *Vector_LastSeenData) String() string {
 func (*Vector_LastSeenData) ProtoMessage() {}
 
 func (x *Vector_LastSeenData) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[131]
+	mi := &file_user_tl_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8790,7 +8893,7 @@ func (x *Vector_LastSeenData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_LastSeenData.ProtoReflect.Descriptor instead.
 func (*Vector_LastSeenData) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{131}
+	return file_user_tl_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *Vector_LastSeenData) GetDatas() []*LastSeenData {
@@ -8809,7 +8912,7 @@ type Vector_ImmutableUser struct {
 
 func (x *Vector_ImmutableUser) Reset() {
 	*x = Vector_ImmutableUser{}
-	mi := &file_user_tl_proto_msgTypes[132]
+	mi := &file_user_tl_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8821,7 +8924,7 @@ func (x *Vector_ImmutableUser) String() string {
 func (*Vector_ImmutableUser) ProtoMessage() {}
 
 func (x *Vector_ImmutableUser) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[132]
+	mi := &file_user_tl_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8834,7 +8937,7 @@ func (x *Vector_ImmutableUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_ImmutableUser.ProtoReflect.Descriptor instead.
 func (*Vector_ImmutableUser) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{132}
+	return file_user_tl_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *Vector_ImmutableUser) GetDatas() []*mtproto.ImmutableUser {
@@ -8853,7 +8956,7 @@ type Vector_PeerPeerNotifySettings struct {
 
 func (x *Vector_PeerPeerNotifySettings) Reset() {
 	*x = Vector_PeerPeerNotifySettings{}
-	mi := &file_user_tl_proto_msgTypes[133]
+	mi := &file_user_tl_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8865,7 +8968,7 @@ func (x *Vector_PeerPeerNotifySettings) String() string {
 func (*Vector_PeerPeerNotifySettings) ProtoMessage() {}
 
 func (x *Vector_PeerPeerNotifySettings) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[133]
+	mi := &file_user_tl_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8878,7 +8981,7 @@ func (x *Vector_PeerPeerNotifySettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_PeerPeerNotifySettings.ProtoReflect.Descriptor instead.
 func (*Vector_PeerPeerNotifySettings) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{133}
+	return file_user_tl_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *Vector_PeerPeerNotifySettings) GetDatas() []*PeerPeerNotifySettings {
@@ -8897,7 +9000,7 @@ type Vector_PrivacyRule struct {
 
 func (x *Vector_PrivacyRule) Reset() {
 	*x = Vector_PrivacyRule{}
-	mi := &file_user_tl_proto_msgTypes[134]
+	mi := &file_user_tl_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8909,7 +9012,7 @@ func (x *Vector_PrivacyRule) String() string {
 func (*Vector_PrivacyRule) ProtoMessage() {}
 
 func (x *Vector_PrivacyRule) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[134]
+	mi := &file_user_tl_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8922,7 +9025,7 @@ func (x *Vector_PrivacyRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_PrivacyRule.ProtoReflect.Descriptor instead.
 func (*Vector_PrivacyRule) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{134}
+	return file_user_tl_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *Vector_PrivacyRule) GetDatas() []*mtproto.PrivacyRule {
@@ -8941,7 +9044,7 @@ type Vector_Long struct {
 
 func (x *Vector_Long) Reset() {
 	*x = Vector_Long{}
-	mi := &file_user_tl_proto_msgTypes[135]
+	mi := &file_user_tl_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8953,7 +9056,7 @@ func (x *Vector_Long) String() string {
 func (*Vector_Long) ProtoMessage() {}
 
 func (x *Vector_Long) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[135]
+	mi := &file_user_tl_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8966,7 +9069,7 @@ func (x *Vector_Long) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Long.ProtoReflect.Descriptor instead.
 func (*Vector_Long) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{135}
+	return file_user_tl_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *Vector_Long) GetDatas() []int64 {
@@ -8985,7 +9088,7 @@ type Vector_PeerBlocked struct {
 
 func (x *Vector_PeerBlocked) Reset() {
 	*x = Vector_PeerBlocked{}
-	mi := &file_user_tl_proto_msgTypes[136]
+	mi := &file_user_tl_proto_msgTypes[137]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8997,7 +9100,7 @@ func (x *Vector_PeerBlocked) String() string {
 func (*Vector_PeerBlocked) ProtoMessage() {}
 
 func (x *Vector_PeerBlocked) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[136]
+	mi := &file_user_tl_proto_msgTypes[137]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9010,7 +9113,7 @@ func (x *Vector_PeerBlocked) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_PeerBlocked.ProtoReflect.Descriptor instead.
 func (*Vector_PeerBlocked) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{136}
+	return file_user_tl_proto_rawDescGZIP(), []int{137}
 }
 
 func (x *Vector_PeerBlocked) GetDatas() []*mtproto.PeerBlocked {
@@ -9029,7 +9132,7 @@ type Vector_ContactData struct {
 
 func (x *Vector_ContactData) Reset() {
 	*x = Vector_ContactData{}
-	mi := &file_user_tl_proto_msgTypes[137]
+	mi := &file_user_tl_proto_msgTypes[138]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9041,7 +9144,7 @@ func (x *Vector_ContactData) String() string {
 func (*Vector_ContactData) ProtoMessage() {}
 
 func (x *Vector_ContactData) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[137]
+	mi := &file_user_tl_proto_msgTypes[138]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9054,7 +9157,7 @@ func (x *Vector_ContactData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_ContactData.ProtoReflect.Descriptor instead.
 func (*Vector_ContactData) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{137}
+	return file_user_tl_proto_rawDescGZIP(), []int{138}
 }
 
 func (x *Vector_ContactData) GetDatas() []*mtproto.ContactData {
@@ -9073,7 +9176,7 @@ type Vector_InputContact struct {
 
 func (x *Vector_InputContact) Reset() {
 	*x = Vector_InputContact{}
-	mi := &file_user_tl_proto_msgTypes[138]
+	mi := &file_user_tl_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9085,7 +9188,7 @@ func (x *Vector_InputContact) String() string {
 func (*Vector_InputContact) ProtoMessage() {}
 
 func (x *Vector_InputContact) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[138]
+	mi := &file_user_tl_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9098,7 +9201,7 @@ func (x *Vector_InputContact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_InputContact.ProtoReflect.Descriptor instead.
 func (*Vector_InputContact) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{138}
+	return file_user_tl_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *Vector_InputContact) GetDatas() []*mtproto.InputContact {
@@ -9117,7 +9220,7 @@ type Vector_UserData struct {
 
 func (x *Vector_UserData) Reset() {
 	*x = Vector_UserData{}
-	mi := &file_user_tl_proto_msgTypes[139]
+	mi := &file_user_tl_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9129,7 +9232,7 @@ func (x *Vector_UserData) String() string {
 func (*Vector_UserData) ProtoMessage() {}
 
 func (x *Vector_UserData) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[139]
+	mi := &file_user_tl_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9142,7 +9245,7 @@ func (x *Vector_UserData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_UserData.ProtoReflect.Descriptor instead.
 func (*Vector_UserData) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{139}
+	return file_user_tl_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *Vector_UserData) GetDatas() []*mtproto.UserData {
@@ -9161,7 +9264,7 @@ type Vector_ContactBirthday struct {
 
 func (x *Vector_ContactBirthday) Reset() {
 	*x = Vector_ContactBirthday{}
-	mi := &file_user_tl_proto_msgTypes[140]
+	mi := &file_user_tl_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9173,7 +9276,7 @@ func (x *Vector_ContactBirthday) String() string {
 func (*Vector_ContactBirthday) ProtoMessage() {}
 
 func (x *Vector_ContactBirthday) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[140]
+	mi := &file_user_tl_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9186,7 +9289,7 @@ func (x *Vector_ContactBirthday) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_ContactBirthday.ProtoReflect.Descriptor instead.
 func (*Vector_ContactBirthday) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{140}
+	return file_user_tl_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *Vector_ContactBirthday) GetDatas() []*mtproto.ContactBirthday {
@@ -9205,7 +9308,7 @@ type Vector_UsernameData struct {
 
 func (x *Vector_UsernameData) Reset() {
 	*x = Vector_UsernameData{}
-	mi := &file_user_tl_proto_msgTypes[141]
+	mi := &file_user_tl_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9217,7 +9320,7 @@ func (x *Vector_UsernameData) String() string {
 func (*Vector_UsernameData) ProtoMessage() {}
 
 func (x *Vector_UsernameData) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[141]
+	mi := &file_user_tl_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9230,7 +9333,7 @@ func (x *Vector_UsernameData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_UsernameData.ProtoReflect.Descriptor instead.
 func (*Vector_UsernameData) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{141}
+	return file_user_tl_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *Vector_UsernameData) GetDatas() []*UsernameData {
@@ -9249,7 +9352,7 @@ type Vector_SavedContact struct {
 
 func (x *Vector_SavedContact) Reset() {
 	*x = Vector_SavedContact{}
-	mi := &file_user_tl_proto_msgTypes[142]
+	mi := &file_user_tl_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9261,7 +9364,7 @@ func (x *Vector_SavedContact) String() string {
 func (*Vector_SavedContact) ProtoMessage() {}
 
 func (x *Vector_SavedContact) ProtoReflect() protoreflect.Message {
-	mi := &file_user_tl_proto_msgTypes[142]
+	mi := &file_user_tl_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9274,7 +9377,7 @@ func (x *Vector_SavedContact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_SavedContact.ProtoReflect.Descriptor instead.
 func (*Vector_SavedContact) Descriptor() ([]byte, []int) {
-	return file_user_tl_proto_rawDescGZIP(), []int{142}
+	return file_user_tl_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *Vector_SavedContact) GetDatas() []*mtproto.SavedContact {
@@ -9576,7 +9679,14 @@ const file_user_tl_proto_rawDesc = "" +
 	"\x10TL_user_setGhost\x125\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x13.user.TLConstructorR\vconstructor\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12#\n" +
-	"\x05ghost\x18\x04 \x01(\v2\r.mtproto.BoolR\x05ghost\"\x84\x01\n" +
+	"\x05ghost\x18\x04 \x01(\v2\r.mtproto.BoolR\x05ghost\"\xd8\x01\n" +
+	"\x15TL_user_editUsernames\x125\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x13.user.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x16\n" +
+	"\x06action\x18\x04 \x01(\x05R\x06action\x12\x1a\n" +
+	"\busername\x18\x05 \x01(\tR\busername\x12%\n" +
+	"\x06active\x18\x06 \x01(\v2\r.mtproto.BoolR\x06active\x12\x14\n" +
+	"\x05order\x18\a \x03(\tR\x05order\"\x84\x01\n" +
 	"\x16TL_user_updateUsername\x125\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x13.user.TLConstructorR\vconstructor\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1a\n" +
@@ -9633,7 +9743,7 @@ const file_user_tl_proto_rawDesc = "" +
 	"\x01q\x18\x03 \x01(\tR\x01q\x12+\n" +
 	"\x11excluded_contacts\x18\x04 \x03(\x03R\x10excludedContacts\x12\x16\n" +
 	"\x06offset\x18\x05 \x01(\x03R\x06offset\x12\x14\n" +
-	"\x05limit\x18\x06 \x01(\x05R\x05limit\"\xc6\x03\n" +
+	"\x05limit\x18\x06 \x01(\x05R\x05limit\"\xf8\x03\n" +
 	"\x15TL_user_updateBotData\x125\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x13.user.TLConstructorR\vconstructor\x12\x15\n" +
 	"\x06bot_id\x18\x03 \x01(\x03R\x05botId\x127\n" +
@@ -9643,7 +9753,9 @@ const file_user_tl_proto_rawDesc = "" +
 	"\x0ebot_inline_geo\x18\x06 \x01(\v2\r.mtproto.BoolR\fbotInlineGeo\x125\n" +
 	"\x0fbot_attach_menu\x18\a \x01(\v2\r.mtproto.BoolR\rbotAttachMenu\x12R\n" +
 	"\x16bot_inline_placeholder\x18\b \x01(\v2\x1c.google.protobuf.StringValueR\x14botInlinePlaceholder\x126\n" +
-	"\x10bot_has_main_app\x18\t \x01(\v2\r.mtproto.BoolR\rbotHasMainApp\"\xa4\x01\n" +
+	"\x10bot_has_main_app\x18\t \x01(\v2\r.mtproto.BoolR\rbotHasMainApp\x120\n" +
+	"\fbot_business\x18\n" +
+	" \x01(\v2\r.mtproto.BoolR\vbotBusiness\"\xa4\x01\n" +
 	"\x1aTL_user_getImmutableUserV2\x125\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x13.user.TLConstructorR\vconstructor\x12\x0e\n" +
 	"\x02id\x18\x03 \x01(\x03R\x02id\x12\x18\n" +
@@ -9895,7 +10007,7 @@ const file_user_tl_proto_rawDesc = "" +
 	"\x13Vector_UsernameData\x12(\n" +
 	"\x05datas\x18\x01 \x03(\v2\x12.user.UsernameDataR\x05datas\"B\n" +
 	"\x13Vector_SavedContact\x12+\n" +
-	"\x05datas\x18\x01 \x03(\v2\x15.mtproto.SavedContactR\x05datas*\xcd&\n" +
+	"\x05datas\x18\x01 \x03(\v2\x15.mtproto.SavedContactR\x05datas*\xf4&\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12\"\n" +
 	"\x1aCRC32_userImportedContacts\x10\xc0\xf7\xfd\xd6\x04\x12\x1c\n" +
@@ -10021,7 +10133,8 @@ const file_user_tl_proto_rawDesc = "" +
 	"!CRC32_user_setTopicNotifySettings\x10ӣ\xec\xb5\x01\x12)\n" +
 	"!CRC32_user_getTopicNotifySettings\x10\x8f\xe9\xa2\xec\x03\x120\n" +
 	"#CRC32_user_getTopicNotifyExceptions\x10\xb2\x91\xa4\xe9\xfc\xff\xff\xff\xff\x01\x12\x1b\n" +
-	"\x13CRC32_user_setGhost\x10\xe1Ɠ\xff\a2\xcfE\n" +
+	"\x13CRC32_user_setGhost\x10\xe1Ɠ\xff\a\x12%\n" +
+	"\x18CRC32_user_editUsernames\x10\xc6\xd5\xeb\xe3\xfc\xff\xff\xff\xff\x012\x93F\n" +
 	"\aRPCUser\x12L\n" +
 	"\x11user_getLastSeens\x12\x1a.user.TL_user_getLastSeens\x1a\x19.user.Vector_LastSeenData\"\x00\x12D\n" +
 	"\x13user_updateLastSeen\x12\x1c.user.TL_user_updateLastSeen\x1a\r.mtproto.Bool\"\x00\x12C\n" +
@@ -10136,7 +10249,8 @@ const file_user_tl_proto_rawDesc = "" +
 	"\x1buser_setTopicNotifySettings\x12$.user.TL_user_setTopicNotifySettings\x1a\r.mtproto.Bool\"\x00\x12b\n" +
 	"\x1buser_getTopicNotifySettings\x12$.user.TL_user_getTopicNotifySettings\x1a\x1b.mtproto.PeerNotifySettings\"\x00\x12[\n" +
 	"\x1duser_getTopicNotifyExceptions\x12&.user.TL_user_getTopicNotifyExceptions\x1a\x10.mtproto.Updates\"\x00\x128\n" +
-	"\ruser_setGhost\x12\x16.user.TL_user_setGhost\x1a\r.mtproto.Bool\"\x00B?Z=github.com/teamgram/teamgram-server/app/service/biz/user/userb\x06proto3"
+	"\ruser_setGhost\x12\x16.user.TL_user_setGhost\x1a\r.mtproto.Bool\"\x00\x12B\n" +
+	"\x12user_editUsernames\x12\x1b.user.TL_user_editUsernames\x1a\r.mtproto.Bool\"\x00B?Z=github.com/teamgram/teamgram-server/app/service/biz/user/userb\x06proto3"
 
 var (
 	file_user_tl_proto_rawDescOnce sync.Once
@@ -10151,7 +10265,7 @@ func file_user_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_user_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_user_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 143)
+var file_user_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 144)
 var file_user_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                          // 0: user.TLConstructor
 	(*BotInfoData)(nil),                         // 1: user.BotInfoData
@@ -10219,139 +10333,140 @@ var file_user_tl_proto_goTypes = []any{
 	(*TLUserUpdateFirstAndLastName)(nil),        // 63: user.TL_user_updateFirstAndLastName
 	(*TLUserUpdateVerified)(nil),                // 64: user.TL_user_updateVerified
 	(*TLUserSetGhost)(nil),                      // 65: user.TL_user_setGhost
-	(*TLUserUpdateUsername)(nil),                // 66: user.TL_user_updateUsername
-	(*TLUserUpdateProfilePhoto)(nil),            // 67: user.TL_user_updateProfilePhoto
-	(*TLUserDeleteProfilePhotos)(nil),           // 68: user.TL_user_deleteProfilePhotos
-	(*TLUserGetProfilePhotos)(nil),              // 69: user.TL_user_getProfilePhotos
-	(*TLUserSetBotCommands)(nil),                // 70: user.TL_user_setBotCommands
-	(*TLUserIsBot)(nil),                         // 71: user.TL_user_isBot
-	(*TLUserGetBotInfo)(nil),                    // 72: user.TL_user_getBotInfo
-	(*TLUserCheckBots)(nil),                     // 73: user.TL_user_checkBots
-	(*TLUserGetFullUser)(nil),                   // 74: user.TL_user_getFullUser
-	(*TLUserUpdateEmojiStatus)(nil),             // 75: user.TL_user_updateEmojiStatus
-	(*TLUserGetUserDataById)(nil),               // 76: user.TL_user_getUserDataById
-	(*TLUserGetUserDataListByIdList)(nil),       // 77: user.TL_user_getUserDataListByIdList
-	(*TLUserGetUserDataByToken)(nil),            // 78: user.TL_user_getUserDataByToken
-	(*TLUserSearch)(nil),                        // 79: user.TL_user_search
-	(*TLUserUpdateBotData)(nil),                 // 80: user.TL_user_updateBotData
-	(*TLUserGetImmutableUserV2)(nil),            // 81: user.TL_user_getImmutableUserV2
-	(*TLUserGetMutableUsersV2)(nil),             // 82: user.TL_user_getMutableUsersV2
-	(*TLUserCreateNewTestUser)(nil),             // 83: user.TL_user_createNewTestUser
-	(*TLUserEditCloseFriends)(nil),              // 84: user.TL_user_editCloseFriends
-	(*TLUserSetStoriesMaxId)(nil),               // 85: user.TL_user_setStoriesMaxId
-	(*TLUserSetColor)(nil),                      // 86: user.TL_user_setColor
-	(*TLUserUpdateBirthday)(nil),                // 87: user.TL_user_updateBirthday
-	(*TLUserGetBirthdays)(nil),                  // 88: user.TL_user_getBirthdays
-	(*TLUserSetStoriesHidden)(nil),              // 89: user.TL_user_setStoriesHidden
-	(*TLUserUpdatePersonalChannel)(nil),         // 90: user.TL_user_updatePersonalChannel
-	(*TLUserGetUserIdByPhone)(nil),              // 91: user.TL_user_getUserIdByPhone
-	(*TLUserSetAuthorizationTTL)(nil),           // 92: user.TL_user_setAuthorizationTTL
-	(*TLUserGetAuthorizationTTL)(nil),           // 93: user.TL_user_getAuthorizationTTL
-	(*TLUserUpdatePremium)(nil),                 // 94: user.TL_user_updatePremium
-	(*TLUserGetBotInfoV2)(nil),                  // 95: user.TL_user_getBotInfoV2
-	(*TLUserSaveMusic)(nil),                     // 96: user.TL_user_saveMusic
-	(*TLUserGetSavedMusicIdList)(nil),           // 97: user.TL_user_getSavedMusicIdList
-	(*TLUserSetMainProfileTab)(nil),             // 98: user.TL_user_setMainProfileTab
-	(*TLUserSetDefaultHistoryTTL)(nil),          // 99: user.TL_user_setDefaultHistoryTTL
-	(*TLUserGetDefaultHistoryTTL)(nil),          // 100: user.TL_user_getDefaultHistoryTTL
-	(*TLUserGetAccountUsername)(nil),            // 101: user.TL_user_getAccountUsername
-	(*TLUserCheckAccountUsername)(nil),          // 102: user.TL_user_checkAccountUsername
-	(*TLUserGetChannelUsername)(nil),            // 103: user.TL_user_getChannelUsername
-	(*TLUserCheckChannelUsername)(nil),          // 104: user.TL_user_checkChannelUsername
-	(*TLUserUpdateUsernameByPeer)(nil),          // 105: user.TL_user_updateUsernameByPeer
-	(*TLUserCheckUsername)(nil),                 // 106: user.TL_user_checkUsername
-	(*TLUserUpdateUsernameByUsername)(nil),      // 107: user.TL_user_updateUsernameByUsername
-	(*TLUserDeleteUsername)(nil),                // 108: user.TL_user_deleteUsername
-	(*TLUserResolveUsername)(nil),               // 109: user.TL_user_resolveUsername
-	(*TLUserGetListByUsernameList)(nil),         // 110: user.TL_user_getListByUsernameList
-	(*TLUserDeleteUsernameByPeer)(nil),          // 111: user.TL_user_deleteUsernameByPeer
-	(*TLUserSearchUsername)(nil),                // 112: user.TL_user_searchUsername
-	(*TLUserToggleUsername)(nil),                // 113: user.TL_user_toggleUsername
-	(*TLUserReorderUsernames)(nil),              // 114: user.TL_user_reorderUsernames
-	(*TLUserDeactivateAllChannelUsernames)(nil), // 115: user.TL_user_deactivateAllChannelUsernames
-	(*TLUserGetSavedContacts)(nil),              // 116: user.TL_user_getSavedContacts
-	(*TLUserResetSavedContacts)(nil),            // 117: user.TL_user_resetSavedContacts
-	(*TLUserGetTopPeers)(nil),                   // 118: user.TL_user_getTopPeers
-	(*TLUserToggleTopPeers)(nil),                // 119: user.TL_user_toggleTopPeers
-	(*TLUserResetTopPeerRating)(nil),            // 120: user.TL_user_resetTopPeerRating
-	(*TLUserNewAuthorization)(nil),              // 121: user.TL_user_newAuthorization
-	(*TLUserGetSavedGifIdList)(nil),             // 122: user.TL_user_getSavedGifIdList
-	(*TLUserSetContactPersonalPhoto)(nil),       // 123: user.TL_user_setContactPersonalPhoto
-	(*TLUserAddSuggestedPhoto)(nil),             // 124: user.TL_user_addSuggestedPhoto
-	(*TLUserGetStatusWatchers)(nil),             // 125: user.TL_user_getStatusWatchers
-	(*TLUserSaveGif)(nil),                       // 126: user.TL_user_saveGif
-	(*TLUserGetReactionsNotifySettings)(nil),    // 127: user.TL_user_getReactionsNotifySettings
-	(*TLUserSetReactionsNotifySettings)(nil),    // 128: user.TL_user_setReactionsNotifySettings
-	(*TLUserSetTopicNotifySettings)(nil),        // 129: user.TL_user_setTopicNotifySettings
-	(*TLUserGetTopicNotifySettings)(nil),        // 130: user.TL_user_getTopicNotifySettings
-	(*TLUserGetTopicNotifyExceptions)(nil),      // 131: user.TL_user_getTopicNotifyExceptions
-	(*Vector_LastSeenData)(nil),                 // 132: user.Vector_LastSeenData
-	(*Vector_ImmutableUser)(nil),                // 133: user.Vector_ImmutableUser
-	(*Vector_PeerPeerNotifySettings)(nil),       // 134: user.Vector_PeerPeerNotifySettings
-	(*Vector_PrivacyRule)(nil),                  // 135: user.Vector_PrivacyRule
-	(*Vector_Long)(nil),                         // 136: user.Vector_Long
-	(*Vector_PeerBlocked)(nil),                  // 137: user.Vector_PeerBlocked
-	(*Vector_ContactData)(nil),                  // 138: user.Vector_ContactData
-	(*Vector_InputContact)(nil),                 // 139: user.Vector_InputContact
-	(*Vector_UserData)(nil),                     // 140: user.Vector_UserData
-	(*Vector_ContactBirthday)(nil),              // 141: user.Vector_ContactBirthday
-	(*Vector_UsernameData)(nil),                 // 142: user.Vector_UsernameData
-	(*Vector_SavedContact)(nil),                 // 143: user.Vector_SavedContact
-	(*mtproto.BotInfo)(nil),                     // 144: mtproto.BotInfo
-	(*wrapperspb.StringValue)(nil),              // 145: google.protobuf.StringValue
-	(*mtproto.PeerNotifySettings)(nil),          // 146: mtproto.PeerNotifySettings
-	(*mtproto.ImportedContact)(nil),             // 147: mtproto.ImportedContact
-	(*mtproto.PopularContact)(nil),              // 148: mtproto.PopularContact
-	(*mtproto.User)(nil),                        // 149: mtproto.User
-	(*mtproto.Peer)(nil),                        // 150: mtproto.Peer
-	(*mtproto.UserData)(nil),                    // 151: mtproto.UserData
-	(*mtproto.PeerUtil)(nil),                    // 152: mtproto.PeerUtil
-	(*mtproto.Chat)(nil),                        // 153: mtproto.Chat
-	(*mtproto.GlobalPrivacySettings)(nil),       // 154: mtproto.GlobalPrivacySettings
-	(*mtproto.PrivacyRule)(nil),                 // 155: mtproto.PrivacyRule
-	(*mtproto.PeerSettings)(nil),                // 156: mtproto.PeerSettings
-	(*mtproto.Bool)(nil),                        // 157: mtproto.Bool
-	(*mtproto.InputContact)(nil),                // 158: mtproto.InputContact
-	(*mtproto.BotCommand)(nil),                  // 159: mtproto.BotCommand
-	(*mtproto.Birthday)(nil),                    // 160: mtproto.Birthday
-	(*wrapperspb.Int32Value)(nil),               // 161: google.protobuf.Int32Value
-	(*wrapperspb.Int64Value)(nil),               // 162: google.protobuf.Int64Value
-	(*mtproto.ProfileTab)(nil),                  // 163: mtproto.ProfileTab
-	(*mtproto.TopPeerCategory)(nil),             // 164: mtproto.TopPeerCategory
-	(*mtproto.Update)(nil),                      // 165: mtproto.Update
-	(*mtproto.ReactionsNotifySettings)(nil),     // 166: mtproto.ReactionsNotifySettings
-	(*mtproto.ImmutableUser)(nil),               // 167: mtproto.ImmutableUser
-	(*mtproto.PeerBlocked)(nil),                 // 168: mtproto.PeerBlocked
-	(*mtproto.ContactData)(nil),                 // 169: mtproto.ContactData
-	(*mtproto.ContactBirthday)(nil),             // 170: mtproto.ContactBirthday
-	(*mtproto.SavedContact)(nil),                // 171: mtproto.SavedContact
-	(*mtproto.AccountDaysTTL)(nil),              // 172: mtproto.AccountDaysTTL
-	(*mtproto.Account_ContentSettings)(nil),     // 173: mtproto.account_ContentSettings
-	(*mtproto.String)(nil),                      // 174: mtproto.String
-	(*mtproto.Int64)(nil),                       // 175: mtproto.Int64
-	(*mtproto.Users_UserFull)(nil),              // 176: mtproto.users_UserFull
-	(*mtproto.MutableUsers)(nil),                // 177: mtproto.MutableUsers
-	(*mtproto.DefaultHistoryTTL)(nil),           // 178: mtproto.DefaultHistoryTTL
-	(*mtproto.Contacts_TopPeers)(nil),           // 179: mtproto.contacts_TopPeers
-	(*mtproto.Updates)(nil),                     // 180: mtproto.Updates
+	(*TLUserEditUsernames)(nil),                 // 66: user.TL_user_editUsernames
+	(*TLUserUpdateUsername)(nil),                // 67: user.TL_user_updateUsername
+	(*TLUserUpdateProfilePhoto)(nil),            // 68: user.TL_user_updateProfilePhoto
+	(*TLUserDeleteProfilePhotos)(nil),           // 69: user.TL_user_deleteProfilePhotos
+	(*TLUserGetProfilePhotos)(nil),              // 70: user.TL_user_getProfilePhotos
+	(*TLUserSetBotCommands)(nil),                // 71: user.TL_user_setBotCommands
+	(*TLUserIsBot)(nil),                         // 72: user.TL_user_isBot
+	(*TLUserGetBotInfo)(nil),                    // 73: user.TL_user_getBotInfo
+	(*TLUserCheckBots)(nil),                     // 74: user.TL_user_checkBots
+	(*TLUserGetFullUser)(nil),                   // 75: user.TL_user_getFullUser
+	(*TLUserUpdateEmojiStatus)(nil),             // 76: user.TL_user_updateEmojiStatus
+	(*TLUserGetUserDataById)(nil),               // 77: user.TL_user_getUserDataById
+	(*TLUserGetUserDataListByIdList)(nil),       // 78: user.TL_user_getUserDataListByIdList
+	(*TLUserGetUserDataByToken)(nil),            // 79: user.TL_user_getUserDataByToken
+	(*TLUserSearch)(nil),                        // 80: user.TL_user_search
+	(*TLUserUpdateBotData)(nil),                 // 81: user.TL_user_updateBotData
+	(*TLUserGetImmutableUserV2)(nil),            // 82: user.TL_user_getImmutableUserV2
+	(*TLUserGetMutableUsersV2)(nil),             // 83: user.TL_user_getMutableUsersV2
+	(*TLUserCreateNewTestUser)(nil),             // 84: user.TL_user_createNewTestUser
+	(*TLUserEditCloseFriends)(nil),              // 85: user.TL_user_editCloseFriends
+	(*TLUserSetStoriesMaxId)(nil),               // 86: user.TL_user_setStoriesMaxId
+	(*TLUserSetColor)(nil),                      // 87: user.TL_user_setColor
+	(*TLUserUpdateBirthday)(nil),                // 88: user.TL_user_updateBirthday
+	(*TLUserGetBirthdays)(nil),                  // 89: user.TL_user_getBirthdays
+	(*TLUserSetStoriesHidden)(nil),              // 90: user.TL_user_setStoriesHidden
+	(*TLUserUpdatePersonalChannel)(nil),         // 91: user.TL_user_updatePersonalChannel
+	(*TLUserGetUserIdByPhone)(nil),              // 92: user.TL_user_getUserIdByPhone
+	(*TLUserSetAuthorizationTTL)(nil),           // 93: user.TL_user_setAuthorizationTTL
+	(*TLUserGetAuthorizationTTL)(nil),           // 94: user.TL_user_getAuthorizationTTL
+	(*TLUserUpdatePremium)(nil),                 // 95: user.TL_user_updatePremium
+	(*TLUserGetBotInfoV2)(nil),                  // 96: user.TL_user_getBotInfoV2
+	(*TLUserSaveMusic)(nil),                     // 97: user.TL_user_saveMusic
+	(*TLUserGetSavedMusicIdList)(nil),           // 98: user.TL_user_getSavedMusicIdList
+	(*TLUserSetMainProfileTab)(nil),             // 99: user.TL_user_setMainProfileTab
+	(*TLUserSetDefaultHistoryTTL)(nil),          // 100: user.TL_user_setDefaultHistoryTTL
+	(*TLUserGetDefaultHistoryTTL)(nil),          // 101: user.TL_user_getDefaultHistoryTTL
+	(*TLUserGetAccountUsername)(nil),            // 102: user.TL_user_getAccountUsername
+	(*TLUserCheckAccountUsername)(nil),          // 103: user.TL_user_checkAccountUsername
+	(*TLUserGetChannelUsername)(nil),            // 104: user.TL_user_getChannelUsername
+	(*TLUserCheckChannelUsername)(nil),          // 105: user.TL_user_checkChannelUsername
+	(*TLUserUpdateUsernameByPeer)(nil),          // 106: user.TL_user_updateUsernameByPeer
+	(*TLUserCheckUsername)(nil),                 // 107: user.TL_user_checkUsername
+	(*TLUserUpdateUsernameByUsername)(nil),      // 108: user.TL_user_updateUsernameByUsername
+	(*TLUserDeleteUsername)(nil),                // 109: user.TL_user_deleteUsername
+	(*TLUserResolveUsername)(nil),               // 110: user.TL_user_resolveUsername
+	(*TLUserGetListByUsernameList)(nil),         // 111: user.TL_user_getListByUsernameList
+	(*TLUserDeleteUsernameByPeer)(nil),          // 112: user.TL_user_deleteUsernameByPeer
+	(*TLUserSearchUsername)(nil),                // 113: user.TL_user_searchUsername
+	(*TLUserToggleUsername)(nil),                // 114: user.TL_user_toggleUsername
+	(*TLUserReorderUsernames)(nil),              // 115: user.TL_user_reorderUsernames
+	(*TLUserDeactivateAllChannelUsernames)(nil), // 116: user.TL_user_deactivateAllChannelUsernames
+	(*TLUserGetSavedContacts)(nil),              // 117: user.TL_user_getSavedContacts
+	(*TLUserResetSavedContacts)(nil),            // 118: user.TL_user_resetSavedContacts
+	(*TLUserGetTopPeers)(nil),                   // 119: user.TL_user_getTopPeers
+	(*TLUserToggleTopPeers)(nil),                // 120: user.TL_user_toggleTopPeers
+	(*TLUserResetTopPeerRating)(nil),            // 121: user.TL_user_resetTopPeerRating
+	(*TLUserNewAuthorization)(nil),              // 122: user.TL_user_newAuthorization
+	(*TLUserGetSavedGifIdList)(nil),             // 123: user.TL_user_getSavedGifIdList
+	(*TLUserSetContactPersonalPhoto)(nil),       // 124: user.TL_user_setContactPersonalPhoto
+	(*TLUserAddSuggestedPhoto)(nil),             // 125: user.TL_user_addSuggestedPhoto
+	(*TLUserGetStatusWatchers)(nil),             // 126: user.TL_user_getStatusWatchers
+	(*TLUserSaveGif)(nil),                       // 127: user.TL_user_saveGif
+	(*TLUserGetReactionsNotifySettings)(nil),    // 128: user.TL_user_getReactionsNotifySettings
+	(*TLUserSetReactionsNotifySettings)(nil),    // 129: user.TL_user_setReactionsNotifySettings
+	(*TLUserSetTopicNotifySettings)(nil),        // 130: user.TL_user_setTopicNotifySettings
+	(*TLUserGetTopicNotifySettings)(nil),        // 131: user.TL_user_getTopicNotifySettings
+	(*TLUserGetTopicNotifyExceptions)(nil),      // 132: user.TL_user_getTopicNotifyExceptions
+	(*Vector_LastSeenData)(nil),                 // 133: user.Vector_LastSeenData
+	(*Vector_ImmutableUser)(nil),                // 134: user.Vector_ImmutableUser
+	(*Vector_PeerPeerNotifySettings)(nil),       // 135: user.Vector_PeerPeerNotifySettings
+	(*Vector_PrivacyRule)(nil),                  // 136: user.Vector_PrivacyRule
+	(*Vector_Long)(nil),                         // 137: user.Vector_Long
+	(*Vector_PeerBlocked)(nil),                  // 138: user.Vector_PeerBlocked
+	(*Vector_ContactData)(nil),                  // 139: user.Vector_ContactData
+	(*Vector_InputContact)(nil),                 // 140: user.Vector_InputContact
+	(*Vector_UserData)(nil),                     // 141: user.Vector_UserData
+	(*Vector_ContactBirthday)(nil),              // 142: user.Vector_ContactBirthday
+	(*Vector_UsernameData)(nil),                 // 143: user.Vector_UsernameData
+	(*Vector_SavedContact)(nil),                 // 144: user.Vector_SavedContact
+	(*mtproto.BotInfo)(nil),                     // 145: mtproto.BotInfo
+	(*wrapperspb.StringValue)(nil),              // 146: google.protobuf.StringValue
+	(*mtproto.PeerNotifySettings)(nil),          // 147: mtproto.PeerNotifySettings
+	(*mtproto.ImportedContact)(nil),             // 148: mtproto.ImportedContact
+	(*mtproto.PopularContact)(nil),              // 149: mtproto.PopularContact
+	(*mtproto.User)(nil),                        // 150: mtproto.User
+	(*mtproto.Peer)(nil),                        // 151: mtproto.Peer
+	(*mtproto.UserData)(nil),                    // 152: mtproto.UserData
+	(*mtproto.PeerUtil)(nil),                    // 153: mtproto.PeerUtil
+	(*mtproto.Chat)(nil),                        // 154: mtproto.Chat
+	(*mtproto.GlobalPrivacySettings)(nil),       // 155: mtproto.GlobalPrivacySettings
+	(*mtproto.PrivacyRule)(nil),                 // 156: mtproto.PrivacyRule
+	(*mtproto.PeerSettings)(nil),                // 157: mtproto.PeerSettings
+	(*mtproto.Bool)(nil),                        // 158: mtproto.Bool
+	(*mtproto.InputContact)(nil),                // 159: mtproto.InputContact
+	(*mtproto.BotCommand)(nil),                  // 160: mtproto.BotCommand
+	(*mtproto.Birthday)(nil),                    // 161: mtproto.Birthday
+	(*wrapperspb.Int32Value)(nil),               // 162: google.protobuf.Int32Value
+	(*wrapperspb.Int64Value)(nil),               // 163: google.protobuf.Int64Value
+	(*mtproto.ProfileTab)(nil),                  // 164: mtproto.ProfileTab
+	(*mtproto.TopPeerCategory)(nil),             // 165: mtproto.TopPeerCategory
+	(*mtproto.Update)(nil),                      // 166: mtproto.Update
+	(*mtproto.ReactionsNotifySettings)(nil),     // 167: mtproto.ReactionsNotifySettings
+	(*mtproto.ImmutableUser)(nil),               // 168: mtproto.ImmutableUser
+	(*mtproto.PeerBlocked)(nil),                 // 169: mtproto.PeerBlocked
+	(*mtproto.ContactData)(nil),                 // 170: mtproto.ContactData
+	(*mtproto.ContactBirthday)(nil),             // 171: mtproto.ContactBirthday
+	(*mtproto.SavedContact)(nil),                // 172: mtproto.SavedContact
+	(*mtproto.AccountDaysTTL)(nil),              // 173: mtproto.AccountDaysTTL
+	(*mtproto.Account_ContentSettings)(nil),     // 174: mtproto.account_ContentSettings
+	(*mtproto.String)(nil),                      // 175: mtproto.String
+	(*mtproto.Int64)(nil),                       // 176: mtproto.Int64
+	(*mtproto.Users_UserFull)(nil),              // 177: mtproto.users_UserFull
+	(*mtproto.MutableUsers)(nil),                // 178: mtproto.MutableUsers
+	(*mtproto.DefaultHistoryTTL)(nil),           // 179: mtproto.DefaultHistoryTTL
+	(*mtproto.Contacts_TopPeers)(nil),           // 180: mtproto.contacts_TopPeers
+	(*mtproto.Updates)(nil),                     // 181: mtproto.Updates
 }
 var file_user_tl_proto_depIdxs = []int32{
 	0,   // 0: user.BotInfoData.constructor:type_name -> user.TLConstructor
-	144, // 1: user.BotInfoData.bot_info:type_name -> mtproto.BotInfo
-	145, // 2: user.BotInfoData.main_app_url:type_name -> google.protobuf.StringValue
+	145, // 1: user.BotInfoData.bot_info:type_name -> mtproto.BotInfo
+	146, // 2: user.BotInfoData.main_app_url:type_name -> google.protobuf.StringValue
 	1,   // 3: user.TL_botInfoData.data2:type_name -> user.BotInfoData
 	0,   // 4: user.LastSeenData.constructor:type_name -> user.TLConstructor
 	3,   // 5: user.TL_lastSeenData.data2:type_name -> user.LastSeenData
 	0,   // 6: user.PeerPeerNotifySettings.constructor:type_name -> user.TLConstructor
-	146, // 7: user.PeerPeerNotifySettings.settings:type_name -> mtproto.PeerNotifySettings
+	147, // 7: user.PeerPeerNotifySettings.settings:type_name -> mtproto.PeerNotifySettings
 	5,   // 8: user.TL_peerPeerNotifySettings.data2:type_name -> user.PeerPeerNotifySettings
 	0,   // 9: user.UserImportedContacts.constructor:type_name -> user.TLConstructor
-	147, // 10: user.UserImportedContacts.imported:type_name -> mtproto.ImportedContact
-	148, // 11: user.UserImportedContacts.popular_invites:type_name -> mtproto.PopularContact
-	149, // 12: user.UserImportedContacts.users:type_name -> mtproto.User
+	148, // 10: user.UserImportedContacts.imported:type_name -> mtproto.ImportedContact
+	149, // 11: user.UserImportedContacts.popular_invites:type_name -> mtproto.PopularContact
+	150, // 12: user.UserImportedContacts.users:type_name -> mtproto.User
 	7,   // 13: user.TL_userImportedContacts.data2:type_name -> user.UserImportedContacts
 	0,   // 14: user.UsernameData.constructor:type_name -> user.TLConstructor
-	150, // 15: user.UsernameData.peer:type_name -> mtproto.Peer
+	151, // 15: user.UsernameData.peer:type_name -> mtproto.Peer
 	9,   // 16: user.TL_usernameData.data2:type_name -> user.UsernameData
 	0,   // 17: user.UsernameExist.constructor:type_name -> user.TLConstructor
 	11,  // 18: user.TL_usernameNotExisted.data2:type_name -> user.UsernameExist
@@ -10359,7 +10474,7 @@ var file_user_tl_proto_depIdxs = []int32{
 	11,  // 20: user.TL_usernameExistedNotMe.data2:type_name -> user.UsernameExist
 	11,  // 21: user.TL_usernameExistedIsMe.data2:type_name -> user.UsernameExist
 	0,   // 22: user.UsersFound.constructor:type_name -> user.TLConstructor
-	151, // 23: user.UsersFound.users:type_name -> mtproto.UserData
+	152, // 23: user.UsersFound.users:type_name -> mtproto.UserData
 	16,  // 24: user.TL_usersDataFound.data2:type_name -> user.UsersFound
 	16,  // 25: user.TL_usersIdFound.data2:type_name -> user.UsersFound
 	0,   // 26: user.TL_user_getLastSeens.constructor:type_name -> user.TLConstructor
@@ -10373,395 +10488,400 @@ var file_user_tl_proto_depIdxs = []int32{
 	0,   // 34: user.TL_user_getAccountDaysTTL.constructor:type_name -> user.TLConstructor
 	0,   // 35: user.TL_user_getNotifySettings.constructor:type_name -> user.TLConstructor
 	0,   // 36: user.TL_user_getNotifySettingsList.constructor:type_name -> user.TLConstructor
-	152, // 37: user.TL_user_getNotifySettingsList.peers:type_name -> mtproto.PeerUtil
+	153, // 37: user.TL_user_getNotifySettingsList.peers:type_name -> mtproto.PeerUtil
 	0,   // 38: user.TL_user_setNotifySettings.constructor:type_name -> user.TLConstructor
-	146, // 39: user.TL_user_setNotifySettings.settings:type_name -> mtproto.PeerNotifySettings
-	149, // 40: user.TL_user_setNotifySettings.users:type_name -> mtproto.User
-	153, // 41: user.TL_user_setNotifySettings.chats:type_name -> mtproto.Chat
+	147, // 39: user.TL_user_setNotifySettings.settings:type_name -> mtproto.PeerNotifySettings
+	150, // 40: user.TL_user_setNotifySettings.users:type_name -> mtproto.User
+	154, // 41: user.TL_user_setNotifySettings.chats:type_name -> mtproto.Chat
 	0,   // 42: user.TL_user_resetNotifySettings.constructor:type_name -> user.TLConstructor
 	0,   // 43: user.TL_user_getAllNotifySettings.constructor:type_name -> user.TLConstructor
 	0,   // 44: user.TL_user_getGlobalPrivacySettings.constructor:type_name -> user.TLConstructor
 	0,   // 45: user.TL_user_setGlobalPrivacySettings.constructor:type_name -> user.TLConstructor
-	154, // 46: user.TL_user_setGlobalPrivacySettings.settings:type_name -> mtproto.GlobalPrivacySettings
+	155, // 46: user.TL_user_setGlobalPrivacySettings.settings:type_name -> mtproto.GlobalPrivacySettings
 	0,   // 47: user.TL_user_getPrivacy.constructor:type_name -> user.TLConstructor
 	0,   // 48: user.TL_user_setPrivacy.constructor:type_name -> user.TLConstructor
-	155, // 49: user.TL_user_setPrivacy.rules:type_name -> mtproto.PrivacyRule
-	149, // 50: user.TL_user_setPrivacy.users:type_name -> mtproto.User
-	153, // 51: user.TL_user_setPrivacy.chats:type_name -> mtproto.Chat
+	156, // 49: user.TL_user_setPrivacy.rules:type_name -> mtproto.PrivacyRule
+	150, // 50: user.TL_user_setPrivacy.users:type_name -> mtproto.User
+	154, // 51: user.TL_user_setPrivacy.chats:type_name -> mtproto.Chat
 	0,   // 52: user.TL_user_checkPrivacy.constructor:type_name -> user.TLConstructor
 	0,   // 53: user.TL_user_addPeerSettings.constructor:type_name -> user.TLConstructor
-	156, // 54: user.TL_user_addPeerSettings.settings:type_name -> mtproto.PeerSettings
-	149, // 55: user.TL_user_addPeerSettings.users:type_name -> mtproto.User
-	153, // 56: user.TL_user_addPeerSettings.chats:type_name -> mtproto.Chat
+	157, // 54: user.TL_user_addPeerSettings.settings:type_name -> mtproto.PeerSettings
+	150, // 55: user.TL_user_addPeerSettings.users:type_name -> mtproto.User
+	154, // 56: user.TL_user_addPeerSettings.chats:type_name -> mtproto.Chat
 	0,   // 57: user.TL_user_getPeerSettings.constructor:type_name -> user.TLConstructor
 	0,   // 58: user.TL_user_deletePeerSettings.constructor:type_name -> user.TLConstructor
-	149, // 59: user.TL_user_deletePeerSettings.users:type_name -> mtproto.User
-	153, // 60: user.TL_user_deletePeerSettings.chats:type_name -> mtproto.Chat
+	150, // 59: user.TL_user_deletePeerSettings.users:type_name -> mtproto.User
+	154, // 60: user.TL_user_deletePeerSettings.chats:type_name -> mtproto.Chat
 	0,   // 61: user.TL_user_changePhone.constructor:type_name -> user.TLConstructor
 	0,   // 62: user.TL_user_createNewUser.constructor:type_name -> user.TLConstructor
 	0,   // 63: user.TL_user_deleteUser.constructor:type_name -> user.TLConstructor
 	0,   // 64: user.TL_user_blockPeer.constructor:type_name -> user.TLConstructor
-	149, // 65: user.TL_user_blockPeer.users:type_name -> mtproto.User
+	150, // 65: user.TL_user_blockPeer.users:type_name -> mtproto.User
 	0,   // 66: user.TL_user_unBlockPeer.constructor:type_name -> user.TLConstructor
-	149, // 67: user.TL_user_unBlockPeer.users:type_name -> mtproto.User
+	150, // 67: user.TL_user_unBlockPeer.users:type_name -> mtproto.User
 	0,   // 68: user.TL_user_blockedByUser.constructor:type_name -> user.TLConstructor
 	0,   // 69: user.TL_user_isBlockedByUser.constructor:type_name -> user.TLConstructor
 	0,   // 70: user.TL_user_checkBlockUserList.constructor:type_name -> user.TLConstructor
 	0,   // 71: user.TL_user_getBlockedList.constructor:type_name -> user.TLConstructor
 	0,   // 72: user.TL_user_getContactSignUpNotification.constructor:type_name -> user.TLConstructor
 	0,   // 73: user.TL_user_setContactSignUpNotification.constructor:type_name -> user.TLConstructor
-	157, // 74: user.TL_user_setContactSignUpNotification.silent:type_name -> mtproto.Bool
+	158, // 74: user.TL_user_setContactSignUpNotification.silent:type_name -> mtproto.Bool
 	0,   // 75: user.TL_user_getContentSettings.constructor:type_name -> user.TLConstructor
 	0,   // 76: user.TL_user_setContentSettings.constructor:type_name -> user.TLConstructor
 	0,   // 77: user.TL_user_deleteContact.constructor:type_name -> user.TLConstructor
-	149, // 78: user.TL_user_deleteContact.users:type_name -> mtproto.User
+	150, // 78: user.TL_user_deleteContact.users:type_name -> mtproto.User
 	0,   // 79: user.TL_user_getContactList.constructor:type_name -> user.TLConstructor
 	0,   // 80: user.TL_user_getContactIdList.constructor:type_name -> user.TLConstructor
 	0,   // 81: user.TL_user_getContact.constructor:type_name -> user.TLConstructor
 	0,   // 82: user.TL_user_addContact.constructor:type_name -> user.TLConstructor
-	157, // 83: user.TL_user_addContact.add_phone_privacy_exception:type_name -> mtproto.Bool
-	149, // 84: user.TL_user_addContact.users:type_name -> mtproto.User
+	158, // 83: user.TL_user_addContact.add_phone_privacy_exception:type_name -> mtproto.Bool
+	150, // 84: user.TL_user_addContact.users:type_name -> mtproto.User
 	0,   // 85: user.TL_user_checkContact.constructor:type_name -> user.TLConstructor
 	0,   // 86: user.TL_user_importContacts.constructor:type_name -> user.TLConstructor
-	158, // 87: user.TL_user_importContacts.contacts:type_name -> mtproto.InputContact
+	159, // 87: user.TL_user_importContacts.contacts:type_name -> mtproto.InputContact
 	0,   // 88: user.TL_user_getCountryCode.constructor:type_name -> user.TLConstructor
 	0,   // 89: user.TL_user_updateAbout.constructor:type_name -> user.TLConstructor
 	0,   // 90: user.TL_user_updateFirstAndLastName.constructor:type_name -> user.TLConstructor
 	0,   // 91: user.TL_user_updateVerified.constructor:type_name -> user.TLConstructor
-	157, // 92: user.TL_user_updateVerified.verified:type_name -> mtproto.Bool
+	158, // 92: user.TL_user_updateVerified.verified:type_name -> mtproto.Bool
 	0,   // 93: user.TL_user_setGhost.constructor:type_name -> user.TLConstructor
-	157, // 94: user.TL_user_setGhost.ghost:type_name -> mtproto.Bool
-	0,   // 95: user.TL_user_updateUsername.constructor:type_name -> user.TLConstructor
-	0,   // 96: user.TL_user_updateProfilePhoto.constructor:type_name -> user.TLConstructor
-	0,   // 97: user.TL_user_deleteProfilePhotos.constructor:type_name -> user.TLConstructor
-	0,   // 98: user.TL_user_getProfilePhotos.constructor:type_name -> user.TLConstructor
-	0,   // 99: user.TL_user_setBotCommands.constructor:type_name -> user.TLConstructor
-	159, // 100: user.TL_user_setBotCommands.commands:type_name -> mtproto.BotCommand
-	0,   // 101: user.TL_user_isBot.constructor:type_name -> user.TLConstructor
-	0,   // 102: user.TL_user_getBotInfo.constructor:type_name -> user.TLConstructor
-	0,   // 103: user.TL_user_checkBots.constructor:type_name -> user.TLConstructor
-	0,   // 104: user.TL_user_getFullUser.constructor:type_name -> user.TLConstructor
-	0,   // 105: user.TL_user_updateEmojiStatus.constructor:type_name -> user.TLConstructor
-	0,   // 106: user.TL_user_getUserDataById.constructor:type_name -> user.TLConstructor
-	0,   // 107: user.TL_user_getUserDataListByIdList.constructor:type_name -> user.TLConstructor
-	0,   // 108: user.TL_user_getUserDataByToken.constructor:type_name -> user.TLConstructor
-	0,   // 109: user.TL_user_search.constructor:type_name -> user.TLConstructor
-	0,   // 110: user.TL_user_updateBotData.constructor:type_name -> user.TLConstructor
-	157, // 111: user.TL_user_updateBotData.bot_chat_history:type_name -> mtproto.Bool
-	157, // 112: user.TL_user_updateBotData.bot_nochats:type_name -> mtproto.Bool
-	157, // 113: user.TL_user_updateBotData.bot_inline_geo:type_name -> mtproto.Bool
-	157, // 114: user.TL_user_updateBotData.bot_attach_menu:type_name -> mtproto.Bool
-	145, // 115: user.TL_user_updateBotData.bot_inline_placeholder:type_name -> google.protobuf.StringValue
-	157, // 116: user.TL_user_updateBotData.bot_has_main_app:type_name -> mtproto.Bool
-	0,   // 117: user.TL_user_getImmutableUserV2.constructor:type_name -> user.TLConstructor
-	0,   // 118: user.TL_user_getMutableUsersV2.constructor:type_name -> user.TLConstructor
-	0,   // 119: user.TL_user_createNewTestUser.constructor:type_name -> user.TLConstructor
-	0,   // 120: user.TL_user_editCloseFriends.constructor:type_name -> user.TLConstructor
-	0,   // 121: user.TL_user_setStoriesMaxId.constructor:type_name -> user.TLConstructor
-	0,   // 122: user.TL_user_setColor.constructor:type_name -> user.TLConstructor
-	0,   // 123: user.TL_user_updateBirthday.constructor:type_name -> user.TLConstructor
-	160, // 124: user.TL_user_updateBirthday.birthday:type_name -> mtproto.Birthday
-	0,   // 125: user.TL_user_getBirthdays.constructor:type_name -> user.TLConstructor
-	0,   // 126: user.TL_user_setStoriesHidden.constructor:type_name -> user.TLConstructor
-	157, // 127: user.TL_user_setStoriesHidden.hidden:type_name -> mtproto.Bool
-	0,   // 128: user.TL_user_updatePersonalChannel.constructor:type_name -> user.TLConstructor
-	0,   // 129: user.TL_user_getUserIdByPhone.constructor:type_name -> user.TLConstructor
-	0,   // 130: user.TL_user_setAuthorizationTTL.constructor:type_name -> user.TLConstructor
-	0,   // 131: user.TL_user_getAuthorizationTTL.constructor:type_name -> user.TLConstructor
-	0,   // 132: user.TL_user_updatePremium.constructor:type_name -> user.TLConstructor
-	157, // 133: user.TL_user_updatePremium.premium:type_name -> mtproto.Bool
-	161, // 134: user.TL_user_updatePremium.months:type_name -> google.protobuf.Int32Value
-	0,   // 135: user.TL_user_getBotInfoV2.constructor:type_name -> user.TLConstructor
-	0,   // 136: user.TL_user_saveMusic.constructor:type_name -> user.TLConstructor
-	162, // 137: user.TL_user_saveMusic.after_id:type_name -> google.protobuf.Int64Value
-	0,   // 138: user.TL_user_getSavedMusicIdList.constructor:type_name -> user.TLConstructor
-	0,   // 139: user.TL_user_setMainProfileTab.constructor:type_name -> user.TLConstructor
-	163, // 140: user.TL_user_setMainProfileTab.tab:type_name -> mtproto.ProfileTab
-	0,   // 141: user.TL_user_setDefaultHistoryTTL.constructor:type_name -> user.TLConstructor
-	0,   // 142: user.TL_user_getDefaultHistoryTTL.constructor:type_name -> user.TLConstructor
-	0,   // 143: user.TL_user_getAccountUsername.constructor:type_name -> user.TLConstructor
-	0,   // 144: user.TL_user_checkAccountUsername.constructor:type_name -> user.TLConstructor
-	0,   // 145: user.TL_user_getChannelUsername.constructor:type_name -> user.TLConstructor
-	0,   // 146: user.TL_user_checkChannelUsername.constructor:type_name -> user.TLConstructor
-	0,   // 147: user.TL_user_updateUsernameByPeer.constructor:type_name -> user.TLConstructor
-	0,   // 148: user.TL_user_checkUsername.constructor:type_name -> user.TLConstructor
-	0,   // 149: user.TL_user_updateUsernameByUsername.constructor:type_name -> user.TLConstructor
-	0,   // 150: user.TL_user_deleteUsername.constructor:type_name -> user.TLConstructor
-	0,   // 151: user.TL_user_resolveUsername.constructor:type_name -> user.TLConstructor
-	0,   // 152: user.TL_user_getListByUsernameList.constructor:type_name -> user.TLConstructor
-	0,   // 153: user.TL_user_deleteUsernameByPeer.constructor:type_name -> user.TLConstructor
-	0,   // 154: user.TL_user_searchUsername.constructor:type_name -> user.TLConstructor
-	0,   // 155: user.TL_user_toggleUsername.constructor:type_name -> user.TLConstructor
-	157, // 156: user.TL_user_toggleUsername.active:type_name -> mtproto.Bool
-	0,   // 157: user.TL_user_reorderUsernames.constructor:type_name -> user.TLConstructor
-	0,   // 158: user.TL_user_deactivateAllChannelUsernames.constructor:type_name -> user.TLConstructor
-	0,   // 159: user.TL_user_getSavedContacts.constructor:type_name -> user.TLConstructor
-	0,   // 160: user.TL_user_resetSavedContacts.constructor:type_name -> user.TLConstructor
-	0,   // 161: user.TL_user_getTopPeers.constructor:type_name -> user.TLConstructor
-	164, // 162: user.TL_user_getTopPeers.categories:type_name -> mtproto.TopPeerCategory
-	0,   // 163: user.TL_user_toggleTopPeers.constructor:type_name -> user.TLConstructor
-	157, // 164: user.TL_user_toggleTopPeers.enabled:type_name -> mtproto.Bool
-	0,   // 165: user.TL_user_resetTopPeerRating.constructor:type_name -> user.TLConstructor
-	164, // 166: user.TL_user_resetTopPeerRating.category:type_name -> mtproto.TopPeerCategory
-	0,   // 167: user.TL_user_newAuthorization.constructor:type_name -> user.TLConstructor
-	165, // 168: user.TL_user_newAuthorization.update:type_name -> mtproto.Update
-	0,   // 169: user.TL_user_getSavedGifIdList.constructor:type_name -> user.TLConstructor
-	0,   // 170: user.TL_user_setContactPersonalPhoto.constructor:type_name -> user.TLConstructor
-	157, // 171: user.TL_user_setContactPersonalPhoto.has_video:type_name -> mtproto.Bool
-	0,   // 172: user.TL_user_addSuggestedPhoto.constructor:type_name -> user.TLConstructor
-	0,   // 173: user.TL_user_getStatusWatchers.constructor:type_name -> user.TLConstructor
-	0,   // 174: user.TL_user_saveGif.constructor:type_name -> user.TLConstructor
-	157, // 175: user.TL_user_saveGif.unsave:type_name -> mtproto.Bool
-	0,   // 176: user.TL_user_getReactionsNotifySettings.constructor:type_name -> user.TLConstructor
-	0,   // 177: user.TL_user_setReactionsNotifySettings.constructor:type_name -> user.TLConstructor
-	166, // 178: user.TL_user_setReactionsNotifySettings.settings:type_name -> mtproto.ReactionsNotifySettings
-	157, // 179: user.TL_user_setReactionsNotifySettings.keep_poll_votes:type_name -> mtproto.Bool
-	0,   // 180: user.TL_user_setTopicNotifySettings.constructor:type_name -> user.TLConstructor
-	146, // 181: user.TL_user_setTopicNotifySettings.settings:type_name -> mtproto.PeerNotifySettings
-	0,   // 182: user.TL_user_getTopicNotifySettings.constructor:type_name -> user.TLConstructor
-	0,   // 183: user.TL_user_getTopicNotifyExceptions.constructor:type_name -> user.TLConstructor
-	3,   // 184: user.Vector_LastSeenData.datas:type_name -> user.LastSeenData
-	167, // 185: user.Vector_ImmutableUser.datas:type_name -> mtproto.ImmutableUser
-	5,   // 186: user.Vector_PeerPeerNotifySettings.datas:type_name -> user.PeerPeerNotifySettings
-	155, // 187: user.Vector_PrivacyRule.datas:type_name -> mtproto.PrivacyRule
-	168, // 188: user.Vector_PeerBlocked.datas:type_name -> mtproto.PeerBlocked
-	169, // 189: user.Vector_ContactData.datas:type_name -> mtproto.ContactData
-	158, // 190: user.Vector_InputContact.datas:type_name -> mtproto.InputContact
-	151, // 191: user.Vector_UserData.datas:type_name -> mtproto.UserData
-	170, // 192: user.Vector_ContactBirthday.datas:type_name -> mtproto.ContactBirthday
-	9,   // 193: user.Vector_UsernameData.datas:type_name -> user.UsernameData
-	171, // 194: user.Vector_SavedContact.datas:type_name -> mtproto.SavedContact
-	19,  // 195: user.RPCUser.user_getLastSeens:input_type -> user.TL_user_getLastSeens
-	20,  // 196: user.RPCUser.user_updateLastSeen:input_type -> user.TL_user_updateLastSeen
-	21,  // 197: user.RPCUser.user_getLastSeen:input_type -> user.TL_user_getLastSeen
-	22,  // 198: user.RPCUser.user_getImmutableUser:input_type -> user.TL_user_getImmutableUser
-	23,  // 199: user.RPCUser.user_getMutableUsers:input_type -> user.TL_user_getMutableUsers
-	24,  // 200: user.RPCUser.user_getImmutableUserByPhone:input_type -> user.TL_user_getImmutableUserByPhone
-	25,  // 201: user.RPCUser.user_getImmutableUserByToken:input_type -> user.TL_user_getImmutableUserByToken
-	26,  // 202: user.RPCUser.user_setAccountDaysTTL:input_type -> user.TL_user_setAccountDaysTTL
-	27,  // 203: user.RPCUser.user_getAccountDaysTTL:input_type -> user.TL_user_getAccountDaysTTL
-	28,  // 204: user.RPCUser.user_getNotifySettings:input_type -> user.TL_user_getNotifySettings
-	29,  // 205: user.RPCUser.user_getNotifySettingsList:input_type -> user.TL_user_getNotifySettingsList
-	30,  // 206: user.RPCUser.user_setNotifySettings:input_type -> user.TL_user_setNotifySettings
-	31,  // 207: user.RPCUser.user_resetNotifySettings:input_type -> user.TL_user_resetNotifySettings
-	32,  // 208: user.RPCUser.user_getAllNotifySettings:input_type -> user.TL_user_getAllNotifySettings
-	33,  // 209: user.RPCUser.user_getGlobalPrivacySettings:input_type -> user.TL_user_getGlobalPrivacySettings
-	34,  // 210: user.RPCUser.user_setGlobalPrivacySettings:input_type -> user.TL_user_setGlobalPrivacySettings
-	35,  // 211: user.RPCUser.user_getPrivacy:input_type -> user.TL_user_getPrivacy
-	36,  // 212: user.RPCUser.user_setPrivacy:input_type -> user.TL_user_setPrivacy
-	37,  // 213: user.RPCUser.user_checkPrivacy:input_type -> user.TL_user_checkPrivacy
-	38,  // 214: user.RPCUser.user_addPeerSettings:input_type -> user.TL_user_addPeerSettings
-	39,  // 215: user.RPCUser.user_getPeerSettings:input_type -> user.TL_user_getPeerSettings
-	40,  // 216: user.RPCUser.user_deletePeerSettings:input_type -> user.TL_user_deletePeerSettings
-	41,  // 217: user.RPCUser.user_changePhone:input_type -> user.TL_user_changePhone
-	42,  // 218: user.RPCUser.user_createNewUser:input_type -> user.TL_user_createNewUser
-	43,  // 219: user.RPCUser.user_deleteUser:input_type -> user.TL_user_deleteUser
-	44,  // 220: user.RPCUser.user_blockPeer:input_type -> user.TL_user_blockPeer
-	45,  // 221: user.RPCUser.user_unBlockPeer:input_type -> user.TL_user_unBlockPeer
-	46,  // 222: user.RPCUser.user_blockedByUser:input_type -> user.TL_user_blockedByUser
-	47,  // 223: user.RPCUser.user_isBlockedByUser:input_type -> user.TL_user_isBlockedByUser
-	48,  // 224: user.RPCUser.user_checkBlockUserList:input_type -> user.TL_user_checkBlockUserList
-	49,  // 225: user.RPCUser.user_getBlockedList:input_type -> user.TL_user_getBlockedList
-	50,  // 226: user.RPCUser.user_getContactSignUpNotification:input_type -> user.TL_user_getContactSignUpNotification
-	51,  // 227: user.RPCUser.user_setContactSignUpNotification:input_type -> user.TL_user_setContactSignUpNotification
-	52,  // 228: user.RPCUser.user_getContentSettings:input_type -> user.TL_user_getContentSettings
-	53,  // 229: user.RPCUser.user_setContentSettings:input_type -> user.TL_user_setContentSettings
-	54,  // 230: user.RPCUser.user_deleteContact:input_type -> user.TL_user_deleteContact
-	55,  // 231: user.RPCUser.user_getContactList:input_type -> user.TL_user_getContactList
-	56,  // 232: user.RPCUser.user_getContactIdList:input_type -> user.TL_user_getContactIdList
-	57,  // 233: user.RPCUser.user_getContact:input_type -> user.TL_user_getContact
-	58,  // 234: user.RPCUser.user_addContact:input_type -> user.TL_user_addContact
-	59,  // 235: user.RPCUser.user_checkContact:input_type -> user.TL_user_checkContact
-	60,  // 236: user.RPCUser.user_importContacts:input_type -> user.TL_user_importContacts
-	61,  // 237: user.RPCUser.user_getCountryCode:input_type -> user.TL_user_getCountryCode
-	62,  // 238: user.RPCUser.user_updateAbout:input_type -> user.TL_user_updateAbout
-	63,  // 239: user.RPCUser.user_updateFirstAndLastName:input_type -> user.TL_user_updateFirstAndLastName
-	64,  // 240: user.RPCUser.user_updateVerified:input_type -> user.TL_user_updateVerified
-	66,  // 241: user.RPCUser.user_updateUsername:input_type -> user.TL_user_updateUsername
-	67,  // 242: user.RPCUser.user_updateProfilePhoto:input_type -> user.TL_user_updateProfilePhoto
-	68,  // 243: user.RPCUser.user_deleteProfilePhotos:input_type -> user.TL_user_deleteProfilePhotos
-	69,  // 244: user.RPCUser.user_getProfilePhotos:input_type -> user.TL_user_getProfilePhotos
-	70,  // 245: user.RPCUser.user_setBotCommands:input_type -> user.TL_user_setBotCommands
-	71,  // 246: user.RPCUser.user_isBot:input_type -> user.TL_user_isBot
-	72,  // 247: user.RPCUser.user_getBotInfo:input_type -> user.TL_user_getBotInfo
-	73,  // 248: user.RPCUser.user_checkBots:input_type -> user.TL_user_checkBots
-	74,  // 249: user.RPCUser.user_getFullUser:input_type -> user.TL_user_getFullUser
-	75,  // 250: user.RPCUser.user_updateEmojiStatus:input_type -> user.TL_user_updateEmojiStatus
-	76,  // 251: user.RPCUser.user_getUserDataById:input_type -> user.TL_user_getUserDataById
-	77,  // 252: user.RPCUser.user_getUserDataListByIdList:input_type -> user.TL_user_getUserDataListByIdList
-	78,  // 253: user.RPCUser.user_getUserDataByToken:input_type -> user.TL_user_getUserDataByToken
-	79,  // 254: user.RPCUser.user_search:input_type -> user.TL_user_search
-	80,  // 255: user.RPCUser.user_updateBotData:input_type -> user.TL_user_updateBotData
-	81,  // 256: user.RPCUser.user_getImmutableUserV2:input_type -> user.TL_user_getImmutableUserV2
-	82,  // 257: user.RPCUser.user_getMutableUsersV2:input_type -> user.TL_user_getMutableUsersV2
-	83,  // 258: user.RPCUser.user_createNewTestUser:input_type -> user.TL_user_createNewTestUser
-	84,  // 259: user.RPCUser.user_editCloseFriends:input_type -> user.TL_user_editCloseFriends
-	85,  // 260: user.RPCUser.user_setStoriesMaxId:input_type -> user.TL_user_setStoriesMaxId
-	86,  // 261: user.RPCUser.user_setColor:input_type -> user.TL_user_setColor
-	87,  // 262: user.RPCUser.user_updateBirthday:input_type -> user.TL_user_updateBirthday
-	88,  // 263: user.RPCUser.user_getBirthdays:input_type -> user.TL_user_getBirthdays
-	89,  // 264: user.RPCUser.user_setStoriesHidden:input_type -> user.TL_user_setStoriesHidden
-	90,  // 265: user.RPCUser.user_updatePersonalChannel:input_type -> user.TL_user_updatePersonalChannel
-	91,  // 266: user.RPCUser.user_getUserIdByPhone:input_type -> user.TL_user_getUserIdByPhone
-	92,  // 267: user.RPCUser.user_setAuthorizationTTL:input_type -> user.TL_user_setAuthorizationTTL
-	93,  // 268: user.RPCUser.user_getAuthorizationTTL:input_type -> user.TL_user_getAuthorizationTTL
-	94,  // 269: user.RPCUser.user_updatePremium:input_type -> user.TL_user_updatePremium
-	95,  // 270: user.RPCUser.user_getBotInfoV2:input_type -> user.TL_user_getBotInfoV2
-	96,  // 271: user.RPCUser.user_saveMusic:input_type -> user.TL_user_saveMusic
-	97,  // 272: user.RPCUser.user_getSavedMusicIdList:input_type -> user.TL_user_getSavedMusicIdList
-	98,  // 273: user.RPCUser.user_setMainProfileTab:input_type -> user.TL_user_setMainProfileTab
-	99,  // 274: user.RPCUser.user_setDefaultHistoryTTL:input_type -> user.TL_user_setDefaultHistoryTTL
-	100, // 275: user.RPCUser.user_getDefaultHistoryTTL:input_type -> user.TL_user_getDefaultHistoryTTL
-	101, // 276: user.RPCUser.user_getAccountUsername:input_type -> user.TL_user_getAccountUsername
-	102, // 277: user.RPCUser.user_checkAccountUsername:input_type -> user.TL_user_checkAccountUsername
-	103, // 278: user.RPCUser.user_getChannelUsername:input_type -> user.TL_user_getChannelUsername
-	104, // 279: user.RPCUser.user_checkChannelUsername:input_type -> user.TL_user_checkChannelUsername
-	105, // 280: user.RPCUser.user_updateUsernameByPeer:input_type -> user.TL_user_updateUsernameByPeer
-	106, // 281: user.RPCUser.user_checkUsername:input_type -> user.TL_user_checkUsername
-	107, // 282: user.RPCUser.user_updateUsernameByUsername:input_type -> user.TL_user_updateUsernameByUsername
-	108, // 283: user.RPCUser.user_deleteUsername:input_type -> user.TL_user_deleteUsername
-	109, // 284: user.RPCUser.user_resolveUsername:input_type -> user.TL_user_resolveUsername
-	110, // 285: user.RPCUser.user_getListByUsernameList:input_type -> user.TL_user_getListByUsernameList
-	111, // 286: user.RPCUser.user_deleteUsernameByPeer:input_type -> user.TL_user_deleteUsernameByPeer
-	112, // 287: user.RPCUser.user_searchUsername:input_type -> user.TL_user_searchUsername
-	113, // 288: user.RPCUser.user_toggleUsername:input_type -> user.TL_user_toggleUsername
-	114, // 289: user.RPCUser.user_reorderUsernames:input_type -> user.TL_user_reorderUsernames
-	115, // 290: user.RPCUser.user_deactivateAllChannelUsernames:input_type -> user.TL_user_deactivateAllChannelUsernames
-	116, // 291: user.RPCUser.user_getSavedContacts:input_type -> user.TL_user_getSavedContacts
-	117, // 292: user.RPCUser.user_resetSavedContacts:input_type -> user.TL_user_resetSavedContacts
-	118, // 293: user.RPCUser.user_getTopPeers:input_type -> user.TL_user_getTopPeers
-	119, // 294: user.RPCUser.user_toggleTopPeers:input_type -> user.TL_user_toggleTopPeers
-	120, // 295: user.RPCUser.user_resetTopPeerRating:input_type -> user.TL_user_resetTopPeerRating
-	121, // 296: user.RPCUser.user_newAuthorization:input_type -> user.TL_user_newAuthorization
-	122, // 297: user.RPCUser.user_getSavedGifIdList:input_type -> user.TL_user_getSavedGifIdList
-	126, // 298: user.RPCUser.user_saveGif:input_type -> user.TL_user_saveGif
-	127, // 299: user.RPCUser.user_getReactionsNotifySettings:input_type -> user.TL_user_getReactionsNotifySettings
-	128, // 300: user.RPCUser.user_setReactionsNotifySettings:input_type -> user.TL_user_setReactionsNotifySettings
-	125, // 301: user.RPCUser.user_getStatusWatchers:input_type -> user.TL_user_getStatusWatchers
-	123, // 302: user.RPCUser.user_setContactPersonalPhoto:input_type -> user.TL_user_setContactPersonalPhoto
-	124, // 303: user.RPCUser.user_addSuggestedPhoto:input_type -> user.TL_user_addSuggestedPhoto
-	129, // 304: user.RPCUser.user_setTopicNotifySettings:input_type -> user.TL_user_setTopicNotifySettings
-	130, // 305: user.RPCUser.user_getTopicNotifySettings:input_type -> user.TL_user_getTopicNotifySettings
-	131, // 306: user.RPCUser.user_getTopicNotifyExceptions:input_type -> user.TL_user_getTopicNotifyExceptions
-	65,  // 307: user.RPCUser.user_setGhost:input_type -> user.TL_user_setGhost
-	132, // 308: user.RPCUser.user_getLastSeens:output_type -> user.Vector_LastSeenData
-	157, // 309: user.RPCUser.user_updateLastSeen:output_type -> mtproto.Bool
-	3,   // 310: user.RPCUser.user_getLastSeen:output_type -> user.LastSeenData
-	167, // 311: user.RPCUser.user_getImmutableUser:output_type -> mtproto.ImmutableUser
-	133, // 312: user.RPCUser.user_getMutableUsers:output_type -> user.Vector_ImmutableUser
-	167, // 313: user.RPCUser.user_getImmutableUserByPhone:output_type -> mtproto.ImmutableUser
-	167, // 314: user.RPCUser.user_getImmutableUserByToken:output_type -> mtproto.ImmutableUser
-	157, // 315: user.RPCUser.user_setAccountDaysTTL:output_type -> mtproto.Bool
-	172, // 316: user.RPCUser.user_getAccountDaysTTL:output_type -> mtproto.AccountDaysTTL
-	146, // 317: user.RPCUser.user_getNotifySettings:output_type -> mtproto.PeerNotifySettings
-	134, // 318: user.RPCUser.user_getNotifySettingsList:output_type -> user.Vector_PeerPeerNotifySettings
-	157, // 319: user.RPCUser.user_setNotifySettings:output_type -> mtproto.Bool
-	157, // 320: user.RPCUser.user_resetNotifySettings:output_type -> mtproto.Bool
-	134, // 321: user.RPCUser.user_getAllNotifySettings:output_type -> user.Vector_PeerPeerNotifySettings
-	154, // 322: user.RPCUser.user_getGlobalPrivacySettings:output_type -> mtproto.GlobalPrivacySettings
-	157, // 323: user.RPCUser.user_setGlobalPrivacySettings:output_type -> mtproto.Bool
-	135, // 324: user.RPCUser.user_getPrivacy:output_type -> user.Vector_PrivacyRule
-	157, // 325: user.RPCUser.user_setPrivacy:output_type -> mtproto.Bool
-	157, // 326: user.RPCUser.user_checkPrivacy:output_type -> mtproto.Bool
-	157, // 327: user.RPCUser.user_addPeerSettings:output_type -> mtproto.Bool
-	156, // 328: user.RPCUser.user_getPeerSettings:output_type -> mtproto.PeerSettings
-	157, // 329: user.RPCUser.user_deletePeerSettings:output_type -> mtproto.Bool
-	157, // 330: user.RPCUser.user_changePhone:output_type -> mtproto.Bool
-	167, // 331: user.RPCUser.user_createNewUser:output_type -> mtproto.ImmutableUser
-	157, // 332: user.RPCUser.user_deleteUser:output_type -> mtproto.Bool
-	157, // 333: user.RPCUser.user_blockPeer:output_type -> mtproto.Bool
-	157, // 334: user.RPCUser.user_unBlockPeer:output_type -> mtproto.Bool
-	157, // 335: user.RPCUser.user_blockedByUser:output_type -> mtproto.Bool
-	157, // 336: user.RPCUser.user_isBlockedByUser:output_type -> mtproto.Bool
-	136, // 337: user.RPCUser.user_checkBlockUserList:output_type -> user.Vector_Long
-	137, // 338: user.RPCUser.user_getBlockedList:output_type -> user.Vector_PeerBlocked
-	157, // 339: user.RPCUser.user_getContactSignUpNotification:output_type -> mtproto.Bool
-	157, // 340: user.RPCUser.user_setContactSignUpNotification:output_type -> mtproto.Bool
-	173, // 341: user.RPCUser.user_getContentSettings:output_type -> mtproto.account_ContentSettings
-	157, // 342: user.RPCUser.user_setContentSettings:output_type -> mtproto.Bool
-	157, // 343: user.RPCUser.user_deleteContact:output_type -> mtproto.Bool
-	138, // 344: user.RPCUser.user_getContactList:output_type -> user.Vector_ContactData
-	136, // 345: user.RPCUser.user_getContactIdList:output_type -> user.Vector_Long
-	169, // 346: user.RPCUser.user_getContact:output_type -> mtproto.ContactData
-	157, // 347: user.RPCUser.user_addContact:output_type -> mtproto.Bool
-	157, // 348: user.RPCUser.user_checkContact:output_type -> mtproto.Bool
-	7,   // 349: user.RPCUser.user_importContacts:output_type -> user.UserImportedContacts
-	174, // 350: user.RPCUser.user_getCountryCode:output_type -> mtproto.String
-	157, // 351: user.RPCUser.user_updateAbout:output_type -> mtproto.Bool
-	157, // 352: user.RPCUser.user_updateFirstAndLastName:output_type -> mtproto.Bool
-	157, // 353: user.RPCUser.user_updateVerified:output_type -> mtproto.Bool
-	157, // 354: user.RPCUser.user_updateUsername:output_type -> mtproto.Bool
-	175, // 355: user.RPCUser.user_updateProfilePhoto:output_type -> mtproto.Int64
-	175, // 356: user.RPCUser.user_deleteProfilePhotos:output_type -> mtproto.Int64
-	136, // 357: user.RPCUser.user_getProfilePhotos:output_type -> user.Vector_Long
-	157, // 358: user.RPCUser.user_setBotCommands:output_type -> mtproto.Bool
-	157, // 359: user.RPCUser.user_isBot:output_type -> mtproto.Bool
-	144, // 360: user.RPCUser.user_getBotInfo:output_type -> mtproto.BotInfo
-	136, // 361: user.RPCUser.user_checkBots:output_type -> user.Vector_Long
-	176, // 362: user.RPCUser.user_getFullUser:output_type -> mtproto.users_UserFull
-	157, // 363: user.RPCUser.user_updateEmojiStatus:output_type -> mtproto.Bool
-	151, // 364: user.RPCUser.user_getUserDataById:output_type -> mtproto.UserData
-	140, // 365: user.RPCUser.user_getUserDataListByIdList:output_type -> user.Vector_UserData
-	151, // 366: user.RPCUser.user_getUserDataByToken:output_type -> mtproto.UserData
-	16,  // 367: user.RPCUser.user_search:output_type -> user.UsersFound
-	157, // 368: user.RPCUser.user_updateBotData:output_type -> mtproto.Bool
-	167, // 369: user.RPCUser.user_getImmutableUserV2:output_type -> mtproto.ImmutableUser
-	177, // 370: user.RPCUser.user_getMutableUsersV2:output_type -> mtproto.MutableUsers
-	167, // 371: user.RPCUser.user_createNewTestUser:output_type -> mtproto.ImmutableUser
-	157, // 372: user.RPCUser.user_editCloseFriends:output_type -> mtproto.Bool
-	157, // 373: user.RPCUser.user_setStoriesMaxId:output_type -> mtproto.Bool
-	157, // 374: user.RPCUser.user_setColor:output_type -> mtproto.Bool
-	157, // 375: user.RPCUser.user_updateBirthday:output_type -> mtproto.Bool
-	141, // 376: user.RPCUser.user_getBirthdays:output_type -> user.Vector_ContactBirthday
-	157, // 377: user.RPCUser.user_setStoriesHidden:output_type -> mtproto.Bool
-	157, // 378: user.RPCUser.user_updatePersonalChannel:output_type -> mtproto.Bool
-	175, // 379: user.RPCUser.user_getUserIdByPhone:output_type -> mtproto.Int64
-	157, // 380: user.RPCUser.user_setAuthorizationTTL:output_type -> mtproto.Bool
-	172, // 381: user.RPCUser.user_getAuthorizationTTL:output_type -> mtproto.AccountDaysTTL
-	157, // 382: user.RPCUser.user_updatePremium:output_type -> mtproto.Bool
-	1,   // 383: user.RPCUser.user_getBotInfoV2:output_type -> user.BotInfoData
-	157, // 384: user.RPCUser.user_saveMusic:output_type -> mtproto.Bool
-	136, // 385: user.RPCUser.user_getSavedMusicIdList:output_type -> user.Vector_Long
-	157, // 386: user.RPCUser.user_setMainProfileTab:output_type -> mtproto.Bool
-	157, // 387: user.RPCUser.user_setDefaultHistoryTTL:output_type -> mtproto.Bool
-	178, // 388: user.RPCUser.user_getDefaultHistoryTTL:output_type -> mtproto.DefaultHistoryTTL
-	9,   // 389: user.RPCUser.user_getAccountUsername:output_type -> user.UsernameData
-	11,  // 390: user.RPCUser.user_checkAccountUsername:output_type -> user.UsernameExist
-	9,   // 391: user.RPCUser.user_getChannelUsername:output_type -> user.UsernameData
-	11,  // 392: user.RPCUser.user_checkChannelUsername:output_type -> user.UsernameExist
-	157, // 393: user.RPCUser.user_updateUsernameByPeer:output_type -> mtproto.Bool
-	11,  // 394: user.RPCUser.user_checkUsername:output_type -> user.UsernameExist
-	157, // 395: user.RPCUser.user_updateUsernameByUsername:output_type -> mtproto.Bool
-	157, // 396: user.RPCUser.user_deleteUsername:output_type -> mtproto.Bool
-	150, // 397: user.RPCUser.user_resolveUsername:output_type -> mtproto.Peer
-	142, // 398: user.RPCUser.user_getListByUsernameList:output_type -> user.Vector_UsernameData
-	157, // 399: user.RPCUser.user_deleteUsernameByPeer:output_type -> mtproto.Bool
-	142, // 400: user.RPCUser.user_searchUsername:output_type -> user.Vector_UsernameData
-	157, // 401: user.RPCUser.user_toggleUsername:output_type -> mtproto.Bool
-	157, // 402: user.RPCUser.user_reorderUsernames:output_type -> mtproto.Bool
-	157, // 403: user.RPCUser.user_deactivateAllChannelUsernames:output_type -> mtproto.Bool
-	143, // 404: user.RPCUser.user_getSavedContacts:output_type -> user.Vector_SavedContact
-	157, // 405: user.RPCUser.user_resetSavedContacts:output_type -> mtproto.Bool
-	179, // 406: user.RPCUser.user_getTopPeers:output_type -> mtproto.contacts_TopPeers
-	157, // 407: user.RPCUser.user_toggleTopPeers:output_type -> mtproto.Bool
-	157, // 408: user.RPCUser.user_resetTopPeerRating:output_type -> mtproto.Bool
-	157, // 409: user.RPCUser.user_newAuthorization:output_type -> mtproto.Bool
-	136, // 410: user.RPCUser.user_getSavedGifIdList:output_type -> user.Vector_Long
-	157, // 411: user.RPCUser.user_saveGif:output_type -> mtproto.Bool
-	166, // 412: user.RPCUser.user_getReactionsNotifySettings:output_type -> mtproto.ReactionsNotifySettings
-	166, // 413: user.RPCUser.user_setReactionsNotifySettings:output_type -> mtproto.ReactionsNotifySettings
-	136, // 414: user.RPCUser.user_getStatusWatchers:output_type -> user.Vector_Long
-	149, // 415: user.RPCUser.user_setContactPersonalPhoto:output_type -> mtproto.User
-	157, // 416: user.RPCUser.user_addSuggestedPhoto:output_type -> mtproto.Bool
-	157, // 417: user.RPCUser.user_setTopicNotifySettings:output_type -> mtproto.Bool
-	146, // 418: user.RPCUser.user_getTopicNotifySettings:output_type -> mtproto.PeerNotifySettings
-	180, // 419: user.RPCUser.user_getTopicNotifyExceptions:output_type -> mtproto.Updates
-	157, // 420: user.RPCUser.user_setGhost:output_type -> mtproto.Bool
-	308, // [308:421] is the sub-list for method output_type
-	195, // [195:308] is the sub-list for method input_type
-	195, // [195:195] is the sub-list for extension type_name
-	195, // [195:195] is the sub-list for extension extendee
-	0,   // [0:195] is the sub-list for field type_name
+	158, // 94: user.TL_user_setGhost.ghost:type_name -> mtproto.Bool
+	0,   // 95: user.TL_user_editUsernames.constructor:type_name -> user.TLConstructor
+	158, // 96: user.TL_user_editUsernames.active:type_name -> mtproto.Bool
+	0,   // 97: user.TL_user_updateUsername.constructor:type_name -> user.TLConstructor
+	0,   // 98: user.TL_user_updateProfilePhoto.constructor:type_name -> user.TLConstructor
+	0,   // 99: user.TL_user_deleteProfilePhotos.constructor:type_name -> user.TLConstructor
+	0,   // 100: user.TL_user_getProfilePhotos.constructor:type_name -> user.TLConstructor
+	0,   // 101: user.TL_user_setBotCommands.constructor:type_name -> user.TLConstructor
+	160, // 102: user.TL_user_setBotCommands.commands:type_name -> mtproto.BotCommand
+	0,   // 103: user.TL_user_isBot.constructor:type_name -> user.TLConstructor
+	0,   // 104: user.TL_user_getBotInfo.constructor:type_name -> user.TLConstructor
+	0,   // 105: user.TL_user_checkBots.constructor:type_name -> user.TLConstructor
+	0,   // 106: user.TL_user_getFullUser.constructor:type_name -> user.TLConstructor
+	0,   // 107: user.TL_user_updateEmojiStatus.constructor:type_name -> user.TLConstructor
+	0,   // 108: user.TL_user_getUserDataById.constructor:type_name -> user.TLConstructor
+	0,   // 109: user.TL_user_getUserDataListByIdList.constructor:type_name -> user.TLConstructor
+	0,   // 110: user.TL_user_getUserDataByToken.constructor:type_name -> user.TLConstructor
+	0,   // 111: user.TL_user_search.constructor:type_name -> user.TLConstructor
+	0,   // 112: user.TL_user_updateBotData.constructor:type_name -> user.TLConstructor
+	158, // 113: user.TL_user_updateBotData.bot_chat_history:type_name -> mtproto.Bool
+	158, // 114: user.TL_user_updateBotData.bot_nochats:type_name -> mtproto.Bool
+	158, // 115: user.TL_user_updateBotData.bot_inline_geo:type_name -> mtproto.Bool
+	158, // 116: user.TL_user_updateBotData.bot_attach_menu:type_name -> mtproto.Bool
+	146, // 117: user.TL_user_updateBotData.bot_inline_placeholder:type_name -> google.protobuf.StringValue
+	158, // 118: user.TL_user_updateBotData.bot_has_main_app:type_name -> mtproto.Bool
+	158, // 119: user.TL_user_updateBotData.bot_business:type_name -> mtproto.Bool
+	0,   // 120: user.TL_user_getImmutableUserV2.constructor:type_name -> user.TLConstructor
+	0,   // 121: user.TL_user_getMutableUsersV2.constructor:type_name -> user.TLConstructor
+	0,   // 122: user.TL_user_createNewTestUser.constructor:type_name -> user.TLConstructor
+	0,   // 123: user.TL_user_editCloseFriends.constructor:type_name -> user.TLConstructor
+	0,   // 124: user.TL_user_setStoriesMaxId.constructor:type_name -> user.TLConstructor
+	0,   // 125: user.TL_user_setColor.constructor:type_name -> user.TLConstructor
+	0,   // 126: user.TL_user_updateBirthday.constructor:type_name -> user.TLConstructor
+	161, // 127: user.TL_user_updateBirthday.birthday:type_name -> mtproto.Birthday
+	0,   // 128: user.TL_user_getBirthdays.constructor:type_name -> user.TLConstructor
+	0,   // 129: user.TL_user_setStoriesHidden.constructor:type_name -> user.TLConstructor
+	158, // 130: user.TL_user_setStoriesHidden.hidden:type_name -> mtproto.Bool
+	0,   // 131: user.TL_user_updatePersonalChannel.constructor:type_name -> user.TLConstructor
+	0,   // 132: user.TL_user_getUserIdByPhone.constructor:type_name -> user.TLConstructor
+	0,   // 133: user.TL_user_setAuthorizationTTL.constructor:type_name -> user.TLConstructor
+	0,   // 134: user.TL_user_getAuthorizationTTL.constructor:type_name -> user.TLConstructor
+	0,   // 135: user.TL_user_updatePremium.constructor:type_name -> user.TLConstructor
+	158, // 136: user.TL_user_updatePremium.premium:type_name -> mtproto.Bool
+	162, // 137: user.TL_user_updatePremium.months:type_name -> google.protobuf.Int32Value
+	0,   // 138: user.TL_user_getBotInfoV2.constructor:type_name -> user.TLConstructor
+	0,   // 139: user.TL_user_saveMusic.constructor:type_name -> user.TLConstructor
+	163, // 140: user.TL_user_saveMusic.after_id:type_name -> google.protobuf.Int64Value
+	0,   // 141: user.TL_user_getSavedMusicIdList.constructor:type_name -> user.TLConstructor
+	0,   // 142: user.TL_user_setMainProfileTab.constructor:type_name -> user.TLConstructor
+	164, // 143: user.TL_user_setMainProfileTab.tab:type_name -> mtproto.ProfileTab
+	0,   // 144: user.TL_user_setDefaultHistoryTTL.constructor:type_name -> user.TLConstructor
+	0,   // 145: user.TL_user_getDefaultHistoryTTL.constructor:type_name -> user.TLConstructor
+	0,   // 146: user.TL_user_getAccountUsername.constructor:type_name -> user.TLConstructor
+	0,   // 147: user.TL_user_checkAccountUsername.constructor:type_name -> user.TLConstructor
+	0,   // 148: user.TL_user_getChannelUsername.constructor:type_name -> user.TLConstructor
+	0,   // 149: user.TL_user_checkChannelUsername.constructor:type_name -> user.TLConstructor
+	0,   // 150: user.TL_user_updateUsernameByPeer.constructor:type_name -> user.TLConstructor
+	0,   // 151: user.TL_user_checkUsername.constructor:type_name -> user.TLConstructor
+	0,   // 152: user.TL_user_updateUsernameByUsername.constructor:type_name -> user.TLConstructor
+	0,   // 153: user.TL_user_deleteUsername.constructor:type_name -> user.TLConstructor
+	0,   // 154: user.TL_user_resolveUsername.constructor:type_name -> user.TLConstructor
+	0,   // 155: user.TL_user_getListByUsernameList.constructor:type_name -> user.TLConstructor
+	0,   // 156: user.TL_user_deleteUsernameByPeer.constructor:type_name -> user.TLConstructor
+	0,   // 157: user.TL_user_searchUsername.constructor:type_name -> user.TLConstructor
+	0,   // 158: user.TL_user_toggleUsername.constructor:type_name -> user.TLConstructor
+	158, // 159: user.TL_user_toggleUsername.active:type_name -> mtproto.Bool
+	0,   // 160: user.TL_user_reorderUsernames.constructor:type_name -> user.TLConstructor
+	0,   // 161: user.TL_user_deactivateAllChannelUsernames.constructor:type_name -> user.TLConstructor
+	0,   // 162: user.TL_user_getSavedContacts.constructor:type_name -> user.TLConstructor
+	0,   // 163: user.TL_user_resetSavedContacts.constructor:type_name -> user.TLConstructor
+	0,   // 164: user.TL_user_getTopPeers.constructor:type_name -> user.TLConstructor
+	165, // 165: user.TL_user_getTopPeers.categories:type_name -> mtproto.TopPeerCategory
+	0,   // 166: user.TL_user_toggleTopPeers.constructor:type_name -> user.TLConstructor
+	158, // 167: user.TL_user_toggleTopPeers.enabled:type_name -> mtproto.Bool
+	0,   // 168: user.TL_user_resetTopPeerRating.constructor:type_name -> user.TLConstructor
+	165, // 169: user.TL_user_resetTopPeerRating.category:type_name -> mtproto.TopPeerCategory
+	0,   // 170: user.TL_user_newAuthorization.constructor:type_name -> user.TLConstructor
+	166, // 171: user.TL_user_newAuthorization.update:type_name -> mtproto.Update
+	0,   // 172: user.TL_user_getSavedGifIdList.constructor:type_name -> user.TLConstructor
+	0,   // 173: user.TL_user_setContactPersonalPhoto.constructor:type_name -> user.TLConstructor
+	158, // 174: user.TL_user_setContactPersonalPhoto.has_video:type_name -> mtproto.Bool
+	0,   // 175: user.TL_user_addSuggestedPhoto.constructor:type_name -> user.TLConstructor
+	0,   // 176: user.TL_user_getStatusWatchers.constructor:type_name -> user.TLConstructor
+	0,   // 177: user.TL_user_saveGif.constructor:type_name -> user.TLConstructor
+	158, // 178: user.TL_user_saveGif.unsave:type_name -> mtproto.Bool
+	0,   // 179: user.TL_user_getReactionsNotifySettings.constructor:type_name -> user.TLConstructor
+	0,   // 180: user.TL_user_setReactionsNotifySettings.constructor:type_name -> user.TLConstructor
+	167, // 181: user.TL_user_setReactionsNotifySettings.settings:type_name -> mtproto.ReactionsNotifySettings
+	158, // 182: user.TL_user_setReactionsNotifySettings.keep_poll_votes:type_name -> mtproto.Bool
+	0,   // 183: user.TL_user_setTopicNotifySettings.constructor:type_name -> user.TLConstructor
+	147, // 184: user.TL_user_setTopicNotifySettings.settings:type_name -> mtproto.PeerNotifySettings
+	0,   // 185: user.TL_user_getTopicNotifySettings.constructor:type_name -> user.TLConstructor
+	0,   // 186: user.TL_user_getTopicNotifyExceptions.constructor:type_name -> user.TLConstructor
+	3,   // 187: user.Vector_LastSeenData.datas:type_name -> user.LastSeenData
+	168, // 188: user.Vector_ImmutableUser.datas:type_name -> mtproto.ImmutableUser
+	5,   // 189: user.Vector_PeerPeerNotifySettings.datas:type_name -> user.PeerPeerNotifySettings
+	156, // 190: user.Vector_PrivacyRule.datas:type_name -> mtproto.PrivacyRule
+	169, // 191: user.Vector_PeerBlocked.datas:type_name -> mtproto.PeerBlocked
+	170, // 192: user.Vector_ContactData.datas:type_name -> mtproto.ContactData
+	159, // 193: user.Vector_InputContact.datas:type_name -> mtproto.InputContact
+	152, // 194: user.Vector_UserData.datas:type_name -> mtproto.UserData
+	171, // 195: user.Vector_ContactBirthday.datas:type_name -> mtproto.ContactBirthday
+	9,   // 196: user.Vector_UsernameData.datas:type_name -> user.UsernameData
+	172, // 197: user.Vector_SavedContact.datas:type_name -> mtproto.SavedContact
+	19,  // 198: user.RPCUser.user_getLastSeens:input_type -> user.TL_user_getLastSeens
+	20,  // 199: user.RPCUser.user_updateLastSeen:input_type -> user.TL_user_updateLastSeen
+	21,  // 200: user.RPCUser.user_getLastSeen:input_type -> user.TL_user_getLastSeen
+	22,  // 201: user.RPCUser.user_getImmutableUser:input_type -> user.TL_user_getImmutableUser
+	23,  // 202: user.RPCUser.user_getMutableUsers:input_type -> user.TL_user_getMutableUsers
+	24,  // 203: user.RPCUser.user_getImmutableUserByPhone:input_type -> user.TL_user_getImmutableUserByPhone
+	25,  // 204: user.RPCUser.user_getImmutableUserByToken:input_type -> user.TL_user_getImmutableUserByToken
+	26,  // 205: user.RPCUser.user_setAccountDaysTTL:input_type -> user.TL_user_setAccountDaysTTL
+	27,  // 206: user.RPCUser.user_getAccountDaysTTL:input_type -> user.TL_user_getAccountDaysTTL
+	28,  // 207: user.RPCUser.user_getNotifySettings:input_type -> user.TL_user_getNotifySettings
+	29,  // 208: user.RPCUser.user_getNotifySettingsList:input_type -> user.TL_user_getNotifySettingsList
+	30,  // 209: user.RPCUser.user_setNotifySettings:input_type -> user.TL_user_setNotifySettings
+	31,  // 210: user.RPCUser.user_resetNotifySettings:input_type -> user.TL_user_resetNotifySettings
+	32,  // 211: user.RPCUser.user_getAllNotifySettings:input_type -> user.TL_user_getAllNotifySettings
+	33,  // 212: user.RPCUser.user_getGlobalPrivacySettings:input_type -> user.TL_user_getGlobalPrivacySettings
+	34,  // 213: user.RPCUser.user_setGlobalPrivacySettings:input_type -> user.TL_user_setGlobalPrivacySettings
+	35,  // 214: user.RPCUser.user_getPrivacy:input_type -> user.TL_user_getPrivacy
+	36,  // 215: user.RPCUser.user_setPrivacy:input_type -> user.TL_user_setPrivacy
+	37,  // 216: user.RPCUser.user_checkPrivacy:input_type -> user.TL_user_checkPrivacy
+	38,  // 217: user.RPCUser.user_addPeerSettings:input_type -> user.TL_user_addPeerSettings
+	39,  // 218: user.RPCUser.user_getPeerSettings:input_type -> user.TL_user_getPeerSettings
+	40,  // 219: user.RPCUser.user_deletePeerSettings:input_type -> user.TL_user_deletePeerSettings
+	41,  // 220: user.RPCUser.user_changePhone:input_type -> user.TL_user_changePhone
+	42,  // 221: user.RPCUser.user_createNewUser:input_type -> user.TL_user_createNewUser
+	43,  // 222: user.RPCUser.user_deleteUser:input_type -> user.TL_user_deleteUser
+	44,  // 223: user.RPCUser.user_blockPeer:input_type -> user.TL_user_blockPeer
+	45,  // 224: user.RPCUser.user_unBlockPeer:input_type -> user.TL_user_unBlockPeer
+	46,  // 225: user.RPCUser.user_blockedByUser:input_type -> user.TL_user_blockedByUser
+	47,  // 226: user.RPCUser.user_isBlockedByUser:input_type -> user.TL_user_isBlockedByUser
+	48,  // 227: user.RPCUser.user_checkBlockUserList:input_type -> user.TL_user_checkBlockUserList
+	49,  // 228: user.RPCUser.user_getBlockedList:input_type -> user.TL_user_getBlockedList
+	50,  // 229: user.RPCUser.user_getContactSignUpNotification:input_type -> user.TL_user_getContactSignUpNotification
+	51,  // 230: user.RPCUser.user_setContactSignUpNotification:input_type -> user.TL_user_setContactSignUpNotification
+	52,  // 231: user.RPCUser.user_getContentSettings:input_type -> user.TL_user_getContentSettings
+	53,  // 232: user.RPCUser.user_setContentSettings:input_type -> user.TL_user_setContentSettings
+	54,  // 233: user.RPCUser.user_deleteContact:input_type -> user.TL_user_deleteContact
+	55,  // 234: user.RPCUser.user_getContactList:input_type -> user.TL_user_getContactList
+	56,  // 235: user.RPCUser.user_getContactIdList:input_type -> user.TL_user_getContactIdList
+	57,  // 236: user.RPCUser.user_getContact:input_type -> user.TL_user_getContact
+	58,  // 237: user.RPCUser.user_addContact:input_type -> user.TL_user_addContact
+	59,  // 238: user.RPCUser.user_checkContact:input_type -> user.TL_user_checkContact
+	60,  // 239: user.RPCUser.user_importContacts:input_type -> user.TL_user_importContacts
+	61,  // 240: user.RPCUser.user_getCountryCode:input_type -> user.TL_user_getCountryCode
+	62,  // 241: user.RPCUser.user_updateAbout:input_type -> user.TL_user_updateAbout
+	63,  // 242: user.RPCUser.user_updateFirstAndLastName:input_type -> user.TL_user_updateFirstAndLastName
+	64,  // 243: user.RPCUser.user_updateVerified:input_type -> user.TL_user_updateVerified
+	67,  // 244: user.RPCUser.user_updateUsername:input_type -> user.TL_user_updateUsername
+	68,  // 245: user.RPCUser.user_updateProfilePhoto:input_type -> user.TL_user_updateProfilePhoto
+	69,  // 246: user.RPCUser.user_deleteProfilePhotos:input_type -> user.TL_user_deleteProfilePhotos
+	70,  // 247: user.RPCUser.user_getProfilePhotos:input_type -> user.TL_user_getProfilePhotos
+	71,  // 248: user.RPCUser.user_setBotCommands:input_type -> user.TL_user_setBotCommands
+	72,  // 249: user.RPCUser.user_isBot:input_type -> user.TL_user_isBot
+	73,  // 250: user.RPCUser.user_getBotInfo:input_type -> user.TL_user_getBotInfo
+	74,  // 251: user.RPCUser.user_checkBots:input_type -> user.TL_user_checkBots
+	75,  // 252: user.RPCUser.user_getFullUser:input_type -> user.TL_user_getFullUser
+	76,  // 253: user.RPCUser.user_updateEmojiStatus:input_type -> user.TL_user_updateEmojiStatus
+	77,  // 254: user.RPCUser.user_getUserDataById:input_type -> user.TL_user_getUserDataById
+	78,  // 255: user.RPCUser.user_getUserDataListByIdList:input_type -> user.TL_user_getUserDataListByIdList
+	79,  // 256: user.RPCUser.user_getUserDataByToken:input_type -> user.TL_user_getUserDataByToken
+	80,  // 257: user.RPCUser.user_search:input_type -> user.TL_user_search
+	81,  // 258: user.RPCUser.user_updateBotData:input_type -> user.TL_user_updateBotData
+	82,  // 259: user.RPCUser.user_getImmutableUserV2:input_type -> user.TL_user_getImmutableUserV2
+	83,  // 260: user.RPCUser.user_getMutableUsersV2:input_type -> user.TL_user_getMutableUsersV2
+	84,  // 261: user.RPCUser.user_createNewTestUser:input_type -> user.TL_user_createNewTestUser
+	85,  // 262: user.RPCUser.user_editCloseFriends:input_type -> user.TL_user_editCloseFriends
+	86,  // 263: user.RPCUser.user_setStoriesMaxId:input_type -> user.TL_user_setStoriesMaxId
+	87,  // 264: user.RPCUser.user_setColor:input_type -> user.TL_user_setColor
+	88,  // 265: user.RPCUser.user_updateBirthday:input_type -> user.TL_user_updateBirthday
+	89,  // 266: user.RPCUser.user_getBirthdays:input_type -> user.TL_user_getBirthdays
+	90,  // 267: user.RPCUser.user_setStoriesHidden:input_type -> user.TL_user_setStoriesHidden
+	91,  // 268: user.RPCUser.user_updatePersonalChannel:input_type -> user.TL_user_updatePersonalChannel
+	92,  // 269: user.RPCUser.user_getUserIdByPhone:input_type -> user.TL_user_getUserIdByPhone
+	93,  // 270: user.RPCUser.user_setAuthorizationTTL:input_type -> user.TL_user_setAuthorizationTTL
+	94,  // 271: user.RPCUser.user_getAuthorizationTTL:input_type -> user.TL_user_getAuthorizationTTL
+	95,  // 272: user.RPCUser.user_updatePremium:input_type -> user.TL_user_updatePremium
+	96,  // 273: user.RPCUser.user_getBotInfoV2:input_type -> user.TL_user_getBotInfoV2
+	97,  // 274: user.RPCUser.user_saveMusic:input_type -> user.TL_user_saveMusic
+	98,  // 275: user.RPCUser.user_getSavedMusicIdList:input_type -> user.TL_user_getSavedMusicIdList
+	99,  // 276: user.RPCUser.user_setMainProfileTab:input_type -> user.TL_user_setMainProfileTab
+	100, // 277: user.RPCUser.user_setDefaultHistoryTTL:input_type -> user.TL_user_setDefaultHistoryTTL
+	101, // 278: user.RPCUser.user_getDefaultHistoryTTL:input_type -> user.TL_user_getDefaultHistoryTTL
+	102, // 279: user.RPCUser.user_getAccountUsername:input_type -> user.TL_user_getAccountUsername
+	103, // 280: user.RPCUser.user_checkAccountUsername:input_type -> user.TL_user_checkAccountUsername
+	104, // 281: user.RPCUser.user_getChannelUsername:input_type -> user.TL_user_getChannelUsername
+	105, // 282: user.RPCUser.user_checkChannelUsername:input_type -> user.TL_user_checkChannelUsername
+	106, // 283: user.RPCUser.user_updateUsernameByPeer:input_type -> user.TL_user_updateUsernameByPeer
+	107, // 284: user.RPCUser.user_checkUsername:input_type -> user.TL_user_checkUsername
+	108, // 285: user.RPCUser.user_updateUsernameByUsername:input_type -> user.TL_user_updateUsernameByUsername
+	109, // 286: user.RPCUser.user_deleteUsername:input_type -> user.TL_user_deleteUsername
+	110, // 287: user.RPCUser.user_resolveUsername:input_type -> user.TL_user_resolveUsername
+	111, // 288: user.RPCUser.user_getListByUsernameList:input_type -> user.TL_user_getListByUsernameList
+	112, // 289: user.RPCUser.user_deleteUsernameByPeer:input_type -> user.TL_user_deleteUsernameByPeer
+	113, // 290: user.RPCUser.user_searchUsername:input_type -> user.TL_user_searchUsername
+	114, // 291: user.RPCUser.user_toggleUsername:input_type -> user.TL_user_toggleUsername
+	115, // 292: user.RPCUser.user_reorderUsernames:input_type -> user.TL_user_reorderUsernames
+	116, // 293: user.RPCUser.user_deactivateAllChannelUsernames:input_type -> user.TL_user_deactivateAllChannelUsernames
+	117, // 294: user.RPCUser.user_getSavedContacts:input_type -> user.TL_user_getSavedContacts
+	118, // 295: user.RPCUser.user_resetSavedContacts:input_type -> user.TL_user_resetSavedContacts
+	119, // 296: user.RPCUser.user_getTopPeers:input_type -> user.TL_user_getTopPeers
+	120, // 297: user.RPCUser.user_toggleTopPeers:input_type -> user.TL_user_toggleTopPeers
+	121, // 298: user.RPCUser.user_resetTopPeerRating:input_type -> user.TL_user_resetTopPeerRating
+	122, // 299: user.RPCUser.user_newAuthorization:input_type -> user.TL_user_newAuthorization
+	123, // 300: user.RPCUser.user_getSavedGifIdList:input_type -> user.TL_user_getSavedGifIdList
+	127, // 301: user.RPCUser.user_saveGif:input_type -> user.TL_user_saveGif
+	128, // 302: user.RPCUser.user_getReactionsNotifySettings:input_type -> user.TL_user_getReactionsNotifySettings
+	129, // 303: user.RPCUser.user_setReactionsNotifySettings:input_type -> user.TL_user_setReactionsNotifySettings
+	126, // 304: user.RPCUser.user_getStatusWatchers:input_type -> user.TL_user_getStatusWatchers
+	124, // 305: user.RPCUser.user_setContactPersonalPhoto:input_type -> user.TL_user_setContactPersonalPhoto
+	125, // 306: user.RPCUser.user_addSuggestedPhoto:input_type -> user.TL_user_addSuggestedPhoto
+	130, // 307: user.RPCUser.user_setTopicNotifySettings:input_type -> user.TL_user_setTopicNotifySettings
+	131, // 308: user.RPCUser.user_getTopicNotifySettings:input_type -> user.TL_user_getTopicNotifySettings
+	132, // 309: user.RPCUser.user_getTopicNotifyExceptions:input_type -> user.TL_user_getTopicNotifyExceptions
+	65,  // 310: user.RPCUser.user_setGhost:input_type -> user.TL_user_setGhost
+	66,  // 311: user.RPCUser.user_editUsernames:input_type -> user.TL_user_editUsernames
+	133, // 312: user.RPCUser.user_getLastSeens:output_type -> user.Vector_LastSeenData
+	158, // 313: user.RPCUser.user_updateLastSeen:output_type -> mtproto.Bool
+	3,   // 314: user.RPCUser.user_getLastSeen:output_type -> user.LastSeenData
+	168, // 315: user.RPCUser.user_getImmutableUser:output_type -> mtproto.ImmutableUser
+	134, // 316: user.RPCUser.user_getMutableUsers:output_type -> user.Vector_ImmutableUser
+	168, // 317: user.RPCUser.user_getImmutableUserByPhone:output_type -> mtproto.ImmutableUser
+	168, // 318: user.RPCUser.user_getImmutableUserByToken:output_type -> mtproto.ImmutableUser
+	158, // 319: user.RPCUser.user_setAccountDaysTTL:output_type -> mtproto.Bool
+	173, // 320: user.RPCUser.user_getAccountDaysTTL:output_type -> mtproto.AccountDaysTTL
+	147, // 321: user.RPCUser.user_getNotifySettings:output_type -> mtproto.PeerNotifySettings
+	135, // 322: user.RPCUser.user_getNotifySettingsList:output_type -> user.Vector_PeerPeerNotifySettings
+	158, // 323: user.RPCUser.user_setNotifySettings:output_type -> mtproto.Bool
+	158, // 324: user.RPCUser.user_resetNotifySettings:output_type -> mtproto.Bool
+	135, // 325: user.RPCUser.user_getAllNotifySettings:output_type -> user.Vector_PeerPeerNotifySettings
+	155, // 326: user.RPCUser.user_getGlobalPrivacySettings:output_type -> mtproto.GlobalPrivacySettings
+	158, // 327: user.RPCUser.user_setGlobalPrivacySettings:output_type -> mtproto.Bool
+	136, // 328: user.RPCUser.user_getPrivacy:output_type -> user.Vector_PrivacyRule
+	158, // 329: user.RPCUser.user_setPrivacy:output_type -> mtproto.Bool
+	158, // 330: user.RPCUser.user_checkPrivacy:output_type -> mtproto.Bool
+	158, // 331: user.RPCUser.user_addPeerSettings:output_type -> mtproto.Bool
+	157, // 332: user.RPCUser.user_getPeerSettings:output_type -> mtproto.PeerSettings
+	158, // 333: user.RPCUser.user_deletePeerSettings:output_type -> mtproto.Bool
+	158, // 334: user.RPCUser.user_changePhone:output_type -> mtproto.Bool
+	168, // 335: user.RPCUser.user_createNewUser:output_type -> mtproto.ImmutableUser
+	158, // 336: user.RPCUser.user_deleteUser:output_type -> mtproto.Bool
+	158, // 337: user.RPCUser.user_blockPeer:output_type -> mtproto.Bool
+	158, // 338: user.RPCUser.user_unBlockPeer:output_type -> mtproto.Bool
+	158, // 339: user.RPCUser.user_blockedByUser:output_type -> mtproto.Bool
+	158, // 340: user.RPCUser.user_isBlockedByUser:output_type -> mtproto.Bool
+	137, // 341: user.RPCUser.user_checkBlockUserList:output_type -> user.Vector_Long
+	138, // 342: user.RPCUser.user_getBlockedList:output_type -> user.Vector_PeerBlocked
+	158, // 343: user.RPCUser.user_getContactSignUpNotification:output_type -> mtproto.Bool
+	158, // 344: user.RPCUser.user_setContactSignUpNotification:output_type -> mtproto.Bool
+	174, // 345: user.RPCUser.user_getContentSettings:output_type -> mtproto.account_ContentSettings
+	158, // 346: user.RPCUser.user_setContentSettings:output_type -> mtproto.Bool
+	158, // 347: user.RPCUser.user_deleteContact:output_type -> mtproto.Bool
+	139, // 348: user.RPCUser.user_getContactList:output_type -> user.Vector_ContactData
+	137, // 349: user.RPCUser.user_getContactIdList:output_type -> user.Vector_Long
+	170, // 350: user.RPCUser.user_getContact:output_type -> mtproto.ContactData
+	158, // 351: user.RPCUser.user_addContact:output_type -> mtproto.Bool
+	158, // 352: user.RPCUser.user_checkContact:output_type -> mtproto.Bool
+	7,   // 353: user.RPCUser.user_importContacts:output_type -> user.UserImportedContacts
+	175, // 354: user.RPCUser.user_getCountryCode:output_type -> mtproto.String
+	158, // 355: user.RPCUser.user_updateAbout:output_type -> mtproto.Bool
+	158, // 356: user.RPCUser.user_updateFirstAndLastName:output_type -> mtproto.Bool
+	158, // 357: user.RPCUser.user_updateVerified:output_type -> mtproto.Bool
+	158, // 358: user.RPCUser.user_updateUsername:output_type -> mtproto.Bool
+	176, // 359: user.RPCUser.user_updateProfilePhoto:output_type -> mtproto.Int64
+	176, // 360: user.RPCUser.user_deleteProfilePhotos:output_type -> mtproto.Int64
+	137, // 361: user.RPCUser.user_getProfilePhotos:output_type -> user.Vector_Long
+	158, // 362: user.RPCUser.user_setBotCommands:output_type -> mtproto.Bool
+	158, // 363: user.RPCUser.user_isBot:output_type -> mtproto.Bool
+	145, // 364: user.RPCUser.user_getBotInfo:output_type -> mtproto.BotInfo
+	137, // 365: user.RPCUser.user_checkBots:output_type -> user.Vector_Long
+	177, // 366: user.RPCUser.user_getFullUser:output_type -> mtproto.users_UserFull
+	158, // 367: user.RPCUser.user_updateEmojiStatus:output_type -> mtproto.Bool
+	152, // 368: user.RPCUser.user_getUserDataById:output_type -> mtproto.UserData
+	141, // 369: user.RPCUser.user_getUserDataListByIdList:output_type -> user.Vector_UserData
+	152, // 370: user.RPCUser.user_getUserDataByToken:output_type -> mtproto.UserData
+	16,  // 371: user.RPCUser.user_search:output_type -> user.UsersFound
+	158, // 372: user.RPCUser.user_updateBotData:output_type -> mtproto.Bool
+	168, // 373: user.RPCUser.user_getImmutableUserV2:output_type -> mtproto.ImmutableUser
+	178, // 374: user.RPCUser.user_getMutableUsersV2:output_type -> mtproto.MutableUsers
+	168, // 375: user.RPCUser.user_createNewTestUser:output_type -> mtproto.ImmutableUser
+	158, // 376: user.RPCUser.user_editCloseFriends:output_type -> mtproto.Bool
+	158, // 377: user.RPCUser.user_setStoriesMaxId:output_type -> mtproto.Bool
+	158, // 378: user.RPCUser.user_setColor:output_type -> mtproto.Bool
+	158, // 379: user.RPCUser.user_updateBirthday:output_type -> mtproto.Bool
+	142, // 380: user.RPCUser.user_getBirthdays:output_type -> user.Vector_ContactBirthday
+	158, // 381: user.RPCUser.user_setStoriesHidden:output_type -> mtproto.Bool
+	158, // 382: user.RPCUser.user_updatePersonalChannel:output_type -> mtproto.Bool
+	176, // 383: user.RPCUser.user_getUserIdByPhone:output_type -> mtproto.Int64
+	158, // 384: user.RPCUser.user_setAuthorizationTTL:output_type -> mtproto.Bool
+	173, // 385: user.RPCUser.user_getAuthorizationTTL:output_type -> mtproto.AccountDaysTTL
+	158, // 386: user.RPCUser.user_updatePremium:output_type -> mtproto.Bool
+	1,   // 387: user.RPCUser.user_getBotInfoV2:output_type -> user.BotInfoData
+	158, // 388: user.RPCUser.user_saveMusic:output_type -> mtproto.Bool
+	137, // 389: user.RPCUser.user_getSavedMusicIdList:output_type -> user.Vector_Long
+	158, // 390: user.RPCUser.user_setMainProfileTab:output_type -> mtproto.Bool
+	158, // 391: user.RPCUser.user_setDefaultHistoryTTL:output_type -> mtproto.Bool
+	179, // 392: user.RPCUser.user_getDefaultHistoryTTL:output_type -> mtproto.DefaultHistoryTTL
+	9,   // 393: user.RPCUser.user_getAccountUsername:output_type -> user.UsernameData
+	11,  // 394: user.RPCUser.user_checkAccountUsername:output_type -> user.UsernameExist
+	9,   // 395: user.RPCUser.user_getChannelUsername:output_type -> user.UsernameData
+	11,  // 396: user.RPCUser.user_checkChannelUsername:output_type -> user.UsernameExist
+	158, // 397: user.RPCUser.user_updateUsernameByPeer:output_type -> mtproto.Bool
+	11,  // 398: user.RPCUser.user_checkUsername:output_type -> user.UsernameExist
+	158, // 399: user.RPCUser.user_updateUsernameByUsername:output_type -> mtproto.Bool
+	158, // 400: user.RPCUser.user_deleteUsername:output_type -> mtproto.Bool
+	151, // 401: user.RPCUser.user_resolveUsername:output_type -> mtproto.Peer
+	143, // 402: user.RPCUser.user_getListByUsernameList:output_type -> user.Vector_UsernameData
+	158, // 403: user.RPCUser.user_deleteUsernameByPeer:output_type -> mtproto.Bool
+	143, // 404: user.RPCUser.user_searchUsername:output_type -> user.Vector_UsernameData
+	158, // 405: user.RPCUser.user_toggleUsername:output_type -> mtproto.Bool
+	158, // 406: user.RPCUser.user_reorderUsernames:output_type -> mtproto.Bool
+	158, // 407: user.RPCUser.user_deactivateAllChannelUsernames:output_type -> mtproto.Bool
+	144, // 408: user.RPCUser.user_getSavedContacts:output_type -> user.Vector_SavedContact
+	158, // 409: user.RPCUser.user_resetSavedContacts:output_type -> mtproto.Bool
+	180, // 410: user.RPCUser.user_getTopPeers:output_type -> mtproto.contacts_TopPeers
+	158, // 411: user.RPCUser.user_toggleTopPeers:output_type -> mtproto.Bool
+	158, // 412: user.RPCUser.user_resetTopPeerRating:output_type -> mtproto.Bool
+	158, // 413: user.RPCUser.user_newAuthorization:output_type -> mtproto.Bool
+	137, // 414: user.RPCUser.user_getSavedGifIdList:output_type -> user.Vector_Long
+	158, // 415: user.RPCUser.user_saveGif:output_type -> mtproto.Bool
+	167, // 416: user.RPCUser.user_getReactionsNotifySettings:output_type -> mtproto.ReactionsNotifySettings
+	167, // 417: user.RPCUser.user_setReactionsNotifySettings:output_type -> mtproto.ReactionsNotifySettings
+	137, // 418: user.RPCUser.user_getStatusWatchers:output_type -> user.Vector_Long
+	150, // 419: user.RPCUser.user_setContactPersonalPhoto:output_type -> mtproto.User
+	158, // 420: user.RPCUser.user_addSuggestedPhoto:output_type -> mtproto.Bool
+	158, // 421: user.RPCUser.user_setTopicNotifySettings:output_type -> mtproto.Bool
+	147, // 422: user.RPCUser.user_getTopicNotifySettings:output_type -> mtproto.PeerNotifySettings
+	181, // 423: user.RPCUser.user_getTopicNotifyExceptions:output_type -> mtproto.Updates
+	158, // 424: user.RPCUser.user_setGhost:output_type -> mtproto.Bool
+	158, // 425: user.RPCUser.user_editUsernames:output_type -> mtproto.Bool
+	312, // [312:426] is the sub-list for method output_type
+	198, // [198:312] is the sub-list for method input_type
+	198, // [198:198] is the sub-list for extension type_name
+	198, // [198:198] is the sub-list for extension extendee
+	0,   // [0:198] is the sub-list for field type_name
 }
 
 func init() { file_user_tl_proto_init() }
@@ -10775,7 +10895,7 @@ func file_user_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_tl_proto_rawDesc), len(file_user_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   143,
+			NumMessages:   144,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

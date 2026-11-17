@@ -25,13 +25,29 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	userclient "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/mediaerr"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 )
 
 // MessagesUploadMedia
 // messages.uploadMedia#519bc2b1 peer:InputPeer media:InputMedia = MessageMedia;
+//
+// With business_connection_id a connected business bot uploads for a chat
+// of its account, in which it may reply (task 105): "messages.uploadMedia
+// may also be used in business connections, not by wrapping it in
+// invokeWithBusinessConnection" (core.telegram.org/api/bots/
+// connected-business-bots). The media is made as for any upload: it is
+// owned by the key that uploaded the file, the bot's, which sends it with
+// messages.sendMedia through the connection.
 func (c *FilesCore) MessagesUploadMedia(in *mtproto.TLMessagesUploadMedia) (*mtproto.MessageMedia, error) {
+	if id := in.GetBusinessConnectionId(); id != nil {
+		if _, err := c.svcCtx.Business.Act(c.ctx, c.svcCtx.Dao.UserClient, c.MD.UserId, id.GetValue(), business.MethodUploadMedia,
+			mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer()), time.Now()); err != nil {
+			c.Logger.Errorf("messages.uploadMedia - business connection: %v", err)
+			return nil, err
+		}
+	}
 	rValue, err := c.makeMediaByInputMedia(in.GetMedia())
 	if err != nil {
 		c.Logger.Errorf("messages.uploadMedia - error: %v", err)
@@ -198,9 +214,10 @@ func (c *FilesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (messageMed
 		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
 	case mtproto.Predicate_inputMediaGame:
 		// inputMediaGame#d33f43f3 id:InputGame = InputMedia;
-
-		// TODO(@benqi): Not impl inputMediaGame
-		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
+		//
+		// pluma: a game is no file to upload; it is sent by
+		// messages.sendMedia (task 106).
+		err = mtproto.ErrMediaInvalid
 	case mtproto.Predicate_inputMediaInvoice:
 		// inputMediaInvoice#d9799874 flags:# title:string description:string photo:flags.0?InputWebDocument invoice:Invoice payload:bytes provider:string provider_data:DataJSON start_param:flags.1?string = InputMedia;
 

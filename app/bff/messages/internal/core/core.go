@@ -25,6 +25,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/svc"
+	"github.com/teamgram/teamgram-server/pkg/business"
 )
 
 type MessagesCore struct {
@@ -32,6 +33,9 @@ type MessagesCore struct {
 	svcCtx *svc.ServiceContext
 	logx.Logger
 	MD *metadata.RpcMetadata
+	// business is the request of a connected business bot, checked, that
+	// runs as its account (task 105); nil for any other request.
+	business *business.Act
 }
 
 func New(ctx context.Context, svcCtx *svc.ServiceContext) *MessagesCore {

@@ -28,6 +28,7 @@ import (
 	autodownload_helper "github.com/teamgram/teamgram-server/app/bff/autodownload"
 	"github.com/teamgram/teamgram-server/app/bff/bff/internal/config"
 	bots_helper "github.com/teamgram/teamgram-server/app/bff/bots"
+	business_helper "github.com/teamgram/teamgram-server/app/bff/business"
 	catalog_helper "github.com/teamgram/teamgram-server/app/bff/catalog"
 	channels_helper "github.com/teamgram/teamgram-server/app/bff/channels"
 	chatinvites_helper "github.com/teamgram/teamgram-server/app/bff/chatinvites"
@@ -56,9 +57,11 @@ import (
 	secretchats_helper "github.com/teamgram/teamgram-server/app/bff/secretchats"
 	sponsoredmessages_helper "github.com/teamgram/teamgram-server/app/bff/sponsoredmessages"
 	stargifts_helper "github.com/teamgram/teamgram-server/app/bff/stargifts"
+	statistics_helper "github.com/teamgram/teamgram-server/app/bff/statistics"
 	stories_helper "github.com/teamgram/teamgram-server/app/bff/stories"
 	tos_helper "github.com/teamgram/teamgram-server/app/bff/tos"
 	transcription_helper "github.com/teamgram/teamgram-server/app/bff/transcription"
+	translation_helper "github.com/teamgram/teamgram-server/app/bff/translation"
 	twofa_helper "github.com/teamgram/teamgram-server/app/bff/twofa"
 	updates_helper "github.com/teamgram/teamgram-server/app/bff/updates"
 	userchannelprofileshelper "github.com/teamgram/teamgram-server/app/bff/userchannelprofiles"
@@ -71,6 +74,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -89,6 +93,11 @@ type Server struct {
 	stories    *stories_helper.Sweeper // takes the stories out of the feeds (task 084)
 	// transcription runs the queue of voice transcription (task 090).
 	transcription *transcription_helper.Worker
+	// translation runs the queue of the translation engine and the sweep
+	// of its cache (task 101).
+	translation *translation_helper.Background
+	// files runs the pusher and the prober of the CDN (task 102).
+	files *files_helper.Module
 }
 
 func New() *Server {
@@ -174,11 +183,34 @@ func (s *Server) Initialize() error {
 			DialogClient:  c.BizServiceClient,
 			MediaClient:   c.MediaClient,
 			MsgClient:     c.MsgClient,
+			DfsClient:     c.DfsClient,
+			WebFileKey:    c.WebFile.HMACKey,
+			InlineBots:    c.InlineBots,
+			WebFetch:      c.WebFetch,
+			WebApp:        c.WebApp,
+			BotSecrets:    c.BotSecrets,
+			Avatars:       c.Avatars,
+
+			// pluma: task 106. The session and the region of a login on a site.
+			AuthsessionClient: c.AuthSessionClient,
 		})
 		mtproto.RegisterRPCBotsServer(grpcServer, bots)
 		mtproto.RegisterRPCBotMenuButtonServer(grpcServer, bots)
+		// pluma: task 098. The attachment menu and the dice game.
+		mtproto.RegisterRPCBotMenuServer(grpcServer, bots)
+		mtproto.RegisterRPCGamesServer(grpcServer, bots)
 		mtproto.RegisterRPCInlineBotServer(grpcServer, bots)
 		mtproto.RegisterRPCDeepLinksServer(grpcServer, bots)
+		// pluma: task 106. Logins on sites through bots and the sites logged
+		// in on.
+		mtproto.RegisterRPCSeamlessServer(grpcServer, bots)
+		// pluma: task 106. The mini apps of bots.
+		mtproto.RegisterRPCMiniBotAppsServer(grpcServer, bots)
+		mtproto.RegisterRPCMainMiniBotAppsServer(grpcServer, bots)
+		// pluma: task 106. The messages bots prepare for their mini apps.
+		mtproto.RegisterRPCPreparedInlineMessagesServer(grpcServer, bots)
+		// pluma: task 106. The widgets of bot messages.
+		mtproto.RegisterRPCBotWidgetsServer(grpcServer, bots)
 
 		// reports_helper: the moderation queue (task 025, ADR 0040).
 		mtproto.RegisterRPCReportsServer(
@@ -189,6 +221,8 @@ func (s *Server) Initialize() error {
 				UserClient:    c.BizServiceClient,
 				MessageClient: c.BizServiceClient,
 				ChannelClient: c.BizServiceClient,
+				ChatClient:    c.BizServiceClient,
+				MediaClient:   c.MediaClient,
 			}))
 
 		// secretchats_helper: secret chats (task 069).
@@ -219,6 +253,7 @@ func (s *Server) Initialize() error {
 			MediaClient:       c.MediaClient,
 			ReleasesURL:       c.ReleasesURL,
 			IOSUpdate:         c.IOSUpdate,
+			Translate:         c.Translate,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)
@@ -268,6 +303,7 @@ func (s *Server) Initialize() error {
 					StatusClient:      c.StatusClient,
 					SyncClient:        syncClient,
 					MsgClient:         c.MsgClient,
+					BotSecrets:        c.BotSecrets,
 				},
 				nil))
 
@@ -318,15 +354,24 @@ func (s *Server) Initialize() error {
 			}))
 
 		// files_helper
-		mtproto.RegisterRPCFilesServer(
-			grpcServer,
-			files_helper.New(files_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				Mysql:         c.Mysql,
-				DfsClient:     c.DfsClient,
-				UserClient:    c.BizServiceClient,
-				MediaClient:   c.MediaClient,
-			}, catalog_helper.SetThumbFiles(c.Mysql, c.MediaClient), nil)) // the thumbnails of the sets users make (task 084)
+		// The HTTPS CDN of large files (task 107) decides the redirects
+		// of upload.getFile by the initConnection params of the client, and
+		// runs its origin, the preparation of the files and the checks of
+		// the deliveries beside the methods; Destroy stops them.
+		s.files = files_helper.New(files_helper.Config{
+			RpcServerConf:     c.RpcServerConf,
+			Mysql:             c.Mysql,
+			DfsClient:         c.DfsClient,
+			UserClient:        c.BizServiceClient,
+			MediaClient:       c.MediaClient,
+			AuthsessionClient: c.AuthSessionClient,
+			WebFile:           c.WebFile,
+			WebFetch:          c.WebFetch,
+			KV:                c.KV,
+			Maps:              c.Maps,
+			Cdn:               c.Cdn,
+		}, catalog_helper.SetThumbFiles(c.Mysql, c.MediaClient), nil) // the thumbnails of the sets users make (task 084)
+		mtproto.RegisterRPCFilesServer(grpcServer, s.files)
 
 		// passport_helper
 		mtproto.RegisterRPCPassportServer(
@@ -381,6 +426,7 @@ func (s *Server) Initialize() error {
 				MessageClient: c.BizServiceClient,
 				ChannelClient: c.BizServiceClient,
 				MsgClient:     c.MsgClient,
+				Mysql:         c.Mysql,
 			}, nil))
 
 		// folders_helper: the folders of chats and their tags.
@@ -450,6 +496,9 @@ func (s *Server) Initialize() error {
 			MsgClient:     c.MsgClient,
 
 			AuthsessionClient: c.AuthSessionClient,
+			// can_view_stats and stats_dc of the full channel (task 103):
+			// 0 while the statistics are off.
+			StatsDc: c.Stats.StatsDc(),
 		})
 		mtproto.RegisterRPCChannelsServer(grpcServer, channels)
 		mtproto.RegisterRPCBoostsServer(grpcServer, channels)
@@ -461,10 +510,10 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCMessageThreadsServer(grpcServer, channels)
 		// The forums and topics of supergroups (task 060).
 		mtproto.RegisterRPCForumsServer(grpcServer, channels)
-		// The antispam of supergroups and the autotranslation of channels
-		// (task 082); the translation of texts is not served yet (task 027).
+		// The antispam of supergroups (task 082). The autotranslation of
+		// channels is served here too, but its gRPC service is the
+		// translation's (translation_helper below).
 		mtproto.RegisterRPCAntiSpamServer(grpcServer, channels)
-		mtproto.RegisterRPCTranslationServer(grpcServer, channels)
 		// The direct messages of a channel are switched by a method of the
 		// paid messages (task 084); the payments themselves are not served.
 		mtproto.RegisterRPCPaidMessageServer(grpcServer, channels)
@@ -527,6 +576,9 @@ func (s *Server) Initialize() error {
 			Mysql:         c.Mysql,
 			DfsClient:     c.DfsClient,
 			ChannelClient: c.BizServiceClient,
+			// Only the HMAC key of the login codes (task 098).
+			LoginCode: logincode.Config{HmacKey: c.LoginCode.HmacKey},
+			KV:        c.KV,
 		}, nil, userStories)
 		mtproto.RegisterRPCMessagesServer(grpcServer, messagesService)
 		// pluma: task 062
@@ -544,7 +596,7 @@ func (s *Server) Initialize() error {
 			SyncClient:              syncClient,
 			Mysql:                   c.Mysql,
 			PushSecretEncryptionKey: c.PushSecretEncryptionKey,
-		}, nil)
+		})
 		mtproto.RegisterRPCNotificationServer(grpcServer, notificationService)
 		mtproto.RegisterRPCGatewayVerificationMessagesServer(grpcServer, notificationService)
 		mtproto.RegisterRPCReactionNotificationServer(grpcServer, notificationService)
@@ -663,6 +715,7 @@ func (s *Server) Initialize() error {
 				SyncClient:    syncClient,
 				KV:            c.KV,
 				ChannelClient: c.BizServiceClient,
+				Mysql:         c.Mysql,
 			}))
 
 		mtproto.RegisterRPCPasskeyServer(
@@ -671,10 +724,33 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 			}))
 
+		// business_helper: Telegram Business for every account (task 105,
+		// ADR 0067); the methods not served yet answer
+		// ERR_ENTERPRISE_IS_BLOCKED.
+		business := business_helper.New(business_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			UserClient:    c.BizServiceClient,
+			MediaClient:   c.MediaClient,
+			SyncClient:    syncClient,
+			MsgClient:     c.MsgClient,
+			InboxTopic:    c.InboxTopic,
+		})
+		mtproto.RegisterRPCBusinessOpeningHoursServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessLocationServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessGreetingServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessIntroServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessChatLinksServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessQuickReplyServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessConnectedBotsServer(grpcServer, business)
+
+		// webbrowserhelper: the in-app browser settings (task 098).
 		mtproto.RegisterRPCWebBrowserServer(
 			grpcServer,
 			webbrowserhelper.New(webbrowserhelper.Config{
 				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+				SyncClient:    syncClient,
 			}))
 
 		// transcription_helper: the text of voice messages and round
@@ -690,6 +766,38 @@ func (s *Server) Initialize() error {
 		})
 		mtproto.RegisterRPCTranscriptionServer(grpcServer, transcription)
 		s.transcription = worker
+
+		// translation_helper: the translation of messages with a model of
+		// our own (task 101, ADR 0064), and channels.toggleAutotranslation
+		// of the channels area, which shares its gRPC service. The form
+		// "translate" of messages.composeMessageWithAI is served; the AI
+		// editor (aicompose.*) answers ERR_ENTERPRISE_IS_BLOCKED.
+		translation, translationBackground := translation_helper.New(translation_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			KV:            c.KV,
+			Translate:     c.Translate,
+			MessageClient: c.BizServiceClient,
+			ChannelClient: c.BizServiceClient,
+			DialogClient:  c.BizServiceClient,
+			UserClient:    c.BizServiceClient,
+		}, channels)
+		mtproto.RegisterRPCTranslationServer(grpcServer, translation)
+		mtproto.RegisterRPCAiComposeToneServer(grpcServer, translation)
+		s.translation = translationBackground
+
+		// statistics_helper: the statistics of channels and groups, their
+		// posts, stories and polls (task 103, ADR 0066); off without the
+		// key of the zoom tokens (Stats.TokenKey).
+		mtproto.RegisterRPCStatisticsServer(
+			grpcServer,
+			statistics_helper.New(statistics_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+				ChannelClient: c.BizServiceClient,
+				UserClient:    c.BizServiceClient,
+				Stats:         c.Stats,
+			}))
 	})
 
 	// logx.Must(err)
@@ -715,6 +823,12 @@ func (s *Server) Destroy() {
 	}
 	if s.transcription != nil {
 		s.transcription.Stop()
+	}
+	if s.translation != nil {
+		s.translation.Stop()
+	}
+	if s.files != nil {
+		s.files.Stop()
 	}
 	s.grpcSrv.Stop()
 }

@@ -186,11 +186,17 @@ func TestComposeServices(t *testing.T) {
 			if len(s.Ports) > 0 || fmt.Sprint(secretSources(s.Secrets)) != "[apns_key fcm_credentials]" {
 				t.Errorf("push publishes ports %v or gets secrets %v; want only apns_key and fcm_credentials", s.Ports, s.Secrets)
 			}
+		case name == "links":
+			// The keys of the ID tokens of oauth.pluma.chat (task 106), and
+			// nothing else; its port is Caddy's, inside the network.
+			if len(s.Ports) > 0 || fmt.Sprint(secretSources(s.Secrets)) != "[oauth_signing_key]" {
+				t.Errorf("links publishes ports %v or gets secrets %v; want only oauth_signing_key", s.Ports, s.Secrets)
+			}
 		case name == "releases" && loopbackOnly(s.Ports) && len(s.Secrets) == 0:
 			// The panel runs on the host and reaches it on the loopback
 			// address (task 072).
 		case len(s.Ports) > 0 || len(s.Secrets) > 0:
-			t.Errorf("%s publishes ports %v or gets secrets %v: only gnetway and push may", name, s.Ports, s.Secrets)
+			t.Errorf("%s publishes ports %v or gets secrets %v: only gnetway, push and links may", name, s.Ports, s.Secrets)
 		}
 	}
 }
@@ -331,19 +337,120 @@ var optionalVars = map[string]bool{
 	"STT_MODEL":    true,
 	"STT_LANGUAGE": true,
 	"STT_TIMEOUT":  true,
+	// The translation engine of messages (task 101): the translation is
+	// off when the URL is empty.
+	"TRANSLATE_URL":     true,
+	"TRANSLATE_TOKEN":   true,
+	"TRANSLATE_MODEL":   true,
+	"TRANSLATE_PROFILE": true,
+	"TRANSLATE_SLOTS":   true,
+	"TRANSLATE_CTX":     true,
 	// The mail of the recovery email of the cloud password (task 091):
 	// off when the key is empty.
 	"MAIL_API_KEY": true,
 	"MAIL_FROM":    true,
+	// The key of the web file proxy (task 099, ADR 0062): inline bots'
+	// thumbnails go out unsigned, fetched by clients, when empty.
+	"WEBFILE_HMAC_KEY": true,
+	// The maps service of the map previews of geo points (task 100): maps
+	// are off when the URL is empty, the rest take their defaults.
+	"MAPS_URL":                 true,
+	"MAPS_STYLES":              true,
+	"MAPS_TIMEOUT":             true,
+	"MAPS_CONCURRENCY":         true,
+	"MAPS_CACHE_TTL":           true,
+	"MAPS_PER_USER_PER_MINUTE": true,
+	// The built-in inline bots (task 099, ADR 0062): @pic answers with
+	// empty lists without SearXNG; the import budget is 1 GiB when empty.
+	"SEARXNG_URL":               true,
+	"INLINE_IMPORT_DAILY_BYTES": true,
+	// The bot platform (task 106, ADR 0068): the mini apps and the login of
+	// bots are off without the key the bot keys are sealed under, and no
+	// mini app opens without the key of the signature of initData.
+	"BOT_SECRET_ENCRYPTION_KEY": true,
+	"WEBAPP_SIGNING_KEY":        true,
+	// The statistics of channels and groups (task 103, ADR 0066): off
+	// without the key of the zoom tokens of their graphs.
+	"STATS_GRAPH_TOKEN_KEY": true,
+	// The HTTPS CDN of large files (task 107, ADR 0071): off without the
+	// URL of a delivery, the rest take their defaults when empty.
+	"CDN_GCORE_SIGNER":      true,
+	"CDN_GCORE_BASE_URL":    true,
+	"CDN_GCORE_TOKEN_KEY":   true,
+	"CDN_GCORE_MONTHLY_GB":  true,
+	"CDN_ROUTES":            true,
+	"CDN_ORIGIN_LISTEN":     true,
+	"CDN_ORIGIN_AUTH":       true,
+	"CDN_URL_TTL":           true,
+	"CDN_PREPARE_RATE_MBIT": true,
+	"CDN_MIN_FILE_SIZE":     true,
+	"CDN_KINDS":             true,
+	"CDN_DEV_ALLOW_HTTP":    true,
+	"CDN_HEALTH_EVERY":      true,
+	"CDN_AVOID_TTL":         true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }
 
+// defaultVars are the variables that take a default when empty, passed as
+// ${NAME:-default} with the default given here, the same in every compose
+// file that passes them.
+var defaultVars = map[string]string{
+	// The name of the provider of the login on sites (task 106): the site
+	// of Caddy (docker-compose.web.yaml) and the issuer of links.
+	"PLUMA_OAUTH_DOMAIN": "oauth.pluma.chat",
+}
+
 // passed tells whether val, the compose value of the variable name, gives it
 // to the service as it must: ${NAME:?...}, which stops compose when the
-// variable is unset or empty, or ${NAME:-} for an optional variable.
+// variable is unset or empty, ${NAME:-} for an optional variable, or
+// ${NAME:-default} for one of defaultVars.
 func passed(name, val string) bool {
+	if def, ok := defaultVars[name]; ok {
+		return val == "${"+name+":-"+def+"}"
+	}
 	return strings.HasPrefix(val, "${"+name+":?") || optionalVars[name] && val == "${"+name+":-}"
+}
+
+// TestOAuthDomain: the provider of the login on sites answers on the host
+// Caddy sends it (task 106): the issuer of links is built from the variable
+// that names Caddy's site, and both get it with the same default.
+func TestOAuthDomain(t *testing.T) {
+	cfg, err := os.ReadFile(filepath.Join(repoRoot, "teamgramd/etc2/links.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var links struct {
+		OAuth struct {
+			Issuer string `yaml:"Issuer"`
+		} `yaml:"OAuth"`
+	}
+	if err := yaml.Unmarshal(cfg, &links); err != nil {
+		t.Fatal(err)
+	}
+	if want := "https://${PLUMA_OAUTH_DOMAIN}"; links.OAuth.Issuer != want {
+		t.Errorf("links.yaml: OAuth.Issuer %q, want %q", links.OAuth.Issuer, want)
+	}
+	caddy, err := os.ReadFile(filepath.Join(repoRoot, "teamgramd/deploy/web/Caddyfile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`(?m)^\{\$PLUMA_OAUTH_DOMAIN\} \{$`).Match(caddy) {
+		t.Error("Caddyfile: no site {$PLUMA_OAUTH_DOMAIN}")
+	}
+	data, err := os.ReadFile(filepath.Join(repoRoot, "docker-compose.web.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var web struct {
+		Services map[string]composeService `yaml:"services"`
+	}
+	if err := yaml.Unmarshal(data, &web); err != nil {
+		t.Fatal(err)
+	}
+	if val := web.Services["web"].Environment["PLUMA_OAUTH_DOMAIN"]; !passed("PLUMA_OAUTH_DOMAIN", val) {
+		t.Errorf("docker-compose.web.yaml: web gets PLUMA_OAUTH_DOMAIN as %q, not with the default of links", val)
+	}
 }
 
 // loopbackOnly tells whether every published port is bound to 127.0.0.1.
@@ -354,4 +461,40 @@ func loopbackOnly(ports []string) bool {
 		}
 	}
 	return len(ports) > 0
+}
+
+// TestTranslateSlots: bff and the translate engine read the slots and the
+// context of the engine from the same variables (task 101): bff sends as
+// many requests at once as the engine has slots and bounds an answer by
+// the context of one, so the two must not differ.
+func TestTranslateSlots(t *testing.T) {
+	for _, f := range []string{"teamgramd/etc/bff.yaml", "teamgramd/etc2/bff.yaml", "app/bff/bff/etc/bff.yaml"} {
+		data, err := os.ReadFile(filepath.Join(repoRoot, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var cfg struct {
+			Translate map[string]string `yaml:"Translate"`
+		}
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		if cfg.Translate["Slots"] != "${TRANSLATE_SLOTS}" || cfg.Translate["Context"] != "${TRANSLATE_CTX}" {
+			t.Errorf("%s: Translate.Slots %q and Context %q, want ${TRANSLATE_SLOTS} and ${TRANSLATE_CTX}", f, cfg.Translate["Slots"], cfg.Translate["Context"])
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(repoRoot, "docker-compose.translate.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var engine struct {
+		Services map[string]composeService `yaml:"services"`
+	}
+	if err := yaml.Unmarshal(data, &engine); err != nil {
+		t.Fatal(err)
+	}
+	env := engine.Services["translate"].Environment
+	if !strings.HasPrefix(env["TRANSLATE_SLOTS"], "${TRANSLATE_SLOTS:-") || !strings.HasPrefix(env["TRANSLATE_CTX"], "${TRANSLATE_CTX:-") {
+		t.Errorf("docker-compose.translate.yaml: the engine gets slots %q and context %q, not TRANSLATE_SLOTS and TRANSLATE_CTX", env["TRANSLATE_SLOTS"], env["TRANSLATE_CTX"])
+	}
 }

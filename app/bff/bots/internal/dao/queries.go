@@ -85,6 +85,23 @@ type InlineAnswer struct {
 	CacheTime     int32                      `json:"cache_time,omitempty"`
 	Private       bool                       `json:"private,omitempty"`
 	Bot           int64                      `json:"bot"`
+	// Games are the games of the game results by result id (task 106):
+	// botInlineMediaResult has no field that names its game.
+	Games map[string]GameRef `json:"games,omitempty"`
+	// Widgets are what the widget results show nothing of, by result id
+	// (task 106): botInlineMessageWidget has no field for whether the
+	// widget may ask its bot or becomes an object when sent.
+	Widgets map[string]WidgetRef `json:"widgets,omitempty"`
+	// PeerTypes are the kinds of chats the results may be sent to, by the
+	// names of BotsCore.inlinePeerType: the peer_types of a prepared inline
+	// message (messages.getPreparedInlineMessage, task 106). Empty: any.
+	PeerTypes []string `json:"peer_types,omitempty"`
+}
+
+// GameRef names a game of pkg/botstore (inputGameID).
+type GameRef struct {
+	Id         int64 `json:"id"`
+	AccessHash int64 `json:"access_hash"`
 }
 
 // inlineOwner is who asked an inline query and of which bot.
@@ -197,6 +214,18 @@ func (d *Dao) SetInlineAnswer(ctx context.Context, queryId, botId int64, a *Inli
 	return true, d.KV.SetexCtx(ctx, inlineAnswerKey(queryId), string(data), inlineKeepOf(a.CacheTime))
 }
 
+// PutInlineAnswer stores the answer of a query the server answers itself (a
+// built-in inline bot, pkg/inlinebots): no bot owns the query, so there is
+// no owner to check. It stays as long as a bot's answer does, for the cache
+// and for messages.sendInlineBotResult.
+func (d *Dao) PutInlineAnswer(ctx context.Context, queryId int64, a *InlineAnswer) error {
+	data, err := jsonx.Marshal(a)
+	if err != nil {
+		return err
+	}
+	return d.KV.SetexCtx(ctx, inlineAnswerKey(queryId), string(data), inlineKeepOf(a.CacheTime))
+}
+
 // inlineKeepOf is how long the answer stays: past the cache that points to
 // it (CacheInline) by inlineKeep, so a list served at the last moment of the
 // cache can still be sent from.
@@ -287,7 +316,12 @@ func (d *Dao) LeaveWait(userId int64) {
 // wait polls get until it answers something, the request ends or AnswerWait
 // passes: the store is Redis and the waits are short and few.
 func wait[T any](ctx context.Context, get func(context.Context) (*T, error)) (*T, error) {
-	ctx, cancel := context.WithTimeout(ctx, AnswerWait)
+	return waitFor(ctx, AnswerWait, get)
+}
+
+// waitFor is wait for up to d.
+func waitFor[T any](ctx context.Context, d time.Duration, get func(context.Context) (*T, error)) (*T, error) {
+	ctx, cancel := context.WithTimeout(ctx, d)
 	defer cancel()
 	tick := time.NewTicker(answerPoll)
 	defer tick.Stop()

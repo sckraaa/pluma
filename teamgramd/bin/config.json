@@ -49,13 +49,13 @@
       "value": "foursquare"
     },
     "img_search_username": {
-      "value": "bing"
+      "value": "pic"
     },
     "static_maps_provider": {
       "value": "telegram"
     },
     "caption_length_max": 200,
     "message_length_max": 4096,
-    "webfile_dc_id": 4
+    "webfile_dc_id": 1
   }
 }

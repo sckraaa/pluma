@@ -20,6 +20,7 @@ package dao
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -233,6 +234,13 @@ func (d *Dao) GetImmutableUser(ctx context.Context, id int64, privacy bool, cont
 }
 
 func (d *Dao) DeleteUser(ctx context.Context, id int64, phoneNumber string, reason string) bool {
+	// The account's rows in the tables of other packages go with it
+	// (UserRows); first, so that a failure leaves the account to be
+	// deleted again rather than rows of a deleted one.
+	if err := d.deleteUserRows(ctx, id); err != nil {
+		logx.WithContext(ctx).Errorf("DeleteUser - user %d: %v", id, err)
+		return false
+	}
 	_, _, err := d.CachedConn.Exec(
 		ctx,
 		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
@@ -255,6 +263,17 @@ func (d *Dao) DeleteUser(ctx context.Context, id int64, phoneNumber string, reas
 	}
 
 	return true
+}
+
+// deleteUserRows removes the rows of the deleted account id from every
+// store of UserRows.
+func (d *Dao) deleteUserRows(ctx context.Context, id int64) error {
+	for _, s := range d.UserRows {
+		if err := s.DeleteUser(ctx, id); err != nil {
+			return fmt.Errorf("%T: %w", s, err)
+		}
+	}
+	return nil
 }
 
 func (d *Dao) GetCacheImmutableUserList(ctx context.Context, idList2 []int64, contacts []int64) []*mtproto.ImmutableUser {

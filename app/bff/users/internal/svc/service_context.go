@@ -19,19 +19,37 @@
 package svc
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/teamgram/teamgram-server/app/bff/users/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/users/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/users/internal/plugin"
+	"github.com/teamgram/teamgram-server/pkg/translate"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
+
+// PeerTranslations reads the chats whose translation bar their reader hid
+// with messages.togglePeerTranslations (task 101): *translate.Store.
+type PeerTranslations interface {
+	TranslationsDisabled(ctx context.Context, userId int64, peers ...translate.TranslationPeer) (map[translate.TranslationPeer]bool, error)
+}
 
 type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
+	// Translations gives userFull.translations_disabled (task 101).
+	Translations PeerTranslations
 }
 
 func NewServiceContext(c config.Config, plugin1 plugin.StoryPlugin, plugin2 plugin.PersonalChannelPlugin, plugin3 plugin.WallpaperPlugin) *ServiceContext {
+	db, err := userbox.Open(c.Mysql.DSN)
+	if err != nil {
+		panic(fmt.Errorf("users: %w", err))
+	}
 	return &ServiceContext{
-		Config: c,
-		Dao:    dao.New(c, plugin1, plugin2, plugin3),
+		Config:       c,
+		Dao:          dao.New(c, plugin1, plugin2, plugin3),
+		Translations: translate.NewStore(db),
 	}
 }

@@ -32,6 +32,7 @@
 - **Чего в файле нет.**
   - Значения Telegram для конкретного пользователя или сессии: `freeze_*`, `call_requests_disabled`, `phone_country_iso2`, `transcribe_audio_trial_cooldown_until`.
   - Боты и сервисы Telegram: `premium_bot_username`, `premium_invoice_slug`, `ton_*`, `stars_*` с суммами, `weather_search_username` и т. п.
+  - `stories_venue_search_username` — бот поиска мест для стикера геопозиции в историях iOS. Бота мест у Pluma нет (задача 099, решение владельца 2026-11-16, `docs/ops/inline-bots.md`). Боты `@gif` и `@pic` клиенты берут из `help.getConfig`, а не отсюда.
   - Настройки внутренностей клиента (видео-кружки, очереди загрузки, анимации). Здесь подходят значения клиента по умолчанию.
 
 Клиенты в таблицах: A — Android, D — Desktop (tdesktop), W — Web K, I — iOS (указан там, где ключ читает только он).
@@ -153,6 +154,18 @@
 | `ringtone_saved_count_max` | `100` | I D | Сколько мелодий хранит аккаунт. Сервер проверяет. |
 | `contact_note_length_limit` | `128` | A I D | Длина личной заметки о контакте (задача 084). Сервер обрезает более длинную (`pkg/contactnotes`). |
 
+## Telegram Business
+
+Задача 105, ADR 0067. Telegram значений не публикует: взяты умолчания клиентов. Сервер проверяет те же числа (константы `pkg/business`, тест держит их равными этому файлу).
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `quick_replies_limit` | `100` | A D | Сколько ярлыков быстрых ответов, вместе с автоответами `hello` и `away`. Умолчание tdesktop (`settings_recipients_helper.cpp:397`); у Android 10 (`MessagesController.java:1719`). |
+| `quick_reply_messages_limit` | `20` | A D | Сколько сообщений в одном ярлыке. Умолчание A (`AppGlobalConfig.java:105`) и D (`settings_recipients_helper.cpp:409`). |
+| `business_chat_links_limit` | `100` | A D W | Сколько ссылок на чат у аккаунта. Умолчание A (`MessagesController.java:1775`). |
+| `intro_title_length_limit` | `32` | A D W | Длина заголовка вступления в UTF-16, как считают клиенты. Умолчание A и D (`settings_chat_intro.cpp:569`). Сервер отвечает `TITLE_INVALID`. |
+| `intro_description_length_limit` | `70` | A D W | Длина описания вступления. Меньшее из умолчаний D (70, `settings_chat_intro.cpp:574`) и A (72, `MessagesController.java:1774`). Сервер отвечает `DESCRIPTION_INVALID`. |
+
 ## Истории
 
 Истории работают (задача 084, ADR 0054). Лимиты — премиальные значения по умолчанию из клиентов (Android `MessagesController.java:1662-1709, 1781`), у всех одинаковые (ADR 0041); сервер проверяет их сам (`pkg/stories`), тест `pkg/stories` держит файл равным константам. Какие значения отдаёт сам Telegram, не сверено.
@@ -175,13 +188,22 @@
 | `stories_stealth_past_period` | `300` | A I W | Режим скрытого просмотра: за сколько секунд назад стираются просмотры. |
 | `stories_stealth_future_period` | `1500` | A I W | На сколько секунд вперёд просмотры скрыты. |
 | `stories_stealth_cooldown_period` | `3600` | A I | Через сколько секунд режим можно включить снова. |
+| `stories_albums_limit` | `100` | A I | Альбомов историй у пользователя или канала (задача 104, ADR 0069); сервер отвечает `ALBUMS_TOO_MANY`. Значение Telegram не прочитано. |
+| `stories_album_stories_limit` | `1000` | A I | Историй в одном альбоме (у iOS по умолчанию 1000, у Android 100); сервер отвечает `ALBUM_STORIES_TOO_MANY`. |
+
+## Перевод сообщений
+
+Перевод делает своя модель (задача 101, ADR 0064, `docs/ops/translation.md`). В файле оба ключа — `"enabled"`; не `"system"` и не `"alternative"`: с ними клиенты отправляют текст с устройства в Google или Apple. **Без движка** (`TRANSLATE_URL` пуст) bff при старте отдаёт оба ключа `"disabled"`, что бы ни было в файле, и `hash` у такого конфига свой: клиенты забирают его при следующем запросе и прячут кнопки. После включения или выключения движка нужен перезапуск bff.
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `translations_manual_enabled` | `"enabled"` | A I W | Кнопка «Перевести» у сообщения; на iOS — экран перевода (`messages.composeMessageWithAI`). Без ключа Android считает `"enabled"`, iOS — `"disabled"`. tdesktop ключи не читает: без движка он получает ошибку. |
+| `translations_auto_enabled` | `"enabled"` | A I W | Панель перевода всего чата (Premium, у Pluma он у всех — ADR 0041). |
 
 ## Выключатели того, чего на сервере нет
 
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
-| `translations_manual_enabled` | `"disabled"` | A W | Перевода нет (`messages.translateText`). У Android по умолчанию `"enabled"`. |
-| `translations_auto_enabled` | `"disabled"` | A W | Перевода нет. |
 | `rich_message_posting` | `"disabled"` | A D | Расширенного форматирования нет. У клиентов по умолчанию `"premium"`. |
 | `transcribe_audio_trial_weekly_number` | `0` | A D | Пробных расшифровок нет: расшифровка голосовых открыта всем без счётчика (задача 090, ADR 0056, `docs/ops/transcription.md`). Ключа `transcribe_audio_trial_cooldown_until` тоже нет: он блокирует кнопку на iOS. |
 | `settings_display_passkeys` | `false` | A D W | Входа по passkey нет. Отладочные сборки Android по умолчанию его показывают. |
@@ -207,6 +229,7 @@
 |---|---|---|---|
 | `telegram_antispam_user_id` | `"1000001"` | A D | Служебный аккаунт антиспама (задача 082, ADR 0050, `z_pluma-antispam-user.sql`): по нему клиенты узнают в «Недавних действиях» сообщения, удалённые антиспамом, и добавляют его в фильтр админов. Читает и iOS. Строкой: iOS и tdesktop читают ключ только как строку. Должно совпадать с `antispam.UserId` (это проверяет тест). |
 | `telegram_antispam_group_size_min` | `10` | A D W | С какого числа участников админ может включить антиспам; меньше — клиенты блокируют переключатель. У Telegram 100, но на сервере около 100 аккаунтов такой группы может не быть совсем; 10 — решение для подтверждения владельцем. Читает и iOS, причём конфиг антиспама — только при обоих ключах. Должно совпадать с `antispam.MembersMin` (это проверяет тест). |
+| `gif_search_emojies` | `[]` | A I D | Эмодзи-категории вкладки GIF: каждая уходит запросом к `@gif` (Android `MessagesController.java:3090`, iOS `ChatEntityKeyboardInputNode.swift:233`, tdesktop `stickers_list_footer.cpp:137`). Пусто, пока у `@gif` нет поиска по тексту (ADR 0062, п. 4.1): иначе категории показывали бы пустые списки. Список по умолчанию Android (`MessagesController.java:1948-1957`) оператор ставит, когда поиск появится (`docs/ops/inline-bots.md`). |
 
 ## Фоновое соединение (Android)
 

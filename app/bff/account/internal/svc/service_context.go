@@ -19,11 +19,13 @@
 package svc
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/account/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/account/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/account/internal/logic"
 	"github.com/teamgram/teamgram-server/app/bff/account/plugin"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
@@ -36,6 +38,9 @@ type ServiceContext struct {
 	Plugin plugin.AuthorizationPlugin
 	// NewLogin: a terminated login needs no review (task 019).
 	NewLogin newlogin.Notifier
+	// Business keeps the connected bot of an account that
+	// account.confirmBotConnection asks about (task 105).
+	Business *business.Store
 }
 
 func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *ServiceContext {
@@ -50,5 +55,6 @@ func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *Serv
 			Authsession: d.AuthsessionClient,
 			User:        d.UserClient,
 		},
+		Business: business.NewStore(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

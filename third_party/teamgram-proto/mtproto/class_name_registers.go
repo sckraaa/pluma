@@ -198582,6 +198582,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-67329649:   Predicate_messages_getEmojiStickers,                          // fbfca18f
 	248473398:   Predicate_messages_getFeaturedEmojiStickers,                  // ecf6736
 	1063567478:  Predicate_messages_reportReaction,                            // 3f64c076
+	1631726152:  Predicate_messages_reportReaction,                            // 61422a48 pluma: the request of Android, decoded only
 	-1149164102: Predicate_messages_getTopReactions,                           // bb8125ba
 	960896434:   Predicate_messages_getRecentReactions,                        // 39461db2
 	-1644236876: Predicate_messages_clearRecentReactions,                      // 9dfeefb4

@@ -46,6 +46,10 @@ const (
 	MEDIA_ROUND_FILE  = 11 // RoundFile ->inputMessagesFilterRoundVideo,
 	MEDIA_PINNED      = 12 // Pinned -> inputMessagesFilterPinned
 	MEDIA_STICKER     = 13 // Sticker -> inputMessagesFilterSticker
+	// pluma: a live location (messageMediaGeoLive), the messages
+	// messages.getRecentLocations picks from. No inputMessagesFilter asks
+	// for it alone: inputMessagesFilterGeo reads the media of the message.
+	MEDIA_GEO_LIVE = 14
 )
 
 func GetMediaType(message *Message) int32 {
@@ -65,6 +69,8 @@ func GetMediaType(message *Message) int32 {
 		switch message.GetMedia().GetPredicateName() {
 		case Predicate_messageMediaPhoto:
 			return MEDIA_PHOTOS_ONLY
+		case Predicate_messageMediaGeoLive: // pluma: messages.getRecentLocations
+			return MEDIA_GEO_LIVE
 		case Predicate_messageMediaDocument:
 			if IsVoiceMessage(message) || IsRoundVideoMessage(message) {
 				return MEDIA_AUDIO

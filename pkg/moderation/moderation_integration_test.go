@@ -105,6 +105,60 @@ func TestAddReportDeduplicatesOpen(t *testing.T) {
 	}
 }
 
+// A reaction report keeps the reaction in its snapshot; the reactions of two
+// users to one message are two reports, and a decision on one restricts the
+// user who reacted and never deletes the message.
+func TestReactionReport(t *testing.T) {
+	d, _ := newIntegrationDAO(t)
+	ctx := context.Background()
+	reporter, reacted, other, author := nextUser(), nextUser(), nextUser(), nextUser()
+	const channel = 1000000123
+	add := func(target int64, reaction string) {
+		t.Helper()
+		if err := d.AddReport(ctx, &Report{
+			ReporterUserId: reporter, Kind: KindReaction, PeerType: 4, PeerId: channel, TargetUserId: target, Reason: "reaction",
+		}, []int32{5}, &Snapshot{
+			PeerTitle: "group",
+			Reaction:  reaction,
+			Messages:  []SnapshotMessage{{Id: 5, FromId: author, Text: "hello"}},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	add(reacted, "e👍")
+	add(reacted, "e👍") // the request repeated
+	add(other, "e🔥")
+
+	rows, err := d.ReportsOfTarget(ctx, reacted, 10)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("reports of the user who reacted: %d %v", len(rows), err)
+	}
+	r := rows[0]
+	if r.Kind != KindReaction || r.PeerId != channel || r.ReporterUserId != reporter {
+		t.Errorf("report: %+v", r)
+	}
+	snap, err := r.Snapshot()
+	if err != nil || snap.Reaction != "e👍" || len(snap.Messages) != 1 || snap.Messages[0].FromId != author {
+		t.Errorf("snapshot: %+v %v", snap, err)
+	}
+	if rows, err = d.ReportsOfTarget(ctx, other, 10); err != nil || len(rows) != 1 {
+		t.Errorf("the reaction of another user to the same message: %d %v", len(rows), err)
+	}
+
+	if err = d.Decide(ctx, Decision{ReportId: r.Id, Actor: "mod", Action: ActionDelete}); !errors.Is(err, ErrNothingToDelete) {
+		t.Errorf("deletion from a reaction report: %v", err)
+	}
+	if err = d.Decide(ctx, Decision{ReportId: r.Id, Actor: "mod", Action: ActionRestrict}); err != nil {
+		t.Fatal(err)
+	}
+	if restr, err := d.Restriction(ctx, reacted); err != nil || restr == nil {
+		t.Errorf("the user who reacted is not restricted: %+v %v", restr, err)
+	}
+	if restr, err := d.Restriction(ctx, author); err != nil || restr != nil {
+		t.Errorf("the author of the message is restricted: %+v %v", restr, err)
+	}
+}
+
 func TestDecideRestrictInOneTransaction(t *testing.T) {
 	d, db := newIntegrationDAO(t)
 	ctx := context.Background()

@@ -78,6 +78,26 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMsgAppendTodoList": {"/mtproto.RPCMsg/msg_appendTodoList", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 062
 	"TLMsgEditTodoList": {"/mtproto.RPCMsg/msg_editTodoList", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 105
+	"TLMsgAddQuickReplyMessages": {"/mtproto.RPCMsg/msg_addQuickReplyMessages", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 105
+	"TLMsgGetQuickReplies": {"/mtproto.RPCMsg/msg_getQuickReplies", func() interface{} { return new(mtproto.Messages_QuickReplies) }},
+	// pluma: task 105
+	"TLMsgGetQuickReplyMessages": {"/mtproto.RPCMsg/msg_getQuickReplyMessages", func() interface{} { return new(mtproto.Messages_Messages) }},
+	// pluma: task 105
+	"TLMsgCheckQuickReplyShortcut": {"/mtproto.RPCMsg/msg_checkQuickReplyShortcut", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 105
+	"TLMsgEditQuickReplyShortcut": {"/mtproto.RPCMsg/msg_editQuickReplyShortcut", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 105
+	"TLMsgReorderQuickReplies": {"/mtproto.RPCMsg/msg_reorderQuickReplies", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 105
+	"TLMsgDeleteQuickReplyShortcut": {"/mtproto.RPCMsg/msg_deleteQuickReplyShortcut", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 105
+	"TLMsgEditQuickReplyMessage": {"/mtproto.RPCMsg/msg_editQuickReplyMessage", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 105
+	"TLMsgDeleteQuickReplyMessages": {"/mtproto.RPCMsg/msg_deleteQuickReplyMessages", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 105
+	"TLMsgSendQuickReplyMessages": {"/mtproto.RPCMsg/msg_sendQuickReplyMessages", func() interface{} { return new(mtproto.Updates) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

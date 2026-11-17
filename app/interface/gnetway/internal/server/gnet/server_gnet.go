@@ -26,11 +26,12 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
 	httpcodec "github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/http"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/pp"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/ws"
 	"github.com/teamgram/teamgram-server/app/interface/session/session"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/codec"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 
 	"github.com/gobwas/ws/wsutil"
 	"github.com/panjf2000/gnet/v2"
@@ -479,20 +480,20 @@ func (s *Server) GetConnCounts() int {
 // and answered.
 func (s *Server) connHandshakeIO(c gnet.Conn, ctx *connContext) *handshakeIO {
 	if ctx.handshakes == nil {
-		ctx.handshakes = &handshakeIO{
+		ctx.handshakes = s.bindHandshakeIO(&handshakeIO{
 			connId:   c.ConnId(),
 			clientIp: ctx.clientIp,
-			states:   newHandshakeStore(maxConnHandshakes, 0),
+			states:   handshake.NewStore(maxConnHandshakes, 0),
 			reply: func(c gnet.Conn, answer mtproto.TLObject) {
 				metricHandshake.Inc("ok")
-				_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: handshakePayload(answer)})
+				_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: handshake.Payload(answer)})
 			},
 			fail: func(c gnet.Conn, err error) {
 				metricHandshake.Inc("error")
 				logx.Errorf("conn(%d) handshake: %v", c.ConnId(), err)
 				_ = c.Close()
 			},
-		}
+		})
 	}
 	return ctx.handshakes
 }
@@ -515,7 +516,7 @@ func (s *Server) onMTPRawMessage(ctx *connContext, c gnet.Conn, needAck bool, ms
 			return gnet.Close
 		} else if out != nil {
 			metricHandshake.Inc("ok")
-			_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: handshakePayload(out)})
+			_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: handshake.Payload(out)})
 		}
 	} else {
 		if ctx.keyQuery != nil {

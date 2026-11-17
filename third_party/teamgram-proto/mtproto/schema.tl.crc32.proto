@@ -3532,4 +3532,5 @@ enum TLConstructor {
   CRC32_messages_transcribeAudioFile = 120401655; // 072d2ef7
   CRC32_messages_getTranscriptionLangs = -1167271510; // ba6cd9aa
   CRC32_channels_toggleForum_a2952b54 = -1567282348; // a2952b54
+  CRC32_messages_reportReaction_61422a48 = 1631726152; // 61422a48 pluma: the request of Android (TLRPC.java), decoded only
 }

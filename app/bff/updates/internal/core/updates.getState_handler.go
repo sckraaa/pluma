@@ -35,7 +35,8 @@ func (c *UpdatesCore) UpdatesGetState(in *mtproto.TLUpdatesGetState) (*mtproto.U
 		return nil, err
 	}
 
-	// qts is each authorization's own (pkg/secretchat).
+	// qts is each authorization's own (pkg/qtsqueue): one counter for the
+	// messages of secret chats and the updates of connected bots.
 	if rValue.Qts, err = c.svcCtx.Dao.SecretChats.State(c.ctx, c.device()); err != nil {
 		c.Logger.Errorf("updates.getState - qts of user %d: %v", c.MD.UserId, err)
 		return nil, mtproto.ErrInternalServerError

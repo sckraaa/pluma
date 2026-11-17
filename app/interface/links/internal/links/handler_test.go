@@ -30,6 +30,19 @@ type fakeData struct {
 	peers map[string]*Peer
 	sets  map[string]string
 	posts []Post
+	// chatLinks are the owners of business chat links by slug.
+	chatLinks map[string]*Peer
+}
+
+func (f *fakeData) ChatLinkOwner(_ context.Context, slug string) (*Peer, error) {
+	return f.chatLinks[slug], nil
+}
+
+func (f *fakeData) ChatLinkAvatarId(_ context.Context, slug string) (int64, error) {
+	if p := f.chatLinks[slug]; p != nil {
+		return p.PhotoId, nil
+	}
+	return 0, nil
 }
 
 func (f *fakeData) Peer(_ context.Context, username string) (*Peer, error) {
@@ -50,6 +63,11 @@ func (f *fakeData) AvatarId(_ context.Context, username string) (int64, error) {
 
 func (f *fakeData) AvatarFile(_ context.Context, id int64) ([]byte, error) {
 	for _, p := range f.peers {
+		if p.PhotoId == id {
+			return []byte("\xff\xd8jpeg " + strconv.FormatInt(id, 10)), nil
+		}
+	}
+	for _, p := range f.chatLinks {
 		if p.PhotoId == id {
 			return []byte("\xff\xd8jpeg " + strconv.FormatInt(id, 10)), nil
 		}
@@ -113,6 +131,10 @@ func newTestHandler(t *testing.T) (*Handler, *fakeData) {
 			"helperbot": {Kind: PeerBot, Username: "helperbot", Name: "Helper", About: "I help."},
 		},
 		sets: map[string]string{"Animals": "Just zoo it!", "EmojiSet": "Animated Emoji"},
+		chatLinks: map[string]*Peer{
+			"AbCdEfGh12345678": {Kind: PeerUser, Name: "Bob <Shop>", FirstName: "Bob", About: "Open 9 to 5", PhotoId: 31},
+			"NoPhotoNoName000": {Kind: PeerUser, Username: "carol_x", Name: "Carol Jones", FirstName: "Carol"},
+		},
 	}
 	for i := 1; i <= 25; i++ {
 		data.posts = append(data.posts, Post{ID: i, Date: time.Unix(1700000000+int64(i)*60, 0), Text: "post " + itoa(i), Views: i * 1000})
@@ -216,6 +238,46 @@ func TestPages(t *testing.T) {
 
 	_, body = get(t, h, "/plumanews", map[string]string{"User-Agent": "Mozilla/5.0 (Linux; Android 14)"})
 	mustContain(t, "Android", body, `href="plm:resolve?domain=plumanews"`, `href="https://pluma.chat/android"`)
+
+	// The link of a site's login request (task 106): the app only, the
+	// web client takes no such link.
+	_, body = get(t, h, "/oauth?startapp=AbCdEfGhIjKlMnOp_-123456", en)
+	mustContain(t, "oauth", body, "Pluma: Log In", "Open in Pluma", "noindex",
+		`href="plm://resolve?domain=oauth&amp;startapp=AbCdEfGhIjKlMnOp_-123456"`)
+	if strings.Contains(body, "web.pluma.chat") {
+		t.Error("the login link offers the web client")
+	}
+	_, body = get(t, h, "/oauth?startapp=AbCdEfGhIjKlMnOp_-123456", ru)
+	mustContain(t, "oauth, Russian", body, "Pluma: вход", "Открыть в Pluma")
+}
+
+// TestOAuthHost: the provider's host goes to the provider but for the
+// site's files and avatars, which its page uses; the site's own host never
+// does.
+func TestOAuthHost(t *testing.T) {
+	h, _ := newTestHandler(t)
+	h.OAuth = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+	})
+	h.OAuthHost = "oauth.pluma.chat"
+	for _, c := range []struct {
+		method, host, path string
+		want               int
+	}{
+		{http.MethodGet, "oauth.pluma.chat", "/auth", http.StatusTeapot},
+		{http.MethodPost, "OAuth.Pluma.Chat:443", "/token", http.StatusTeapot},
+		{http.MethodGet, "oauth.pluma.chat", "/_l/page.css", http.StatusOK},
+		{http.MethodGet, "pluma.chat", "/auth", http.StatusFound},
+		{http.MethodPost, "pluma.chat", "/token", http.StatusMethodNotAllowed},
+	} {
+		r := httptest.NewRequest(c.method, c.path, nil)
+		r.Host = c.host
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != c.want {
+			t.Errorf("%s %s%s: %d, want %d", c.method, c.host, c.path, w.Code, c.want)
+		}
+	}
 }
 
 // TestNoLink: what is no link goes to the site's home, as t.me's go to
@@ -357,6 +419,46 @@ func TestAvatarCaching(t *testing.T) {
 		t.Errorf("the old URL after a new photo: %d %q, Cache-Control %q", res.StatusCode, body, res.Header.Get("Cache-Control"))
 	}
 	for _, p := range []string{"/_l/avatar/alice_dev", "/_l/avatar/../etc", "/_l/avatar/nobody_here"} {
+		if res, _ := get(t, h, p, nil); res.StatusCode != http.StatusNotFound {
+			t.Errorf("%s: %d, want 404", p, res.StatusCode)
+		}
+	}
+}
+
+// TestChatLinkPage: the page of a business chat link shows its owner as
+// anybody sees it (no username needed: the photo goes by the slug) and
+// hands off to plm://message?slug=; an unknown slug gets a page that does
+// not tell so. Neither is indexed.
+func TestChatLinkPage(t *testing.T) {
+	h, _ := newTestHandler(t)
+	en := map[string]string{"Accept-Language": "en", "User-Agent": "Mozilla/5.0 (Macintosh)"}
+	ru := map[string]string{"Accept-Language": "ru", "User-Agent": "Mozilla/5.0 (Linux; Android 14)"}
+
+	res, body := get(t, h, "/m/AbCdEfGh12345678", en)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("chat link: %d", res.StatusCode)
+	}
+	mustContain(t, "chat link", body,
+		"<title>Pluma: Chat with Bob &lt;Shop&gt;</title>", `content="noindex, nofollow"`, "Send Message", "Open 9 to 5",
+		`href="plm://message?slug=AbCdEfGh12345678"`, `src="/_l/avatar/m/AbCdEfGh12345678?v=31"`,
+		`content="https://pluma.chat/_l/avatar/m/AbCdEfGh12345678?v=31"`, "you can contact<br>Bob right away")
+	if strings.Contains(body, "<Shop>") {
+		t.Error("the owner's name not escaped")
+	}
+
+	_, body = get(t, h, "/m/NoPhotoNoName000", ru)
+	mustContain(t, "chat link, Russian, Android", body,
+		"<title>Pluma: чат — Carol Jones</title>", "@carol_x", `class="initials"`, ">CJ<", "Написать", `href="plm:message?slug=NoPhotoNoName000"`)
+
+	_, body = get(t, h, "/m/Unknown123456789", en)
+	mustContain(t, "unknown chat link", body, "<title>Pluma: Chat</title>", `content="noindex, nofollow"`,
+		"you can open this chat right away", `href="plm://message?slug=Unknown123456789"`)
+
+	res, body = get(t, h, "/_l/avatar/m/AbCdEfGh12345678?v=31", nil)
+	if res.StatusCode != http.StatusOK || body != "\xff\xd8jpeg 31" || res.Header.Get("Cache-Control") != "public, max-age=31536000, immutable" {
+		t.Errorf("the owner's photo: %d %q, Cache-Control %q", res.StatusCode, body, res.Header.Get("Cache-Control"))
+	}
+	for _, p := range []string{"/_l/avatar/m/NoPhotoNoName000", "/_l/avatar/m/Unknown123456789", "/_l/avatar/m/", "/_l/avatar/m/a!b"} {
 		if res, _ := get(t, h, p, nil); res.StatusCode != http.StatusNotFound {
 			t.Errorf("%s: %d, want 404", p, res.StatusCode)
 		}

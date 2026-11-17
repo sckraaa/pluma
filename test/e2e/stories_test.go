@@ -202,12 +202,13 @@ func TestStoriesEmpty(t *testing.T) {
 	}); !mtclient.IsRPCError(err, "MEDIA_EMPTY") {
 		t.Errorf("a story without media: %v, want MEDIA_EMPTY", err)
 	}
-	// What is not served answers 400, which a client gives up on.
-	if _, err = alice.c.Invoke(ctx, &mtproto.TLStoriesGetAlbums{
-		Constructor: alice.c.Constructor(mtproto.Predicate_stories_getAlbums),
-		Peer:        selfPeer(),
+	// What is not served answers 400, which a client gives up on (the
+	// albums are served since task 104, TestStoryAlbums).
+	if _, err = alice.c.Invoke(ctx, &mtproto.TLStoriesToggleAllStoriesHidden{
+		Constructor: alice.c.Constructor(mtproto.Predicate_stories_toggleAllStoriesHidden),
+		Hidden:      mtproto.BoolTrue,
 	}); !mtclient.IsRPCError(err, "ERR_ENTERPRISE_IS_BLOCKED") {
-		t.Errorf("stories.getAlbums: %v, want ERR_ENTERPRISE_IS_BLOCKED", err)
+		t.Errorf("stories.toggleAllStoriesHidden: %v, want ERR_ENTERPRISE_IS_BLOCKED", err)
 	}
 }
 

@@ -23,6 +23,10 @@ type rpcApiMessage struct {
 	reqMsg    mtproto.TLObject
 	takeout   *metadata.Takeout
 	rpcResult *mtproto.TLRpcResult
+
+	// businessConnectionId is the connection of the
+	// invokeWithBusinessConnection the request came in, "" for none.
+	businessConnectionId string
 }
 
 func (m *rpcApiMessage) MoveRpcResult() *mtproto.TLRpcResult {

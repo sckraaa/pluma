@@ -22,11 +22,20 @@ import (
 // msg.editMessageV2 user_id:long auth_key_id:long peer_type:int peer_id:long edit_type:int new_message:OutboxMessage dst_message:MessageBox = Updates;
 //
 // dst_message names the edited message; the message itself is read in the
-// box transaction, the edit is applied to what is stored.
+// box transaction, the edit is applied to what is stored. EditTypeViaBot is
+// a bot's edit in the name of user_id, the sender (checkViaBotEdit); it
+// goes as the sender's own edit, which has no time limit here.
 func (c *MsgCore) MsgEditMessageV2(in *msg.TLMsgEditMessageV2) (*mtproto.Updates, error) {
 	if in.DstMessage == nil || in.NewMessage.GetMessage() == nil {
 		c.Logger.Errorf("msg.editMessage - error: request{user_id: %d, peer: %d/%d} without the message", in.GetUserId(), in.GetPeerType(), in.GetPeerId())
 		return nil, mtproto.ErrInputRequestInvalid
+	}
+
+	if in.EditType == msg.EditTypeViaBot {
+		if err := checkViaBotEdit(in); err != nil {
+			c.Logger.Errorf("msg.editMessage - error: request{user_id: %d, peer: %d/%d, id: %d}: %v", in.GetUserId(), in.GetPeerType(), in.GetPeerId(), in.DstMessage.GetMessageId(), err)
+			return nil, err
+		}
 	}
 
 	if in.NewMessage.GetScheduleDate() != nil {
@@ -62,6 +71,24 @@ func (c *MsgCore) MsgEditMessageV2(in *msg.TLMsgEditMessageV2) (*mtproto.Updates
 	return rUpdates, nil
 }
 
+// checkViaBotEdit checks an edit of EditTypeViaBot: of a message sent via
+// the bot, which stays so. via_bot_id never changes after the send (the
+// boxes' applyEdit keeps it), so dst_message, the message as the caller
+// read it, says it; the edit names the same bot. A waiting message is
+// never a bot's to edit: a bot learns only of sent ones.
+func checkViaBotEdit(in *msg.TLMsgEditMessageV2) error {
+	bot := in.NewMessage.GetMessage().GetViaBotId()
+	switch {
+	case bot == nil || bot.GetValue() == 0:
+		return mtproto.ErrInputRequestInvalid
+	case in.DstMessage.GetMessage().GetViaBotId().GetValue() != bot.GetValue():
+		return mtproto.ErrMessageIdInvalid
+	case in.NewMessage.GetScheduleDate() != nil:
+		return mtproto.ErrInputRequestInvalid
+	}
+	return nil
+}
+
 func (c *MsgCore) editUserMessage(fromUserId, fromAuthKeyId, toUserId int64, editBox *msg.OutboxMessage, id int32) (*mtproto.Updates, error) {
 	idHelper := mtproto.NewIDListHelper(fromUserId, toUserId)
 	idHelper.PickByMessage(editBox.GetMessage())
@@ -79,6 +106,12 @@ func (c *MsgCore) editUserMessage(fromUserId, fromAuthKeyId, toUserId int64, edi
 		return nil, mtproto.ErrInputUserDeactivated
 	}
 	blocked, err := c.isBlockedBy(fromUserId, toUserId)
+	if err != nil {
+		return nil, err
+	}
+	// The connected bot of Telegram Business that serves the chat is told
+	// of the edit (task 105).
+	businessChat, err := c.svcCtx.Dao.BusinessChatOf(c.ctx, fromUserId, toUserId, users)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +134,13 @@ func (c *MsgCore) editUserMessage(fromUserId, fromAuthKeyId, toUserId int64, edi
 		update = edited
 		if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
 			mtproto.MakeUpdatesByUpdatesUsersChats(users.GetUserListByIdList(fromUserId, idHelper.UserIdList...), nil, update)); err != nil {
+			return err
+		}
+		bot, err := c.svcCtx.Dao.BusinessBotTx(b, businessChat)
+		if err != nil {
+			return err
+		}
+		if err = c.svcCtx.Dao.EmitBusinessMessages(b, bot, toUserId, true, box.GetMessage()); err != nil {
 			return err
 		}
 		if toUserId == fromUserId || blocked {

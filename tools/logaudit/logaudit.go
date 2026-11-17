@@ -11,8 +11,10 @@
 //     DH exponent a, g_b, auth_key bytes, AES keys and IVs, decrypted
 //     handshake data, login codes and their hashes, passwords and their SRP
 //     values, tokens, email addresses and API keys, the ICE credentials,
-//     DTLS fingerprints and keys and the join params of group calls, or a
-//     config section with credentials (Etcd, Mysql, Redis...);
+//     DTLS fingerprints and keys and the join params of group calls, the
+//     tokens, keys and hashes of CDN files, the signed URLs of the HTTPS CDN
+//     and the keys that sign them, or a config section with
+//     credentials (Etcd, Mysql, Redis...);
 //   - object: a TL object or data object printed whole: a parameter or local
 //     of a type from the mtproto package or from app/ (requests, updates,
 //     messages, rows), with any verb other than %T, or its String() or
@@ -83,6 +85,9 @@ var secretNames = set(
 	"phonecodeflagstring", "getphonecodeflagstring",
 	"phonecodehash", "getphonecodehash", "codehash", "getcodehash",
 	"logincode", "code", "hmackey",
+	// the codes of account.invalidateSignInCodes and those found in a
+	// message (task 098)
+	"codes", "getcodes", "candidates",
 	"password", "getpassword", "newpassword", "getnewpassword",
 	// SRP of the 2FA password (pkg/twofa): the verifier, the client's A and
 	// M1, the server's b and srp_B
@@ -110,6 +115,57 @@ var secretNames = set(
 	"block", "getblock", "blocks", "getblocks", "publickey", "getpublickey",
 	"sharedkey", "encryptedsharedkey", "destheaders", "nonce", "noncehash",
 	"e2estatus", "gete2estatus", "report",
+	// geodata (ADR 0062, p. 7, and the maps of task 100): the coordinates
+	// of a point a user sends or looks at
+	"lat", "getlat", "long", "getlong", "geopoint", "getgeopoint",
+	// the queries to the built-in inline bots (ADR 0062, p. 7): their text,
+	// the point and the address of a web file. "query" itself names the SQL
+	// of many logs, so the text is caught by its own names.
+	"inlinequery", "getinlinequery", "geo", "getgeo", "webfileurl",
+	// the business location of an account (task 105, ADR 0067): its street
+	// address
+	"address", "getaddress",
+	// the slug of a business chat link (task 105, ADR 0067): the only
+	// secret of the link
+	"slug", "getslug",
+	// the connection of a connected business bot (task 105, ADR 0067):
+	// whoever has it acts for the account through the bot
+	"connectionid", "getconnectionid", "businessconnectionid", "getbusinessconnectionid",
+	// the bot platform (task 106, ADR 0068): the initData of a mini app
+	// and its address, the keys of a bot and the server's keys, a site's
+	// client secret, the ID tokens, authorization codes and requests of the
+	// login on sites and the emoji code a user confirms one with
+	"initdata", "getinitdata", "tgwebappdata", "webappkey", "loginkey",
+	"signingkey", "encryptionkey", "seed", "clientsecret", "getclientsecret",
+	"idtoken", "oauthtoken", "oauthcode", "matchcode", "getmatchcode", "matchcodes", "getmatchcodes",
+	// the translation of messages (task 101, ADR 0064, section 13): the
+	// text sent to the model (the text of a textWithEntities and of
+	// messages.translateText, as anywhere else), the prompt made of it, the
+	// model's answer and the translation read from it, never printed; their
+	// lengths are
+	"text", "gettext",
+	"translation", "gettranslation", "translations", "gettranslations",
+	"translated", "translatedtext", "sourcetext", "getsourcetext",
+	"prompt", "getprompt", "completion", "getcompletion",
+	"content", "getcontent", "resulttext", "getresulttext",
+	// the statistics of channels (task 103, ADR 0066): the zoom tokens of
+	// the graphs, never printed whole, and the key that signs them
+	"statstoken", "zoomtoken", "getzoomtoken", "tokenkey", "gettokenkey",
+	// the CDN of large files (task 102, ADR 0065): a file's token, the
+	// request_token of a reupload and the keys that sign it, the AES key
+	// and IV of a file (with them the node's cipher is the file), its
+	// secrets together, and the hashes of its plaintext
+	"filetoken", "getfiletoken", "requesttoken", "getrequesttoken",
+	"rtkey", "getrtkey", "rtkeyprev", "getrtkeyprev",
+	"getencryptionkey", "encryptioniv", "getencryptioniv", "secrets",
+	"hashes", "gethashes", "filehashes", "getfilehashes",
+	// the HTTPS CDN (task 107, ADR 0071): a signed URL of a file (whoever
+	// has it fetches the cipher until it expires) and the PLH1 file_token
+	// that carries it, the keys that sign the URLs (tokenkey above), the
+	// value of X-Pluma-Origin-Auth, and the Cdn section of bff.yaml, which
+	// holds both
+	"signedurl", "getsignedurl", "cdnurl", "signkey", "redirecttoken",
+	"originauth", "originauthvalue", "authvalue", "getauthvalue", "cdn",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )
@@ -136,11 +192,14 @@ var objectPackages = []string{
 	// the blocks and broadcasts of the chain of group calls (task 094)
 	"github.com/teamgram/teamgram-server/pkg/tde2e",
 	"github.com/teamgram/teamgram-server/pkg/groupcalls",
+	// the MTProto server code shared by the gateway and the CDN node
+	// (task 102): handshake state, computed keys and transport codecs
+	"github.com/teamgram/teamgram-server/pkg/mtserver/",
 }
 
 // localObjectTypes are types, used unqualified in their own package, that
 // hold handshake secrets or auth keys.
-var localObjectTypes = set("HandshakeStateCtx", "reqDHParamsResult", "dhGenKey", "authKeyUtil", "handshakeEntry", "AuthKey", "AuthKeyInfo")
+var localObjectTypes = set("HandshakeStateCtx", "reqDHParamsResult", "dhGenKey", "ReqDHParamsResult", "DHGenKey", "authKeyUtil", "handshakeEntry", "AuthKey", "AuthKeyInfo")
 
 // safeTypes are types of objectPackages that hold no user data.
 var safeTypes = set("RpcMetadata", "PeerUtil", "InputPeer", "Peer", "InputUser", "InputDialogPeer", "Bool", "Int32", "Int64", "Vector_Long", "Storage_FileType")

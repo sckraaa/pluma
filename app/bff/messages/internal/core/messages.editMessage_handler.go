@@ -25,6 +25,8 @@ import (
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
+	"github.com/teamgram/teamgram-server/pkg/botgames"
+	"github.com/teamgram/teamgram-server/pkg/business"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -33,12 +35,41 @@ import (
 // MessagesEditMessage
 // messages.editMessage#48f71778 flags:# no_webpage:flags.1?true peer:InputPeer id:int message:flags.11?string media:flags.14?InputMedia reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.15?int = Updates;
 func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*mtproto.Updates, error) {
+	// A connected business bot edits what it sent for its account (task
+	// 105): a message of the chat, not a waiting one or one of a shortcut.
+	if act, err := c.businessAct(business.MethodEditMessage, in.Peer); err != nil {
+		c.Logger.Errorf("messages.editMessage - business connection: %v", err)
+		return nil, err
+	} else if act != nil {
+		if in.ScheduleDate != nil || in.GetQuickReplyShortcutId() != nil {
+			return nil, mtproto.ErrBotAccessForbidden
+		}
+		if err = c.businessEditable(in.Id); err != nil {
+			c.Logger.Errorf("messages.editMessage - business connection: %v", err)
+			return nil, err
+		}
+		r, err := c.editMessage(in)
+		if err != nil {
+			return nil, err
+		}
+		return c.businessReply(r)
+	}
+	return c.editMessage(in)
+}
+
+// editMessage is messages.editMessage of the account c runs as.
+func (c *MessagesCore) editMessage(in *mtproto.TLMessagesEditMessage) (*mtproto.Updates, error) {
 	var (
 		peer         = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 		editMessages *message.Vector_MessageBox
 		dstMessage   *mtproto.MessageBox
 		err          error
 	)
+
+	// A message of a quick reply shortcut (task 105).
+	if in.GetQuickReplyShortcutId() != nil {
+		return c.editQuickReplyMessage(peer, in)
+	}
 
 	// A poll is only closed through an edit; a checklist changes under its
 	// own lock, so that a simultaneous tick is not lost (task 062).
@@ -131,55 +162,9 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 	dstMessage = proto.Clone(editMessages.Datas[0]).(*mtproto.MessageBox)
 
 	outMessage := editMessages.Datas[0].Message
-	// edit_date
-	outMessage.EditDate = &wrapperspb.Int32Value{Value: int32(time.Now().Unix())}
-	outMessage.EditHide = false
-
-	// reply_markup
-	if in.ReplyMarkup != nil {
-		if outMessage.ReplyMarkup, err = c.botMarkup(in.ReplyMarkup); err != nil {
-			c.Logger.Errorf("messages.editMessage - reply markup: %v", err)
-			return nil, err
-		}
+	if err = c.applyEdit(outMessage, in); err != nil {
+		return nil, err
 	}
-
-	if in.Media != nil {
-		outMessage.Media, err = c.makeMediaByInputMedia(in.Media)
-		if err != nil {
-			c.Logger.Errorf("messages.editMessage - media error: %v", err)
-			return nil, err
-		}
-	}
-	// message
-	if in.Message != nil {
-		if in.Message.Value == "" &&
-			(outMessage.Media == nil ||
-				outMessage.Media.PredicateName == mtproto.Predicate_messageMediaEmpty) {
-			err = mtproto.ErrMessageEmpty
-			c.Logger.Errorf("message empty: %v", err)
-			return nil, err
-		}
-		if hasCaption(outMessage) {
-			if err = c.checkCaption(in.Message.Value); err != nil {
-				c.Logger.Errorf("messages.editMessage: %v", err)
-				return nil, err
-			}
-		}
-		outMessage.Message = in.Message.Value
-		//outMessage, _ = c.fixMessageEntities(c.MD.UserId, peer, in.NoWebpage, outMessage, func() bool {
-		//	hasBot := c.MD.IsBot
-		//	if !hasBot {
-		//		//isBot, _ := c.svcCtx.Dao.UserClient.UserIsBot(c.ctx, &userpb.TLUserIsBot{
-		//		//	Id: peer.PeerId,
-		//		//})
-		//		//hasBot = mtproto.FromBool(isBot)
-		//	}
-		//
-		//	return hasBot
-		//})
-	}
-
-	outMessage.Entities = editedEntities(outMessage.Entities, in)
 
 	rUpdates, err := c.svcCtx.Dao.MsgClient.MsgEditMessageV2(c.ctx, &msgpb.TLMsgEditMessageV2{
 		UserId:    c.MD.UserId,
@@ -200,8 +185,143 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 		c.Logger.Errorf("messages.editMessage - error: %v", err)
 		return nil, err
 	}
+	if in.Message != nil {
+		// A code in the new text (task 098).
+		c.invalidateSentLoginCodes(in.Message.GetValue())
+	}
 
 	return rUpdates, nil
+}
+
+// applyEdit applies in to outMessage, a message the account may edit: the
+// edit date, the bot's keyboard, the media, the text and the entities.
+func (c *MessagesCore) applyEdit(outMessage *mtproto.Message, in *mtproto.TLMessagesEditMessage) error {
+	var err error
+	outMessage.EditDate = &wrapperspb.Int32Value{Value: int32(time.Now().Unix())}
+	outMessage.EditHide = false
+
+	// reply_markup. A message with a game keeps the button that starts it
+	// first, and the game stays its media: the button would open nothing
+	// else (botgames.Markup, task 106).
+	game := outMessage.GetMedia().GetPredicateName() == mtproto.Predicate_messageMediaGame
+	if in.ReplyMarkup != nil {
+		if outMessage.ReplyMarkup, err = c.botMarkup(in.ReplyMarkup, game); err != nil {
+			c.Logger.Errorf("messages.editMessage - reply markup: %v", err)
+			return err
+		}
+		if game {
+			if outMessage.ReplyMarkup, err = botgames.Markup(outMessage.ReplyMarkup, outMessage.GetMedia().GetGame().GetTitle(), c.MD.LangCode); err != nil {
+				c.Logger.Errorf("messages.editMessage - reply markup of a game: %v", err)
+				return err
+			}
+		}
+	}
+	if game && in.Media != nil {
+		return mtproto.ErrMediaInvalid
+	}
+
+	if in.Media != nil {
+		if in.Media.GetPredicateName() == mtproto.Predicate_inputMediaGeoLive &&
+			outMessage.GetMedia().GetPredicateName() == mtproto.Predicate_messageMediaGeoLive {
+			// A live location moves and stops by edits that send only what
+			// changes (editedLiveLocation).
+			outMessage.Media = editedLiveLocation(outMessage, in.Media.To_InputMediaGeoLive(), outMessage.EditDate.GetValue())
+		} else if outMessage.Media, err = c.makeMediaByInputMedia(in.Media); err != nil {
+			c.Logger.Errorf("messages.editMessage - media error: %v", err)
+			return err
+		}
+	}
+	// message
+	if in.Message != nil {
+		if in.Message.Value == "" &&
+			(outMessage.Media == nil ||
+				outMessage.Media.PredicateName == mtproto.Predicate_messageMediaEmpty) {
+			err = mtproto.ErrMessageEmpty
+			c.Logger.Errorf("message empty: %v", err)
+			return err
+		}
+		if hasCaption(outMessage) {
+			if err = c.checkCaption(in.Message.Value); err != nil {
+				c.Logger.Errorf("messages.editMessage: %v", err)
+				return err
+			}
+		}
+		outMessage.Message = in.Message.Value
+	}
+
+	outMessage.Entities = editedEntities(outMessage.Entities, in)
+	return nil
+}
+
+// editQuickReplyMessage edits a message of a quick reply shortcut of the
+// account (task 105, core.telegram.org/api/business#quick-reply-shortcuts):
+// messages.editMessage with quick_reply_shortcut_id, the id from the
+// shortcut's own sequence and the peer the account itself, as tdesktop
+// (api_editing.cpp:90-92, 98-104, 340-352), Android
+// (SendMessagesHelper.java:3525, 3615, 3667) and iOS
+// (RequestEditMessage.swift:206-229) ask. The message changes as any other
+// edit changes it, invert_media included (tdesktop api_editing.cpp:76-79
+// sets it with the edit); the answer and the other devices get
+// updateQuickReplyMessage. A shortcut that is not the account's is
+// SHORTCUT_INVALID, a message the shortcut does not hold
+// MESSAGE_ID_INVALID. A poll is closed and a checklist ticked in a chat,
+// not in a shortcut: MEDIA_INVALID.
+func (c *MessagesCore) editQuickReplyMessage(peer *mtproto.PeerUtil, in *mtproto.TLMessagesEditMessage) (*mtproto.Updates, error) {
+	const method = "messages.editMessage"
+	shortcutId := in.GetQuickReplyShortcutId().GetValue()
+	var err error
+	switch {
+	case c.MD.IsBot:
+		err = mtproto.ErrBotMethodInvalid
+	case !peer.IsSelfUser(c.MD.UserId):
+		err = mtproto.ErrPeerIdInvalid
+	case in.ScheduleDate != nil:
+		// A shortcut has no time to go out at (not verified which error
+		// Telegram answers).
+		err = mtproto.ErrScheduleDateInvalid
+	case in.GetMedia().GetPredicateName() == mtproto.Predicate_inputMediaPoll,
+		in.GetMedia().GetPredicateName() == mtproto.Predicate_inputMediaTodo:
+		err = mtproto.ErrMediaInvalid
+	}
+	if err != nil {
+		c.Logger.Errorf("%s - quick reply %d: %v", method, shortcutId, err)
+		return nil, err
+	}
+	found, err := c.svcCtx.Dao.MsgClient.MsgGetQuickReplyMessages(c.ctx, &msgpb.TLMsgGetQuickReplyMessages{
+		UserId:     c.MD.UserId,
+		ShortcutId: shortcutId,
+		Id:         []int32{in.Id},
+	})
+	if err != nil {
+		c.Logger.Errorf("%s - quick reply %d: %v", method, shortcutId, err)
+		return nil, err
+	}
+	if len(found.GetMessages()) != 1 {
+		return nil, mtproto.ErrMessageIdInvalid
+	}
+	outMessage := found.GetMessages()[0]
+	if err = c.applyEdit(outMessage, in); err != nil {
+		return nil, err
+	}
+	outMessage.InvertMedia = in.InvertMedia
+	r, err := c.svcCtx.Dao.MsgClient.MsgEditQuickReplyMessage(c.ctx, &msgpb.TLMsgEditQuickReplyMessage{
+		UserId:     c.MD.UserId,
+		AuthKeyId:  c.MD.PermAuthKeyId,
+		ShortcutId: shortcutId,
+		Message: msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
+			NoWebpage: in.NoWebpage,
+			Message:   outMessage,
+		}).To_OutboxMessage(),
+	})
+	if err != nil {
+		c.Logger.Errorf("%s - quick reply %d: %v", method, shortcutId, err)
+		return nil, err
+	}
+	if in.Message != nil {
+		// A code in the new text (task 098).
+		c.invalidateSentLoginCodes(in.Message.GetValue())
+	}
+	return r, nil
 }
 
 // scheduledMessageToEdit reads message id from the queue of the dialog;

@@ -34,6 +34,9 @@ import (
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/botkeys"
+	"github.com/teamgram/teamgram-server/pkg/inlinebots"
+	"github.com/teamgram/teamgram-server/pkg/langpack"
 
 	"google.golang.org/grpc/status"
 )
@@ -72,12 +75,22 @@ var ErrUsernameInvalid = errors.New("botstore: invalid bot username")
 
 // Store reads and writes the tables of bots.
 type Store struct {
-	db *sqlx.DB
+	db      *sqlx.DB
+	secrets *botkeys.Sealer
 }
 
 // New returns a store on db.
 func New(db *sqlx.DB) *Store {
 	return &Store{db: db}
+}
+
+// WithSecrets returns the store that also stores the keys of every token it
+// issues (Create, NewToken) in bot_secret_keys, sealed by sealer, in the
+// transaction of the token (task 106, ADR 0068, p. 3). A nil sealer (no
+// BOT_SECRET_ENCRYPTION_KEY) stores none: the keys of an older token stay
+// behind unread, as pkg/botkeys reads only those of the current token.
+func (s *Store) WithSecrets(sealer *botkeys.Sealer) *Store {
+	return &Store{db: s.db, secrets: sealer}
 }
 
 // Bot is a bot as the admin tool lists it.
@@ -125,7 +138,13 @@ func (s *Store) Create(ctx context.Context, username, name string, creator int64
 			result.Err = err
 			return
 		}
-		_, result.Err = tx.Exec("INSERT INTO bots (bot_id, creator_user_id, token, bot_nochats) VALUES (?, ?, ?, 0)", botId, creator, hash)
+		if _, err = tx.Exec("INSERT INTO bots (bot_id, creator_user_id, token, bot_nochats) VALUES (?, ?, ?, 0)", botId, creator, hash); err != nil {
+			result.Err = err
+			return
+		}
+		if s.secrets != nil {
+			result.Err = s.secrets.WriteTx(tx, botId, token, hash)
+		}
 	})
 	if res.Err != nil {
 		if sqlx.IsDuplicate(res.Err) {
@@ -173,20 +192,32 @@ func (s *Store) Creator(ctx context.Context, botId int64) (creator int64, ok boo
 }
 
 // NewToken replaces the token of the bot, which stops working at once, and
-// returns the new one.
+// returns the new one; with secrets, the keys of the new token replace the
+// old ones in the same transaction.
 func (s *Store) NewToken(ctx context.Context, botId int64) (string, error) {
 	token, hash, err := newToken(botId)
 	if err != nil {
 		return "", err
 	}
-	r, err := s.db.Exec(ctx, "UPDATE bots SET token = ? WHERE bot_id = ?", hash, botId)
-	if err != nil {
-		return "", err
-	}
-	if n, err := r.RowsAffected(); err != nil {
-		return "", err
-	} else if n != 1 {
-		return "", fmt.Errorf("botstore: no bot %d", botId)
+	res := sqlx.TxWrapper(ctx, s.db, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
+		r, err := tx.Exec("UPDATE bots SET token = ? WHERE bot_id = ?", hash, botId)
+		if err != nil {
+			result.Err = err
+			return
+		}
+		if n, err := r.RowsAffected(); err != nil {
+			result.Err = err
+			return
+		} else if n != 1 {
+			result.Err = fmt.Errorf("botstore: no bot %d", botId)
+			return
+		}
+		if s.secrets != nil {
+			result.Err = s.secrets.WriteTx(tx, botId, token, hash)
+		}
+	})
+	if res.Err != nil {
+		return "", res.Err
 	}
 	return token, nil
 }
@@ -440,6 +471,20 @@ func httpsURL(u string) bool {
 	return strings.HasPrefix(u, "https://") && len(u) > len("https://") && utf8.RuneCountInString(u) <= maxMenuURL
 }
 
+// builtinDescription is the description viewer sees: the texts of viewer's
+// language first, then, for a built-in inline bot (pkg/inlinebots), its
+// description in viewer's language from the server's own texts, then the
+// default language's description.
+func builtinDescription(botId int64, description string, texts Texts, lang string) string {
+	if texts.Description != nil {
+		return *texts.Description
+	}
+	if b, ok := inlinebots.ByID(botId); ok {
+		return langpack.InlineBotText(b.About, lang)
+	}
+	return description
+}
+
 // BotInfo is the info of the bot as viewer sees it, for userFull.bot_info and
 // the bot_info of a full chat (core.telegram.org/api/bots/commands).
 func (s *Store) BotInfo(ctx context.Context, botId int64, v Viewer) (*mtproto.BotInfo, error) {
@@ -451,9 +496,7 @@ func (s *Store) BotInfo(ctx context.Context, botId int64, v Viewer) (*mtproto.Bo
 	if err != nil {
 		return nil, err
 	}
-	if texts.Description != nil {
-		description = *texts.Description
-	}
+	description = builtinDescription(botId, description, texts, v.Lang)
 	commands, err := s.resolveCommands(ctx, botId, v)
 	if err != nil {
 		return nil, err

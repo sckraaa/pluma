@@ -21,11 +21,15 @@ import (
 )
 
 // Config is what the reports methods need: the tables of moderation
-// (pkg/moderation), and the services the snapshots of a report come from.
+// (pkg/moderation) and of the read metrics (pkg/readmetrics), and the
+// services the snapshots of a report come from and the access to a chat
+// is read from.
 type Config struct {
 	zrpc.RpcServerConf
 	Mysql         sqlx.Config
 	UserClient    zrpc.RpcClientConf
 	MessageClient zrpc.RpcClientConf
 	ChannelClient zrpc.RpcClientConf
+	ChatClient    zrpc.RpcClientConf
+	MediaClient   zrpc.RpcClientConf
 }

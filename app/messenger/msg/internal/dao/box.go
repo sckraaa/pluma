@@ -155,6 +155,14 @@ func (d *Dao) EmitSeqUpdate(b *userbox.Box, u *mtproto.Update, users []*mtproto.
 	return sync_client.EmitSeqUpdate(b, d.Topics.Sync, u, users, chats)
 }
 
+// EmitSeqUpdateExcept is EmitSeqUpdate for an update the authorization on
+// the permanent key exceptAuthKeyId got in its answer: it is journaled for
+// the other authorizations only and pushed to the other devices
+// (sync_client.EmitSeqUpdateExcept, ADR 0022); 0 is EmitSeqUpdate.
+func (d *Dao) EmitSeqUpdateExcept(b *userbox.Box, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat, exceptAuthKeyId int64) error {
+	return sync_client.EmitSeqUpdateExcept(b, d.Topics.Sync, u, users, chats, exceptAuthKeyId)
+}
+
 // EmitPushUpdates adds a push of updates to all of userId's devices, or, for
 // a bot when BotSync is set, to the gateway of bots. Bots are ordinary
 // MTProto clients without BotSync (task 070, ADR 0043): they get the same

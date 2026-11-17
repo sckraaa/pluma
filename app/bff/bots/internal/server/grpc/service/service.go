@@ -23,8 +23,9 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/svc"
 )
 
-// Service is the gRPC server of RPCBots, RPCBotMenuButton, RPCInlineBot and
-// RPCDeepLinks.
+// Service is the gRPC server of RPCBots, RPCBotMenuButton, RPCInlineBot,
+// RPCDeepLinks, RPCBotMenu, RPCGames, RPCSeamless, RPCMiniBotApps,
+// RPCMainMiniBotApps and RPCPreparedInlineMessages.
 type Service struct {
 	svcCtx *svc.ServiceContext
 }
@@ -197,14 +198,20 @@ func (s *Service) BotsSetJoinChatResults(ctx context.Context, request *mtproto.T
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// MessagesEditInlineBotMessage is not served (the brief's follow-ups).
+// MessagesEditInlineBotMessage
+// messages.editInlineBotMessage#a423bb51 flags:# no_webpage:flags.1?true invert_media:flags.16?true id:InputBotInlineMessageID message:flags.11?string media:flags.14?InputMedia reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> rich_message:flags.23?InputRichMessage = Bool;
 func (s *Service) MessagesEditInlineBotMessage(ctx context.Context, request *mtproto.TLMessagesEditInlineBotMessage) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.editInlineBotMessage - metadata: {%s}", c.MD)
+	return c.MessagesEditInlineBotMessage(request)
 }
 
-// MessagesSendBotRequestedPeer is not served.
+// MessagesSendBotRequestedPeer
+// messages.sendBotRequestedPeer#6c5cf2a7 flags:# peer:InputPeer msg_id:flags.0?int webapp_req_id:flags.1?string button_id:int requested_peers:Vector<InputPeer> = Updates;
 func (s *Service) MessagesSendBotRequestedPeer(ctx context.Context, request *mtproto.TLMessagesSendBotRequestedPeer) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.sendBotRequestedPeer - metadata: {%s}", c.MD)
+	return c.MessagesSendBotRequestedPeer(request)
 }
 
 // MessagesSetBotGuestChatResult is not served.

@@ -26,11 +26,26 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	"github.com/teamgram/teamgram-server/pkg/business"
 )
 
 // MessagesSetTyping
 // messages.setTyping#58943ee2 flags:# peer:InputPeer top_msg_id:flags.0?int action:SendMessageAction = Bool;
+//
+// A connected business bot types for its account in the chats it may
+// reply in (task 105, business.Store.Act): the other side sees the
+// account typing.
 func (c *DialogsCore) MessagesSetTyping(in *mtproto.TLMessagesSetTyping) (*mtproto.Bool, error) {
+	if id := c.MD.GetBusinessConnectionId(); id != "" {
+		act, err := c.svcCtx.Dao.Business.Act(c.ctx, c.svcCtx.Dao.UserClient, c.MD.UserId, id, business.MethodSetTyping,
+			mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer()), time.Now())
+		if err != nil {
+			c.Logger.Errorf("messages.setTyping - business connection: %v", err)
+			return nil, err
+		}
+		c.MD.UserId = act.Owner()
+	}
+
 	var (
 		peer = mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
 		date = int32(time.Now().Unix())

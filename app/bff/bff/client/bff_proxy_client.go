@@ -109,24 +109,9 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 		header, trailer metadata.MD
 	)
 
-	// Fixed @LionPuChiPuChi, 2018-12-19
-	// hack
-	timeout := 5 * time.Second
-	switch object.(type) {
-	case *mtproto.TLMessagesSendMedia,
-		*mtproto.TLMessagesSendMultiMedia,
-		*mtproto.TLMessagesUploadMedia,
-		*mtproto.TLMessagesEditMessage:
-		timeout = 60 * time.Second
-	case *mtproto.TLMessagesGetStickerSet,
-		*mtproto.TLMessagesInstallStickerSet:
-		// A set by name may be fetched from Telegram first (task 030,
-		// pkg/catalog/demand).
-		timeout = 60 * time.Second
-	}
 	// Cancel on return: otherwise every call keeps its timer (and context)
 	// alive until the timeout fires.
-	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), timeout)
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), invokeTimeout(object))
 	defer cancel()
 
 	ctx2, _ := metadata.RpcMetadataToOutgoing(ctxWithTimeout, rpcMetaData)
@@ -180,6 +165,49 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 			return reply, nil
 		}
 	}
+}
+
+// translateTimeout is the deadline of a translation: bff waits for the
+// engine up to its SyncWait or SyncWaitSingle, at most
+// translate.MaxSyncWait, and then answers FLOOD_WAIT_X, which the clients
+// wait out; a deadline before that would answer 500, which they repeat
+// without end (ADR 0064). It is the BFF Timeout of session.yaml.
+const translateTimeout = 150 * time.Second
+
+// outsideTimeout is the deadline of the requests that wait for something
+// outside the server, which the session runs aside (runsAside): bff waits
+// for a bot's answer 10 s (bots dao.AnswerWait), a widget's 15 s
+// (WidgetAnswerWait), the search of a built-in inline bot 7 s, and fills a
+// web file in at most 30 s (pkg/webfile fillTimeout); each then answers
+// what the clients expect (BOT_RESPONSE_TIMEOUT, an empty page), which a
+// deadline before it would turn into a 500.
+const outsideTimeout = 40 * time.Second
+
+// invokeTimeout is how long a request waits for bff.
+func invokeTimeout(object mtproto.TLObject) time.Duration {
+	// Fixed @LionPuChiPuChi, 2018-12-19
+	// hack
+	switch object.(type) {
+	case *mtproto.TLMessagesSendMedia,
+		*mtproto.TLMessagesSendMultiMedia,
+		*mtproto.TLMessagesUploadMedia,
+		*mtproto.TLMessagesEditMessage:
+		return 60 * time.Second
+	case *mtproto.TLMessagesGetStickerSet,
+		*mtproto.TLMessagesInstallStickerSet:
+		// A set by name may be fetched from Telegram first (task 030,
+		// pkg/catalog/demand).
+		return 60 * time.Second
+	case *mtproto.TLMessagesTranslateText,
+		*mtproto.TLMessagesComposeMessageWithAI:
+		return translateTimeout
+	case *mtproto.TLMessagesGetBotCallbackAnswer,
+		*mtproto.TLMessagesGetInlineBotResults,
+		*mtproto.TLMessagesGetBotWidgetQueryAnswer,
+		*mtproto.TLUploadGetWebFile:
+		return outsideTimeout
+	}
+	return 5 * time.Second
 }
 
 // rewriteLegacyAndroidRequest gives Android's requests of old constructors

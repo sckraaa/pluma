@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/plugin"
+	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
@@ -47,6 +48,9 @@ type ServiceContext struct {
 	PushDevices pushdevices.Store
 	// Bots finds the bot of a token (auth.importBotAuthorization, task 070).
 	Bots *botstore.Store
+	// BotKeys stores the keys of a bot's token at its login (task 106,
+	// ADR 0068, p. 3); it stores nothing without BOT_SECRET_ENCRYPTION_KEY.
+	BotKeys *botkeys.Store
 	// NewLogin tells the other sessions about a login (task 019).
 	NewLogin newlogin.Notifier
 	// Moderation answers whether a phone is banned (task 025).
@@ -62,6 +66,10 @@ func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *Serv
 	d := dao.New(c)
 	tf := twofa.MustNewService(c.Mysql, c.KV)
 	logx.Must(tf.EnableMail(c.Mail, c.LoginCode.HmacKey))
+	// A key that is set but malformed stops bff: the operator meant the
+	// keys of bots to be stored.
+	botSealer, err := c.BotSecrets.Sealer()
+	logx.Must(err)
 	return &ServiceContext{
 		Config:      c,
 		Dao:         d,
@@ -76,5 +84,6 @@ func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *Serv
 		},
 		Moderation: moderation.New(sqlx.NewMySQL(&c.Mysql)),
 		Bots:       botstore.New(sqlx.NewMySQL(&c.Mysql)),
+		BotKeys:    botkeys.NewStore(sqlx.NewMySQL(&c.Mysql), botSealer),
 	}
 }

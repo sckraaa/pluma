@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -460,7 +461,24 @@ func (d *Dao) EditBanned(b *userbox.Box, channelId, userId int64, rights, until 
 	if err = logParticipant(b, channelId, userId, t, &next, false); err != nil {
 		return nil, err
 	}
+	if err = banStats(b, channelId, t, rights); err != nil {
+		return nil, err
+	}
 	return change, nil
+}
+
+// banStats counts the kick or the restriction of the target t by b's owner
+// among the admins' actions (channelstats): lifting one is no such action,
+// nor is anything done to a ghost's hidden row, which nobody sees.
+func banStats(b *userbox.Box, channelId int64, t *targetRow, rights int32) error {
+	if rights == 0 || t != nil && t.Hidden {
+		return nil
+	}
+	action := channelstats.Banned
+	if rights&mtproto.BANNED_VIEW_MESSAGES != 0 {
+		action = channelstats.Kicked
+	}
+	return channelstats.AdminAction(b.Tx(), channelId, b.UserId(), b.Date(), action, 1)
 }
 
 // logParticipant records a change of rights of userId in the recent actions:
@@ -504,6 +522,9 @@ func (d *Dao) kick(b *userbox.Box, ch *channelbox.Channel, a *actor, change *Cha
 			}
 		}
 		if _, err := b.Tx().Exec("UPDATE channels SET participants_count = GREATEST(participants_count - 1, 0) WHERE id = ?", channelId); err != nil {
+			return err
+		}
+		if err := channelstats.MemberLeft(b.Tx(), channelId, userId, b.Date()); err != nil {
 			return err
 		}
 	}

@@ -32,6 +32,7 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/contactnotes"
 )
 
@@ -48,6 +49,18 @@ type Dao struct {
 	// Notes are the private notes of an account on its contacts
 	// (userFull.note, task 084).
 	Notes Notes
+	// Business is the Business part of profiles: work hours, location,
+	// intro (userFull.business_*, task 105).
+	Business BusinessProfiles
+}
+
+// BusinessProfiles reads the Business part of profiles (pkg/business), the
+// automatic replies of an account and the bar of the connected bot of a
+// chat.
+type BusinessProfiles interface {
+	Profile(ctx context.Context, userID int64) (business.Profile, error)
+	AutoReplies(ctx context.Context, userID int64) ([]*business.AutoReply, error)
+	PeerBar(ctx context.Context, users business.Users, host string, userID, peerID int64) (*business.PeerBar, error)
 }
 
 // Notes reads the private notes on contacts (pkg/contactnotes).
@@ -67,5 +80,6 @@ func New(c config.Config, plugin1 plugin.StoryPlugin, plugin2 plugin.PersonalCha
 		WallpaperPlugin:       plugin3,
 		Bots:                  botstore.New(sqlx.NewMySQL(&c.Mysql)),
 		Notes:                 contactnotes.NewStore(sqlx.NewMySQL(&c.Mysql)),
+		Business:              business.NewStore(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

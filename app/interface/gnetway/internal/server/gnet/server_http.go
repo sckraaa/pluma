@@ -14,6 +14,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	httpcodec "github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/http"
 	"github.com/teamgram/teamgram-server/app/interface/session/session"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 
 	"github.com/panjf2000/gnet/v2"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -89,20 +90,20 @@ func (s *Server) httpHandshakeIO(c gnet.Conn) *handshakeIO {
 	if ctx, _ := c.Context().(*connContext); ctx != nil {
 		clientIp = ctx.clientIp
 	}
-	return &handshakeIO{
+	return s.bindHandshakeIO(&handshakeIO{
 		connId:   c.ConnId(),
 		clientIp: clientIp,
 		states:   s.httpHandshakes,
 		reply: func(c gnet.Conn, answer mtproto.TLObject) {
 			metricHandshake.Inc("ok")
-			s.writeHttpResponse(c, httpcodec.FormatResponse(handshakePayload(answer)))
+			s.writeHttpResponse(c, httpcodec.FormatResponse(handshake.Payload(answer)))
 		},
 		fail: func(c gnet.Conn, err error) {
 			metricHandshake.Inc("error")
 			logx.Errorf("conn(%d) HTTP handshake: %v", c.ConnId(), err)
 			s.writeHttpResponse(c, httpcodec.FormatResponse(nil))
 		},
-	}
+	})
 }
 
 // writeHttpResponse answers the request in progress on c.

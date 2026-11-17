@@ -1,0 +1,10 @@
+{
+  "name": "pluma-maps-styles",
+  "private": true,
+  "description": "Builds the map styles of the maps service (teamgramd/deploy/maps/Dockerfile)",
+  "type": "module",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@protomaps/basemaps": "5.7.2"
+  }
+}

@@ -21,6 +21,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
+	"github.com/teamgram/teamgram-server/pkg/cdn"
 )
 
 // UploadGetFile
@@ -130,6 +131,23 @@ func (c *FilesCore) UploadGetFile(in *mtproto.TLUploadGetFile) (*mtproto.Upload_
 	default:
 		c.Logger.Errorf("upload.getFile - error: invalid location")
 		return nil, mtproto.ErrLocationInvalid
+	}
+
+	// A large file prepared for the origin is redirected to an HTTPS
+	// delivery when the client sent pluma_cdn (task 107, ADR 0071); any
+	// other is served from home, and queued for its preparation if it may
+	// go through the CDN. A request without cdn_supported may be a patched
+	// client falling back from the delivery, which its key then avoids;
+	// one under invokeWithTakeout is a data export, which never asks for
+	// the CDN (tdesktop export/export_api_wrap.cpp:760-766 sends flags 0).
+	if c.svcCtx.CDN != nil {
+		if cdn.Wants(in) {
+			if redirect, _ := c.svcCtx.CDN.Redirect(c.ctx, c.MD.GetPermAuthKeyId(), location, offset); redirect != nil {
+				return redirect, nil
+			}
+		} else if !in.GetCdnSupported() && c.MD.GetTakeout().GetId() == 0 {
+			c.svcCtx.CDN.ServedHome(c.MD.GetPermAuthKeyId(), location)
+		}
 	}
 
 	uploadFile, err := c.svcCtx.Dao.DfsClient.DfsDownloadFile(c.ctx, &dfs.TLDfsDownloadFile{

@@ -37,7 +37,7 @@
     <operation name="SelectByAuthKeyId">
         <sql>
             SELECT
-               auth_key_id, layer, api_id, device_model, system_version, app_version, system_lang_code, lang_pack, lang_code, client_ip, date_active
+               auth_key_id, layer, api_id, device_model, system_version, app_version, system_lang_code, lang_pack, lang_code, proxy, params, client_ip, date_active
             FROM
                 auths
             WHERE

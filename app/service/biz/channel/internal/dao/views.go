@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -64,7 +65,15 @@ func placeholders(n int) string {
 // view), not for a message of a supergroup, which has no views, and not
 // for a ghost (ADR 0048, p. 5), whose views nobody sees. A channel selfId
 // may not read is CHANNEL_PRIVATE.
-func (d *Dao) IncrementViews(ctx context.Context, selfId, channelId int64, ids []int32) error {
+//
+// source is where the posts were viewed from (task 103): the first view of
+// a user keeps it, a view repeated from elsewhere changes nothing, as the
+// view is counted once. A view in the channel itself by one who is no
+// member of it, a reader of a public channel, is no subscriber's.
+func (d *Dao) IncrementViews(ctx context.Context, selfId, channelId int64, ids []int32, source channelstats.ViewSource) error {
+	if source < channelstats.ViewOther || source > channelstats.ViewPrivate {
+		return mtproto.ErrInputRequestInvalid
+	}
 	v, err := d.viewerOf(ctx, selfId, channelId)
 	if err != nil {
 		return err
@@ -74,6 +83,9 @@ func (d *Dao) IncrementViews(ctx context.Context, selfId, channelId int64, ids [
 	}
 	if !v.broadcast {
 		return nil
+	}
+	if source == channelstats.ViewSubscriber && !v.member {
+		source = channelstats.ViewOther
 	}
 	if hidden, err := ghost.IsGhost(ghost.OnDB(ctx, d.Mysql.DB), selfId); err != nil || hidden {
 		return err
@@ -104,8 +116,8 @@ func (d *Dao) IncrementViews(ctx context.Context, selfId, channelId int64, ids [
 		// A transaction that is run again starts over.
 		counted = counted[:0]
 		for _, id := range fresh {
-			res, err := b.Tx().Exec("INSERT IGNORE INTO channel_message_views (channel_id, message_id, user_id, `date`) VALUES (?, ?, ?, ?)",
-				channelId, id, selfId, b.Date())
+			res, err := b.Tx().Exec("INSERT IGNORE INTO channel_message_views (channel_id, message_id, user_id, `date`, source) VALUES (?, ?, ?, ?, ?)",
+				channelId, id, selfId, b.Date(), int8(source))
 			if err != nil {
 				return err
 			}

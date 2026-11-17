@@ -23,9 +23,29 @@ import (
 
 // AccountUpdateWebBrowserSettings
 // account.updateWebBrowserSettings#9adf82fe flags:# open_external_browser:flags.0?true display_close_button:flags.1?true = account.WebBrowserSettings;
+//
+// Both clients send both flags and take the answer as their copy (Android
+// MessagesController.java:25645-25660, iOS
+// AccountWebBrowserSettings.swift:142-160); the other devices get
+// updateWebBrowserSettings.
 func (c *WebBrowserCore) AccountUpdateWebBrowserSettings(in *mtproto.TLAccountUpdateWebBrowserSettings) (*mtproto.Account_WebBrowserSettings, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.updateWebBrowserSettings blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	if c.MD.IsBot {
+		err := mtproto.ErrBotMethodInvalid
+		c.Logger.Errorf("account.updateWebBrowserSettings - error: %v", err)
+		return nil, err
+	}
+	if err := c.svcCtx.Store.SetFlags(c.ctx, c.MD.UserId, in.GetOpenExternalBrowser(), in.GetDisplayCloseButton()); err != nil {
+		c.Logger.Errorf("account.updateWebBrowserSettings - error: %v", err)
+		return nil, err
+	}
+	s, err := c.svcCtx.Store.Get(c.ctx, c.MD.UserId)
+	if err != nil {
+		c.Logger.Errorf("account.updateWebBrowserSettings - error: %v", err)
+		return nil, err
+	}
+	c.pushOthers("account.updateWebBrowserSettings", mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateWebBrowserSettings(&mtproto.Update{
+		OpenExternalBrowser_FLAGBOOLEAN: s.OpenExternal,
+		DisplayCloseButton:              s.DisplayCloseButton,
+	}).To_Update()))
+	return settingsOf(s), nil
 }

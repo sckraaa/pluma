@@ -49,7 +49,9 @@ const (
 //     of users is told so that user.stories_max_id of the viewers follows;
 //   - a change of a user's stories whose telling failed (stories.Store.Dirty)
 //     is told again;
-//   - the messages of a story's mentions that were not sent are sent.
+//   - the messages of a story's mentions that were not sent are sent;
+//   - a story whose tags and places are not in the search index yet (one
+//     stored before the index existed) is indexed.
 //
 // It holds no state of its own: everything is in the tables, so a restart
 // or a second instance changes nothing.
@@ -126,6 +128,17 @@ func (s *Sweeper) Pass(ctx context.Context) {
 			continue
 		}
 		c.tellMentions(st)
+	}
+
+	unindexed, err := store.Unindexed(ctx, sweepBatch)
+	if err != nil {
+		c.Logger.Errorf("stories: unindexed stories: %v", err)
+	}
+	for _, r := range unindexed {
+		// A failure leaves the story unindexed for the next pass.
+		if err := store.Reindex(ctx, r.Peer, r.Id); err != nil {
+			c.Logger.Errorf("stories: index of story %d of peer %d/%d: %v", r.Id, r.Peer.Type, r.Peer.Id, err)
+		}
 	}
 }
 

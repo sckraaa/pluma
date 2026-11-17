@@ -218,6 +218,7 @@ func TestMessageActions(t *testing.T) {
 		{"gif", document(video, animated), []Action{SendGifs}},
 		{"poll", media(mtproto.MakeTLMessageMediaPoll(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendPolls}},
 		{"game", media(mtproto.MakeTLMessageMediaGame(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendGames}},
+		{"widget", media(mtproto.MakeTLMessageMediaWidget(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendPhotos}},
 		{"dice", media(mtproto.MakeTLMessageMediaDice(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendStickers}},
 		{"location", media(mtproto.MakeTLMessageMediaGeo(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendMedia}},
 		{"contact", media(mtproto.MakeTLMessageMediaContact(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendMedia}},
@@ -255,6 +256,42 @@ func TestBlockedChannel(t *testing.T) {
 	for _, p := range []Participant{member, creator, admin(math.MaxInt32)} {
 		for _, a := range []Action{SendPlain, InviteUsers, ChangeInfo, PinMessages} {
 			check(t, "blocked", Can(blocked, p, a, now), mtproto.ErrChannelPrivate)
+		}
+	}
+}
+
+// The statistics: the creator in the channel, an admin with post_messages
+// in a broadcast channel, with ban_users in a supergroup (a broadcast group
+// too); nobody else, nobody out of the channel, nothing in the direct
+// messages of a channel or a blocked one.
+func TestCanViewStats(t *testing.T) {
+	gigagroup := Channel{Gigagroup: true}
+	left := creator
+	left.State = StateLeft
+	kicked := admin(math.MaxInt32)
+	kicked.State = StateKicked
+	for _, c := range []struct {
+		name string
+		ch   Channel
+		p    Participant
+		want bool
+	}{
+		{"creator of a channel", broadcast, creator, true},
+		{"creator of a supergroup", supergroup, creator, true},
+		{"creator who left", broadcast, left, false},
+		{"kicked admin", supergroup, kicked, false},
+		{"channel admin who posts", broadcast, admin(mtproto.ADMIN_POST_MESSAGES), true},
+		{"channel admin who does not post", broadcast, admin(CreatorRights &^ mtproto.ADMIN_POST_MESSAGES), false},
+		{"group admin who bans", supergroup, admin(mtproto.ADMIN_BAN_USERS), true},
+		{"group admin who does not ban", supergroup, admin(CreatorRights &^ mtproto.ADMIN_BAN_USERS), false},
+		{"broadcast group admin who bans", gigagroup, admin(mtproto.ADMIN_BAN_USERS), true},
+		{"channel subscriber", broadcast, member, false},
+		{"group member", supergroup, member, false},
+		{"direct messages", Channel{Monoforum: true}, creator, false},
+		{"blocked", Channel{Broadcast: true, Blocked: true}, creator, false},
+	} {
+		if got := CanViewStats(c.ch, c.p); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
 		}
 	}
 }

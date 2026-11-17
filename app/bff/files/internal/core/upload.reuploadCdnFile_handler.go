@@ -24,11 +24,14 @@ import (
 
 // UploadReuploadCdnFile
 // upload.reuploadCdnFile#9b2754a8 file_token:bytes request_token:bytes = Vector<FileHash>;
+//
+// Always FILE_TOKEN_INVALID, which sends a client back to upload.getFile:
+// an HTTPS delivery pulls a file it lacks from the origin by itself (task
+// 107, ADR 0071 §9). With the CDN on, a user is limited to 30 calls a
+// minute (cdn.Home.Reupload).
 func (c *FilesCore) UploadReuploadCdnFile(in *mtproto.TLUploadReuploadCdnFile) (*mtproto.Vector_FileHash, error) {
-	// TODO: not impl
-	c.Logger.Errorf("upload.reuploadCdnFile blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return &mtproto.Vector_FileHash{
-		Datas: []*mtproto.FileHash{},
-	}, nil
+	if c.svcCtx.CDN == nil {
+		return nil, mtproto.ErrFileTokenInvalid
+	}
+	return nil, c.svcCtx.CDN.Reupload(c.MD.GetUserId())
 }

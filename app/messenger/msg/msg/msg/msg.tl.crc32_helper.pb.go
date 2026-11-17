@@ -67,4 +67,24 @@ const (
 	CRC32_msg_appendTodoList TLConstructor = 1736696679 // 0x6783e367
 	// pluma: task 062
 	CRC32_msg_editTodoList TLConstructor = 1650536534 // 0x62613056
+	// pluma: task 105
+	CRC32_msg_addQuickReplyMessages TLConstructor = -1870021481 // 0x9089bc97
+	// pluma: task 105
+	CRC32_msg_getQuickReplies TLConstructor = -1929423195 // 0x8cff56a5
+	// pluma: task 105
+	CRC32_msg_getQuickReplyMessages TLConstructor = -795620081 // 0xd093cd0f
+	// pluma: task 105
+	CRC32_msg_checkQuickReplyShortcut TLConstructor = 560356858 // 0x21665dfa
+	// pluma: task 105
+	CRC32_msg_editQuickReplyShortcut TLConstructor = -881831873 // 0xcb70503f
+	// pluma: task 105
+	CRC32_msg_reorderQuickReplies TLConstructor = 166649548 // 0x9eedecc
+	// pluma: task 105
+	CRC32_msg_deleteQuickReplyShortcut TLConstructor = -1549977524 // 0xa39d384c
+	// pluma: task 105
+	CRC32_msg_editQuickReplyMessage TLConstructor = 514595667 // 0x1eac1b53
+	// pluma: task 105
+	CRC32_msg_deleteQuickReplyMessages TLConstructor = -811849787 // 0xcf9c27c5
+	// pluma: task 105
+	CRC32_msg_sendQuickReplyMessages TLConstructor = -1719038159 // 0x99898f31
 )

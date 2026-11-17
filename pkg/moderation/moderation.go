@@ -48,6 +48,13 @@ const (
 	// stories, a user or a channel, and the messages of the snapshot are
 	// the stories: their ids, captions and media.
 	KindStory int8 = 7
+	// KindReaction: messages.reportReaction (task 098). The peer is the
+	// supergroup, the target the user who reacted, the message of the
+	// snapshot the one reacted to (its author is not accused) and the
+	// snapshot's Reaction the reaction. A decision restricts or bans the
+	// user; it deletes nothing (an admin takes the reaction away with
+	// messages.deleteParticipantReaction).
+	KindReaction int8 = 8
 )
 
 // Statuses of a report.
@@ -114,6 +121,11 @@ type Snapshot struct {
 	Users     []SnapshotUser    `json:"users,omitempty"`
 	Messages  []SnapshotMessage `json:"messages,omitempty"`
 	PhotoId   int64             `json:"photo_id,omitempty"`
+	// Reaction is what the user of a KindReaction report reacted to the
+	// message with, as pkg/reactions stores it (reactions.Key: "e" and the
+	// emoticon, or "c" and the document id of a custom emoji); several
+	// reactions are joined by commas in the order they were chosen.
+	Reaction string `json:"reaction,omitempty"`
 }
 
 // Report is a report of a user.
@@ -187,9 +199,13 @@ func TruncateComment(comment string) string {
 }
 
 // dedupKey identifies one report of the same thing by the same reporter.
+// The reactions of different users to one message are different things.
 func dedupKey(r *Report, ids []int32) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%d|%d|%d|%d|%s", r.ReporterUserId, r.Kind, r.PeerType, r.PeerId, r.Reason)
+	if r.Kind == KindReaction {
+		fmt.Fprintf(&b, "|u%d", r.TargetUserId)
+	}
 	for _, id := range ids {
 		fmt.Fprintf(&b, "|%d", id)
 	}

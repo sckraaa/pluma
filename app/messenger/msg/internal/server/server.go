@@ -55,7 +55,10 @@ type Server struct {
 	relay   *outbox.Relay
 	// scheduled delivers the schedule queues (task 061).
 	scheduled interface{ Stop() }
-	polls     *msg_helper.PollSweeper
+	// autoReplies sends the automatic replies of Telegram Business (task
+	// 105).
+	autoReplies interface{ Stop() }
+	polls       *msg_helper.PollSweeper
 	// stopExpiry stops the worker of the auto-deletion of messages.
 	stopExpiry context.CancelFunc
 
@@ -107,6 +110,11 @@ func (s *Server) Initialize() error {
 	scheduled := msg_helper.NewScheduledWorker(d, nil)
 	scheduled.Start()
 	s.scheduled = scheduled
+	// The queue of automatic replies is a table too: the replies queued
+	// before a restart go out after it.
+	autoReplies := msg_helper.NewAutoReplyWorker(d, nil)
+	autoReplies.Start()
+	s.autoReplies = autoReplies
 	s.polls = msg_helper.StartPollSweeper(d)
 
 	expiry, stop := context.WithCancel(context.Background())
@@ -138,6 +146,9 @@ func (s *Server) Destroy() {
 	s.draining.Store(true)
 	if s.scheduled != nil {
 		s.scheduled.Stop()
+	}
+	if s.autoReplies != nil {
+		s.autoReplies.Stop()
 	}
 	if s.polls != nil {
 		s.polls.Stop()

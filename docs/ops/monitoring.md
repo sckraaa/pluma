@@ -71,3 +71,71 @@
 | `GroupCallsConnectFailing` | больше половины соединений с SFU не проходят ICE или DTLS: адрес, порты, межсетевой экран |
 | `GroupCallsUplinkSaturated` | SFU отдаёт больше 90% заданного лимита отдачи, видео идёт в худшем качестве |
 | `GroupCallsEventsDropped` | bff не успевает читать события SFU; ушедших из звонка выведет сборщик, но позже |
+
+## Перевод сообщений
+Правила — `teamgramd/deploy/prometheus/server/rules/translate.yml`, метрики bff `translate_*` (задача 101, ADR 0064 §13), панели — строка «Translation» дашборда «Pluma overview». Без `TRANSLATE_URL` bff метрик перевода не публикует и ничего не срабатывает. Что делать — `docs/ops/translation.md`, раздел «Тревоги».
+
+| Алерт | Что значит |
+|---|---|
+| `TranslateEngineDown` | движок 10 минут недоступен (не отвечает, 5xx, 429, отверг токен): все переводы получают «подождите» |
+| `TranslateItemsFailing` | движок отвечает, но переводы в нём не получаются: отказ, срок, ответ без перевода |
+| `TranslateTooSlow` | движок не успевает: больше половины пачек чата отвечены «подождите» |
+| `TranslateCacheFailing` | кэш переводов в MySQL не читается или не пишется: каждый перевод снова идёт в движок |
+
+## Карты в геопозициях
+Правила — группа `maps` в `teamgramd/deploy/prometheus/server/rules/maps.yml`, метрики bff `webmap_render_total{result}`, `webmap_render_seconds`, `webmap_cache_total{result}`, `webmap_flood_total`, `webmap_limit_errors_total` (задача 100, ADR 0063 §8). Цели у самого сервиса `maps` нет: он в закрытой сети `maps_net`, куда Prometheus не входит, и метрик у tileserver-gl нет, поэтому `ServiceDown` о нём молчит — о нём говорят рендеры bff. Без `MAPS_URL` карты не рисуются и ничего не срабатывает; попадания в кэш Redis рендеров не вызывают. Что делать — `docs/ops/maps.md`, раздел «Неполадки».
+
+| Алерт | Что значит |
+|---|---|
+| `MapsRendererDown` | 15 минут ни одной нарисованной карты при запросах: контейнер `maps` остановлен или не стартует (нет файла данных, нехватка памяти), либо bff пересоздан без `docker-compose.maps.yaml` и не видит `maps`. Новые геопозиции показываются без карты |
+| `MapsRenderFailing` | больше 20 % рендеров за 10 минут (от 10 запросов) не удаются: `timeout` — перегрузка или нехватка CPU, `error` — стиль, которого нет в образе, или сбой сервиса, `invalid` — картинка не того размера |
+
+## Встроенные инлайн-боты `@gif` и `@pic`
+Правила — группа `inline_bots` в `teamgramd/deploy/prometheus/server/rules/codes.yml`, метрики bff (задача 099, ADR 0062):
+- `inline_builtin_requests_total{bot, result}`;
+- `inline_import_total{kind, result}`, `inline_import_bytes_total{kind}`;
+- `inline_bot_misconfigured{bot}`;
+- `webfile_requests_total{kind, result}`, `webfile_cache_bytes`.
+
+Что делать по каждому алерту и что значат метки — `docs/ops/inline-bots.md`, раздел «Метрики и алерты».
+
+| Алерт | Что значит |
+|---|---|
+| `InlineProviderFailing` | у бота за 15 минут больше половины запросов кончились ошибкой (и их не меньше трёх). Пользователи видят «ничего не найдено». У `@pic` обычно SearXNG не работает или все движки картинок блокируют адрес |
+| `InlineBotMisconfigured` | учётная запись бота расходится с реестром, обычно его имя занято. Бот отвечает `BOT_INLINE_DISABLED`, вкладка GIF пуста, если это `@gif` |
+| `InlineImportBudgetSpent` | дневной бюджет импорта медиа кончился до 18:00 UTC: новые картинки не импортируются до 00:00 UTC |
+
+## Telegram Business
+Правила — группа `business` в `teamgramd/deploy/prometheus/server/rules/business.yml`, метрики msg `business_autoreply_total{kind, result}`, `business_bot_updates_total{kind}` и bff `business_chatlink_resolve_total{result}` (задача 105, ADR 0067). Серии `business_autoreply_total` msg заводит нулевыми при старте (иначе первый сбой не попал бы в `increase`); пока никто не включил автоответ, они остаются нулём и ничего не срабатывает. Что делать — `docs/ops/business.md`, раздел «Метрики и алерт».
+
+| Алерт | Что значит |
+|---|---|
+| `BusinessAutoReplyFailing` | больше 10 % автоответов за 15 минут брошены после 10 попыток: собеседники не получили приветствие или «нет на месте»; причина — в логе msg |
+
+## CDN больших файлов
+Правила — группа `cdn` в `teamgramd/deploy/prometheus/server/rules/cdn.yml` (задача 107, ADR 0071). Метрики публикует bff, только пока включена выдача (`CDN_GCORE_BASE_URL`); без неё метрик нет и ничего не срабатывает. Что делать по каждому алерту — `docs/ops/cdn.md`, раздел «Неполадки».
+
+Метрики bff (`pkg/cdn/metrics.go`; ни id файлов, ни токенов, ни адресов в них нет):
+- `pluma_cdn_redirects_total{dc, result}` — решения `upload.getFile` с `cdn_supported`:
+  - `redirect` — редирект;
+  - `no_caps` — клиент без признака `pluma_cdn`;
+  - `small` — файл меньше порога;
+  - `not_ready` — ещё не подготовлен, отдан из дома и поставлен в очередь;
+  - `unhealthy`, `avoided`, `budget` — выдача нездорова, ключ её избегает, месяц исчерпан;
+  - `error` — сбой, файл отдан из дома;
+- `pluma_cdn_fallback_total{dc}` — клиенты, откатившиеся домой после редиректа;
+- `pluma_cdn_delivery_healthy{dc}` — 1, пока проверка выдачи проходит;
+- `pluma_cdn_dev_http{dc}` — 1 у выдачи с `http://` (только стенд e2e);
+- `pluma_cdn_prepare_total{result}`, `pluma_cdn_prepare_bytes_total`, `pluma_cdn_queue{state}` — подготовка хэшей и её очередь;
+- `pluma_cdn_origin_requests_total{code}`, `pluma_cdn_origin_bytes_total`, `pluma_cdn_origin_inflight` — запросы Gcore к источнику дома (`code="aborted"` — ответ оборван из-за ошибки чтения dfs);
+- `pluma_cdn_usage_bytes{dc, kind}` (`origin` — точно, `edge_est` — оценка отдачи Gcore) и `pluma_cdn_usage_limit_bytes{dc}` — трафик месяца (UTC) и бюджет;
+- `pluma_cdn_reupload_total{result}` — вызовы `upload.reuploadCdnFile` (патченные клиенты его не зовут).
+
+| Алерт | Что значит |
+|---|---|
+| `CdnDeliveryUnhealthy` | проверка выдачи не проходит 10 минут: редиректов на неё нет, большие файлы идут из дома. Причина — `cdn_deliveries.unhealthy_reason` |
+| `CdnPrepareFailing` | больше половины подготовок за 30 минут не удаются (от трёх), или растёт число окончательно не подготовленных файлов; эти файлы идут из дома |
+| `CdnFallbackHigh` | больше 20 % редиректов за 30 минут (от 20) кончились откатом клиента домой: CDN отдаёт клиентам то, что они отвергают, а проверка канарейки этого не видит |
+| `CdnBudget` | выдача израсходовала 80 % месячного бюджета (`CDN_GCORE_MONTHLY_GB`); на 100 % она выходит из маршрута до 1-го числа |
+| `CdnOriginBusy` | больше 1 % запросов Gcore к источнику за 15 минут получили 503: все места заняты |
+| `CdnDevHttp` (critical) | выдача работает по `http://` (`CDN_DEV_ALLOW_HTTP=1`): так можно только стенду e2e; релизные клиенты такой URL отвергают |

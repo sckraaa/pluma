@@ -123,6 +123,13 @@ func TestSeqUpdate(t *testing.T) {
 		mtproto.Predicate_updateUserEmojiStatus,
 		mtproto.Predicate_updateRecentEmojiStatuses,
 		mtproto.Predicate_updateSavedRingtones,
+		mtproto.Predicate_updateQuickReplies,
+		mtproto.Predicate_updateNewQuickReply,
+		mtproto.Predicate_updateDeleteQuickReply,
+		mtproto.Predicate_updateQuickReplyMessage,
+		mtproto.Predicate_updateDeleteQuickReplyMessages,
+		mtproto.Predicate_updateAttachMenuBots,
+		mtproto.Predicate_updateWebViewResultSent,
 	} {
 		if !SeqUpdate(p) {
 			t.Errorf("%s goes without seq", p)

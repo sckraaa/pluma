@@ -27,13 +27,15 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// replySource reads the sources of a reply of c's user (replyheader.Source).
+// replySource reads the sources of a reply of userId (replyheader.Source):
+// c's user, or the user a bot's answer of a web view goes from.
 type replySource struct {
-	c *BotsCore
+	c      *BotsCore
+	userId int64
 }
 
 func (s replySource) Message(id int32) (*mtproto.MessageBox, error) {
-	box, err := s.c.svcCtx.MessageGetUserMessage(s.c.ctx, &message.TLMessageGetUserMessage{UserId: s.c.MD.UserId, Id: id})
+	box, err := s.c.svcCtx.MessageGetUserMessage(s.c.ctx, &message.TLMessageGetUserMessage{UserId: s.userId, Id: id})
 	if errors.Is(err, mtproto.ErrMessageIdInvalid) {
 		return nil, nil
 	}
@@ -51,14 +53,14 @@ func (s replySource) ChatNoforwards(chatId int64) (bool, error) {
 // AuthorOrigin names the author, or only their name when their forward
 // privacy hides the account from the user, as the header of a forward does.
 func (s replySource) AuthorOrigin(box *mtproto.MessageBox) (*mtproto.MessageFwdHeader, error) {
-	ids := []int64{box.GetSenderUserId(), s.c.MD.UserId}
+	ids := []int64{box.GetSenderUserId(), s.userId}
 	users, err := s.c.svcCtx.UserGetMutableUsersV2(s.c.ctx, &userpb.TLUserGetMutableUsersV2{Id: ids, Privacy: true, HasTo: true, To: ids})
 	if err != nil {
 		return nil, err
 	}
 	header := &mtproto.MessageFwdHeader{Date: box.GetMessage().GetDate()}
 	author, ok := users.GetImmutableUser(box.GetSenderUserId())
-	me, ok2 := users.GetImmutableUser(s.c.MD.UserId)
+	me, ok2 := users.GetImmutableUser(s.userId)
 	switch {
 	case ok && ok2 && author.CheckPrivacyFor(mtproto.FORWARDS, me):
 		header.FromId = mtproto.MakePeerUser(box.GetSenderUserId())

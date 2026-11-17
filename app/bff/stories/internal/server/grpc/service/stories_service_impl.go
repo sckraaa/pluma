@@ -269,3 +269,59 @@ func (s *Service) StoriesReportC95BE06A(ctx context.Context, request *mtproto.TL
 	c.Logger.Debugf("stories.report#c95be06a - metadata: {%s}", c.MD)
 	return c.StoriesReportC95BE06A(request)
 }
+
+// StoriesCreateAlbum
+// stories.createAlbum#a36396e5 peer:InputPeer title:string stories:Vector<int> = StoryAlbum;
+func (s *Service) StoriesCreateAlbum(ctx context.Context, request *mtproto.TLStoriesCreateAlbum) (*mtproto.StoryAlbum, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stories.createAlbum - metadata: {%s}", c.MD)
+	return c.StoriesCreateAlbum(request)
+}
+
+// StoriesUpdateAlbum
+// stories.updateAlbum#5e5259b6 flags:# peer:InputPeer album_id:int title:flags.0?string delete_stories:flags.1?Vector<int> add_stories:flags.2?Vector<int> order:flags.3?Vector<int> = StoryAlbum;
+func (s *Service) StoriesUpdateAlbum(ctx context.Context, request *mtproto.TLStoriesUpdateAlbum) (*mtproto.StoryAlbum, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stories.updateAlbum - metadata: {%s}", c.MD)
+	return c.StoriesUpdateAlbum(request)
+}
+
+// StoriesReorderAlbums
+// stories.reorderAlbums#8535fbd9 peer:InputPeer order:Vector<int> = Bool;
+func (s *Service) StoriesReorderAlbums(ctx context.Context, request *mtproto.TLStoriesReorderAlbums) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stories.reorderAlbums - metadata: {%s}", c.MD)
+	return c.StoriesReorderAlbums(request)
+}
+
+// StoriesDeleteAlbum
+// stories.deleteAlbum#8d3456d0 peer:InputPeer album_id:int = Bool;
+func (s *Service) StoriesDeleteAlbum(ctx context.Context, request *mtproto.TLStoriesDeleteAlbum) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stories.deleteAlbum - metadata: {%s}", c.MD)
+	return c.StoriesDeleteAlbum(request)
+}
+
+// StoriesGetAlbums
+// stories.getAlbums#25b3eac7 peer:InputPeer hash:long = stories.Albums;
+func (s *Service) StoriesGetAlbums(ctx context.Context, request *mtproto.TLStoriesGetAlbums) (*mtproto.Stories_Albums, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stories.getAlbums - metadata: {%s}", c.MD)
+	return c.StoriesGetAlbums(request)
+}
+
+// StoriesGetAlbumStories
+// stories.getAlbumStories#ac806d61 peer:InputPeer album_id:int offset:int limit:int = stories.Stories;
+func (s *Service) StoriesGetAlbumStories(ctx context.Context, request *mtproto.TLStoriesGetAlbumStories) (*mtproto.Stories_Stories, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stories.getAlbumStories - metadata: {%s}", c.MD)
+	return c.StoriesGetAlbumStories(request)
+}
+
+// StoriesSearchPosts
+// stories.searchPosts#d1810907 flags:# hashtag:flags.0?string area:flags.1?MediaArea peer:flags.2?InputPeer offset:string limit:int = stories.FoundStories;
+func (s *Service) StoriesSearchPosts(ctx context.Context, request *mtproto.TLStoriesSearchPosts) (*mtproto.Stories_FoundStories, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stories.searchPosts - metadata: {%s}", c.MD)
+	return c.StoriesSearchPosts(request)
+}

@@ -15,12 +15,14 @@
 
 // Package bots serves the methods of bot accounts at the MTProto level (task
 // 070, ADR 0043): commands, texts and the menu button of a bot, button
-// presses, inline queries and /start. The Bot API over HTTP and mini apps
-// are out of its scope.
+// presses, inline queries and /start, and the bot platform of task 106
+// (ADR 0068): logins on sites and mini apps. The Bot API over HTTP is out of
+// its scope.
 package bots
 
 import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/config"
+	"github.com/teamgram/teamgram-server/app/bff/bots/internal/inline"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/server/grpc/service"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/svc"
 )
@@ -28,6 +30,9 @@ import (
 type (
 	// Config is the configuration of the service.
 	Config = config.Config
+	// InlineBotsConfig is InlineBots of bff.yaml: the providers of the
+	// built-in inline bots and the budget of their imports.
+	InlineBotsConfig = inline.Config
 )
 
 // New returns the service.

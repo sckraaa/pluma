@@ -23,15 +23,20 @@ import (
 )
 
 // MessagesSummarizeText
-// messages.summarizeText#9d4104e2 flags:# peer:InputPeer id:int to_lang:flags.0?string = TextWithEntities;
+// messages.summarizeText#abbbd346 flags:# peer:InputPeer id:int to_lang:flags.0?string tone:flags.2?string = TextWithEntities;
+//
+// Refused (task 098, part D): the server has no model to summarize with,
+// and an empty text would be a made-up answer. The clients do not get here
+// on their own: they offer a summary only of a message with
+// summary_from_language (Desktop history/history_item_helpers.cpp:986-988,
+// Android messenger/TranslateController.java:143, Web
+// components/chat/bubbles.ts:10653), which the server never fills. On an
+// error Android closes its sheet (ui/Components/TranslateAlert2.java:384-398)
+// and iOS shows a generic failure (TelegramEngine/Messages/Summarize.swift:30-44).
+// Not TRANSLATIONS_DISABLED_ALT: on it Android summarizes on the device
+// with a third-party translator (TranslateAlert2.java:384-385), and the
+// text must not leave the server (ADR 0057).
 func (c *MessagesCore) MessagesSummarizeText(in *mtproto.TLMessagesSummarizeText) (*mtproto.TextWithEntities, error) {
-	// TODO: not impl
-	// c.Logger.Errorf("messages.summarizeText - error: method MessagesSummarizeText not impl")
-
-	rV := mtproto.MakeTLTextWithEntities(&mtproto.TextWithEntities{
-		Text:     "",
-		Entities: []*mtproto.MessageEntity{},
-	}).To_TextWithEntities()
-
-	return rV, nil
+	c.Logger.Infof("messages.summarizeText - refused: no summarization model on this server")
+	return nil, mtproto.ErrEnterpriseIsBlocked
 }

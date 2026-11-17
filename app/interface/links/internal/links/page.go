@@ -55,6 +55,9 @@ type Resolver interface {
 	// StickerSet is the title of the set of the short name, and whether it
 	// is a set of emoji.
 	StickerSet(ctx context.Context, name string) (title string, emoji bool, found bool, err error)
+	// ChatLinkOwner is the owner of the business chat link of the slug,
+	// as anybody sees it.
+	ChatLinkOwner(ctx context.Context, slug string) (*Peer, error)
 }
 
 // Page is what the template shows.
@@ -215,6 +218,13 @@ func (b *Builder) Build(ctx context.Context, l Link, v Visitor) (*Page, error) {
 	case KindLogin:
 		p.Title, p.OgTitle, p.Icon, p.NoIndex = v.text("login_title"), v.text("login_title"), "user", true
 		p.Desc, p.Button = v.html("login_desc", l.Subject), v.text("login_button")
+	case KindBusinessChat:
+		return b.chatLinkPage(ctx, l, v, p)
+	case KindOAuth:
+		// The web client takes no login links (tweb has no handler of
+		// oauth links), so the page offers the app alone.
+		p.Title, p.OgTitle, p.Icon, p.NoIndex = v.text("oauth_link_title"), v.text("oauth_link_title"), "user", true
+		p.Desc, p.Button, p.WebURL = v.html("oauth_link_desc"), v.text("oauth_link_button"), ""
 	case KindContact:
 		p.Title, p.OgTitle, p.Icon, p.NoIndex = v.text("private_title"), v.text("private_title"), "user", true
 		p.Desc, p.Button = v.html("contact_link"), v.text("open_contact")
@@ -300,6 +310,53 @@ func (b *Builder) peerPage(ctx context.Context, l Link, v Visitor, p *Page) (*Pa
 		if peer.About == "" {
 			p.OgDesc = strings.NewReplacer("<strong>", "", "</strong>", "", "<br>", " ").Replace(text(v.Lang, "if_contact", at))
 		}
+	}
+	return p, nil
+}
+
+// chatLinkPage is the page of a business chat link: its owner as anybody
+// sees it (ADR 0036, item 4), as the page of a username shows a user, and
+// a button to the chat. The text of the link is not shown: it is for the
+// chat, and the slug is the only secret of the link, so the page is not
+// indexed. A slug of no link gets a page that does not tell so, as t.me
+// does for a username nobody has (ADR 0036). Opening the page counts no
+// view: only account.resolveBusinessChatLink does (ADR 0067, item 5).
+func (b *Builder) chatLinkPage(ctx context.Context, l Link, v Visitor, p *Page) (*Page, error) {
+	peer, err := b.Data.ChatLinkOwner(ctx, l.Subject)
+	if err != nil {
+		return nil, err
+	}
+	p.NoIndex = true
+	p.Icon, p.Button = "user", v.text("send_message")
+	if peer == nil {
+		p.Title, p.OgTitle = v.text("chatlink_none"), v.text("chatlink_none")
+		p.Desc = v.html("chatlink_desc")
+		return p, nil
+	}
+	p.Title = v.text("chatlink_title", peer.Name)
+	p.Name, p.OgTitle = peer.Name, peer.Name
+	if peer.Username != "" {
+		p.Extra = []string{"@" + peer.Username}
+	}
+	if peer.About != "" {
+		p.OgDesc = peer.About
+		p.Desc = template.HTML(strings.ReplaceAll(esc(peer.About), "\n", "<br>")) //nolint:gosec // escaped
+	}
+	if peer.PhotoId != 0 {
+		// By the slug, not the photo's id (ADR 0036, item 4): the owner
+		// may have no username.
+		p.PhotoURL = "/_l/avatar/m/" + url.PathEscape(l.Subject) + "?v=" + strconv.FormatInt(peer.PhotoId, 10)
+		p.OgImage = b.Site + p.PhotoURL
+	} else {
+		p.Initials = initials(peer.Name)
+	}
+	first := peer.FirstName
+	if first == "" {
+		first = peer.Name
+	}
+	p.Addition = v.html("if_contact", first)
+	if peer.About == "" {
+		p.OgDesc = strings.NewReplacer("<strong>", "", "</strong>", "", "<br>", " ").Replace(text(v.Lang, "if_contact", peer.Name))
 	}
 	return p, nil
 }

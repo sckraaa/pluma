@@ -22,8 +22,10 @@ import (
 	"math"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/seqpeers"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/updates"
+	"github.com/teamgram/teamgram-server/pkg/qtsqueue"
 	"github.com/teamgram/teamgram-server/pkg/secretchat"
 )
 
@@ -48,10 +50,11 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 		idHelper    = mtproto.NewIDListHelper(c.MD.UserId)
 		rDifference *mtproto.Updates_Difference
 		secret      *secretchat.Difference
+		queued      *qtsqueue.Difference
 	)
 	if updatesDiff.GetPredicateName() != updates.Predicate_differenceTooLong {
-		// The queue of this authorization; a client that fails to get
-		// it asks again.
+		// The queues of this authorization, both confirmed up to the
+		// client's qts; a client that fails to get them asks again.
 		if secret, err = c.svcCtx.Dao.SecretChats.Difference(c.ctx, secretchat.DifferenceInput{
 			Device:    c.device(),
 			Qts:       in.Qts,
@@ -61,6 +64,11 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 			c.Logger.Errorf("updates.getDifference - secret chats of user %d: %v", c.MD.UserId, err)
 			return nil, mtproto.ErrInternalServerError
 		}
+		if queued, err = c.svcCtx.Dao.SecretChats.Qts().Difference(c.ctx, qtsqueue.Device(c.device()), in.Qts, secret.Qts); err != nil {
+			c.Logger.Errorf("updates.getDifference - qts updates of user %d: %v", c.MD.UserId, err)
+			return nil, mtproto.ErrInternalServerError
+		}
+		mergeQueues(secret, queued)
 	}
 
 	switch updatesDiff.GetPredicateName() {
@@ -70,14 +78,14 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 		// PushListenerController.java:1400). The empty difference cannot
 		// carry the update.
 		ringing := c.ringingCalls()
-		if secret.Empty(in.Qts) && len(ringing) == 0 {
+		if secret.Empty(in.Qts) && len(queued.Updates) == 0 && len(ringing) == 0 {
 			return mtproto.MakeTLUpdatesDifferenceEmpty(&mtproto.Updates_Difference{
 				Date: updatesDiff.GetState().GetDate(),
 				Seq:  updatesDiff.GetState().GetSeq(),
 			}).To_Updates_Difference(), nil
 		}
-		// A difference only of the secret chats and the ringing calls, at the
-		// same pts.
+		// A difference only of the queues of qts and the ringing calls, at
+		// the same pts.
 		rDifference = mtproto.MakeTLUpdatesDifference(&mtproto.Updates_Difference{
 			NewMessages:          []*mtproto.Message{},
 			NewEncryptedMessages: []*mtproto.EncryptedMessage{},
@@ -118,9 +126,13 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 	}
 
 	if secret != nil {
-		rDifference = c.withSecretChats(rDifference, secret)
+		rDifference = c.withSecretChats(rDifference, secret, queued)
 		for _, u := range secret.Updates {
 			idHelper.AppendUsers(u.Chat.AdminId, u.Chat.ParticipantId)
+		}
+		for _, u := range queued.Updates {
+			inbox.PickBotBusinessUpdate(idHelper, u.Update)
+			idHelper.AppendUsers(u.UserIds...)
 		}
 	}
 
@@ -145,15 +157,39 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 	return rDifference, nil
 }
 
-// withSecretChats adds to the difference d the page of the queue and the
-// changes of the chats, the qts of the state being the page's. An unfinished
-// queue makes it a differenceSlice, as a long box does: the client asks
-// again from the qts it was given. A finished one that carried the changes
-// marks the state given.
-func (c *UpdatesCore) withSecretChats(d *mtproto.Updates_Difference, s *secretchat.Difference) *mtproto.Updates_Difference {
+// mergeQueues makes the pages of the two queues of qts one page: the queue
+// of the other updates was read up to the qts of the secret chats' page,
+// and when it is cut short itself, the secret chats' page ends at its last
+// qts as well, the rest coming in the next slice. The qts of the state is
+// then that of the end of both pages.
+func mergeQueues(s *secretchat.Difference, q *qtsqueue.Difference) {
+	if !q.More {
+		return
+	}
+	end := q.Updates[len(q.Updates)-1].Qts
+	kept := s.Messages[:0]
+	for _, m := range s.Messages {
+		if m.Qts <= end {
+			kept = append(kept, m)
+		}
+	}
+	s.Messages, s.Qts, s.More = kept, end, true
+}
+
+// withSecretChats adds to the difference d the page of the queues of qts
+// (the messages of secret chats in new_encrypted_messages, the other
+// updates q in other_updates by qts) and the changes of the chats, the qts
+// of the state being the page's. An unfinished queue makes it a
+// differenceSlice, as a long box does: the client asks again from the qts
+// it was given. A finished one that carried the changes marks the state
+// given.
+func (c *UpdatesCore) withSecretChats(d *mtproto.Updates_Difference, s *secretchat.Difference, q *qtsqueue.Difference) *mtproto.Updates_Difference {
 	me := c.device()
 	for _, m := range s.Messages {
 		d.NewEncryptedMessages = append(d.NewEncryptedMessages, m.Message())
+	}
+	for _, u := range q.Updates {
+		d.OtherUpdates = append(d.OtherUpdates, u.Update)
 	}
 	for _, u := range s.Updates {
 		d.OtherUpdates = append(d.OtherUpdates, secretUpdate(u, me))

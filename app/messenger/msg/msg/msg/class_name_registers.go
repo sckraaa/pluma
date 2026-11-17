@@ -56,6 +56,26 @@ const (
 	Predicate_msg_appendTodoList = "msg_appendTodoList"
 	// pluma: task 062
 	Predicate_msg_editTodoList = "msg_editTodoList"
+	// pluma: task 105
+	Predicate_msg_addQuickReplyMessages = "msg_addQuickReplyMessages"
+	// pluma: task 105
+	Predicate_msg_getQuickReplies = "msg_getQuickReplies"
+	// pluma: task 105
+	Predicate_msg_getQuickReplyMessages = "msg_getQuickReplyMessages"
+	// pluma: task 105
+	Predicate_msg_checkQuickReplyShortcut = "msg_checkQuickReplyShortcut"
+	// pluma: task 105
+	Predicate_msg_editQuickReplyShortcut = "msg_editQuickReplyShortcut"
+	// pluma: task 105
+	Predicate_msg_reorderQuickReplies = "msg_reorderQuickReplies"
+	// pluma: task 105
+	Predicate_msg_deleteQuickReplyShortcut = "msg_deleteQuickReplyShortcut"
+	// pluma: task 105
+	Predicate_msg_editQuickReplyMessage = "msg_editQuickReplyMessage"
+	// pluma: task 105
+	Predicate_msg_deleteQuickReplyMessages = "msg_deleteQuickReplyMessages"
+	// pluma: task 105
+	Predicate_msg_sendQuickReplyMessages = "msg_sendQuickReplyMessages"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -178,6 +198,46 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 1650536534, // 0x62613056
 
 	},
+	Predicate_msg_addQuickReplyMessages: { // pluma: task 105
+		0: -1870021481, // 0x9089bc97
+
+	},
+	Predicate_msg_getQuickReplies: { // pluma: task 105
+		0: -1929423195, // 0x8cff56a5
+
+	},
+	Predicate_msg_getQuickReplyMessages: { // pluma: task 105
+		0: -795620081, // 0xd093cd0f
+
+	},
+	Predicate_msg_checkQuickReplyShortcut: { // pluma: task 105
+		0: 560356858, // 0x21665dfa
+
+	},
+	Predicate_msg_editQuickReplyShortcut: { // pluma: task 105
+		0: -881831873, // 0xcb70503f
+
+	},
+	Predicate_msg_reorderQuickReplies: { // pluma: task 105
+		0: 166649548, // 0x9eedecc
+
+	},
+	Predicate_msg_deleteQuickReplyShortcut: { // pluma: task 105
+		0: -1549977524, // 0xa39d384c
+
+	},
+	Predicate_msg_editQuickReplyMessage: { // pluma: task 105
+		0: 514595667, // 0x1eac1b53
+
+	},
+	Predicate_msg_deleteQuickReplyMessages: { // pluma: task 105
+		0: -811849787, // 0xcf9c27c5
+
+	},
+	Predicate_msg_sendQuickReplyMessages: { // pluma: task 105
+		0: -1719038159, // 0x99898f31
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -212,6 +272,16 @@ var clazzIdNameRegisters2 = map[int32]string{
 	2077104412:  Predicate_msg_toggleTodoCompleted,        // 0x7bce191c pluma: task 062
 	1736696679:  Predicate_msg_appendTodoList,             // 0x6783e367 pluma: task 062
 	1650536534:  Predicate_msg_editTodoList,               // 0x62613056 pluma: task 062
+	-1870021481: Predicate_msg_addQuickReplyMessages,      // 0x9089bc97 pluma: task 105
+	-1929423195: Predicate_msg_getQuickReplies,            // 0x8cff56a5 pluma: task 105
+	-795620081:  Predicate_msg_getQuickReplyMessages,      // 0xd093cd0f pluma: task 105
+	560356858:   Predicate_msg_checkQuickReplyShortcut,    // 0x21665dfa pluma: task 105
+	-881831873:  Predicate_msg_editQuickReplyShortcut,     // 0xcb70503f pluma: task 105
+	166649548:   Predicate_msg_reorderQuickReplies,        // 0x9eedecc pluma: task 105
+	-1549977524: Predicate_msg_deleteQuickReplyShortcut,   // 0xa39d384c pluma: task 105
+	514595667:   Predicate_msg_editQuickReplyMessage,      // 0x1eac1b53 pluma: task 105
+	-811849787:  Predicate_msg_deleteQuickReplyMessages,   // 0xcf9c27c5 pluma: task 105
+	-1719038159: Predicate_msg_sendQuickReplyMessages,     // 0x99898f31 pluma: task 105
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

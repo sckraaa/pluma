@@ -75,3 +75,26 @@ func TestGetAuthorization(t *testing.T) {
 			a.GetDeviceModel(), a.GetSystemVersion(), a.GetPlatform())
 	}
 }
+
+// The region of a site's login is the place of the address as a session's
+// is written, and nothing, not "UNKNOWN", when the place is not known: the
+// clients show the region of a site whenever it is not empty.
+func TestIpRegion(t *testing.T) {
+	d := &Dao{geoIP: newGeoIP(geoIPDatabase(t, "Prague", "Czechia", "CZ"))}
+	if d.geoIP.r == nil {
+		t.Fatal("the test database does not open")
+	}
+	t.Cleanup(func() { _ = d.geoIP.r.Close() })
+	if got := d.IpRegion("193.17.47.1"); got != "Prague, Czechia" {
+		t.Errorf("known address: %q, want Prague, Czechia", got)
+	}
+	for _, ip := range []string{"", "not an address", "193.17.47.1:443"} {
+		if got := d.IpRegion(ip); got != "" {
+			t.Errorf("%q: %q, want none", ip, got)
+		}
+	}
+	none := &Dao{geoIP: newGeoIP("")}
+	if got := none.IpRegion("193.17.47.1"); got != "" {
+		t.Errorf("no database: %q, want none", got)
+	}
+}

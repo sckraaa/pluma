@@ -32,6 +32,16 @@
 #                Google instead of test/e2e/fakepush (a phone or an emulator
 #                with Google Play services gets the notifications)
 #   E2E_APNS_KEY, E2E_APNS_KEY_ID, E2E_APNS_TEAM_ID  the same for APNs
+#   E2E_CDN_ADDRESS  ADDR:PORT where test/e2e/fakecdn, the CDN of large files,
+#                is published and which the redirects name (default:
+#                fakecdn:8080 on the network of the services, which the tests
+#                reach on a loopback port), e.g. this machine's address on the
+#                network of a development client; bff checks the CDN there
+#                too, so it needs a Linux Docker host, not Docker in a VM
+#                (colima)
+#   E2E_CDN_URL_TTL, E2E_CDN_HEALTH_EVERY, E2E_CDN_AVOID_TTL  CDN_URL_TTL,
+#                CDN_HEALTH_EVERY and CDN_AVOID_TTL of the stand (default 20s,
+#                5s and 30s; the tests of the CDN are given them)
 #
 # The secrets (passwords, the server RSA key) are generated for one run and
 # deleted by `down`; they are never written anywhere git tracks.
@@ -43,6 +53,8 @@ E2E_DIR=${E2E_DIR:-$ROOT/.e2e}
 E2E_PROJECT=${E2E_PROJECT:-pluma-e2e}
 ENV_FILE=$E2E_DIR/env
 KEY_FILE=$E2E_DIR/server_pkcs1.key
+# The RSA key of the ID tokens of oauth.pluma.chat (task 106), throwaway.
+OAUTH_KEY_FILE=$E2E_DIR/oauth_signing_key.pem
 LOG_DIR=$E2E_DIR/logs
 # Push providers of the stand (task 009): throwaway keys and the config of
 # the push service pointing at test/e2e/fakepush, or the real keys.
@@ -52,10 +64,25 @@ PUSH_CONFIG=$E2E_DIR/push.yaml
 FAKEPUSH_URL=http://fakepush:8080
 # The config of bff with the limits of voice transcription set for the tests
 # (task 090): the engine is test/e2e/fakestt; and the mail provider of the
-# recovery email (task 091), test/e2e/fakemail.
+# recovery email (task 091), test/e2e/fakemail. The maps of geo points
+# (task 100) are rendered by test/e2e/fakemaps (MAPS_URL in the env file).
+# The search of @pic and the sites of the pictures and web files (task
+# 099) are test/e2e/fakeinline: SEARXNG_URL in the env file, and its host
+# in WebFetch.AllowHosts of the config, as the server fetches from public
+# addresses only. The translation engine of messages (task 101) is
+# test/e2e/faketranslate (TRANSLATE_URL in the env file), and the config
+# waits for it less than a server does.
 BFF_CONFIG=$E2E_DIR/bff.yaml
 FAKESTT_MODEL=e2e-model
+FAKETRANSLATE_URL=http://faketranslate:8080
+FAKETRANSLATE_MODEL=e2e-translate
 FAKEMAIL_URL=http://fakemail:8080
+FAKEMAPS_URL=http://fakemaps:8080
+FAKEINLINE_HOST=fakeinline
+FAKEINLINE_URL=http://$FAKEINLINE_HOST:8080
+# The Gcore CDN resource of the HTTPS CDN of large files (task 107):
+# test/e2e/fakecdn, which pulls the cipher from bff's origin.
+FAKECDN_URL=http://fakecdn:8080
 # The SFU of group calls (docker-compose.sfu.yaml, task 093): the
 # certificates of its control API, the SFU's and bff's.
 SFU_CERTS=$E2E_DIR/sfu
@@ -67,7 +94,7 @@ GROUPCALLS_CERTS=$E2E_DIR/groupcalls
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
 # Services of their own images that must not exit during the run either.
 OWN_SERVICES=(sfu)
-SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt fakemail "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}")
+SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt faketranslate fakemail fakemaps fakeinline fakecdn "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
 # (the Go build cache stays in BuildKit, so the next build is quick). The
@@ -80,7 +107,11 @@ export PLUMA_BACKUP_IMAGE=${PLUMA_BACKUP_IMAGE:-pluma-backup:$E2E_PROJECT}
 export E2E_FAKEPUSH_IMAGE=${E2E_FAKEPUSH_IMAGE:-pluma-e2e-fakepush:$E2E_PROJECT}
 export E2E_FAKECODES_IMAGE=${E2E_FAKECODES_IMAGE:-pluma-e2e-fakecodes:$E2E_PROJECT}
 export E2E_FAKESTT_IMAGE=${E2E_FAKESTT_IMAGE:-pluma-e2e-fakestt:$E2E_PROJECT}
+export E2E_FAKETRANSLATE_IMAGE=${E2E_FAKETRANSLATE_IMAGE:-pluma-e2e-faketranslate:$E2E_PROJECT}
 export E2E_FAKEMAIL_IMAGE=${E2E_FAKEMAIL_IMAGE:-pluma-e2e-fakemail:$E2E_PROJECT}
+export E2E_FAKEMAPS_IMAGE=${E2E_FAKEMAPS_IMAGE:-pluma-e2e-fakemaps:$E2E_PROJECT}
+export E2E_FAKEINLINE_IMAGE=${E2E_FAKEINLINE_IMAGE:-pluma-e2e-fakeinline:$E2E_PROJECT}
+export E2E_FAKECDN_IMAGE=${E2E_FAKECDN_IMAGE:-pluma-e2e-fakecdn:$E2E_PROJECT}
 export PLUMA_SFU_IMAGE=${PLUMA_SFU_IMAGE:-pluma-e2e-sfu:$E2E_PROJECT}
 # A crash must fail the test, not be hidden by a restart.
 export TEAMGRAM_RESTART=${TEAMGRAM_RESTART:-no}
@@ -112,15 +143,19 @@ secret() { openssl rand -hex "$1"; }
 
 # gen_secrets writes the env file and the server RSA key for this run.
 gen_secrets() {
-	if [[ -f $ENV_FILE && -f $KEY_FILE ]]; then
+	if [[ -f $ENV_FILE && -f $KEY_FILE && -f $OAUTH_KEY_FILE ]]; then
 		if [[ -n ${E2E_SERVER_KEY:-} ]] && ! cmp -s "$E2E_SERVER_KEY" "$KEY_FILE"; then
 			log "E2E_SERVER_KEY is not the key of the existing stand; run down first"
 			return 1
 		fi
 		return
 	fi
-	rm -f "$ENV_FILE" "$KEY_FILE"
+	rm -f "$ENV_FILE" "$KEY_FILE" "$OAUTH_KEY_FILE"
 	mkdir -p "$E2E_DIR" && chmod 700 "$E2E_DIR" || return
+	(umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$OAUTH_KEY_FILE" 2>/dev/null) || {
+		log "openssl made no OAuth signing key"
+		return 1
+	}
 	local sfu_port
 	sfu_port=$(free_port) || return
 	local fp keytool=(-out "$KEY_FILE")
@@ -136,7 +171,7 @@ gen_secrets() {
 	fi
 	(
 		umask 077
-		cat >"$ENV_FILE" <<EOF
+		cat >"$ENV_FILE" <<EOF || exit
 MYSQL_ROOT_PASSWORD=$(secret 24)
 MYSQL_PASSWORD=$(secret 24)
 REDIS_PASSWORD=$(secret 24)
@@ -153,8 +188,17 @@ LOGIN_CODES_SENDER_TOKEN=$(secret 32)
 STT_URL=http://fakestt:8080
 STT_TOKEN=$(secret 32)
 STT_MODEL=$FAKESTT_MODEL
+TRANSLATE_URL=$FAKETRANSLATE_URL
+TRANSLATE_TOKEN=$(secret 32)
+TRANSLATE_MODEL=$FAKETRANSLATE_MODEL
 MAIL_API_KEY=re_e2e_$(secret 16)
 MAIL_FROM=Pluma <noreply@e2e.pluma.test>
+MAPS_URL=$FAKEMAPS_URL
+SEARXNG_URL=$FAKEINLINE_URL
+WEBFILE_HMAC_KEY=$(secret 32)
+BOT_SECRET_ENCRYPTION_KEY=$(secret 32)
+WEBAPP_SIGNING_KEY=$(secret 32)
+STATS_GRAPH_TOKEN_KEY=$(openssl rand -base64 32)
 AUTH_KEY_ENCRYPTION_KEY=$(secret 32)
 PUSH_SECRET_ENCRYPTION_KEY=$(secret 32)
 NTFY_TOPIC=$(secret 16)
@@ -167,6 +211,7 @@ BACKUP_S3_SECRET_ACCESS_KEY=unused
 MAXMIND_ACCOUNT_ID=unused
 MAXMIND_LICENSE_KEY=unused
 SERVER_RSA_KEY_FILE=$KEY_FILE
+OAUTH_SIGNING_KEY_FILE=$OAUTH_KEY_FILE
 APNS_KEY_ID=${E2E_APNS_KEY_ID:-E2EKEY0001}
 APNS_TEAM_ID=${E2E_APNS_TEAM_ID:-E2ETEAM001}
 APNS_KEY_FILE=$APNS_KEY_FILE
@@ -180,7 +225,41 @@ SFU_TCP_PORT=$sfu_port
 PLUMA_SFU_CERTS=$SFU_CERTS
 PLUMA_GROUPCALLS_CERTS=$GROUPCALLS_CERTS
 EOF
-	)
+		gen_cdn_env >>"$ENV_FILE"
+	) || {
+		rm -f "$ENV_FILE"
+		return 1
+	}
+}
+
+# gen_cdn_env prints the HTTPS CDN of the stand for the env file (task 107,
+# ADR 0071): the delivery is test/e2e/fakecdn over http://, which only the
+# stand allows (CDN_DEV_ALLOW_HTTP), with the run's Secure Token key and
+# origin header, and intervals short enough for the tests to wait for.
+gen_cdn_env() {
+	local base=$FAKECDN_URL
+	if [[ -n ${E2E_CDN_ADDRESS:-} ]]; then
+		if [[ ! $E2E_CDN_ADDRESS =~ ^[^:/]+:[0-9]+$ ]]; then
+			log "E2E_CDN_ADDRESS is ADDR:PORT, not $E2E_CDN_ADDRESS"
+			return 1
+		fi
+		base=http://$E2E_CDN_ADDRESS
+		echo "E2E_CDN_PUBLISH=$E2E_CDN_ADDRESS:8080"
+	fi
+	cat <<EOF
+CDN_GCORE_BASE_URL=$base
+CDN_GCORE_TOKEN_KEY=$(secret 16)
+CDN_ORIGIN_AUTH=$(secret 32)
+CDN_DEV_ALLOW_HTTP=1
+CDN_URL_TTL=${E2E_CDN_URL_TTL:-20s}
+CDN_HEALTH_EVERY=${E2E_CDN_HEALTH_EVERY:-5s}
+CDN_AVOID_TTL=${E2E_CDN_AVOID_TTL:-30s}
+EOF
+}
+
+# env_value prints the value of name in the env file of the run.
+env_value() {
+	sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1
 }
 
 # free_port prints a port free for both UDP and TCP on this machine. The
@@ -253,16 +332,26 @@ gen_push() {
 # gen_bff writes the config of bff for the stand: a record that fails is
 # given up after the second attempt, so that a test of a failing engine
 # waits one pause (5 s) and not all three, and is tried again 15 s after it
-# failed, not 10 minutes. The emails go to fakemail, and the server's day
-# of emails holds every run of the tests.
+# failed, not 10 minutes. A translation is waited for 5 seconds, not 25
+# or 45, so that a test of a slow engine sees FLOOD_WAIT_X soon. The emails
+# go to fakemail, and the server's day of emails holds every run of the
+# tests. The fetches of web files and of the pictures of @pic may reach
+# fakeinline (WebFetch.AllowHosts), which a server's config never allows.
 gen_bff() {
-	awk -v mail="$FAKEMAIL_URL" '
+	if grep -q '^WebFetch:' "$ROOT/teamgramd/etc2/bff.yaml"; then
+		log "teamgramd/etc2/bff.yaml has WebFetch: a server's config must not open internal hosts"
+		return 1
+	fi
+	awk -v mail="$FAKEMAIL_URL" -v host="$FAKEINLINE_HOST" '
 		{ print }
 		/^Transcribe:$/ { print "  MaxAttempts: 2"; print "  FailedTTL: 15s" }
+		/^Translate:$/ { print "  SyncWait: 5s"; print "  SyncWaitSingle: 5s" }
 		/^Mail:$/ { print "  Endpoint: " mail; print "  DailyLimit: 10000" }
+		END { print ""; print "WebFetch:"; print "  AllowHosts:"; print "    - " host }
 	' "$ROOT/teamgramd/etc2/bff.yaml" >"$BFF_CONFIG" || return
 	grep -q '^  MaxAttempts: 2$' "$BFF_CONFIG" && grep -q '^  FailedTTL: 15s$' "$BFF_CONFIG" &&
-		grep -q "^  Endpoint: $FAKEMAIL_URL\$" "$BFF_CONFIG"
+		grep -q '^  SyncWait: 5s$' "$BFF_CONFIG" && grep -q '^  SyncWaitSingle: 5s$' "$BFF_CONFIG" &&
+		grep -q "^  Endpoint: $FAKEMAIL_URL\$" "$BFF_CONFIG" && grep -q "^    - $FAKEINLINE_HOST\$" "$BFF_CONFIG"
 }
 
 cmd_up() {
@@ -352,10 +441,17 @@ cmd_test() {
 			PLUMA_E2E_FAKEPUSH=$(compose port fakepush 8080) \
 			PLUMA_E2E_FAKECODES=$(compose port fakecodes 8080) \
 			PLUMA_E2E_FAKESTT=$(compose port fakestt 8080) \
+			PLUMA_E2E_FAKETRANSLATE=$(compose port faketranslate 8080) \
 			PLUMA_E2E_FAKEMAIL=$(compose port fakemail 8080) \
+			PLUMA_E2E_FAKEMAPS=$(compose port fakemaps 8080) \
+			PLUMA_E2E_FAKEINLINE=$(compose port fakeinline 8080) \
+			PLUMA_E2E_LINKS=$(compose port links 9096) \
+			PLUMA_E2E_CDN_URL_TTL=$(env_value CDN_URL_TTL) \
+			PLUMA_E2E_CDN_HEALTH_EVERY=$(env_value CDN_HEALTH_EVERY) \
+			PLUMA_E2E_CDN_AVOID_TTL=$(env_value CDN_AVOID_TTL) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
-			go test -tags e2e -count=1 -timeout 20m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
+			go test -tags e2e -count=1 -timeout 60m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
 	) || return
 	check_running
 }
@@ -376,9 +472,9 @@ cmd_down() {
 		compose down --volumes --remove-orphans --timeout 60 || true
 	fi
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
-		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
+		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKETRANSLATE_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$E2E_FAKEMAPS_IMAGE" "$E2E_FAKEINLINE_IMAGE" "$E2E_FAKECDN_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
 	fi
-	rm -f "$ENV_FILE" "$KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
+	rm -f "$ENV_FILE" "$KEY_FILE" "$OAUTH_KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
 	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs
 }

@@ -19,8 +19,25 @@
 package dao
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/teamgram/proto/mtproto"
 )
+
+// TestAttributesJSON: documents.attributes is JSON NOT NULL, so a document
+// without attributes is stored as an empty array, not as an empty string.
+func TestAttributesJSON(t *testing.T) {
+	for _, attrs := range [][]*mtproto.DocumentAttribute{nil, {}} {
+		if s, err := attributesJSON(attrs); err != nil || s != "[]" {
+			t.Errorf("%v: %q, %v; want []", attrs, s, err)
+		}
+	}
+	audio := mtproto.MakeTLDocumentAttributeAudio(&mtproto.DocumentAttribute{Duration: 180}).To_DocumentAttribute()
+	if s, err := attributesJSON([]*mtproto.DocumentAttribute{audio}); err != nil || !strings.HasPrefix(s, "[{") {
+		t.Errorf("one attribute: %q, %v", s, err)
+	}
+}
 
 func TestGetDocumentList(t *testing.T) {
 	// rand.Seed(time.Now().UnixNano())

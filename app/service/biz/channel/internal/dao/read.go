@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/readmarks"
 	"slices"
@@ -92,6 +93,11 @@ func (d *Dao) Read(b *userbox.Box, channelId, permAuthKeyId int64, maxId int32) 
 		// The posts of a channel show views, not reads; a ghost's read
 		// is its own (ADR 0048, p. 5): no "read by", no read outbox.
 		return nil
+	}
+	// A member who reads the supergroup is one of its viewers of the day
+	// (task 103).
+	if err = channelstats.Reader(b.Tx(), channelId, b.UserId(), b.Date()); err != nil {
+		return err
 	}
 	// When the owner read up to maxId, for the senders' "read by" list
 	// (messages.getMessageReadParticipants); kept as long as the clients

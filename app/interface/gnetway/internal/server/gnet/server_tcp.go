@@ -18,7 +18,7 @@ package gnet
 import (
 	"errors"
 
-	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/codec"
 
 	"github.com/panjf2000/gnet/v2"
 	"github.com/zeromicro/go-zero/core/logx"

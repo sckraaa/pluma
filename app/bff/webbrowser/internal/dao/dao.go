@@ -17,9 +17,17 @@
 
 package dao
 
+import (
+	"github.com/teamgram/teamgram-server/app/bff/webbrowser/internal/config"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+)
+
 type Dao struct {
+	sync_client.SyncClient
 }
 
-func New() *Dao {
-	return new(Dao)
+func New(c config.Config) *Dao {
+	return &Dao{
+		SyncClient: sync_client.MustNewSyncOutboxClient(c.SyncClient),
+	}
 }

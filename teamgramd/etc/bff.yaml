@@ -60,6 +60,74 @@ Mail:
   ApiKey: "${MAIL_API_KEY}"
   From: "${MAIL_FROM}"
 
+# upload.getWebFile (task 099, ADR 0062, p. 5, docs/ops/inline-bots.md):
+# the thumbnails and content inline bots name by address are handed out
+# signed under WEBFILE_HMAC_KEY and fetched by the server, never by the
+# device. No key: they go out unsigned (webDocumentNoProxy) and clients
+# fetch them from the bot's host themselves. CacheDir and CacheBytes (by
+# default /tmp/webfile and 2 GiB) bound the files kept for 24 hours.
+WebFile:
+  HMACKey: "${WEBFILE_HMAC_KEY}"
+
+# The map previews of geo points (task 100, ADR 0063, docs/ops/maps.md),
+# which Android, Desktop and Web K ask for with upload.getWebFile: rendered
+# by the maps service of docker-compose.maps.yaml (MAPS_URL,
+# http://maps:8080 in Docker) and kept in the Redis of KV. No URL: maps are
+# off and such a request is LOCATION_INVALID. Empty settings take their
+# defaults: the styles ru,en (one per language of the labels), 10s for a
+# render, 4 renders at once, 6h in the cache, 60 new maps a minute per user.
+Maps:
+  URL: "${MAPS_URL}"
+  Styles: "${MAPS_STYLES}"
+  Timeout: "${MAPS_TIMEOUT}"
+  Concurrency: "${MAPS_CONCURRENCY}"
+  CacheTTL: "${MAPS_CACHE_TTL}"
+  PerUserPerMinute: "${MAPS_PER_USER_PER_MINUTE}"
+
+# The built-in inline bots @gif and @pic (task 099, ADR 0062,
+# docs/ops/inline-bots.md). @pic searches pictures with the SearXNG of
+# SEARXNG_URL (http://searxng:8080 in Docker; empty: @pic answers with empty
+# lists). The media they find are imported into dfs when a query finds
+# them, at most INLINE_IMPORT_DAILY_BYTES a UTC day (empty: 1 GiB); past
+# it only media imported before are shown.
+InlineBots:
+  SearxngURL: "${SEARXNG_URL}"
+  ImportDailyBytes: "${INLINE_IMPORT_DAILY_BYTES}"
+
+# The bot platform (task 106, ADR 0068, docs/ops/bots.md). WebApp: the
+# tgWebAppVersion given to a mini app by the platform of the client that
+# opens it, and WEBAPP_SIGNING_KEY, the Ed25519 seed (hex) of the signature
+# of initData; without it no mini app opens. BotSecrets: the keys of bots
+# derived from their tokens are sealed under BOT_SECRET_ENCRYPTION_KEY
+# (pkg/botkeys); without it no keys are stored, and the mini apps and the
+# login of bots are off. Avatars: the public photos of users by username
+# (ADR 0036, p. 4), the photo_url bots are given.
+WebApp:
+  Versions:
+    Android: "8.0"
+    IOS: "8.0"
+    MacOS: "8.0"
+    TDesktop: "8.0"
+    Web: "8.0"
+    WebA: "8.0"
+    WebK: "8.0"
+    Unknown: "8.0"
+  SigningKey: "${WEBAPP_SIGNING_KEY}"
+BotSecrets:
+  EncryptionKey: "${BOT_SECRET_ENCRYPTION_KEY}"
+Avatars: https://pluma.chat/_l/avatar/
+
+# The statistics of channels and groups (task 103, ADR 0066). ThisDc is
+# channelFull.stats_dc, the DC the clients ask for the statistics: this
+# server's own, this_dc of teamgramd/bin/config.json. TokenKey signs the
+# zoom tokens of the graphs (STATS_GRAPH_TOKEN_KEY, 32 random bytes in
+# base64: openssl rand -base64 32); without it the statistics are off and
+# the clients do not offer them. Changing it invalidates the zoom tokens
+# given out (the clients ask for the statistics again).
+Stats:
+  ThisDc: 1
+  TokenKey: "${STATS_GRAPH_TOKEN_KEY}"
+
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
 
@@ -135,6 +203,41 @@ GroupCalls:
   # Cameras on at once in a call; the node's Limits.MaxVideos.
   VideoLimit: 30
 
+# The HTTPS CDN of large files (task 107, ADR 0071, docs/ops/cdn.md): a file
+# of CDN_MIN_FILE_SIZE (1 MiB) and more, a document or a photo, is
+# redirected (upload.fileCdnRedirect) to a CDN that pulls its cipher from the
+# origin in bff, only for clients that send pluma_cdn in
+# initConnection.params. The key, the IV and the hashes stay at home. A
+# delivery without BaseURL is off; with none on, the CDN is off and the
+# origin does not listen. The keys come from .env only and are never logged.
+# Empty values take their defaults: CDN_GCORE_SIGNER gcore-md5 (path-hmac
+# when the Secure Token is unavailable), CDN_GCORE_MONTHLY_GB 800,
+# CDN_ROUTES *:201, CDN_ORIGIN_LISTEN 0.0.0.0:20480 (the Docker network
+# only, published by Caddy), CDN_URL_TTL 6h, CDN_PREPARE_RATE_MBIT 800,
+# CDN_KINDS document,photo, CDN_HEALTH_EVERY 1m, CDN_AVOID_TTL 1h.
+# CDN_DEV_ALLOW_HTTP=1 (an http:// BaseURL) is for the e2e stand only.
+Cdn:
+  Deliveries:
+    - Id: 201
+      Name: gcore
+      Signer: "${CDN_GCORE_SIGNER}"
+      BaseURL: "${CDN_GCORE_BASE_URL}"
+      Key: "${CDN_GCORE_TOKEN_KEY}"
+      Source: home-origin
+      MonthlyGB: "${CDN_GCORE_MONTHLY_GB}"
+  Routes: "${CDN_ROUTES}"
+  Origin:
+    Listen: "${CDN_ORIGIN_LISTEN}"
+    AuthValue: "${CDN_ORIGIN_AUTH}"
+    MaxConcurrent: "16"
+  UrlTTL: "${CDN_URL_TTL}"
+  PrepareRateMbit: "${CDN_PREPARE_RATE_MBIT}"
+  MinFileSize: "${CDN_MIN_FILE_SIZE}"
+  Kinds: "${CDN_KINDS}"
+  DevAllowHTTP: "${CDN_DEV_ALLOW_HTTP}"
+  HealthEvery: "${CDN_HEALTH_EVERY}"
+  AvoidTTL: "${CDN_AVOID_TTL}"
+
 # Voice transcription (task 090, ADR 0056, docs/ops/transcription.md): the
 # speech engine is a service with POST /v1/audio/transcriptions of the OpenAI
 # API, app/ops/stt or any other. No URL: transcription is off. Nothing a
@@ -147,3 +250,20 @@ Transcribe:
   Model: "${STT_MODEL}"
   Language: "${STT_LANGUAGE}"
   Timeout: "${STT_TIMEOUT}"
+# The translation of messages (task 101, ADR 0064, docs/ops/translation.md):
+# the engine is a service with POST /v1/chat/completions of the OpenAI API,
+# the translate service of docker-compose.translate.yaml or any other. No
+# URL: the translation is off, and the clients are told so by the keys
+# translations_manual_enabled and translations_auto_enabled. Model names the
+# model the engine serves; Profile the prompts of the model (hy-mt1.5 by
+# default). Slots and Context are the engine's --parallel and --ctx-size,
+# TRANSLATE_SLOTS and TRANSLATE_CTX, which the engine of
+# docker-compose.translate.yaml reads too (empty: 4 and 16384); the waits,
+# the bounds of a request and the per-user limits have defaults.
+Translate:
+  URL: "${TRANSLATE_URL}"
+  Token: "${TRANSLATE_TOKEN}"
+  Model: "${TRANSLATE_MODEL}"
+  Profile: "${TRANSLATE_PROFILE}"
+  Slots: "${TRANSLATE_SLOTS}"
+  Context: "${TRANSLATE_CTX}"

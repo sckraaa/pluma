@@ -46,6 +46,8 @@ enum TLConstructor {
   CRC32_inbox_chatHistoryToInbox = 1284828188;
   // pluma: task 082
   CRC32_inbox_channelAntispamToInbox = 1763452259;
+  // pluma: task 105
+  CRC32_inbox_botBusinessUpdateToInbox = -63579870;
 }
 
 // Every event is addressed to one user, user_id: it changes that user's box
@@ -299,4 +301,23 @@ message TL_inbox_channelKickedToInbox {
   int64 user_id = 3;
   int64 from_id = 4;
   int64 channel_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: inbox.botBusinessUpdateToInbox user_id:long from_id:long update:Update = Void;
+// The bot user_id is the connected bot of Telegram Business of from_id
+// (task 105, ADR 0067, p. 6), and update is what it is told of that
+// connection, without its qts: updateBotBusinessConnect, or
+// updateBotNewBusinessMessage, updateBotEditBusinessMessage or
+// updateBotDeleteBusinessMessage of a chat of from_id it serves, the
+// messages as from_id sees them. The box transaction of from_id that made
+// the change writes the event; the bot's applies it: each authorization of
+// the bot gets the update with its next qts in its queue (pkg/qtsqueue)
+// and pushed. The users and chats it refers to are built then, as the bot
+// sees them.
+message TL_inbox_botBusinessUpdateToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  mtproto.Update update = 5;
 }

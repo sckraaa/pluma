@@ -191,9 +191,9 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -63031132,
 		}
 	},
-	1668730682: func() mtproto.TLObject { // 0x6376cf3a pluma: task 046
+	-238863794: func() mtproto.TLObject { // 0xf1c33a4e pluma: task 046, source: task 103
 		return &TLChannelIncrementMessageViews{
-			Constructor: 1668730682,
+			Constructor: -238863794,
 		}
 	},
 	-1892777199: func() mtproto.TLObject { // 0x8f2e8311 pluma: task 046
@@ -3113,13 +3113,13 @@ func (m *TLChannelSetAvailableReactions) Decode(dBuf *mtproto.DecodeBuf) error {
 	return dBuf.GetError()
 }
 
-// TLChannelIncrementMessageViews (pluma: task 046)
+// TLChannelIncrementMessageViews (pluma: task 046, source: task 103)
 ///////////////////////////////////////////////////////////////////////////////
 
 func (m *TLChannelIncrementMessageViews) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	switch uint32(m.Constructor) {
-	case 0x6376cf3a:
-		x.UInt(0x6376cf3a)
+	case 0xf1c33a4e:
+		x.UInt(0xf1c33a4e)
 
 		// no flags
 
@@ -3131,6 +3131,7 @@ func (m *TLChannelIncrementMessageViews) Encode(x *mtproto.EncodeBuf, layer int3
 		for _, v := range m.GetId() {
 			x.Int(v)
 		}
+		x.Int(m.GetSource())
 
 	default:
 		// log.Errorf("")
@@ -3145,7 +3146,7 @@ func (m *TLChannelIncrementMessageViews) CalcByteSize(layer int32) int {
 
 func (m *TLChannelIncrementMessageViews) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
-	case 0x6376cf3a:
+	case 0xf1c33a4e:
 
 		// not has flags
 
@@ -3164,6 +3165,7 @@ func (m *TLChannelIncrementMessageViews) Decode(dBuf *mtproto.DecodeBuf) error {
 			v2[i] = dBuf.Int()
 		}
 		m.Id = v2
+		m.Source = dBuf.Int()
 		return dBuf.GetError()
 
 	default:

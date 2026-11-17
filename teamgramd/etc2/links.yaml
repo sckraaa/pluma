@@ -27,3 +27,27 @@ Mysql:
   Active: 4
   Idle: 2
   IdleTimeout: 4h
+# The login of users on sites, oauth.pluma.chat (task 106, ADR 0068 p. 6,
+# docs/ops/bots.md): Caddy sends that host here. Its name is
+# PLUMA_OAUTH_DOMAIN, the one Caddy serves, so links answers as the provider
+# on that host only and names it in the iss of the ID tokens. The RSA keys of the ID
+# tokens are the secret oauth_signing_key (OAUTH_SIGNING_KEY_FILE in .env,
+# PEM; the first key signs, a further one is only published while it is
+# replaced); an empty file turns the provider off. The requests are in the
+# Redis bff answers the apps from; authsession names the region of a
+# visitor's address; BOT_SECRET_ENCRYPTION_KEY opens the login keys of bots
+# for the format of the login widget.
+OAuth:
+  Issuer: "https://${PLUMA_OAUTH_DOMAIN}"
+  SigningKeyFile: /run/secrets/oauth_signing_key.pem
+KV:
+  - Host: redis:6379
+    Pass: "${REDIS_PASSWORD}"
+AuthsessionClient:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: service.authsession
+  Timeout: 2000
+BotSecrets:
+  EncryptionKey: "${BOT_SECRET_ENCRYPTION_KEY}"

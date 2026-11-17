@@ -28,9 +28,13 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/botgames"
 	"github.com/teamgram/teamgram-server/pkg/botmarkup"
+	"github.com/teamgram/teamgram-server/pkg/botwidgets"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
+	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/replyheader"
+	"github.com/teamgram/teamgram-server/pkg/webfile"
 
 	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/threading"
@@ -85,7 +89,13 @@ func (c *BotsCore) inlinePeerType(botId int64, peer *mtproto.PeerUtil) (*mtproto
 
 // MessagesGetInlineBotResults
 // messages.getInlineBotResults#514e999d flags:# bot:InputUser peer:InputPeer geo_point:flags.0?InputGeoPoint query:string offset:string = messages.BotResults;
+//
+// Only users ask a bot (core.telegram.org/method/messages.getInlineBotResults:
+// "Only users can use this method"); a bot gets BOT_METHOD_INVALID.
 func (c *BotsCore) MessagesGetInlineBotResults(in *mtproto.TLMessagesGetInlineBotResults) (*mtproto.Messages_BotResults, error) {
+	if c.MD.IsBot {
+		return nil, mtproto.ErrBotMethodInvalid
+	}
 	target := mtproto.FromInputUser(c.MD.UserId, in.Bot)
 	if !target.IsUser() {
 		return nil, mtproto.ErrBotInvalid
@@ -107,6 +117,11 @@ func (c *BotsCore) MessagesGetInlineBotResults(in *mtproto.TLMessagesGetInlineBo
 	peerType, kind, err := c.inlinePeerType(bot.Id(), mtproto.FromInputPeer2(c.MD.UserId, in.Peer))
 	if err != nil {
 		return nil, err
+	}
+	// The built-in bots @gif and @pic have no process: the server answers
+	// for them (task 099, ADR 0062).
+	if b, ok := inlinebots.ByID(bot.Id()); ok {
+		return c.builtinResults(b, in)
 	}
 
 	geo := in.GeoPoint
@@ -188,6 +203,14 @@ func (c *BotsCore) inlineResults(queryId int64, a *dao.InlineAnswer, botId int64
 	if err != nil {
 		return nil, err
 	}
+	if a.SwitchWebview != nil {
+		// The button's mini app opens only from results the user got
+		// (messages.requestSimpleWebView, from_switch_webview).
+		if err = c.svcCtx.RememberSwitchWebview(c.ctx, botId, c.MD.UserId, a.SwitchWebview.GetUrl(), a.CacheTime); err != nil {
+			c.Logger.Errorf("messages.getInlineBotResults - switch_webview: %v", err)
+			return nil, mtproto.ErrInternalServerError
+		}
+	}
 	r := &mtproto.Messages_BotResults{
 		Gallery:       a.Gallery,
 		QueryId:       queryId,
@@ -223,12 +246,39 @@ func (c *BotsCore) MessagesSetInlineBotResults(in *mtproto.TLMessagesSetInlineBo
 	}
 	ids := make(map[string]struct{}, len(in.Results))
 	results := make([]*mtproto.BotInlineResult, 0, len(in.Results))
+	var (
+		games   map[string]dao.GameRef
+		widgets map[string]dao.WidgetRef
+	)
 	for _, r := range in.Results {
 		if _, dup := ids[r.GetId()]; dup {
 			return nil, mtproto.ErrResultIdDuplicate
 		}
 		ids[r.GetId()] = struct{}{}
-		res, err := c.inlineResult(r)
+		var (
+			res *mtproto.BotInlineResult
+			err error
+		)
+		if r.GetPredicateName() == mtproto.Predicate_inputBotInlineResultGame {
+			var ref dao.GameRef
+			if res, ref, err = c.inlineGameResult(r); err == nil {
+				if games == nil {
+					games = make(map[string]dao.GameRef)
+				}
+				games[r.GetId()] = ref
+			}
+		} else if w, ok := botwidgets.FromInlineMessage(r.GetSendMessage()); ok {
+			// A widget (task 106, widgets.go).
+			var ref dao.WidgetRef
+			if res, ref, err = c.inlineWidgetResult(r, w); err == nil {
+				if widgets == nil {
+					widgets = make(map[string]dao.WidgetRef)
+				}
+				widgets[r.GetId()] = ref
+			}
+		} else {
+			res, err = c.inlineResult(r)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -242,6 +292,8 @@ func (c *BotsCore) MessagesSetInlineBotResults(in *mtproto.TLMessagesSetInlineBo
 		CacheTime:     in.CacheTime,
 		Private:       in.Private,
 		Bot:           c.MD.UserId,
+		Games:         games,
+		Widgets:       widgets,
 	}
 	if in.NextOffset != nil {
 		a.NextOffset = in.NextOffset.GetValue()
@@ -262,6 +314,12 @@ func (c *BotsCore) MessagesSetInlineBotResults(in *mtproto.TLMessagesSetInlineBo
 // content at a URL and no media already on the server cannot be sent as
 // media, because the server does not fetch URLs, and is refused.
 func (c *BotsCore) inlineResult(r *mtproto.InputBotInlineResult) (*mtproto.BotInlineResult, error) {
+	// Type "game" is a game's (inlineGameResult): tdesktop shows a result of
+	// that type as a game (inline_bot_result.cpp:75), and sending one that
+	// is not would fail (outOfResult).
+	if r.GetType() == "game" {
+		return nil, mtproto.ErrResultTypeInvalid
+	}
 	send, err := c.inlineMessage(r.GetSendMessage())
 	if err != nil {
 		return nil, err
@@ -273,7 +331,7 @@ func (c *BotsCore) inlineResult(r *mtproto.InputBotInlineResult) (*mtproto.BotIn
 		}
 		return mtproto.MakeTLBotInlineResult(&mtproto.BotInlineResult{
 			Id: r.GetId(), Type: r.GetType(), Title: r.GetTitle(), Description: r.GetDescription(), Url: r.GetUrl(),
-			Thumb: webDocument(r.GetThumb()), Content: webDocument(r.GetContent()), SendMessage: send,
+			Thumb: webDocument(c.svcCtx.WebFileKey, r.GetThumb()), Content: webDocument(c.svcCtx.WebFileKey, r.GetContent()), SendMessage: send,
 		}).To_BotInlineResult(), nil
 	case mtproto.Predicate_inputBotInlineResultPhoto:
 		// The access hash says the bot was given the file; only with it
@@ -290,8 +348,60 @@ func (c *BotsCore) inlineResult(r *mtproto.InputBotInlineResult) (*mtproto.BotIn
 		}
 		return mtproto.MakeTLBotInlineMediaResult(&mtproto.BotInlineResult{Id: r.GetId(), Type: r.GetType(), Document: document, Title: r.GetTitle(), Description: r.GetDescription(), SendMessage: send}).To_BotInlineResult(), nil
 	}
-	// Games are not served.
+	// A game is a result of an inline query only (inlineGameResult).
 	return nil, mtproto.ErrResultTypeInvalid
+}
+
+// inlineGameResult turns a game of the bot (inputBotInlineResultGame) into
+// the result clients show: botInlineMediaResult of type "game" with the
+// game's picture, animation, title and description, which tdesktop shows
+// and sends as a game (inline_bot_result.cpp:75, 155-165, 188-192). Its
+// message is inputBotInlineMessageGame, SEND_MESSAGE_TYPE_INVALID
+// otherwise, and its keyboard starts with the game's button or has none
+// (botgames.Check): the button goes in when a user sends the result, in
+// the user's language. The game is a game of the bot, by its short name,
+// MEDIA_INVALID for none. ref names the game for the send.
+func (c *BotsCore) inlineGameResult(r *mtproto.InputBotInlineResult) (*mtproto.BotInlineResult, dao.GameRef, error) {
+	m := r.GetSendMessage()
+	if m.GetPredicateName() != mtproto.Predicate_inputBotInlineMessageGame {
+		return nil, dao.GameRef{}, mtproto.ErrSendMessageTypeInvalid
+	}
+	env := c.markupEnv()
+	env.Game = true
+	markup, err := botmarkup.Normalize(m.GetReplyMarkup(), env)
+	if err != nil {
+		return nil, dao.GameRef{}, err
+	}
+	if err = botgames.Check(markup); err != nil {
+		return nil, dao.GameRef{}, err
+	}
+	game, err := c.svcCtx.Bots.GameByShortName(c.ctx, c.MD.UserId, r.GetShortName())
+	if err != nil {
+		c.Logger.Errorf("messages.setInlineBotResults - game: %v", err)
+		return nil, dao.GameRef{}, mtproto.ErrInternalServerError
+	}
+	if game == nil {
+		return nil, dao.GameRef{}, mtproto.ErrMediaInvalid
+	}
+	tl, err := botgames.TL(c.ctx, c.svcCtx.MediaClient, game)
+	if err != nil {
+		c.Logger.Errorf("messages.setInlineBotResults - game: %v", err)
+		return nil, dao.GameRef{}, mtproto.ErrInternalServerError
+	}
+	res := &mtproto.BotInlineResult{
+		Id:       r.GetId(),
+		Type:     "game",
+		Photo:    tl.GetPhoto(),
+		Document: tl.GetDocument(),
+		Title:    wrapperspb.String(tl.GetTitle()),
+		SendMessage: mtproto.MakeTLBotInlineMessageMediaAuto(&mtproto.BotInlineMessage{
+			ReplyMarkup: markup,
+		}).To_BotInlineMessage(),
+	}
+	if tl.GetDescription() != "" {
+		res.Description = wrapperspb.String(tl.GetDescription())
+	}
+	return mtproto.MakeTLBotInlineMediaResult(res).To_BotInlineResult(), dao.GameRef{Id: game.Id, AccessHash: game.AccessHash}, nil
 }
 
 // resolveUser is the user an input button of a bot names, 0 for nobody.
@@ -306,20 +416,32 @@ func (c *BotsCore) resolveUser(in *mtproto.InputUser) int64 {
 	return u.PeerId
 }
 
-func webDocument(d *mtproto.InputWebDocument) *mtproto.WebDocument {
+// webDocument is a thumbnail or content of a bot's result as clients get
+// it: a webDocument whose access_hash is the server's signature of the
+// address (webfile.Sign), which clients fetch through upload.getWebFile
+// with inputWebFileLocation{url, access_hash} (core.telegram.org/api/files,
+// "proxying the request through telegram"), so that the device never
+// reaches the bot's host. Without a key it is webDocumentNoProxy, which
+// clients fetch from the address themselves.
+func webDocument(key []byte, d *mtproto.InputWebDocument) *mtproto.WebDocument {
 	if d == nil {
 		return nil
 	}
-	return mtproto.MakeTLWebDocumentNoProxy(&mtproto.WebDocument{
+	doc := &mtproto.WebDocument{
 		Url: d.GetUrl(), Size2: d.GetSize2(), MimeType: d.GetMimeType(), Attributes: d.GetAttributes(),
-	}).To_WebDocument()
+	}
+	if len(key) == 0 {
+		return mtproto.MakeTLWebDocumentNoProxy(doc).To_WebDocument()
+	}
+	doc.AccessHash = webfile.Sign(key, d.GetUrl())
+	return mtproto.MakeTLWebDocument(doc).To_WebDocument()
 }
 
 // inlineMessage turns what a result sends into its stored form. Web page,
-// invoice, game and rich message results are refused: nothing here makes
-// them.
+// invoice and rich message results are refused: nothing here makes them;
+// the message of a game is inlineGameResult's.
 func (c *BotsCore) inlineMessage(m *mtproto.InputBotInlineMessage) (*mtproto.BotInlineMessage, error) {
-	markup, err := botmarkup.Normalize(m.GetReplyMarkup(), c.resolveUser)
+	markup, err := botmarkup.Normalize(m.GetReplyMarkup(), c.markupEnv())
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +465,9 @@ func (c *BotsCore) inlineMessage(m *mtproto.InputBotInlineMessage) (*mtproto.Bot
 
 // outOfResult builds the message a chosen result sends: text and markup, and
 // the media of the result (its photo or document) or of the message itself.
-func outOfResult(r *mtproto.BotInlineResult) (*mtproto.Message, error) {
+// game is the game of a game result, which is its media; a game result
+// without it is not sent.
+func outOfResult(r *mtproto.BotInlineResult, game *mtproto.Game) (*mtproto.Message, error) {
 	send := r.GetSendMessage()
 	out := mtproto.MakeTLMessage(&mtproto.Message{
 		Out:         true,
@@ -352,9 +476,14 @@ func outOfResult(r *mtproto.BotInlineResult) (*mtproto.Message, error) {
 		Entities:    send.GetEntities(),
 		ReplyMarkup: send.GetReplyMarkup(),
 	}).To_Message()
+	if (game != nil) != (r.GetPredicateName() == mtproto.Predicate_botInlineMediaResult && r.GetType() == "game") {
+		return nil, mtproto.ErrResultTypeInvalid
+	}
 	switch send.GetPredicateName() {
 	case mtproto.Predicate_botInlineMessageMediaAuto:
 		switch {
+		case game != nil:
+			out.Media = botgames.MessageMedia(game)
 		case r.GetPhoto() != nil:
 			out.Media = mtproto.MakeTLMessageMediaPhoto(&mtproto.MessageMedia{Photo_FLAGPHOTO: r.GetPhoto()}).To_MessageMedia()
 		case r.GetDocument() != nil:
@@ -373,6 +502,9 @@ func outOfResult(r *mtproto.BotInlineResult) (*mtproto.Message, error) {
 		out.Media = mtproto.MakeTLMessageMediaVenue(&mtproto.MessageMedia{Geo: send.GetGeo(), Title: send.GetTitle(), Address: send.GetAddress(), Provider: send.GetProvider(), VenueId: send.GetVenueId(), VenueType: send.GetVenueType()}).To_MessageMedia()
 	case mtproto.Predicate_botInlineMessageMediaContact:
 		out.Media = mtproto.MakeTLMessageMediaContact(&mtproto.MessageMedia{PhoneNumber: send.GetPhoneNumber(), FirstName: send.GetFirstName(), LastName: send.GetLastName(), Vcard: send.GetVcard()}).To_MessageMedia()
+	case mtproto.Predicate_botInlineMessageWidget:
+		// The widget is made as the user sends it, by the bot and what the
+		// answer kept of it (sendInlineResult, inlineWidgetMedia).
 	default:
 		return nil, mtproto.ErrSendMessageTypeInvalid
 	}
@@ -381,7 +513,13 @@ func outOfResult(r *mtproto.BotInlineResult) (*mtproto.Message, error) {
 
 // MessagesSendInlineBotResult
 // messages.sendInlineBotResult#c0cf7646 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true hide_via:flags.11?true peer:InputPeer reply_to:flags.0?InputReplyTo random_id:long query_id:long id:string schedule_date:flags.10?int send_as:flags.13?InputPeer quick_reply_shortcut:flags.17?InputQuickReplyShortcut allow_paid_stars:flags.21?long = Updates;
+//
+// Only users send a result (core.telegram.org/method/messages.sendInlineBotResult:
+// "Only users can use this method"); a bot gets BOT_METHOD_INVALID.
 func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineBotResult) (*mtproto.Updates, error) {
+	if c.MD.IsBot {
+		return nil, mtproto.ErrBotMethodInvalid
+	}
 	peer := c.chatPeer(in.Peer)
 	if !peer.IsUser() && !peer.IsChat() && !peer.IsChannel() {
 		return nil, mtproto.ErrPeerIdInvalid
@@ -404,64 +542,214 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 	if result == nil {
 		return nil, mtproto.ErrResultIdInvalid
 	}
-
-	// The peer the message comes from: send_as decides it as for
-	// messages.sendMessage (pkg/sendas), and msg checks it again with the
-	// channel locked (task 081).
-	from, err := c.svcCtx.SendAs.From(c.ctx, c.MD.UserId, peer, in.GetSendAs())
-	if err != nil {
-		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
-		return nil, err
+	// A prepared inline message goes only to the kinds of chats its bot
+	// named (messages.savePreparedInlineMessage, peer_types): the clients
+	// offer only those (tdesktop bot_attach_web_view.cpp:2026, 2105-2111),
+	// and the server holds to it for a client that does not.
+	if len(answer.PeerTypes) != 0 {
+		_, kind, err := c.inlinePeerType(answer.Bot, peer)
+		if err != nil {
+			return nil, err
+		}
+		if !peerKindAllowed(answer.PeerTypes, kind) {
+			return nil, mtproto.ErrPeerIdInvalid
+		}
 	}
 
-	out, err := outOfResult(result)
-	if err != nil {
-		return nil, err
+	// A game result sends the game the answer named (dao.GameRef): one
+	// removed since is no longer sent.
+	var game *mtproto.Game
+	if ref, ok := answer.Games[in.Id]; ok {
+		if game, err = c.inlineGame(ref); err != nil {
+			c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
+			return nil, err
+		}
 	}
-	out.Date = int32(time.Now().Unix())
-	out.FromId = from
-	out.PeerId = peer.ToPeer()
-	if peer.IsSelfUser(c.MD.UserId) {
-		// The sub-chat of Saved Messages, as messages.sendMessage writes it.
-		out.SavedPeerId = peer.ToPeer()
-	}
-	out.Silent = in.Silent
-	// core.telegram.org/api/bots/inline: the message has via_bot_id, and
-	// clients show the username of the bot in its header. hide_via is not
-	// honored: no bot here has the right to hide itself.
-	out.ViaBotId = wrapperspb.Int64(answer.Bot)
-	// The same reply as messages.sendMessage makes: the clients fill reply_to
-	// of both alike (tdesktop data_histories.cpp ReplyToForMTP, Android
-	// SendMessagesHelper.createReplyInput).
-	if out.ReplyTo, err = replyheader.Make(replySource{c: c}, c.MD.UserId, peer, nil, in.GetReplyTo()); err != nil {
-		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
-		return nil, err
-	}
-	out.ReplyTo = replyheader.WithTopic(out.ReplyTo, peer, in.GetReplyTo())
 
-	updates, err := c.svcCtx.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
-		UserId:    c.MD.UserId,
-		AuthKeyId: c.MD.PermAuthKeyId,
-		PeerType:  peer.PeerType,
-		PeerId:    peer.PeerId,
-		Message: []*msgpb.OutboxMessage{msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
-			NoWebpage:    result.GetSendMessage().GetNoWebpage(),
-			Background:   in.Background,
-			RandomId:     in.RandomId,
-			Message:      out,
-			ScheduleDate: in.ScheduleDate,
-		}).To_OutboxMessage()},
+	// A widget result keeps what its preview does not show (dao.WidgetRef).
+	var widget *dao.WidgetRef
+	if ref, ok := answer.Widgets[in.Id]; ok {
+		widget = &ref
+	}
+
+	out, updates, err := c.sendInlineResult(&inlineSend{
+		game:         game,
+		widget:       widget,
+		userId:       c.MD.UserId,
+		authKeyId:    c.MD.PermAuthKeyId,
+		peer:         peer,
+		botId:        answer.Bot,
+		result:       result,
+		hideVia:      in.HideVia,
+		silent:       in.Silent,
+		background:   in.Background,
+		randomId:     in.RandomId,
+		scheduleDate: in.ScheduleDate,
+		replyTo:      in.GetReplyTo(),
+		sendAs:       in.GetSendAs(),
+		shortcut:     in.GetQuickReplyShortcut(),
 	})
 	if err != nil {
 		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
 		return nil, err
 	}
 	c.addRecentSticker(out.GetMedia())
-	if in.ClearDraft {
+	c.countGifSend(answer.Bot, out.GetMedia())
+	// A result kept in a quick reply shortcut leaves the draft of Saved
+	// Messages alone, as messages.sendMessage does (task 105).
+	if in.ClearDraft && in.GetQuickReplyShortcut() == nil {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() { c.clearDraft(ctx, peer, in.GetReplyTo().GetTopMsgId().GetValue()) })
 	}
 	return updates, nil
+}
+
+// inlineSend is an inline result a user sends to a chat: a result the user
+// chose (messages.sendInlineBotResult) or the answer of a bot to the user's
+// web view (messages.sendWebViewResultMessage).
+type inlineSend struct {
+	// userId sends the message; authKeyId is the session the reply goes
+	// to, which the push leaves out (0: every session of the user).
+	userId    int64
+	authKeyId int64
+	peer      *mtproto.PeerUtil
+	// botId is the bot of the result, via_bot_id of the message.
+	botId  int64
+	result *mtproto.BotInlineResult
+	// game is the game of a game result (task 106).
+	game *mtproto.Game
+	// widget is what a widget result keeps for its send (task 106).
+	widget *dao.WidgetRef
+	// hideVia drops via_bot_id for a built-in bot.
+	hideVia      bool
+	silent       bool
+	background   bool
+	randomId     int64
+	scheduleDate *wrapperspb.Int32Value
+	replyTo      *mtproto.InputReplyTo
+	sendAs       *mtproto.InputPeer
+	// shortcut keeps the message in a quick reply shortcut of the user
+	// instead of sending it (task 105).
+	shortcut *mtproto.InputQuickReplyShortcut
+}
+
+// sendInlineResult sends the message of an inline result from s.userId to
+// s.peer through msg, and returns the message and the updates of the send.
+// With s.shortcut the message goes to that quick reply shortcut of the
+// user instead (task 105, core.telegram.org/api/business: messages are
+// added "to inputPeerSelf, specifying the shortcut"), as iOS sends a result
+// in the shortcut's editor (PendingMessageManager.swift:2093).
+func (c *BotsCore) sendInlineResult(s *inlineSend) (*mtproto.Message, *mtproto.Updates, error) {
+	if s.shortcut != nil {
+		switch {
+		case !s.peer.IsSelfUser(s.userId):
+			return nil, nil, mtproto.ErrPeerIdInvalid
+		case s.scheduleDate != nil:
+			// A shortcut has no time to go out at (not verified which error
+			// Telegram answers).
+			return nil, nil, mtproto.ErrScheduleDateInvalid
+		}
+	}
+	// The peer the message comes from: send_as decides it as for
+	// messages.sendMessage (pkg/sendas), and msg checks it again with the
+	// channel locked (task 081).
+	from, err := c.svcCtx.SendAs.From(c.ctx, s.userId, s.peer, s.sendAs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out, err := outOfResult(s.result, s.game)
+	if err != nil {
+		return nil, nil, err
+	}
+	if send := s.result.GetSendMessage(); send.GetPredicateName() == mtproto.Predicate_botInlineMessageWidget {
+		// The widget of the result, made as the user sends it
+		// (inlineWidgetMedia); a widget result comes only with what its
+		// answer kept of it.
+		if s.widget == nil {
+			return nil, nil, mtproto.ErrSendMessageTypeInvalid
+		}
+		if out.Media, err = c.inlineWidgetMedia(s.botId, send, s.widget); err != nil {
+			return nil, nil, err
+		}
+	}
+	if s.game != nil {
+		// The button that starts the game, in the sender's language when
+		// the bot gave none (botgames.Markup).
+		if out.ReplyMarkup, err = botgames.Markup(out.ReplyMarkup, s.game.GetTitle(), c.MD.LangCode); err != nil {
+			return nil, nil, err
+		}
+	}
+	out.Date = int32(time.Now().Unix())
+	out.FromId = from
+	out.PeerId = s.peer.ToPeer()
+	if s.peer.IsSelfUser(s.userId) && s.shortcut == nil {
+		// The sub-chat of Saved Messages, as messages.sendMessage writes it.
+		out.SavedPeerId = s.peer.ToPeer()
+	}
+	out.Silent = s.silent
+	// core.telegram.org/api/bots/inline: the message has via_bot_id, and
+	// clients show the username of the bot in its header. hide_via may
+	// drop it "only for bot usernames encountered in the config"
+	// (core.telegram.org/method/messages.sendInlineBotResult): the
+	// built-in bots of help.getConfig, whose GIFs the emoji panel sends
+	// with it (Android ChatActivityEnterView.java:12491-12509, iOS
+	// ChatController.swift:2820, tdesktop gifs_list_widget.cpp:545).
+	// Another bot keeps it.
+	if !s.hideVia || !inlinebots.IsBuiltin(s.botId) {
+		out.ViaBotId = wrapperspb.Int64(s.botId)
+	}
+	// The same reply as messages.sendMessage makes: the clients fill reply_to
+	// of both alike (tdesktop data_histories.cpp ReplyToForMTP, Android
+	// SendMessagesHelper.createReplyInput).
+	// A message of a shortcut answers nothing: it goes to another chat later.
+	if s.shortcut == nil {
+		if out.ReplyTo, err = replyheader.Make(replySource{c: c, userId: s.userId}, s.userId, s.peer, nil, s.replyTo); err != nil {
+			return nil, nil, err
+		}
+		out.ReplyTo = replyheader.WithTopic(out.ReplyTo, s.peer, s.replyTo)
+	}
+
+	outbox := msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
+		NoWebpage:    s.result.GetSendMessage().GetNoWebpage(),
+		Background:   s.background,
+		RandomId:     s.randomId,
+		Message:      out,
+		ScheduleDate: s.scheduleDate,
+	}).To_OutboxMessage()
+	var updates *mtproto.Updates
+	if s.shortcut != nil {
+		updates, err = c.svcCtx.MsgAddQuickReplyMessages(c.ctx, &msgpb.TLMsgAddQuickReplyMessages{
+			UserId:    s.userId,
+			AuthKeyId: s.authKeyId,
+			Shortcut:  s.shortcut,
+			Message:   []*msgpb.OutboxMessage{outbox},
+		})
+	} else {
+		updates, err = c.svcCtx.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
+			UserId:    s.userId,
+			AuthKeyId: s.authKeyId,
+			PeerType:  s.peer.PeerType,
+			PeerId:    s.peer.PeerId,
+			Message:   []*msgpb.OutboxMessage{outbox},
+		})
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return out, updates, nil
+}
+
+// countGifSend counts a GIF of @gif's results sent: the popular GIFs of
+// its empty query are the ones sent most. The message is sent by then: a
+// failure is logged, the send is only missing from the count.
+func (c *BotsCore) countGifSend(botId int64, media *mtproto.MessageMedia) {
+	if botId != inlinebots.Gif.Id || media.GetPredicateName() != mtproto.Predicate_messageMediaDocument || media.GetDocument().GetId() == 0 {
+		return
+	}
+	if err := c.svcCtx.GifSends.CountGifSend(c.ctx, media.GetDocument().GetId()); err != nil {
+		c.Logger.Errorf("messages.sendInlineBotResult - count of a @gif send: %v", err)
+	}
 }
 
 // sentSticker is the sticker a message of an inline result sent, 0 for
@@ -483,9 +771,6 @@ func sentSticker(media *mtproto.MessageMedia) int64 {
 // keeps the sticker only if the server adds it too. The message is sent
 // by then: a failure is logged, the sticker is only missing from the list.
 func (c *BotsCore) addRecentSticker(media *mtproto.MessageMedia) {
-	if c.MD.IsBot {
-		return
-	}
 	if id := sentSticker(media); id != 0 {
 		if err := c.svcCtx.StickerLists.Add(c.ctx, c.MD.UserId, stickerlists.Recent, id); err != nil {
 			c.Logger.Errorf("recent stickers - sticker %d: %v", id, err)

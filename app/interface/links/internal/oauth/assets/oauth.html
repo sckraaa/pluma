@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<title>{{.Title}}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#f4f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131513" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="/_l/page.css">
+<link rel="stylesheet" href="/_o/oauth.css">
+</head>
+<body>
+<header class="top">
+<a class="brand" href="{{.Site}}/" aria-label="Pluma">{{.Wordmark}}</a>
+<a class="download" href="{{.Site}}/">{{.T.download}}</a>
+</header>
+<main>
+<div class="card oauth">
+{{if .Error}}<div class="icon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1 5h2v7h-2V7Zm0 9h2v2h-2v-2Z"/></svg></div>
+<div class="name">{{.T.oauth_error_heading}}</div>
+<div class="desc">{{.Error}}</div>
+{{else}}{{if .PhotoURL}}<div class="photo"><img src="{{.PhotoURL}}" alt=""></div>
+{{else}}<div class="initials">{{.Initials}}</div>
+{{end}}<div class="name">{{.Heading}}</div>
+<div class="extra">{{.BotLine}}</div>
+<div id="oauth-pending" data-token="{{.Token}}">
+<a class="qr" href="{{.AppLink}}" aria-label="{{.T.oauth_button}}">{{.QR}}</a>
+<div class="desc">{{.T.oauth_scan}}</div>
+<div class="match">{{.T.oauth_match}}<span class="match-code">{{.Code}}</span></div>
+<div class="action"><a class="btn" href="{{.AppLink}}">{{.T.oauth_button}}</a></div>
+<div class="addition" id="oauth-waiting">{{.T.oauth_waiting}}</div>
+</div>
+<div class="desc" id="oauth-done" hidden>{{.T.oauth_done}}</div>
+<div id="oauth-expired" hidden>
+<div class="desc">{{.T.oauth_expired}}</div>
+<div class="action"><a class="btn" href="{{.Retry}}">{{.T.oauth_retry}}</a></div>
+</div>
+<div id="oauth-declined" hidden>
+<div class="desc">{{.T.oauth_declined}}</div>
+{{if .Back}}<div class="action"><a class="btn btn--quiet" href="{{.Back}}">{{.T.oauth_back}}</a></div>
+{{end}}</div>
+{{end}}</div>
+</main>
+{{if not .Error}}<script src="/_o/poll.js"></script>
+{{end}}</body>
+</html>

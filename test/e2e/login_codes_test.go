@@ -92,6 +92,7 @@ func TestLoginCodeThroughTelegram(t *testing.T) {
 	phone := testPhones(t, 1)[0]
 	admin(t, "allowlist", "add", phone, "e2e test")
 	codesAnswer(t, phone, "sent")
+	resetTelegramCodesPerAddress(t)
 
 	c, err := mtclient.Dial(ctx, config(t, "e2e codes"))
 	if err != nil {
@@ -194,6 +195,7 @@ func TestLoginCodeResendFromApp(t *testing.T) {
 	resetLoginsPerAddress(t)
 	login(ctx, t, phone, "Owner")
 	codesAnswer(t, phone, "sent")
+	resetTelegramCodesPerAddress(t)
 
 	written := len(codesWritten(t, phone))
 	for round := 1; round <= 2; round++ {

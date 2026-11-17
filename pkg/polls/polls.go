@@ -261,6 +261,16 @@ func (r *Record) View(votes *Votes, viewer int64, mode Mode, now int64) (*mtprot
 	if creator && poll.GetPublicVoters() {
 		results.HasUnreadVotes = r.HasUnread
 	}
+	// The statistics of the poll are its creator's (core.telegram.org/api/
+	// stats, task 103, ADR 0066): the clients offer stats.getPollStats by
+	// this flag (Android ChatActivity.java:46661-46669, tdesktop
+	// data/data_poll.cpp:206-207, Web K pollStatistics.ts:4-10). Min
+	// results go to everyone alike and never carry it: tdesktop and Android
+	// keep the flag they have for min results (data_poll.cpp:206-207,
+	// MessageObject.java:4270-4273), while iOS takes it from them as well
+	// (TelegramCore SyncCore_TelegramMediaPoll.swift:450-471), so there the
+	// item goes away after a min update until the message is read again.
+	results.CanViewStats = creator
 	return poll, mtproto.MakeTLPollResults(results).To_PollResults()
 }
 

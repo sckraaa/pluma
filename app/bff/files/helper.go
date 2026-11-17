@@ -25,11 +25,26 @@ type (
 func init() {
 	zrpc.DontLogContentForMethod("/mtproto.RPCFiles/upload_saveFilePart")
 	zrpc.DontLogContentForMethod("/mtproto.RPCFiles/upload_saveBigFilePart")
+	// The location of a web file carries an address or a point on the map
+	// (ADR 0062, p. 5).
+	zrpc.DontLogContentForMethod("/mtproto.RPCFiles/upload_getWebFile")
 
 	zrpc.DontLogClientContentForMethod("/dfs.RPCDfs/dfs_writeFilePartData")
 	zrpc.DontLogClientContentForMethod("/dfs.RPCDfs/dfs_downloadFile")
 }
 
-func New(c Config, plugin1 plugin.ThumbFilesPlugin, plugin2 plugin.StreamFilesPlugin) *service.Service {
-	return service.New(svc.NewServiceContext(c, plugin1, plugin2))
+// Module is the methods of files and the work beside them (the HTTPS CDN,
+// task 107).
+type Module struct {
+	*service.Service
+	svcCtx *svc.ServiceContext
 }
+
+// New returns the methods and starts the work beside them.
+func New(c Config, plugin1 plugin.ThumbFilesPlugin, plugin2 plugin.StreamFilesPlugin) *Module {
+	svcCtx := svc.NewServiceContext(c, plugin1, plugin2)
+	return &Module{Service: service.New(svcCtx), svcCtx: svcCtx}
+}
+
+// Stop stops the work beside the methods and waits for it.
+func (m *Module) Stop() { m.svcCtx.Stop() }

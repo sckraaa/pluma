@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/botstore"
 )
 
 // AuthImportBotAuthorization
@@ -31,6 +32,9 @@ import (
 // no bot has, or one replaced, is ACCESS_TOKEN_INVALID; a deleted bot's token
 // ACCESS_TOKEN_EXPIRED (core.telegram.org/method/auth.importBotAuthorization).
 // No other login of the account is told: it has no human sessions to read it.
+//
+// The login also stores the keys derived from the token, which only a login
+// and the issue of a token see in full (task 106, ADR 0068, p. 3).
 func (c *AuthorizationCore) AuthImportBotAuthorization(in *mtproto.TLAuthImportBotAuthorization) (*mtproto.Auth_Authorization, error) {
 	if err := c.svcCtx.Dao.CheckApiIdAndHash(in.ApiId, in.ApiHash); err != nil {
 		c.Logger.Errorf("auth.importBotAuthorization - invalid api: %d", in.ApiId)
@@ -59,7 +63,26 @@ func (c *AuthorizationCore) AuthImportBotAuthorization(in *mtproto.TLAuthImportB
 		c.Logger.Errorf("auth.importBotAuthorization - bind the key to bot %d: %v", botId, err)
 		return nil, err
 	}
+	c.storeBotKeys(botId, in.BotAuthToken)
 	return mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
 		User: bot.ToSelfUser(),
 	}).To_Auth_Authorization(), nil
+}
+
+// storeBotKeys stores the keys of token for botId when the bot has none of
+// this token (pkg/botkeys). It runs after the login is bound: the login
+// matters more, so a failure here is logged and the login still succeeds;
+// the bot's mini apps and login button stay off until a later login or a
+// new token stores the keys.
+func (c *AuthorizationCore) storeBotKeys(botId int64, token string) {
+	if c.svcCtx.BotKeys == nil || !c.svcCtx.BotKeys.Enabled() {
+		return
+	}
+	_, tokenHash, ok := botstore.ParseToken(token)
+	if !ok {
+		return
+	}
+	if _, err := c.svcCtx.BotKeys.Ensure(c.ctx, botId, token, tokenHash); err != nil {
+		c.Logger.Errorf("auth.importBotAuthorization - store the keys of bot %d: %v", botId, err)
+	}
 }

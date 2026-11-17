@@ -1,0 +1,23 @@
+# Telegram Business (task 105, ADR 0067, docs/ops/business.md). The
+# metric is msg's (business_autoreply_total{kind, result}, the worker of the
+# automatic replies, app/messenger/msg/msg/internal/core/
+# business_autoreply_worker.go); the worker starts every series at zero,
+# so that the first failure counts too, and a server where nobody turned
+# an automatic reply on stays at zero and quiet.
+groups:
+  - name: business
+    rules:
+      # A queued automatic reply is "failed" when ten attempts, one per
+      # two-minute lease, ended in a passing error: the user who wrote got
+      # no greeting or away message. "skipped" (the setting turned off, the
+      # user blocked the account, its privacy refuses) is no failure. A
+      # failure has already lasted twenty minutes of attempts, so one is
+      # enough when the replies are few.
+      - alert: BusinessAutoReplyFailing
+        expr: |
+          sum(increase(business_autoreply_total{result="failed"}[15m]))
+            / clamp_min(sum(increase(business_autoreply_total{result=~"sent|skipped|failed"}[15m])), 1) > 0.1
+        labels: {severity: warning}
+        annotations:
+          summary: "Automatic replies of Telegram Business are given up: more than 10% failed in 15 minutes"
+          description: "business_autoreply_total by kind and result; the msg log has 'automatic reply N of user U, attempt K' with the cause and 'given up after 10 attempts'. Usually MySQL or the inbox (Kafka) of msg. docs/ops/business.md"

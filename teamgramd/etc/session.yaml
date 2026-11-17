@@ -38,6 +38,13 @@ StatusClient:
     Hosts:
       - 127.0.0.1:2379
     Key: service.status
+BizServiceClient:
+  # Only reads (user.getImmutableUser), as msg -> biz (ADR 0012, p. 9).
+  Timeout: 5000
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.biz_service
 GatewayClient:
   Etcd:
     Hosts:
@@ -80,7 +87,7 @@ BFFProxyClients:
     "/mtproto.RPCPromoData": "bff.bff"
     #"/mtproto.RPCTsf": "bff.bff"
     "/mtproto.RPCTwoFa": "bff.bff"
-    #"/mtproto.RPCSeamless": "bff.bff"
+    "/mtproto.RPCSeamless": "bff.bff"
     "/mtproto.RPCVoipCalls": "bff.bff"
     "/mtproto.RPCTranscription": "bff.bff"
     "/mtproto.RPCChannels": "bff.bff"
@@ -89,6 +96,7 @@ BFFProxyClients:
     "/mtproto.RPCChannelRecommendations": "bff.bff"
     "/mtproto.RPCAntiSpam": "bff.bff"
     "/mtproto.RPCTranslation": "bff.bff"
+    "/mtproto.RPCAiComposeTone": "bff.bff"
     "/mtproto.RPCPaidMessage": "bff.bff"
     "/mtproto.RPCChatInvites": "bff.bff"
     "/mtproto.RPCChats": "bff.bff"
@@ -100,6 +108,11 @@ BFFProxyClients:
     "/mtproto.RPCInlineBot": "bff.bff"
     "/mtproto.RPCBots": "bff.bff"
     "/mtproto.RPCBotMenuButton": "bff.bff"
+    "/mtproto.RPCBotMenu": "bff.bff"
+    "/mtproto.RPCMiniBotApps": "bff.bff"
+    "/mtproto.RPCMainMiniBotApps": "bff.bff"
+    "/mtproto.RPCPreparedInlineMessages": "bff.bff"
+    "/mtproto.RPCBotWidgets": "bff.bff"
     #"/mtproto.RPCInternalBot": "bff.bff"
     "/mtproto.RPCContacts": "bff.bff"
     "/mtproto.RPCProfileLinks": "bff.bff"
@@ -109,7 +122,7 @@ BFFProxyClients:
     "/mtproto.RPCFolders": "bff.bff"
     "/mtproto.RPCFolderTags": "bff.bff"
     "/mtproto.RPCForums": "bff.bff"
-    #"/mtproto.RPCGames": "bff.bff"
+    "/mtproto.RPCGames": "bff.bff"
     "/mtproto.RPCGroupCalls": "bff.bff"
     "/mtproto.RPCConferenceCalls": "bff.bff"
     #"/mtproto.RPCImportedChats": "bff.bff"
@@ -128,8 +141,16 @@ BFFProxyClients:
     "/mtproto.RPCNsfw": "bff.bff"
     "/mtproto.RPCSponsoredMessages": "bff.bff"
     #"/mtproto.RPCProxyData": "bff.bff"
-    #"/mtproto.RPCStatistics": "bff.bff"
+    "/mtproto.RPCStatistics": "bff.bff"
     "/mtproto.RPCAccount": "bff.bff"
+    "/mtproto.RPCWebBrowser": "bff.bff"
+    "/mtproto.RPCBusinessOpeningHours": "bff.bff"
+    "/mtproto.RPCBusinessLocation": "bff.bff"
+    "/mtproto.RPCBusinessGreeting": "bff.bff"
+    "/mtproto.RPCBusinessIntro": "bff.bff"
+    "/mtproto.RPCBusinessChatLinks": "bff.bff"
+    "/mtproto.RPCBusinessQuickReply": "bff.bff"
+    "/mtproto.RPCBusinessConnectedBots": "bff.bff"
     "/mtproto.RPCUsernames": "bff.bff"
     "/mtproto.RPCSavedMessageDialogs": "bff.bff"
     "/mtproto.RPCPrivacySettings": "bff.bff"

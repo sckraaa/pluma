@@ -39,6 +39,92 @@ Mail:
   ApiKey: "${MAIL_API_KEY}"
   From: "${MAIL_FROM}"
 
+# The translation of messages (task 101, ADR 0064, docs/ops/translation.md):
+# the engine is a service with POST /v1/chat/completions of the OpenAI API,
+# the translate service of docker-compose.translate.yaml or any other. No
+# URL: the translation is off, and the clients are told so by the keys
+# translations_manual_enabled and translations_auto_enabled. Model names the
+# model the engine serves; Profile the prompts of the model (hy-mt1.5 by
+# default). Slots and Context are the engine's --parallel and --ctx-size,
+# TRANSLATE_SLOTS and TRANSLATE_CTX, which the engine of
+# docker-compose.translate.yaml reads too (empty: 4 and 16384); the waits,
+# the bounds of a request and the per-user limits have defaults.
+Translate:
+  URL: "${TRANSLATE_URL}"
+  Token: "${TRANSLATE_TOKEN}"
+  Model: "${TRANSLATE_MODEL}"
+  Profile: "${TRANSLATE_PROFILE}"
+  Slots: "${TRANSLATE_SLOTS}"
+  Context: "${TRANSLATE_CTX}"
+
+# upload.getWebFile (task 099, ADR 0062, p. 5, docs/ops/inline-bots.md):
+# the thumbnails and content inline bots name by address are handed out
+# signed under WEBFILE_HMAC_KEY and fetched by the server, never by the
+# device. No key: they go out unsigned (webDocumentNoProxy) and clients
+# fetch them from the bot's host themselves. CacheDir and CacheBytes (by
+# default /tmp/webfile and 2 GiB) bound the files kept for 24 hours.
+WebFile:
+  HMACKey: "${WEBFILE_HMAC_KEY}"
+
+# The map previews of geo points (task 100, ADR 0063, docs/ops/maps.md),
+# which Android, Desktop and Web K ask for with upload.getWebFile: rendered
+# by the maps service of docker-compose.maps.yaml (MAPS_URL,
+# http://maps:8080 in Docker) and kept in the Redis of KV. No URL: maps are
+# off and such a request is LOCATION_INVALID. Empty settings take their
+# defaults: the styles ru,en (one per language of the labels), 10s for a
+# render, 4 renders at once, 6h in the cache, 60 new maps a minute per user.
+Maps:
+  URL: "${MAPS_URL}"
+  Styles: "${MAPS_STYLES}"
+  Timeout: "${MAPS_TIMEOUT}"
+  Concurrency: "${MAPS_CONCURRENCY}"
+  CacheTTL: "${MAPS_CACHE_TTL}"
+  PerUserPerMinute: "${MAPS_PER_USER_PER_MINUTE}"
+
+# The built-in inline bots @gif and @pic (task 099, ADR 0062,
+# docs/ops/inline-bots.md). @pic searches pictures with the SearXNG of
+# SEARXNG_URL (http://searxng:8080 in Docker; empty: @pic answers with empty
+# lists). The media they find are imported into dfs when a query finds
+# them, at most INLINE_IMPORT_DAILY_BYTES a UTC day (empty: 1 GiB); past
+# it only media imported before are shown.
+InlineBots:
+  SearxngURL: "${SEARXNG_URL}"
+  ImportDailyBytes: "${INLINE_IMPORT_DAILY_BYTES}"
+
+# The bot platform (task 106, ADR 0068, docs/ops/bots.md). WebApp: the
+# tgWebAppVersion given to a mini app by the platform of the client that
+# opens it, and WEBAPP_SIGNING_KEY, the Ed25519 seed (hex) of the signature
+# of initData; without it no mini app opens. BotSecrets: the keys of bots
+# derived from their tokens are sealed under BOT_SECRET_ENCRYPTION_KEY
+# (pkg/botkeys); without it no keys are stored, and the mini apps and the
+# login of bots are off. Avatars: the public photos of users by username
+# (ADR 0036, p. 4), the photo_url bots are given.
+WebApp:
+  Versions:
+    Android: "8.0"
+    IOS: "8.0"
+    MacOS: "8.0"
+    TDesktop: "8.0"
+    Web: "8.0"
+    WebA: "8.0"
+    WebK: "8.0"
+    Unknown: "8.0"
+  SigningKey: "${WEBAPP_SIGNING_KEY}"
+BotSecrets:
+  EncryptionKey: "${BOT_SECRET_ENCRYPTION_KEY}"
+Avatars: https://pluma.chat/_l/avatar/
+
+# The statistics of channels and groups (task 103, ADR 0066). ThisDc is
+# channelFull.stats_dc, the DC the clients ask for the statistics: this
+# server's own, this_dc of teamgramd/bin/config.json. TokenKey signs the
+# zoom tokens of the graphs (STATS_GRAPH_TOKEN_KEY, 32 random bytes in
+# base64: openssl rand -base64 32); without it the statistics are off and
+# the clients do not offer them. Changing it invalidates the zoom tokens
+# given out (the clients ask for the statistics again).
+Stats:
+  ThisDc: 1
+  TokenKey: "${STATS_GRAPH_TOKEN_KEY}"
+
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
 
@@ -86,3 +172,6 @@ SyncClient:
 
 # Group calls (task 093) are off without SFU nodes; GroupCalls in
 # teamgramd/etc/bff.yaml and docs/ops/group-calls.md show how to name one.
+
+# The HTTPS CDN of large files (task 107) is off without a delivery; Cdn in
+# teamgramd/etc/bff.yaml and docs/ops/cdn.md show how to name one.

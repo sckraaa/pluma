@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/inlinebots"
+	"github.com/teamgram/teamgram-server/pkg/langpack"
 )
 
 func TestTokens(t *testing.T) {
@@ -150,5 +152,28 @@ func TestHttpsURL(t *testing.T) {
 		if got := httpsURL(u); got != want {
 			t.Errorf("%.20q: %v", u, got)
 		}
+	}
+}
+
+// A built-in inline bot describes itself in the viewer's language from the
+// server's texts; texts stored for the language come first, and another bot
+// keeps the default description.
+func TestBuiltinDescription(t *testing.T) {
+	pic := inlinebots.Pic
+	own := "own"
+	if got, want := builtinDescription(pic.Id, "", Texts{}, "ru"), langpack.InlineBotText(pic.About, "ru"); got != want || got == "" {
+		t.Errorf("ru: %q, want %q", got, want)
+	}
+	if got, want := builtinDescription(pic.Id, "", Texts{}, "ar"), langpack.InlineBotText(pic.About, "ar"); got != want || got == builtinDescription(pic.Id, "", Texts{}, "en") {
+		t.Errorf("ar: %q, want %q", got, want)
+	}
+	if got := builtinDescription(pic.Id, "", Texts{Description: &own}, "ru"); got != own {
+		t.Errorf("stored texts: %q", got)
+	}
+	if got := builtinDescription(136907713, "default", Texts{}, "ru"); got != "default" {
+		t.Errorf("another bot: %q", got)
+	}
+	if got := builtinDescription(136907713, "default", Texts{Description: &own}, "ru"); got != own {
+		t.Errorf("another bot with stored texts: %q", got)
 	}
 }

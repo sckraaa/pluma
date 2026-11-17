@@ -36,6 +36,9 @@ type Seen struct {
 	Stats *Stats
 	// SentReaction is the reaction the viewer left, "" for none.
 	SentReaction string
+	// Albums are the albums of the story as SeenOf read them, empty and
+	// not nil for none; nil falls back to Story.Albums.
+	Albums []int32
 }
 
 // Item is storyItem of st for a viewer.
@@ -81,6 +84,17 @@ func Item(st *Story, seen Seen) *mtproto.StoryItem {
 	}
 	if seen.SentReaction != "" {
 		item.SentReaction = reactions.FromKey(seen.SentReaction)
+	}
+	// Every viewer of the story gets its albums: the clients sort the
+	// stories of a profile into its albums by them (Android
+	// StoriesController.java:4029-4032, tdesktop data_stories.cpp:549-606).
+	// None leaves flags.19 unset.
+	albums := seen.Albums
+	if albums == nil {
+		albums = st.Albums
+	}
+	if len(albums) > 0 {
+		item.Albums = albums
 	}
 	return mtproto.MakeTLStoryItem(item).To_StoryItem()
 }
@@ -135,15 +149,19 @@ func PeerStories(peer Peer, list []*Story, maxRead int32, seen func(*Story) Seen
 }
 
 // SeenOf reads from the store how viewer sees the stories list of one peer:
-// its reactions, and the counters when it is shown them (everyone for a
-// channel, the owner for a user). own tells the stories of the viewer's own
-// account from the others.
+// its reactions, its albums, and the counters when it is shown them
+// (everyone for a channel, the owner for a user). own tells the stories of
+// the viewer's own account from the others.
 func (s *Store) SeenOf(ctx context.Context, peer Peer, list []*Story, viewer int64, own bool) (func(*Story) Seen, error) {
 	ids := make([]int32, 0, len(list))
 	for _, st := range list {
 		ids = append(ids, st.Id)
 	}
 	sent, err := s.SentReactions(ctx, peer, ids, viewer)
+	if err != nil {
+		return nil, err
+	}
+	albums, err := s.AlbumsOf(ctx, peer, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -158,6 +176,10 @@ func (s *Store) SeenOf(ctx context.Context, peer Peer, list []*Story, viewer int
 			Out:          own || st.SenderId == viewer,
 			Owner:        own,
 			SentReaction: sent[st.Id],
+			Albums:       albums[st.Id],
+		}
+		if seen.Albums == nil {
+			seen.Albums = []int32{}
 		}
 		if stats != nil {
 			seen.Stats = stats[st.Id]
