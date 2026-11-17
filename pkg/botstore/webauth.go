@@ -96,7 +96,7 @@ func (s *Store) PutWebAuthorization(ctx context.Context, w WebAuthorization, now
 			select {
 			case <-ctx.Done():
 				return WebAuthorization{}, ctx.Err()
-			case <-time.After(time.Duration(5+rand.IntN(20*attempt)) * time.Millisecond):
+			case <-time.After(time.Duration(5+rand.IntN(20*attempt)) * time.Millisecond): //nolint:gosec // G404: a retry pause, not a secret
 			}
 		}
 		hash, err := randomId63()
