@@ -242,10 +242,27 @@ func login(ctx context.Context, t *testing.T, phone, firstName string) *user {
 // and the run has more of them than one person's network ever would.
 func resetLoginsPerAddress(t *testing.T) {
 	t.Helper()
+	resetFloodCounters(t, "send_code_ip")
+}
+
+// resetTelegramCodesPerAddress forgets the codes the Telegram account wrote
+// for one address (logincode.TelegramCodePerIP). Every login of the run goes
+// through the account first, so the tests before a test of codes in
+// Telegram may already have spent the budget of the test host; over it the
+// code takes the administrator path, which is not what such a test checks.
+func resetTelegramCodesPerAddress(t *testing.T) {
+	t.Helper()
+	resetFloodCounters(t, "telegram_code_ip")
+}
+
+// resetFloodCounters deletes the login flood counters of rule (its Name in
+// pkg/logincode) for every subject.
+func resetFloodCounters(t *testing.T, rule string) {
+	t.Helper()
 	out, err := exec.Command(runScript, "compose", "exec", "-T", "redis", "sh", "-c",
-		"redis-cli --scan --pattern 'login_flood_send_code_ip_*' | xargs -r redis-cli del").CombinedOutput()
+		"redis-cli --scan --pattern 'login_flood_"+rule+"_*' | xargs -r redis-cli del").CombinedOutput()
 	if err != nil {
-		t.Fatalf("reset the login limit: %v\n%s", err, out)
+		t.Fatalf("reset the login limit %s: %v\n%s", rule, err, out)
 	}
 }
 
