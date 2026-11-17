@@ -208,3 +208,7 @@ func (f *fakeAuthsessionClient) AuthsessionGetRecentLangCode(context.Context, *a
 func (f *fakeAuthsessionClient) AuthsessionGetIpRegion(context.Context, *authsession.TLAuthsessionGetIpRegion) (*mtproto.String, error) {
 	return nil, nil
 }
+
+func (f *fakeAuthsessionClient) AuthsessionGetIpCountry(context.Context, *authsession.TLAuthsessionGetIpCountry) (*mtproto.String, error) {
+	return nil, nil
+}

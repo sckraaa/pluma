@@ -104,12 +104,14 @@ func TestGeoIPOff(t *testing.T) {
 // geoIPRecord is what a test database says of every IPv4 address: the
 // English names, the country's ISO code and, unless 0, the accuracy radius
 // in kilometres; dbType and buildEpoch are the database_type and build_epoch
-// of its metadata.
+// of its metadata, and ipVersion its ip_version: 4 unless 6, and then the
+// record is also what it says of every IPv6 address.
 type geoIPRecord struct {
 	city, country, isoCode string
 	radius                 uint16
 	dbType                 string
 	buildEpoch             uint32
+	ipVersion              uint16
 }
 
 // geoIPDatabase writes a DB-IP City Lite database that puts every IPv4
@@ -202,7 +204,11 @@ func writeGeoIPDatabase(t *testing.T, path string, rec geoIPRecord) {
 	str("description")
 	mapOf(0)
 	str("ip_version")
-	uint16Of(4)
+	if rec.ipVersion == 6 {
+		uint16Of(6)
+	} else {
+		uint16Of(4)
+	}
 	str("languages")
 	extended(11, 0) // an empty array
 	str("node_count")

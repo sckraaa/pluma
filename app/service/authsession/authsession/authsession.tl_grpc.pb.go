@@ -55,6 +55,7 @@ const (
 	RPCAuthsession_AuthsessionChangeAuthorizationSettings_FullMethodName = "/authsession.RPCAuthsession/authsession_changeAuthorizationSettings"
 	RPCAuthsession_AuthsessionGetRecentLangCode_FullMethodName           = "/authsession.RPCAuthsession/authsession_getRecentLangCode"
 	RPCAuthsession_AuthsessionGetIpRegion_FullMethodName                 = "/authsession.RPCAuthsession/authsession_getIpRegion"
+	RPCAuthsession_AuthsessionGetIpCountry_FullMethodName                = "/authsession.RPCAuthsession/authsession_getIpCountry"
 )
 
 // RPCAuthsessionClient is the client API for RPCAuthsession service.
@@ -93,6 +94,8 @@ type RPCAuthsessionClient interface {
 	AuthsessionGetRecentLangCode(ctx context.Context, in *TLAuthsessionGetRecentLangCode, opts ...grpc.CallOption) (*mtproto.String, error)
 	// pluma: task 106
 	AuthsessionGetIpRegion(ctx context.Context, in *TLAuthsessionGetIpRegion, opts ...grpc.CallOption) (*mtproto.String, error)
+	// pluma: task 109
+	AuthsessionGetIpCountry(ctx context.Context, in *TLAuthsessionGetIpCountry, opts ...grpc.CallOption) (*mtproto.String, error)
 }
 
 type rPCAuthsessionClient struct {
@@ -363,6 +366,16 @@ func (c *rPCAuthsessionClient) AuthsessionGetIpRegion(ctx context.Context, in *T
 	return out, nil
 }
 
+func (c *rPCAuthsessionClient) AuthsessionGetIpCountry(ctx context.Context, in *TLAuthsessionGetIpCountry, opts ...grpc.CallOption) (*mtproto.String, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.String)
+	err := c.cc.Invoke(ctx, RPCAuthsession_AuthsessionGetIpCountry_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCAuthsessionServer is the server API for RPCAuthsession service.
 // All implementations should embed UnimplementedRPCAuthsessionServer
 // for forward compatibility.
@@ -399,6 +412,8 @@ type RPCAuthsessionServer interface {
 	AuthsessionGetRecentLangCode(context.Context, *TLAuthsessionGetRecentLangCode) (*mtproto.String, error)
 	// pluma: task 106
 	AuthsessionGetIpRegion(context.Context, *TLAuthsessionGetIpRegion) (*mtproto.String, error)
+	// pluma: task 109
+	AuthsessionGetIpCountry(context.Context, *TLAuthsessionGetIpCountry) (*mtproto.String, error)
 }
 
 // UnimplementedRPCAuthsessionServer should be embedded to have
@@ -485,6 +500,9 @@ func (UnimplementedRPCAuthsessionServer) AuthsessionGetRecentLangCode(context.Co
 }
 func (UnimplementedRPCAuthsessionServer) AuthsessionGetIpRegion(context.Context, *TLAuthsessionGetIpRegion) (*mtproto.String, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuthsessionGetIpRegion not implemented")
+}
+func (UnimplementedRPCAuthsessionServer) AuthsessionGetIpCountry(context.Context, *TLAuthsessionGetIpCountry) (*mtproto.String, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AuthsessionGetIpCountry not implemented")
 }
 func (UnimplementedRPCAuthsessionServer) testEmbeddedByValue() {}
 
@@ -974,6 +992,24 @@ func _RPCAuthsession_AuthsessionGetIpRegion_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCAuthsession_AuthsessionGetIpCountry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLAuthsessionGetIpCountry)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCAuthsessionServer).AuthsessionGetIpCountry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCAuthsession_AuthsessionGetIpCountry_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCAuthsessionServer).AuthsessionGetIpCountry(ctx, req.(*TLAuthsessionGetIpCountry))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCAuthsession_ServiceDesc is the grpc.ServiceDesc for RPCAuthsession service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1084,6 +1120,10 @@ var RPCAuthsession_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "authsession_getIpRegion",
 			Handler:    _RPCAuthsession_AuthsessionGetIpRegion_Handler,
+		},
+		{
+			MethodName: "authsession_getIpCountry",
+			Handler:    _RPCAuthsession_AuthsessionGetIpCountry_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
