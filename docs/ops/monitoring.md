@@ -95,14 +95,16 @@
 - `inline_builtin_requests_total{bot, result}`;
 - `inline_import_total{kind, result}`, `inline_import_bytes_total{kind}`;
 - `inline_bot_misconfigured{bot}`;
+- `inline_klipy_requests_total{result}` — запросы `@gif` к KLIPY: `ok`, `limited` (429 или пауза после него), `refused` (ключ отклонён), `error`;
 - `webfile_requests_total{kind, result}`, `webfile_cache_bytes`.
 
 Что делать по каждому алерту и что значат метки — `docs/ops/inline-bots.md`, раздел «Метрики и алерты».
 
 | Алерт | Что значит |
 |---|---|
-| `InlineProviderFailing` | у бота за 15 минут больше половины запросов кончились ошибкой (и их не меньше трёх). Пользователи видят «ничего не найдено». У `@pic` обычно SearXNG не работает или все движки картинок блокируют адрес |
+| `InlineProviderFailing` | у бота за 15 минут больше половины запросов кончились ошибкой (и их не меньше трёх). Пользователи видят «ничего не найдено». У `@pic` обычно SearXNG не работает или все движки картинок блокируют адрес, у `@gif` с KLIPY — KLIPY недоступен или ограничил ключ |
 | `InlineBotMisconfigured` | учётная запись бота расходится с реестром, обычно его имя занято. Бот отвечает `BOT_INLINE_DISABLED`, вкладка GIF пуста, если это `@gif` |
+| `InlineKlipyKeyRefused` | KLIPY отвечает 401 или 403 на ключ `@gif`: ключ неверный, отозван или ещё не активен. `@gif` отвечает пустыми списками |
 | `InlineImportBudgetSpent` | дневной бюджет импорта медиа кончился до 18:00 UTC: новые картинки не импортируются до 00:00 UTC |
 
 ## Telegram Business

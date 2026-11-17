@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -51,8 +52,9 @@ type ServiceContext struct {
 	// handlers clone it before filling the per-request fields.
 	ClientConfig *mtproto.TLConfig
 	// AppConfig is app_config.json with url_auth_domains, the login
-	// domains of bots, from the database (task 106), and the translation
-	// switched off without an engine (task 101).
+	// domains of bots, from the database (task 106), the translation
+	// switched off without an engine (task 101), and the emoji categories
+	// of the GIF tab while @gif searches by text (task 099).
 	AppConfig *appconfig.Live
 	// IOSUpdate asks the install service what an Ad Hoc build of the iPhone
 	// app can update to from the app (task 085); nil when that is off.
@@ -69,6 +71,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		// No engine: the clients must not offer what would be refused
 		// (ADR 0064, section 9).
 		appConfig = appConfig.WithoutTranslation()
+	}
+	if c.GifSearch {
+		// @gif searches by text: each emoji category of the GIF tab is a
+		// query it answers (ADR 0062, p. 2).
+		appConfig = appConfig.WithGifSearchEmojies(inlinebots.GifSearchEmojies)
 	}
 	logx.Must(c.IOSUpdate.Check())
 	var iosUpdate *iosupdate.Checker

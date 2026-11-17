@@ -17,7 +17,7 @@
    - Пустой ответ — всё в порядке.
    - Строка с `peer_type = 2` и `peer_id` 1000101 (`gif`) или 1000102 (`pic`) — бот уже заведён.
    - Любая другая строка — имя занято. Через клиент такое имя не занять (минимум 5 символов), оно могло остаться только от старых данных. Что делать — раздел «Если имя бота занято»; лучше освободить имя до выката.
-2. **`.env`** (раздел «Переменные»): `WEBFILE_HMAC_KEY`, `SEARXNG_SECRET`, `SEARXNG_URL=http://searxng:8080`. `INLINE_IMPORT_DAILY_BYTES` можно оставить пустым.
+2. **`.env`** (раздел «Переменные»): `WEBFILE_HMAC_KEY`, `SEARXNG_SECRET`, `SEARXNG_URL=http://searxng:8080`; для поиска GIF — `KLIPY_API_KEY` (раздел «KLIPY»). `INLINE_IMPORT_DAILY_BYTES` можно оставить пустым.
 3. **Миграции применяет сервис `migrate`** при старте стека. Каждый файл применяется один раз и записывается в `schema_migrations`:
    - `migrate-20261119-inline-bots.sql` — таблицы `inline_media` и `inline_gif_sends`;
    - `z_pluma-inline-bots.sql` — учётные записи ботов: `users` 1000101 и 1000102, их строки `username` и `bots` с плейсхолдером `🔍`;
@@ -59,6 +59,7 @@ docker compose -f docker-compose.yaml … exec bff ./pluma-admin -f ../etc2/bff.
 | `SEARXNG_URL` | пусто | Адрес SearXNG для `@pic`: `http://searxng:8080`. Пусто — `@pic` отвечает пустыми списками. |
 | `SEARXNG_SECRET` | — | `server.secret_key` самого SearXNG, `openssl rand -hex 32`. Нужен только `docker-compose.search.yaml`. |
 | `SEARXNG_MEMORY`, `SEARXNG_CPUS` | `512m`, `1` | Пределы контейнера `searxng`. При изменении пересчитать `docs/ops/memory.md`. |
+| `KLIPY_API_KEY` | пусто | Ключ приложения KLIPY для поиска GIF в `@gif` (раздел «KLIPY»). Пусто — `@gif` отдаёт популярное внутри Pluma и не ищет по тексту. |
 | `INLINE_IMPORT_DAILY_BYTES` | 1073741824 (1 ГиБ) | Сколько байт медиа `@gif` и `@pic` могут импортировать в dfs за сутки UTC. |
 
 Разделы `WebFile` и `InlineBots` в `teamgramd/etc2/bff.yaml` (и `teamgramd/etc/bff.yaml`) берут эти переменные. `WebFile.CacheDir` и `WebFile.CacheBytes` не заданы: по умолчанию `/tmp/webfile` в контейнере bff и 2 ГиБ. Раздела `WebFetch` в боевом конфиге нет: `AllowHosts` нужен только стенду e2e (`fakeinline`), в бою загрузка идёт только на публичные адреса.
@@ -111,7 +112,7 @@ docker compose -f docker-compose.yaml … exec bff ./pluma-admin -f ../etc2/bff.
 
 ### `@gif`
 
-- Поиска GIF по тексту нет. Подходящий поставщик — KLIPY, и только с их письменным согласием на серверную интеграцию (ADR 0062, п. 4.1).
+- С `KLIPY_API_KEY` `@gif` ищет GIF в KLIPY (раздел «KLIPY»). Ниже — как он отвечает без ключа.
 - На пустой запрос (вкладка GIF) отвечает популярным внутри Pluma, до 200 GIF, страницы по 20, `cache_time` 600. Популярное — сумма двух источников:
   - отправки через `@gif` за 30 дней (`inline_gif_sends`);
   - GIF, которые сохранили не меньше трёх разных людей (`user_saved_gifs`).
@@ -129,13 +130,51 @@ docker compose -f docker-compose.yaml … exec bff ./pluma-admin -f ../etc2/bff.
 - Импортированное записывается в `inline_media`, при повторной находке файл не качается снова. Пустой запрос — пустой список.
 - Текст запроса уходит поисковикам через SearXNG с адреса VPS (исходящий маршрут дома, ADR 0061). Ни пользователь, ни его IP поисковикам не видны.
 
-### Когда появится поиск GIF по тексту
+## KLIPY
 
-Только после письменного согласия KLIPY и с их ключом, отдельной частью задачи. Тогда в `teamgramd/bin/app_config.json` ставится список эмодзи-категорий вкладки GIF по умолчанию Android (`MessagesController.java:1948-1957`):
-```json
-"gif_search_emojies": ["👍", "👎", "😍", "😂", "😮", "🙄", "😥", "😡", "🥳", "😎"]
-```
-После этого — перезапуск bff (`docs/ops/app-config.md`). Пока поиска по тексту нет, список пуст: иначе каждая категория показывала бы пустую выдачу.
+С ключом `KLIPY_API_KEY` `@gif` ищет GIF в KLIPY (задача 099, часть G). Популярное внутри Pluma тогда не показывается: выдача KLIPY не смешивается с другими источниками.
+
+### Включить и выключить
+
+1. Ключ — в KLIPY Partner Panel (partner.klipy.com), раздел API Keys. Ключ в режиме Testing ограничен 100 запросами в час (docs.klipy.com/getting-started.md, прочитано 2026-11-17); на десяток человек хватает благодаря кэшу, боевой ключ запрашивается там же.
+2. На сервере (в bash) дописать ключ в `.env`, не показывая его в терминале и истории:
+   ```bash
+   cd /opt/pluma && read -rs -p 'KLIPY key: ' k && echo && sed -i '/^KLIPY_API_KEY=/d' .env && printf '\nKLIPY_API_KEY=%s\n' "$k" >> .env && unset k
+   ```
+   Команда сама убирает прежнюю строку `KLIPY_API_KEY=` (например, пустую из `.env.example`), так что ключ в `.env` один.
+3. Пересоздать bff той же командой compose, что и при выкатке (со всеми оверлеями сервера, `docs/ops/deployment.md`), например `docker compose -f docker-compose.yaml … up -d bff`. bff читает `.env` только при пересоздании контейнера.
+4. Проверить: в логе bff нет `KLIPY_API_KEY is not a key of KLIPY` (ключ с пробелом, `/` или не-ASCII — bff не стартует, сам ключ в лог не пишется); во вкладке GIF — популярное KLIPY и эмодзи-категории; `@gif кот` в чате даёт GIF; `inline_klipy_requests_total{result="ok"}` растёт.
+
+Выключить — пустой `KLIPY_API_KEY` и пересоздание bff: `@gif` снова отдаёт популярное внутри Pluma, категории из вкладки GIF пропадают. GIF, уже отправленные из KLIPY, остаются в чатах: это файлы Pluma.
+
+### Как отвечает
+
+- Пустой запрос — популярное KLIPY (`gifs/trending`), `cache_time` 600. Текст — поиск (`gifs/search`), `cache_time` 3600.
+- Страница `@gif` — одна страница KLIPY: 20 GIF, `content_filter=medium`, только mp4 (`format_filter=mp4`), без `customer_id`. Дальше 10-й страницы (200 GIF) бот не листает.
+- Порядок — как у KLIPY. Пропускаются только GIF, у которых нет подходящего mp4: не `md` (около 500 px) и не `sm` (около 320 px), больше 1280 px по стороне или больше 2 МБ.
+- `locale` — регион из языка приложения (`br` у `pt-br`). У языка без региона (`ru`, `en`) `locale` не передаётся: KLIPY описывает `locale` как код страны ISO 3166-1 alpha-2 (gifs-search-api.md, gifs-trending-api.md, прочитано 2026-11-17), хотя среди его примеров есть `ru` и `uk`; код языка `uk` (украинский) совпал бы с примером `uk` в другом смысле. Передавать ли `ru` для русского — решение для подтверждения, если выдача по-русски окажется слабой.
+- Эмодзи-категории вкладки GIF клиенты присылают самим эмодзи. bff переводит их в слова (`👍` → `thumbs up`, `😂` → `lol` и т. д., `klipyWords` в `app/bff/bots/internal/inline/klipy.go`).
+- Страница KLIPY держится в Redis на `cache_time` (`inline_klipy_<хэш>`, без текста и ключа), так что листание и повтор запроса не тратят запросы к KLIPY.
+- Выбранный размер mp4 импортируется в dfs как GIF-анимация, как картинки `@pic`: не больше 2 МБ, 5 с на файл, общий дневной бюджет, запись в `inline_media` (`provider = 'klipy'`, `provider_ref` — `slug` KLIPY). Устройства к KLIPY не обращаются ни за поиском, ни за файлами.
+- Длительность у импортированных GIF нулевая: KLIPY её не сообщает, а сервер не разбирает mp4. На воспроизведение GIF это не влияет.
+
+### Категории вкладки GIF
+
+С ключом bff сам отдаёт в `help.getAppConfig` `gif_search_emojies` — список Android по умолчанию (`MessagesController.java:1948-1957`): `👍 👎 😍 😂 😮 🙄 😥 😡 🥳 😎` (`inlinebots.GifSearchEmojies`). В `teamgramd/bin/app_config.json` список остаётся пустым — это конфиг сервера без поиска. Хэш конфига меняется, и клиенты забирают его при следующей проверке (`docs/ops/app-config.md`).
+
+### Ошибки и пределы
+
+- KLIPY ответил 429 — bff не ходит к нему `Retry-After` секунд (без заголовка — минуту, не дольше часа). Всё это время новые запросы `@gif` получают пустой список без кэширования, уже закэшированные страницы отдаются.
+- 401 или 403 — ключ отклонён: алерт `InlineKlipyKeyRefused`. Сверить ключ в `.env` с Partner Panel.
+- Недоступен, 5xx, не тот JSON — пустой список, `inline_klipy_requests_total{result="error"}`, при массовых ошибках — `InlineProviderFailing{bot="gif"}`. В логе bff — `messages.getInlineBotResults - @gif provider: inline: klipy: …`, без текста запроса и ключа.
+
+### Условия KLIPY
+
+- По стандартным условиям KLIPY (docs.klipy.com/integration-requirements.md, прочитано 2026-11-17) запросы к API и загрузка медиа идут только с устройства пользователя, а серверные запросы, прокси и хранение копий требуют их предварительного письменного согласия. Обязательная атрибуция — плейсхолдер поиска «Search KLIPY» (/attribution.md).
+- Владелец запросил согласие KLIPY на серверную интеграцию и 2026-11-17 решил включить поиск до их ответа — для пробы примерно на 10 человек.
+- Не сделано до ответа KLIPY: плейсхолдер остаётся `🔍` (у Pluma он один для всех языков, ADR 0062, п. 6); нет ревалидации и удаления импортированных GIF по их спецификации (её пока нет; `provider_ref` для этого записывается); нет отчётов о показах и отправках (`gifs/share`, `gifs/view`).
+- Если KLIPY откажет — выключить (выше). Отправленные GIF останутся в чатах; удалить их из dfs сейчас нечем (раздел «Бюджет импорта»).
+- Текст запроса уходит в KLIPY с адреса сервера (исходящий маршрут дома, ADR 0061). Ни пользователь, ни его IP KLIPY не видны.
 
 ## Бюджет импорта
 
@@ -204,13 +243,15 @@ docker compose -f docker-compose.yaml … exec bff ./pluma-admin -f ../etc2/bff.
 | `inline_import_bytes_total{kind}` | Байты, импортированные в dfs. |
 | `inline_media_orphans_total` | Файл импортирован, а строка `inline_media` не записалась. Следующий запрос импортирует его снова, рост значит сбои MySQL. |
 | `inline_bot_misconfigured{bot}` | 1 — учётная запись бота расходится с реестром, бот отвечает `BOT_INLINE_DISABLED`. |
+| `inline_klipy_requests_total{result}` | Запросы `@gif` к KLIPY. `result`: `ok`; `limited` — 429 или пауза после него; `refused` — 401/403, ключ отклонён; `error`. |
 | `webfile_requests_total{kind, result}` | Части веб-файлов. `result`: `ok`, `invalid`, `unavailable`, `error`. |
 | `webfile_cache_bytes` | Занято кэшем веб-файлов на диске. |
 
 | Алерт | Что делать |
 |---|---|
-| `InlineProviderFailing` | Больше половины запросов к боту за 15 минут — ошибки (и не меньше трёх). Для `pic` — раздел «SearXNG», блокировки поисковиков. Для `gif` — MySQL и сервис media, строки `messages.getInlineBotResults - @gif` в логе bff. Если ошибки — «нет времени» при работающем поставщике: медленные хосты картинок (`inline_import_total{result="timeout"}`). |
+| `InlineProviderFailing` | Больше половины запросов к боту за 15 минут — ошибки (и не меньше трёх). Для `pic` — раздел «SearXNG», блокировки поисковиков. Для `gif` с KLIPY — `inline_klipy_requests_total` по `result` и раздел «KLIPY»; без KLIPY — MySQL и сервис media. В обоих случаях — строки `messages.getInlineBotResults - @gif` в логе bff. Если ошибки — «нет времени» при работающем поставщике: медленные хосты картинок (`inline_import_total{result="timeout"}`). |
 | `InlineBotMisconfigured` | Раздел «Если имя бота занято». |
+| `InlineKlipyKeyRefused` | KLIPY отклоняет ключ `@gif`: раздел «KLIPY», «Ошибки и пределы». |
 | `InlineImportBudgetSpent` | Бюджет кончился до 18:00 UTC. Посмотреть `inline_import_bytes_total` по видам и `inline_media` (раздел «Бюджет импорта»): это обычный рост от новых запросов или кто-то перебирает слова. Поднимать `INLINE_IMPORT_DAILY_BYTES`, только если диска хватает. |
 
 ## После перезапуска

@@ -5,6 +5,8 @@
 - Зависит от: 070 / ADR 0043 (инлайн-режим, `pkg/botstore`, кэш ответов в Redis), 0027 (`pkg/webpage`: безопасная загрузка, фото в dfs), 096 / ADR 0061 (дом, исходящий трафик через VPS), 076 / ADR 0046 (37 языков строк). Внутри партии: часть B этой задачи — единственный владелец общей основы `upload.getWebFile` (`pkg/webfile`, обработчик, `webfile_dc_id`, `DontLogContentForMethod`, имена геоданных в `logaudit`); 100 (карты) только регистрирует свой `Source` для `inputWebFileGeoPointLocation` и сливается после B. 106 (платформа ботов) переносит в `runsAside` ещё один метод и отказывает ботам реестра в своих командах `pluma-admin`.
 - Ветка: `task/099-inline-search-bots`.
 
+> **Решение владельца 2026-11-17: KLIPY включается сразу, до ответа KLIPY на запрос согласия, — проба примерно на 10 человек.** Часть G делается в ветке `task/099-klipy` (результат — в конце). Чего нет без спецификации KLIPY: ревалидации и удаления, плейсхолдера «Search KLIPY», отчётов о показах.
+
 > **Решение владельца 2026-11-16, имеет приоритет над текстом ниже: места (`@places`) не делаем.** Нет бота `places` в реестре и в `z_pluma-inline-bots.sql`, нет поставщика `photon`, части F, контейнера Photon, `PHOTON_URL`, `docker-compose.places.yaml`, тестов `TestInlinePlaces` и строк проверки владельца про места. `venue_search_username` в `help.getConfig` и `stories_venue_search_username` в app config не меняются против сегодняшних значений (на них нет нашего бота, как и сейчас; клиенты 13.2 в пикерах геопозиции этот бот не используют — Android `BaseLocationAdapter.java:91`, iOS `LocationPickerControllerNode.swift:529, 792`). Реестр рассчитан на два бота, `@gif` и `@pic`; тип `KindVenue` не вводится.
 
 ## Цель
@@ -416,9 +418,11 @@ CREATE TABLE IF NOT EXISTS `inline_gif_sends` (
 - **H.** Стенд `fakeinline` и сквозные тесты: конфиг, `@pic`, популярное `@gif`, недоступный поставщик, прокси веб-файлов. Хосты стенда разрешены только его `bff.yaml` (`WebFetch.AllowHosts`).
 - **I.** `docs/ops/inline-bots.md`, тревоги Prometheus, ссылки из `bots.md`, `app-config.md`, `monitoring.md`, `security-setup.md`.
 
+- **G (2026-11-17, ветка `task/099-klipy`).** С `KLIPY_API_KEY` `@gif` ищет в KLIPY: пустой запрос — `gifs/trending`, текст — `gifs/search` (docs.klipy.com, прочитано 2026-11-17). Страница `@gif` — страница KLIPY из 20 GIF, `format_filter=mp4`, `content_filter=medium`, без `customer_id`, порядок KLIPY, без смешивания с популярным. Импортируется mp4 размера `md`, иначе `sm` (≤ 1280 px, ≤ 2 МБ), в `inline_media` с `provider_ref` = `slug`. Страницы KLIPY кэшируются в Redis (600 с популярное, 3600 с поиск). После 429 bff не ходит к KLIPY `Retry-After` (минуту без него, не больше часа). Эмодзи-категории вкладки GIF переводятся в слова. `gif_search_emojies` bff отдаёт сам только при ключе, файл `app_config.json` не меняется. Метрика `inline_klipy_requests_total`, алерт `InlineKlipyKeyRefused`, раздел «KLIPY» в `docs/ops/inline-bots.md`. Не сделано до ответа KLIPY: ревалидация и удаление по их спецификации, плейсхолдер «Search KLIPY», отчёты `share`/`view`. Длительность импортированных GIF — 0 (KLIPY её не даёт). Решения для подтверждения: `content_filter=medium`; `locale` только из региона языка (`ru` без региона — без `locale`); слова категорий (`👍` → `thumbs up`, `😂` → `lol` и т. д.).
+
 **Отклонения от брифа.**
 - Без мест: нет бота `places`, поставщика Photon, части F и `KindVenue`. `venue_search_username` в `help.getConfig` снова `foursquare`, `stories_venue_search_username` не задан — как до задачи.
-- Часть G не делалась.
+- Часть G сделана до согласия KLIPY по решению владельца 2026-11-17 (выше).
 - Шаг владельца 3 (память под Photon) отпал вместе с Photon.
 
 **Решения.** Подтверждены владельцем: поставщики (`@gif` — популярное внутри Pluma, `@pic` — SearXNG, KLIPY — только с письменным согласием) и отказ от мест. Ждут подтверждения п. 2–5, 7–9: порог в три человека; запросы `@pic` идут к поисковикам с адреса VPS; имена и плейсхолдер без перевода; импортированные файлы не удаляются; `webfile_dc_id = 1`; пределы; коды ошибок `upload.getWebFile`.

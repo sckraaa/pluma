@@ -332,6 +332,7 @@ func setBffEnv(t *testing.T) {
 	t.Setenv("CDN_AVOID_TTL", "")
 	t.Setenv("SEARXNG_URL", "")
 	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
+	t.Setenv("KLIPY_API_KEY", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 }
@@ -406,6 +407,7 @@ func TestLoadsPasswordConfig(t *testing.T) {
 	t.Setenv("CDN_AVOID_TTL", "")
 	t.Setenv("SEARXNG_URL", "")
 	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
+	t.Setenv("KLIPY_API_KEY", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
@@ -475,6 +477,7 @@ func TestLoadsBffConfig(t *testing.T) {
 	t.Setenv("CDN_AVOID_TTL", "")
 	t.Setenv("SEARXNG_URL", "")
 	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
+	t.Setenv("KLIPY_API_KEY", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {

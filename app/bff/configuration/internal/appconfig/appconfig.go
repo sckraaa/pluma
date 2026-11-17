@@ -163,6 +163,46 @@ func (c *AppConfig) WithoutTranslation() *AppConfig {
 	})
 }
 
+// gifSearchEmojiesKey is the emoji categories of the GIF tab of the emoji
+// panel, each a query to the GIF bot (Android MessagesController.java:3090,
+// iOS ChatEntityKeyboardInputNode.swift:233, tdesktop
+// stickers_list_footer.cpp:137).
+const gifSearchEmojiesKey = "gif_search_emojies"
+
+// WithGifSearchEmojies returns the config with gif_search_emojies set to
+// emojies, in place when the file has the key and at the end otherwise, and
+// a hash of its own: the config of a server whose @gif searches by text
+// (task 099, ADR 0062, p. 2). The file keeps the list empty, which is the
+// config without a search. The other keys keep their order and values.
+func (c *AppConfig) WithGifSearchEmojies(emojies []string) *AppConfig {
+	list := make([]*mtproto.JSONValue, 0, len(emojies))
+	for _, e := range emojies {
+		list = append(list, mtproto.MakeTLJsonString(&mtproto.JSONValue{Value_STRING: e}).To_JSONValue())
+	}
+	value := mtproto.MakeTLJsonObjectValue(&mtproto.JSONObjectValue{
+		Key:   gifSearchEmojiesKey,
+		Value: mtproto.MakeTLJsonArray(&mtproto.JSONValue{Value_VECTORJSONVALUE: list}).To_JSONValue(),
+	}).To_JSONObjectValue()
+	values := make([]*mtproto.JSONObjectValue, 0, len(c.Config.GetValue_VECTORJSONOBJECTVALUE())+1)
+	values = append(values, c.Config.GetValue_VECTORJSONOBJECTVALUE()...)
+	replaced := false
+	for i, v := range values {
+		if v.GetKey() == gifSearchEmojiesKey {
+			values[i], replaced = value, true
+		}
+	}
+	if !replaced {
+		values = append(values, value)
+	}
+	compact := append([]byte(nil), c.compact...)
+	compact = append(compact, "\n"+gifSearchEmojiesKey+"="+strings.Join(emojies, ",")...)
+	return &AppConfig{
+		Config:  mtproto.MakeTLJsonObject(&mtproto.JSONValue{Value_VECTORJSONOBJECTVALUE: values}).To_JSONValue(),
+		Hash:    hashOf(compact),
+		compact: compact,
+	}
+}
+
 // stringKey is a key of the config and the string it is set to.
 type stringKey struct{ key, value string }
 
