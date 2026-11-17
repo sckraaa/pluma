@@ -252,7 +252,9 @@ jobs:
   e2e:
     name: End-to-end (docker compose)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # The suite alone takes over 20 minutes on a runner (344 tests,
+    # 2026-11-17), plus the image build.
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

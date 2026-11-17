@@ -451,7 +451,7 @@ cmd_test() {
 			PLUMA_E2E_CDN_AVOID_TTL=$(env_value CDN_AVOID_TTL) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
-			go test -tags e2e -count=1 -timeout 20m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
+			go test -tags e2e -count=1 -timeout 60m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
 	) || return
 	check_running
 }
