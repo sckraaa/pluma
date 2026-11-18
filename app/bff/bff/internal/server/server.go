@@ -252,6 +252,7 @@ func (s *Server) Initialize() error {
 			AuthsessionClient: c.AuthSessionClient,
 			MediaClient:       c.MediaClient,
 			ReleasesURL:       c.ReleasesURL,
+			ReleasesRoutes:    c.ReleasesRoutes,
 			IOSUpdate:         c.IOSUpdate,
 			Translate:         c.Translate,
 			GifSearch:         c.InlineBots.GifSearch(),

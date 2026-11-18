@@ -72,6 +72,10 @@ type Config struct {
 	// https://pluma.chat (task 054): /dl/ of it serves them. Empty: no
 	// update is offered and the desktop app keeps its own update prefix.
 	ReleasesURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// ReleasesRoutes is the mirrors of that site by the country of the
+	// client (task 113, docs/ops/releases.md); empty: the site for
+	// everyone.
+	ReleasesRoutes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// IOSUpdate lets an Ad Hoc build of the iPhone app update from the app
 	// itself (task 085): the secret of its tickets and the status address
 	// of the install service. Without the secret such a build is offered

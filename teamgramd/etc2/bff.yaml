@@ -58,8 +58,13 @@ TelegramBot:
 
 # The site the releases of the client apps are on (task 054, ADR 0035):
 # /dl/ of it serves them; help.getAppUpdate and help.getConfig name it.
-# Empty: no update is offered.
+# Empty: no update is offered. PLUMA_RELEASES_ROUTES (task 113) names a
+# mirror of the site for the clients of some countries, records
+# "<countries>=<site>" separated by ";": RU,BY=https://pluma.sckra.dev, the
+# site through the Russian node (docs/ops/ru-node.md). Empty: the site for
+# everyone; a wrong value stops bff.
 ReleasesURL: "${PLUMA_RELEASES_URL}"
+ReleasesRoutes: "${PLUMA_RELEASES_ROUTES}"
 
 # The update of the iPhone app from the app itself (task 085,
 # docs/ops/ios-install.md): the secret of the update tickets, the same the

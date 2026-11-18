@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/svc"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
+	"github.com/teamgram/teamgram-server/pkg/ipcountry"
 	"github.com/teamgram/teamgram-server/pkg/langpack"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -149,12 +150,50 @@ func TestHelpGetConfigAutoupdatePrefix(t *testing.T) {
 	if got.GetAutoupdateUrlPrefix() != nil {
 		t.Errorf("without a site: %v", got.GetAutoupdateUrlPrefix())
 	}
-	c.svcCtx.Config.ReleasesURL = "https://pluma.example"
+	c.svcCtx.ReleaseSites = mustReleaseSites("https://pluma.example", "")
 	if got, err = c.HelpGetConfig(&mtproto.TLHelpGetConfig{}); err != nil {
 		t.Fatal(err)
 	}
 	if v := got.GetAutoupdateUrlPrefix().GetValue(); v != "https://pluma.example/dl/desktop" {
 		t.Errorf("autoupdate_url_prefix %q", v)
+	}
+}
+
+// TestHelpGetConfigAutoupdatePrefixByCountry: with a mirror of the site
+// for Russia (task 113), a desktop app there looks for its updates on the
+// mirror; the others, and one whose country authsession could not tell,
+// on the main site. Without mirrors the country is never looked up.
+func TestHelpGetConfigAutoupdatePrefixByCountry(t *testing.T) {
+	countries := &fakeCountries{country: map[string]string{"5.8.16.10": "RU", "203.0.113.5": "DE"}}
+	for addr, want := range map[string]string{
+		"5.8.16.10":    "https://pluma.mirror.example/dl/desktop",
+		"203.0.113.5":  "https://pluma.example/dl/desktop",
+		"198.51.100.1": "https://pluma.example/dl/desktop",
+		"":             "https://pluma.example/dl/desktop",
+	} {
+		c := newGetConfigCore(t, &fakeLangpacks{}, "tdesktop", "en")
+		c.svcCtx.ReleaseSites = mustReleaseSites("https://pluma.example", "RU,BY=https://pluma.mirror.example")
+		c.svcCtx.Countries = ipcountry.New(countries)
+		c.MD.ClientAddr = addr
+		got, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := got.GetAutoupdateUrlPrefix().GetValue(); v != want {
+			t.Errorf("%q: autoupdate_url_prefix %q, want %q", addr, v, want)
+		}
+	}
+
+	none := &fakeCountries{}
+	c := newGetConfigCore(t, &fakeLangpacks{}, "tdesktop", "en")
+	c.svcCtx.ReleaseSites = mustReleaseSites("https://pluma.example", "")
+	c.svcCtx.Countries = ipcountry.New(none)
+	c.MD.ClientAddr = "5.8.16.10"
+	if _, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(none.asked) != 0 {
+		t.Errorf("looked up %v without mirrors", none.asked)
 	}
 }
 

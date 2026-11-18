@@ -26,6 +26,7 @@
   - Android — `help.appUpdate` с документом APK, если клиент по своему правилу сравнения считает версию новее;
   - iOS — `help.appUpdate` со ссылкой, только сборкам, поставленным с сайта (`app_version` оканчивается на ` adhoc`) и с меньшим номером сборки; сборки TestFlight обновляет TestFlight. Ссылка — `itms-services://…` с билетом обновления, если задан `PLUMA_IOS_UPDATE_SECRET` и `iosinstall` уже переподписал текущий выпуск: установка идёт прямо из приложения (`ios-install.md`, «Обновление из приложения»). Иначе — `<сайт>/iphone/install`;
   - Desktop — обновляется своим апдейтером, `help.getConfig` даёт ему `autoupdate_url_prefix = <сайт>/dl/desktop`;
+  - `<сайт>` — `PLUMA_RELEASES_URL` или, для клиента из страны записи `PLUMA_RELEASES_ROUTES`, зеркало сайта (задача 113): страна — по адресу клиента, как у `pluma_edge` (`authsession.getIpCountry`, кэш на час). Зеркало `pluma.sckra.dev` идёт через российский узел и отдаёт тот же `/dl/` (`ru-node.md`, «Зеркала»); ссылка `itms-services://` ведёт на манифест зеркала, а служба установки называет IPA на нём же (`MIRROR_HOSTS`, `ios-install.md`). Без зеркал страна не запрашивается;
   - Web — `help.noAppUpdate`, он обновляется с сервера.
 - **Ошибки.** Если таблица или документ недоступны, `help.getAppUpdate` отвечает `help.noAppUpdate` и пишет ошибку в лог, а не 500.
 
@@ -40,7 +41,7 @@
    teamgramd/deploy/releases/put-token.sh neo_old
    ```
    Скрипт создаёт `/opt/pluma/releases/upload-token` (режим 0400), если его нет, и записывает его секретом `RELEASES_UPLOAD_TOKEN` окружения `release` в pluma-android, pluma-ios и pluma-desktop (нужен `gh` с правом на эти репозитории).
-2. **`.env` сервера:** `PLUMA_RELEASES_URL=https://pluma.chat` — адрес сайта без `/` на конце. Без неё `bff` не предлагает обновлений и не даёт префикс Desktop, а `releases` не запускается.
+2. **`.env` сервера:** `PLUMA_RELEASES_URL=https://pluma.chat` — адрес сайта без `/` на конце. Без неё `bff` не предлагает обновлений и не даёт префикс Desktop, а `releases` не запускается. `PLUMA_RELEASES_ROUTES` (необязательно, задача 113) — зеркала сайта по стране клиента: записи `<страны>=<сайт>` через `;`, например `RU,BY=https://pluma.sckra.dev`; сайт — `https://<имя>` без пути; страна — код ISO 3166-1 alpha-2 в верхнем регистре, не больше одного раза. Неверное значение — `bff` не стартует. Пусто — один сайт для всех.
 3. **Запуск** — в команду сервисов добавляется `-f docker-compose.releases.yaml`:
    ```bash
    docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml -f docker-compose.releases.yaml up -d --no-build releases

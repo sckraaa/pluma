@@ -52,11 +52,27 @@ func (c *ConfigurationCore) HelpGetConfig(in *mtproto.TLHelpGetConfig) (*mtproto
 	// Where the desktop app looks for its updates (task 054): tdesktop
 	// keeps it as its prefix and asks <prefix>/current
 	// (mtp_instance.cpp:935-937, update_checker.cpp:717-721 at a1e89e1f).
-	if url := c.svcCtx.Config.ReleasesURL; url != "" {
-		rValue.SetAutoupdateUrlPrefix(mtproto.MakeFlagsString(url + "/dl/desktop"))
+	// The site is the one of the client's country (task 113): a mirror
+	// where the main name is blocked.
+	if site := c.releaseSite(); site != "" {
+		rValue.SetAutoupdateUrlPrefix(mtproto.MakeFlagsString(site + "/dl/desktop"))
 	}
 
 	return rValue.To_Config(), nil
+}
+
+// releaseSite is the site of the releases of the client apps for this
+// client (PLUMA_RELEASES_URL, or its mirror for the country of the
+// client's address, PLUMA_RELEASES_ROUTES), "" without one. The country is
+// looked up only when there are mirrors; an unknown one gets the main
+// site.
+func (c *ConfigurationCore) releaseSite() string {
+	sites := c.svcCtx.ReleaseSites
+	country := ""
+	if sites.ByCountry() {
+		country = c.svcCtx.Countries.Country(c.ctx, c.MD.GetClientAddr())
+	}
+	return sites.URL(country)
 }
 
 // defaultReaction is Telegram's reactions_default for an account that chose

@@ -37,6 +37,11 @@ type Config struct {
 	// the update prefix of the desktop app (help.getConfig) and the install
 	// page of the iPhone app.
 	ReleasesURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// ReleasesRoutes is PLUMA_RELEASES_ROUTES, the mirrors of that site for
+	// the clients of some countries (task 113, docs/ops/releases.md):
+	// "RU,BY=https://pluma.sckra.dev"; the clients of every other country
+	// get ReleasesURL.
+	ReleasesRoutes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// IOSUpdate lets an Ad Hoc build of the iPhone app update from the app
 	// (task 085); off without its secret.
 	IOSUpdate iosupdate.Settings `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's

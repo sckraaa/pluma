@@ -84,8 +84,7 @@ func appUpdateCore(apiId int32, appVersion, lang string) *ConfigurationCore {
 	d := dao.NewWithDB(itDB)
 	d.AuthsessionClient = &auths{apiId: apiId, appVersion: appVersion}
 	d.Media = medias{}
-	s := &svc.ServiceContext{Dao: d}
-	s.Config.ReleasesURL = "https://pluma.example"
+	s := &svc.ServiceContext{Dao: d, ReleaseSites: mustReleaseSites("https://pluma.example", "")}
 	ctx := context.Background()
 	return &ConfigurationCore{ctx: ctx, svcCtx: s, Logger: logx.WithContext(ctx), MD: &metadata.RpcMetadata{PermAuthKeyId: 1, LangCode: lang}}
 }
