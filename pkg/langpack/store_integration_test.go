@@ -328,7 +328,8 @@ func TestImportRejects(t *testing.T) {
 }
 
 // help.getConfig reports the versions of the session's language and of its
-// base language; nothing for a language the server lacks.
+// base language, and suggests the system's language when the pack has it;
+// nothing for a language the server lacks.
 func TestConfigVersions(t *testing.T) {
 	ctx := context.Background()
 	base := snapshotOf("macos", "pt", 30, String{Key: "A", Value: "a"})
@@ -341,23 +342,31 @@ func TestConfigVersions(t *testing.T) {
 	mustImport(t, orphan)
 
 	for _, c := range []struct {
-		pack, lang string
-		want       string
+		pack, lang, system string
+		want               string
 	}{
-		{"macos", "pt-br", "&{pt-br 40 30}"},
-		{"macos", "pt", "&{pt 30 0}"},
-		{"macos", "pt-pt", "&{pt-pt 50 0}"},
-		{"macos", "xx", "<nil>"},
-		{"nope", "pt", "<nil>"},
-		{"", "pt", "<nil>"},
-		{"macos", "", "<nil>"},
+		{"macos", "pt-br", "", "&{pt-br 40 30}"},
+		{"macos", "pt", "", "&{pt 30 0}"},
+		{"macos", "pt-pt", "", "&{pt-pt 50 0}"},
+		{"macos", "xx", "", "<nil>"},
+		{"nope", "pt", "", "<nil>"},
+		{"", "pt", "", "<nil>"},
+		{"macos", "", "", "<nil>"},
+		// The system's language, when the pack has it; the versions stay
+		// those of the client's language.
+		{"macos", "pt", "pt-BR", "&{pt-br 30 0}"},
+		{"macos", "pt", "pt_PT", "&{pt-pt 30 0}"},
+		{"macos", "pt-br", "pt-AO", "&{pt 40 30}"},
+		{"macos", "pt-br", "pt-BR", "&{pt-br 40 30}"},
+		{"macos", "pt", "de-DE", "&{pt 30 0}"},
+		{"macos", "xx", "pt-BR", "<nil>"},
 	} {
-		v, err := itStore.ConfigVersions(ctx, c.pack, c.lang)
+		v, err := itStore.ConfigVersions(ctx, c.pack, c.lang, c.system)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if got := fmt.Sprint(v); got != c.want {
-			t.Errorf("ConfigVersions(%q, %q) = %s, want %s", c.pack, c.lang, got, c.want)
+			t.Errorf("ConfigVersions(%q, %q, %q) = %s, want %s", c.pack, c.lang, c.system, got, c.want)
 		}
 	}
 

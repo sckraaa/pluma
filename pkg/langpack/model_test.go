@@ -196,3 +196,24 @@ t6N/byY9Nw9p21Og3AoXSL2q/2IJ1WRUhebgAdGVMlV1fkuOQoEzR7EdpqtQD9Cs
 		t.Fatal("TelegramPublicKey differs from the published key")
 	}
 }
+
+func TestSystemLanguages(t *testing.T) {
+	for in, want := range map[string]string{
+		"ru-RU":      "[ru-ru ru]",
+		"pt-BR":      "[pt-br pt]",
+		"pt_br":      "[pt-br pt]",
+		"en":         "[en]",
+		"zh-Hans-CN": "[zh-hans zh-hans-cn zh]",
+		"zh-Hant-TW": "[zh-hant zh-hant-tw zh]",
+		"zh-TW":      "[zh-hant zh-tw zh]",
+		"zh-HK":      "[zh-hant zh-hk zh]",
+		"zh-CN":      "[zh-hans zh-cn zh]",
+		"sr-Latn-RS": "[sr-latn-rs sr-latn sr]",
+		"":           "[]",
+		" ":          "[]",
+	} {
+		if got := fmt.Sprint(SystemLanguages(in)); got != want {
+			t.Errorf("SystemLanguages(%q) = %s, want %s", in, got, want)
+		}
+	}
+}

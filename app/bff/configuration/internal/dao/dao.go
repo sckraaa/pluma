@@ -33,7 +33,7 @@ import (
 // LangpackVersions is what help.getConfig reads of the language packs
 // (*langpack.Store).
 type LangpackVersions interface {
-	ConfigVersions(ctx context.Context, pack, lang string) (*langpack.ConfigVersions, error)
+	ConfigVersions(ctx context.Context, pack, lang, systemLang string) (*langpack.ConfigVersions, error)
 }
 
 type Dao struct {
