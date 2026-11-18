@@ -127,6 +127,30 @@ Edge:
   Routes: "${EDGE_ROUTES}"
   StickyS: "${EDGE_STICKY_S}"
 
+# The path probes of the patched clients (task 113, ADR 0073,
+# docs/ops/edge.md): bff hands them pluma_probe in help.getAppConfig, the
+# sizes, timers and ratios of their probes and of the choice of path, with
+# the country of the client's address, by which the clients remember the
+# best path. Each empty PATH_PROBE_* takes the default of the brief; a value
+# out of its range stops bff.
+Probe:
+  GateDown: "${PATH_PROBE_GATE_DOWN}"
+  RankDown: "${PATH_PROBE_RANK_DOWN}"
+  Up: "${PATH_PROBE_UP}"
+  StallMs: "${PATH_PROBE_STALL_MS}"
+  DeadlineMs: "${PATH_PROBE_DEADLINE_MS}"
+  SuspectMs: "${PATH_PROBE_SUSPECT_MS}"
+  ReprobeS: "${PATH_PROBE_REPROBE_S}"
+  RankMinIntervalS: "${PATH_PROBE_RANK_MIN_INTERVAL_S}"
+  MinDwellS: "${PATH_PROBE_MIN_DWELL_S}"
+  SwitchRatio: "${PATH_PROBE_SWITCH_RATIO}"
+  SwitchRatioNow: "${PATH_PROBE_SWITCH_RATIO_NOW}"
+  EdgeProbeIfDirectMs: "${PATH_PROBE_EDGE_PROBE_IF_DIRECT_MS}"
+  BadTTLS: "${PATH_PROBE_BAD_TTL_S}"
+  FailedTTLS: "${PATH_PROBE_FAILED_TTL_S}"
+  RaceStaggerMs: "${PATH_PROBE_RACE_STAGGER_MS}"
+  ConfirmS: "${PATH_PROBE_CONFIRM_S}"
+
 # The built-in inline bots @gif and @pic (task 099, ADR 0062,
 # docs/ops/inline-bots.md). @pic searches pictures with the SearXNG of
 # SEARXNG_URL (http://searxng:8080 in Docker; empty: @pic answers with empty

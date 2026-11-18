@@ -115,6 +115,10 @@ type Config struct {
 	// config by the country of the client (task 109, ADR 0072,
 	// docs/ops/edge.md); no edges without EDGE_WS_URLS.
 	Edge configuration_helper.EdgeConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Probe is the settings of the path probes of the patched clients,
+	// pluma_probe of the app config (task 113, ADR 0073 §7,
+	// docs/ops/edge.md); an empty one takes the default of the brief.
+	Probe configuration_helper.ProbeConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// InlineBots is the built-in inline bots @gif and @pic (task 099, ADR
 	// 0062, docs/ops/inline-bots.md): the providers that answer their
 	// queries and the daily budget of the media they import into dfs.

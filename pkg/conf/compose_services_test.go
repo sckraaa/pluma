@@ -369,6 +369,24 @@ var optionalVars = map[string]bool{
 	"EDGE_WS_URLS":  true,
 	"EDGE_ROUTES":   true,
 	"EDGE_STICKY_S": true,
+	// The settings of the path probes of the patched clients (task 113):
+	// each takes the default of the brief when empty.
+	"PATH_PROBE_GATE_DOWN":               true,
+	"PATH_PROBE_RANK_DOWN":               true,
+	"PATH_PROBE_UP":                      true,
+	"PATH_PROBE_STALL_MS":                true,
+	"PATH_PROBE_DEADLINE_MS":             true,
+	"PATH_PROBE_SUSPECT_MS":              true,
+	"PATH_PROBE_REPROBE_S":               true,
+	"PATH_PROBE_RANK_MIN_INTERVAL_S":     true,
+	"PATH_PROBE_MIN_DWELL_S":             true,
+	"PATH_PROBE_SWITCH_RATIO":            true,
+	"PATH_PROBE_SWITCH_RATIO_NOW":        true,
+	"PATH_PROBE_EDGE_PROBE_IF_DIRECT_MS": true,
+	"PATH_PROBE_BAD_TTL_S":               true,
+	"PATH_PROBE_FAILED_TTL_S":            true,
+	"PATH_PROBE_RACE_STAGGER_MS":         true,
+	"PATH_PROBE_CONFIRM_S":               true,
 	// The built-in inline bots (task 099, ADR 0062): @pic answers with
 	// empty lists without SearXNG, @gif has no search by text without the
 	// KLIPY key; the import budget is 1 GiB when empty.

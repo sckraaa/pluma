@@ -257,6 +257,7 @@ func (s *Server) Initialize() error {
 			GifSearch:         c.InlineBots.GifSearch(),
 			Maps:              c.Maps,
 			Edge:              c.Edge,
+			Probe:             c.Probe,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)

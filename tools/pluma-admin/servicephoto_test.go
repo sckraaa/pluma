@@ -179,6 +179,7 @@ func TestServicePhotoConfig(t *testing.T) {
 	t.Setenv("EDGE_WS_URLS", "")
 	t.Setenv("EDGE_ROUTES", "")
 	t.Setenv("EDGE_STICKY_S", "")
+	unsetTask113Env(t)
 	t.Setenv("BOT_SECRET_ENCRYPTION_KEY", "")
 	t.Setenv("WEBAPP_SIGNING_KEY", "")
 	t.Setenv("STATS_GRAPH_TOKEN_KEY", "")

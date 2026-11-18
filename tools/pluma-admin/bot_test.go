@@ -56,6 +56,7 @@ func TestLoadsBotConfig(t *testing.T) {
 	} {
 		t.Setenv(name, "")
 	}
+	unsetTask113Env(t)
 	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	key := testHmacKey + testHmacKey // 64 hex digits
@@ -71,5 +72,18 @@ func TestLoadsBotConfig(t *testing.T) {
 		if s, err := c.BotSecrets.Sealer(); s == nil || err != nil {
 			t.Errorf("%s: sealer: %v", f, err)
 		}
+	}
+}
+
+// unsetTask113Env sets the variables of task 113 the bff configs name
+// empty: the settings of the path probes, each at its default when empty.
+func unsetTask113Env(t *testing.T) {
+	t.Helper()
+	for _, v := range []string{
+		"GATE_DOWN", "RANK_DOWN", "UP", "STALL_MS", "DEADLINE_MS", "SUSPECT_MS", "REPROBE_S",
+		"RANK_MIN_INTERVAL_S", "MIN_DWELL_S", "SWITCH_RATIO", "SWITCH_RATIO_NOW",
+		"EDGE_PROBE_IF_DIRECT_MS", "BAD_TTL_S", "FAILED_TTL_S", "RACE_STAGGER_MS", "CONFIRM_S",
+	} {
+		t.Setenv("PATH_PROBE_"+v, "")
 	}
 }
