@@ -54,7 +54,9 @@ const (
 )
 
 var (
-	// ruFilesAddr is the loopback address of rufiles' 443, ruFilesDomain
+	// ruFilesAddr is the loopback address of rufiles' 443 when the run
+	// started (it says the stand has rufiles; servicePort has the current
+	// one), ruFilesDomain
 	// the name of delivery 202, ruFilesCA the run's CA of its certificate
 	// (run.sh, gen_rufiles).
 	ruFilesAddr   = os.Getenv("PLUMA_E2E_RU_FILES")
@@ -83,9 +85,12 @@ func ruFilesClient(t *testing.T) *http.Client {
 		t.Fatal("no certificate in the CA of delivery 202")
 	}
 	d := &net.Dialer{}
+	// Not ruFilesAddr, the port at the start of the run: rufiles is
+	// recreated with web, on another port.
+	ruAddr := servicePort(t, "rufiles", "443")
 	c := mtclient.NewCdnHTTPClient(func(ctx context.Context, network, addr string) (net.Conn, error) {
 		if addr == ruFilesDomain+":443" {
-			addr = ruFilesAddr
+			addr = ruAddr
 		}
 		return d.DialContext(ctx, network, addr)
 	})

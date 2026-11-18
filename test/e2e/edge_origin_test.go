@@ -49,7 +49,9 @@ import (
 
 var (
 	// edgeOriginAddr and ruEdgeAddr are the loopback addresses of Caddy's
-	// 443 and 8443 on the stand.
+	// 443 and 8443 when the run started; they say the stand has the edges,
+	// and the dials read the current ports (stackPort): a recreated web has
+	// others.
 	edgeOriginAddr = os.Getenv("PLUMA_E2E_EDGE_ORIGIN")
 	ruEdgeAddr     = os.Getenv("PLUMA_E2E_RU_EDGE")
 	// edgeAuth is X-Pluma-Edge-Auth of the run, which the Gcore resource
@@ -115,7 +117,11 @@ func gcoreEdgeHeader(auth, clientAddr string) http.Header {
 // Gcore edge, as the resource would for a client at clientAddr; tlsConfig
 // is caddyTLS of gcoreEdgeHost.
 func dialGcoreEdge(ctx context.Context, tlsConfig *tls.Config, auth, clientAddr string) (mtclient.Transport, error) {
-	return mtclient.DialWebSocketVia(ctx, "wss://"+gcoreEdgeHost+"/apiws", gcoreEdgeHeader(auth, clientAddr), dialTo(edgeOriginAddr), tlsConfig)
+	addr, err := stackPort("web", "443")
+	if err != nil {
+		return nil, err
+	}
+	return mtclient.DialWebSocketVia(ctx, "wss://"+gcoreEdgeHost+"/apiws", gcoreEdgeHeader(auth, clientAddr), dialTo(addr), tlsConfig)
 }
 
 // proxyV1 is the PROXY v1 header of a TCP connection from src, as the
@@ -134,8 +140,12 @@ func proxyV1(src string) string {
 // none), and the client's own X-Pluma-* headers forged; tlsConfig is
 // caddyTLS of ruEdgeHost.
 func dialRuEdge(ctx context.Context, tlsConfig *tls.Config, proxy string) (mtclient.Transport, error) {
+	addr, err := stackPort("web", "8443")
+	if err != nil {
+		return nil, err
+	}
 	dial := func(ctx context.Context, network, _ string) (net.Conn, error) {
-		conn, err := dialTo(ruEdgeAddr)(ctx, network, "")
+		conn, err := dialTo(addr)(ctx, network, "")
 		if err != nil || proxy == "" {
 			return conn, err
 		}
