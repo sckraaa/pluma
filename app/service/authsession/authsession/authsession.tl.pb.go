@@ -67,6 +67,8 @@ const (
 	TLConstructor_CRC32_authsession_getRecentLangCode           TLConstructor = 299421713
 	// pluma: task 106
 	TLConstructor_CRC32_authsession_getIpRegion TLConstructor = 415119041
+	// pluma: task 109
+	TLConstructor_CRC32_authsession_getIpCountry TLConstructor = -1892541567
 )
 
 // Enum value maps for TLConstructor.
@@ -101,6 +103,7 @@ var (
 		-951003082:  "CRC32_authsession_changeAuthorizationSettings",
 		299421713:   "CRC32_authsession_getRecentLangCode",
 		415119041:   "CRC32_authsession_getIpRegion",
+		-1892541567: "CRC32_authsession_getIpCountry",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                                 0,
@@ -132,6 +135,7 @@ var (
 		"CRC32_authsession_changeAuthorizationSettings": -951003082,
 		"CRC32_authsession_getRecentLangCode":           299421713,
 		"CRC32_authsession_getIpRegion":                 415119041,
+		"CRC32_authsession_getIpCountry":                -1892541567,
 	}
 )
 
@@ -2162,6 +2166,65 @@ func (x *TLAuthsessionGetIpRegion) GetIp() string {
 }
 
 // --------------------------------------------------------------------------------------------
+// pluma: authsession.getIpCountry ip:string = String;
+// The country of an address by the GeoIP database of authsession, as an
+// ISO 3166-1 alpha-2 code in upper case; empty when it is not known (no
+// database, a private address, no country in the record). The route of a
+// client by its country: the edges of pluma_edge and the CDN deliveries
+// (task 109).
+type TLAuthsessionGetIpCountry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=authsession.TLConstructor" json:"constructor,omitempty"`
+	Ip            string                 `protobuf:"bytes,3,opt,name=ip,proto3" json:"ip,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLAuthsessionGetIpCountry) Reset() {
+	*x = TLAuthsessionGetIpCountry{}
+	mi := &file_authsession_tl_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLAuthsessionGetIpCountry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLAuthsessionGetIpCountry) ProtoMessage() {}
+
+func (x *TLAuthsessionGetIpCountry) ProtoReflect() protoreflect.Message {
+	mi := &file_authsession_tl_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLAuthsessionGetIpCountry.ProtoReflect.Descriptor instead.
+func (*TLAuthsessionGetIpCountry) Descriptor() ([]byte, []int) {
+	return file_authsession_tl_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *TLAuthsessionGetIpCountry) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLAuthsessionGetIpCountry) GetIp() string {
+	if x != nil {
+		return x.Ip
+	}
+	return ""
+}
+
+// --------------------------------------------------------------------------------------------
 // Vector api result type
 type Vector_Long struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2172,7 +2235,7 @@ type Vector_Long struct {
 
 func (x *Vector_Long) Reset() {
 	*x = Vector_Long{}
-	mi := &file_authsession_tl_proto_msgTypes[30]
+	mi := &file_authsession_tl_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2184,7 +2247,7 @@ func (x *Vector_Long) String() string {
 func (*Vector_Long) ProtoMessage() {}
 
 func (x *Vector_Long) ProtoReflect() protoreflect.Message {
-	mi := &file_authsession_tl_proto_msgTypes[30]
+	mi := &file_authsession_tl_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2197,7 +2260,7 @@ func (x *Vector_Long) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Long.ProtoReflect.Descriptor instead.
 func (*Vector_Long) Descriptor() ([]byte, []int) {
-	return file_authsession_tl_proto_rawDescGZIP(), []int{30}
+	return file_authsession_tl_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *Vector_Long) GetDatas() []int64 {
@@ -2360,9 +2423,13 @@ const file_authsession_tl_proto_rawDesc = "" +
 	"\x12except_auth_key_id\x18\x04 \x01(\x03R\x0fexceptAuthKeyId\"j\n" +
 	"\x1aTL_authsession_getIpRegion\x12<\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x1a.authsession.TLConstructorR\vconstructor\x12\x0e\n" +
+	"\x02ip\x18\x03 \x01(\tR\x02ip\"k\n" +
+	"\x1bTL_authsession_getIpCountry\x12<\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x1a.authsession.TLConstructorR\vconstructor\x12\x0e\n" +
 	"\x02ip\x18\x03 \x01(\tR\x02ip\"#\n" +
 	"\vVector_Long\x12\x14\n" +
-	"\x05datas\x18\x01 \x03(\x03R\x05datas*\xe5\t\n" +
+	"\x05datas\x18\x01 \x03(\x03R\x05datas*\x92\n" +
+	"\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12 \n" +
 	"\x13CRC32_clientSession\x10\xb0\xe3\xb9\xd4\xf9\xff\xff\xff\xff\x01\x12#\n" +
@@ -2392,7 +2459,8 @@ const file_authsession_tl_proto_rawDesc = "" +
 	"\"CRC32_authsession_dropTempAuthKeys\x10\xfa\xe5\xed\xbe\a\x12:\n" +
 	"-CRC32_authsession_changeAuthorizationSettings\x10\xb6\xb0ú\xfc\xff\xff\xff\xff\x01\x12+\n" +
 	"#CRC32_authsession_getRecentLangCode\x10\x91\xa0\xe3\x8e\x01\x12%\n" +
-	"\x1dCRC32_authsession_getIpRegion\x10\xc1\xed\xf8\xc5\x012\xde\x13\n" +
+	"\x1dCRC32_authsession_getIpRegion\x10\xc1\xed\xf8\xc5\x01\x12+\n" +
+	"\x1eCRC32_authsession_getIpCountry\x10\x81\xb7\xc8\xf9\xf8\xff\xff\xff\xff\x012\xb7\x14\n" +
 	"\x0eRPCAuthsession\x12q\n" +
 	"\x1dauthsession_getAuthorizations\x12-.authsession.TL_authsession_getAuthorizations\x1a\x1f.mtproto.account_Authorizations\"\x00\x12l\n" +
 	"\x1eauthsession_resetAuthorization\x12..authsession.TL_authsession_resetAuthorization\x1a\x18.authsession.Vector_Long\"\x00\x12N\n" +
@@ -2419,7 +2487,8 @@ const file_authsession_tl_proto_rawDesc = "" +
 	"\x1cauthsession_dropTempAuthKeys\x12,.authsession.TL_authsession_dropTempAuthKeys\x1a\x18.authsession.Vector_Long\"\x00\x12t\n" +
 	"'authsession_changeAuthorizationSettings\x127.authsession.TL_authsession_changeAuthorizationSettings\x1a\x0e.mtproto.Int64\"\x00\x12a\n" +
 	"\x1dauthsession_getRecentLangCode\x12-.authsession.TL_authsession_getRecentLangCode\x1a\x0f.mtproto.String\"\x00\x12U\n" +
-	"\x17authsession_getIpRegion\x12'.authsession.TL_authsession_getIpRegion\x1a\x0f.mtproto.String\"\x00BIZGgithub.com/teamgram/teamgram-server/app/service/authsession/authsessionb\x06proto3"
+	"\x17authsession_getIpRegion\x12'.authsession.TL_authsession_getIpRegion\x1a\x0f.mtproto.String\"\x00\x12W\n" +
+	"\x18authsession_getIpCountry\x12(.authsession.TL_authsession_getIpCountry\x1a\x0f.mtproto.String\"\x00BIZGgithub.com/teamgram/teamgram-server/app/service/authsession/authsessionb\x06proto3"
 
 var (
 	file_authsession_tl_proto_rawDescOnce sync.Once
@@ -2434,7 +2503,7 @@ func file_authsession_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_authsession_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_authsession_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_authsession_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_authsession_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                               // 0: authsession.TLConstructor
 	(*AuthKeyStateData)(nil),                         // 1: authsession.AuthKeyStateData
@@ -2467,22 +2536,23 @@ var file_authsession_tl_proto_goTypes = []any{
 	(*TLAuthsessionChangeAuthorizationSettings)(nil), // 28: authsession.TL_authsession_changeAuthorizationSettings
 	(*TLAuthsessionGetRecentLangCode)(nil),           // 29: authsession.TL_authsession_getRecentLangCode
 	(*TLAuthsessionGetIpRegion)(nil),                 // 30: authsession.TL_authsession_getIpRegion
-	(*Vector_Long)(nil),                              // 31: authsession.Vector_Long
-	(*wrapperspb.Int64Value)(nil),                    // 32: google.protobuf.Int64Value
-	(*mtproto.AuthKeyInfo)(nil),                      // 33: mtproto.AuthKeyInfo
-	(*mtproto.FutureSalt)(nil),                       // 34: mtproto.FutureSalt
-	(*mtproto.Bool)(nil),                             // 35: mtproto.Bool
-	(*mtproto.Account_Authorizations)(nil),           // 36: mtproto.account_Authorizations
-	(*mtproto.Int32)(nil),                            // 37: mtproto.Int32
-	(*mtproto.String)(nil),                           // 38: mtproto.String
-	(*mtproto.Int64)(nil),                            // 39: mtproto.Int64
-	(*mtproto.FutureSalts)(nil),                      // 40: mtproto.FutureSalts
-	(*mtproto.Authorization)(nil),                    // 41: mtproto.Authorization
+	(*TLAuthsessionGetIpCountry)(nil),                // 31: authsession.TL_authsession_getIpCountry
+	(*Vector_Long)(nil),                              // 32: authsession.Vector_Long
+	(*wrapperspb.Int64Value)(nil),                    // 33: google.protobuf.Int64Value
+	(*mtproto.AuthKeyInfo)(nil),                      // 34: mtproto.AuthKeyInfo
+	(*mtproto.FutureSalt)(nil),                       // 35: mtproto.FutureSalt
+	(*mtproto.Bool)(nil),                             // 36: mtproto.Bool
+	(*mtproto.Account_Authorizations)(nil),           // 37: mtproto.account_Authorizations
+	(*mtproto.Int32)(nil),                            // 38: mtproto.Int32
+	(*mtproto.String)(nil),                           // 39: mtproto.String
+	(*mtproto.Int64)(nil),                            // 40: mtproto.Int64
+	(*mtproto.FutureSalts)(nil),                      // 41: mtproto.FutureSalts
+	(*mtproto.Authorization)(nil),                    // 42: mtproto.Authorization
 }
 var file_authsession_tl_proto_depIdxs = []int32{
 	0,  // 0: authsession.AuthKeyStateData.constructor:type_name -> authsession.TLConstructor
 	3,  // 1: authsession.AuthKeyStateData.client:type_name -> authsession.ClientSession
-	32, // 2: authsession.AuthKeyStateData.android_push_session_id:type_name -> google.protobuf.Int64Value
+	33, // 2: authsession.AuthKeyStateData.android_push_session_id:type_name -> google.protobuf.Int64Value
 	1,  // 3: authsession.TL_authKeyStateData.data2:type_name -> authsession.AuthKeyStateData
 	0,  // 4: authsession.ClientSession.constructor:type_name -> authsession.TLConstructor
 	3,  // 5: authsession.TL_clientSession.data2:type_name -> authsession.ClientSession
@@ -2497,8 +2567,8 @@ var file_authsession_tl_proto_depIdxs = []int32{
 	0,  // 14: authsession.TL_authsession_getFutureSalts.constructor:type_name -> authsession.TLConstructor
 	0,  // 15: authsession.TL_authsession_queryAuthKey.constructor:type_name -> authsession.TLConstructor
 	0,  // 16: authsession.TL_authsession_setAuthKey.constructor:type_name -> authsession.TLConstructor
-	33, // 17: authsession.TL_authsession_setAuthKey.auth_key:type_name -> mtproto.AuthKeyInfo
-	34, // 18: authsession.TL_authsession_setAuthKey.future_salt:type_name -> mtproto.FutureSalt
+	34, // 17: authsession.TL_authsession_setAuthKey.auth_key:type_name -> mtproto.AuthKeyInfo
+	35, // 18: authsession.TL_authsession_setAuthKey.future_salt:type_name -> mtproto.FutureSalt
 	0,  // 19: authsession.TL_authsession_bindAuthKeyUser.constructor:type_name -> authsession.TLConstructor
 	0,  // 20: authsession.TL_authsession_unbindAuthKeyUser.constructor:type_name -> authsession.TLConstructor
 	0,  // 21: authsession.TL_authsession_getPermAuthKeyId.constructor:type_name -> authsession.TLConstructor
@@ -2513,67 +2583,70 @@ var file_authsession_tl_proto_depIdxs = []int32{
 	0,  // 30: authsession.TL_authsession_destroyAuthKey.constructor:type_name -> authsession.TLConstructor
 	0,  // 31: authsession.TL_authsession_dropTempAuthKeys.constructor:type_name -> authsession.TLConstructor
 	0,  // 32: authsession.TL_authsession_changeAuthorizationSettings.constructor:type_name -> authsession.TLConstructor
-	35, // 33: authsession.TL_authsession_changeAuthorizationSettings.encrypted_requests_disabled:type_name -> mtproto.Bool
-	35, // 34: authsession.TL_authsession_changeAuthorizationSettings.call_requests_disabled:type_name -> mtproto.Bool
+	36, // 33: authsession.TL_authsession_changeAuthorizationSettings.encrypted_requests_disabled:type_name -> mtproto.Bool
+	36, // 34: authsession.TL_authsession_changeAuthorizationSettings.call_requests_disabled:type_name -> mtproto.Bool
 	0,  // 35: authsession.TL_authsession_getRecentLangCode.constructor:type_name -> authsession.TLConstructor
 	0,  // 36: authsession.TL_authsession_getIpRegion.constructor:type_name -> authsession.TLConstructor
-	5,  // 37: authsession.RPCAuthsession.authsession_getAuthorizations:input_type -> authsession.TL_authsession_getAuthorizations
-	6,  // 38: authsession.RPCAuthsession.authsession_resetAuthorization:input_type -> authsession.TL_authsession_resetAuthorization
-	7,  // 39: authsession.RPCAuthsession.authsession_getLayer:input_type -> authsession.TL_authsession_getLayer
-	8,  // 40: authsession.RPCAuthsession.authsession_getLangPack:input_type -> authsession.TL_authsession_getLangPack
-	9,  // 41: authsession.RPCAuthsession.authsession_getClient:input_type -> authsession.TL_authsession_getClient
-	10, // 42: authsession.RPCAuthsession.authsession_getLangCode:input_type -> authsession.TL_authsession_getLangCode
-	11, // 43: authsession.RPCAuthsession.authsession_getUserId:input_type -> authsession.TL_authsession_getUserId
-	12, // 44: authsession.RPCAuthsession.authsession_getPushSessionId:input_type -> authsession.TL_authsession_getPushSessionId
-	13, // 45: authsession.RPCAuthsession.authsession_getFutureSalts:input_type -> authsession.TL_authsession_getFutureSalts
-	14, // 46: authsession.RPCAuthsession.authsession_queryAuthKey:input_type -> authsession.TL_authsession_queryAuthKey
-	15, // 47: authsession.RPCAuthsession.authsession_setAuthKey:input_type -> authsession.TL_authsession_setAuthKey
-	16, // 48: authsession.RPCAuthsession.authsession_bindAuthKeyUser:input_type -> authsession.TL_authsession_bindAuthKeyUser
-	17, // 49: authsession.RPCAuthsession.authsession_unbindAuthKeyUser:input_type -> authsession.TL_authsession_unbindAuthKeyUser
-	18, // 50: authsession.RPCAuthsession.authsession_getPermAuthKeyId:input_type -> authsession.TL_authsession_getPermAuthKeyId
-	19, // 51: authsession.RPCAuthsession.authsession_bindTempAuthKey:input_type -> authsession.TL_authsession_bindTempAuthKey
-	20, // 52: authsession.RPCAuthsession.authsession_setClientSessionInfo:input_type -> authsession.TL_authsession_setClientSessionInfo
-	21, // 53: authsession.RPCAuthsession.authsession_getAuthorization:input_type -> authsession.TL_authsession_getAuthorization
-	22, // 54: authsession.RPCAuthsession.authsession_getAuthStateData:input_type -> authsession.TL_authsession_getAuthStateData
-	23, // 55: authsession.RPCAuthsession.authsession_setLayer:input_type -> authsession.TL_authsession_setLayer
-	24, // 56: authsession.RPCAuthsession.authsession_setInitConnection:input_type -> authsession.TL_authsession_setInitConnection
-	25, // 57: authsession.RPCAuthsession.authsession_setAndroidPushSessionId:input_type -> authsession.TL_authsession_setAndroidPushSessionId
-	26, // 58: authsession.RPCAuthsession.authsession_destroyAuthKey:input_type -> authsession.TL_authsession_destroyAuthKey
-	27, // 59: authsession.RPCAuthsession.authsession_dropTempAuthKeys:input_type -> authsession.TL_authsession_dropTempAuthKeys
-	28, // 60: authsession.RPCAuthsession.authsession_changeAuthorizationSettings:input_type -> authsession.TL_authsession_changeAuthorizationSettings
-	29, // 61: authsession.RPCAuthsession.authsession_getRecentLangCode:input_type -> authsession.TL_authsession_getRecentLangCode
-	30, // 62: authsession.RPCAuthsession.authsession_getIpRegion:input_type -> authsession.TL_authsession_getIpRegion
-	36, // 63: authsession.RPCAuthsession.authsession_getAuthorizations:output_type -> mtproto.account_Authorizations
-	31, // 64: authsession.RPCAuthsession.authsession_resetAuthorization:output_type -> authsession.Vector_Long
-	37, // 65: authsession.RPCAuthsession.authsession_getLayer:output_type -> mtproto.Int32
-	38, // 66: authsession.RPCAuthsession.authsession_getLangPack:output_type -> mtproto.String
-	38, // 67: authsession.RPCAuthsession.authsession_getClient:output_type -> mtproto.String
-	38, // 68: authsession.RPCAuthsession.authsession_getLangCode:output_type -> mtproto.String
-	39, // 69: authsession.RPCAuthsession.authsession_getUserId:output_type -> mtproto.Int64
-	39, // 70: authsession.RPCAuthsession.authsession_getPushSessionId:output_type -> mtproto.Int64
-	40, // 71: authsession.RPCAuthsession.authsession_getFutureSalts:output_type -> mtproto.FutureSalts
-	33, // 72: authsession.RPCAuthsession.authsession_queryAuthKey:output_type -> mtproto.AuthKeyInfo
-	35, // 73: authsession.RPCAuthsession.authsession_setAuthKey:output_type -> mtproto.Bool
-	39, // 74: authsession.RPCAuthsession.authsession_bindAuthKeyUser:output_type -> mtproto.Int64
-	35, // 75: authsession.RPCAuthsession.authsession_unbindAuthKeyUser:output_type -> mtproto.Bool
-	39, // 76: authsession.RPCAuthsession.authsession_getPermAuthKeyId:output_type -> mtproto.Int64
-	35, // 77: authsession.RPCAuthsession.authsession_bindTempAuthKey:output_type -> mtproto.Bool
-	35, // 78: authsession.RPCAuthsession.authsession_setClientSessionInfo:output_type -> mtproto.Bool
-	41, // 79: authsession.RPCAuthsession.authsession_getAuthorization:output_type -> mtproto.Authorization
-	1,  // 80: authsession.RPCAuthsession.authsession_getAuthStateData:output_type -> authsession.AuthKeyStateData
-	35, // 81: authsession.RPCAuthsession.authsession_setLayer:output_type -> mtproto.Bool
-	35, // 82: authsession.RPCAuthsession.authsession_setInitConnection:output_type -> mtproto.Bool
-	35, // 83: authsession.RPCAuthsession.authsession_setAndroidPushSessionId:output_type -> mtproto.Bool
-	31, // 84: authsession.RPCAuthsession.authsession_destroyAuthKey:output_type -> authsession.Vector_Long
-	31, // 85: authsession.RPCAuthsession.authsession_dropTempAuthKeys:output_type -> authsession.Vector_Long
-	39, // 86: authsession.RPCAuthsession.authsession_changeAuthorizationSettings:output_type -> mtproto.Int64
-	38, // 87: authsession.RPCAuthsession.authsession_getRecentLangCode:output_type -> mtproto.String
-	38, // 88: authsession.RPCAuthsession.authsession_getIpRegion:output_type -> mtproto.String
-	63, // [63:89] is the sub-list for method output_type
-	37, // [37:63] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	0,  // 37: authsession.TL_authsession_getIpCountry.constructor:type_name -> authsession.TLConstructor
+	5,  // 38: authsession.RPCAuthsession.authsession_getAuthorizations:input_type -> authsession.TL_authsession_getAuthorizations
+	6,  // 39: authsession.RPCAuthsession.authsession_resetAuthorization:input_type -> authsession.TL_authsession_resetAuthorization
+	7,  // 40: authsession.RPCAuthsession.authsession_getLayer:input_type -> authsession.TL_authsession_getLayer
+	8,  // 41: authsession.RPCAuthsession.authsession_getLangPack:input_type -> authsession.TL_authsession_getLangPack
+	9,  // 42: authsession.RPCAuthsession.authsession_getClient:input_type -> authsession.TL_authsession_getClient
+	10, // 43: authsession.RPCAuthsession.authsession_getLangCode:input_type -> authsession.TL_authsession_getLangCode
+	11, // 44: authsession.RPCAuthsession.authsession_getUserId:input_type -> authsession.TL_authsession_getUserId
+	12, // 45: authsession.RPCAuthsession.authsession_getPushSessionId:input_type -> authsession.TL_authsession_getPushSessionId
+	13, // 46: authsession.RPCAuthsession.authsession_getFutureSalts:input_type -> authsession.TL_authsession_getFutureSalts
+	14, // 47: authsession.RPCAuthsession.authsession_queryAuthKey:input_type -> authsession.TL_authsession_queryAuthKey
+	15, // 48: authsession.RPCAuthsession.authsession_setAuthKey:input_type -> authsession.TL_authsession_setAuthKey
+	16, // 49: authsession.RPCAuthsession.authsession_bindAuthKeyUser:input_type -> authsession.TL_authsession_bindAuthKeyUser
+	17, // 50: authsession.RPCAuthsession.authsession_unbindAuthKeyUser:input_type -> authsession.TL_authsession_unbindAuthKeyUser
+	18, // 51: authsession.RPCAuthsession.authsession_getPermAuthKeyId:input_type -> authsession.TL_authsession_getPermAuthKeyId
+	19, // 52: authsession.RPCAuthsession.authsession_bindTempAuthKey:input_type -> authsession.TL_authsession_bindTempAuthKey
+	20, // 53: authsession.RPCAuthsession.authsession_setClientSessionInfo:input_type -> authsession.TL_authsession_setClientSessionInfo
+	21, // 54: authsession.RPCAuthsession.authsession_getAuthorization:input_type -> authsession.TL_authsession_getAuthorization
+	22, // 55: authsession.RPCAuthsession.authsession_getAuthStateData:input_type -> authsession.TL_authsession_getAuthStateData
+	23, // 56: authsession.RPCAuthsession.authsession_setLayer:input_type -> authsession.TL_authsession_setLayer
+	24, // 57: authsession.RPCAuthsession.authsession_setInitConnection:input_type -> authsession.TL_authsession_setInitConnection
+	25, // 58: authsession.RPCAuthsession.authsession_setAndroidPushSessionId:input_type -> authsession.TL_authsession_setAndroidPushSessionId
+	26, // 59: authsession.RPCAuthsession.authsession_destroyAuthKey:input_type -> authsession.TL_authsession_destroyAuthKey
+	27, // 60: authsession.RPCAuthsession.authsession_dropTempAuthKeys:input_type -> authsession.TL_authsession_dropTempAuthKeys
+	28, // 61: authsession.RPCAuthsession.authsession_changeAuthorizationSettings:input_type -> authsession.TL_authsession_changeAuthorizationSettings
+	29, // 62: authsession.RPCAuthsession.authsession_getRecentLangCode:input_type -> authsession.TL_authsession_getRecentLangCode
+	30, // 63: authsession.RPCAuthsession.authsession_getIpRegion:input_type -> authsession.TL_authsession_getIpRegion
+	31, // 64: authsession.RPCAuthsession.authsession_getIpCountry:input_type -> authsession.TL_authsession_getIpCountry
+	37, // 65: authsession.RPCAuthsession.authsession_getAuthorizations:output_type -> mtproto.account_Authorizations
+	32, // 66: authsession.RPCAuthsession.authsession_resetAuthorization:output_type -> authsession.Vector_Long
+	38, // 67: authsession.RPCAuthsession.authsession_getLayer:output_type -> mtproto.Int32
+	39, // 68: authsession.RPCAuthsession.authsession_getLangPack:output_type -> mtproto.String
+	39, // 69: authsession.RPCAuthsession.authsession_getClient:output_type -> mtproto.String
+	39, // 70: authsession.RPCAuthsession.authsession_getLangCode:output_type -> mtproto.String
+	40, // 71: authsession.RPCAuthsession.authsession_getUserId:output_type -> mtproto.Int64
+	40, // 72: authsession.RPCAuthsession.authsession_getPushSessionId:output_type -> mtproto.Int64
+	41, // 73: authsession.RPCAuthsession.authsession_getFutureSalts:output_type -> mtproto.FutureSalts
+	34, // 74: authsession.RPCAuthsession.authsession_queryAuthKey:output_type -> mtproto.AuthKeyInfo
+	36, // 75: authsession.RPCAuthsession.authsession_setAuthKey:output_type -> mtproto.Bool
+	40, // 76: authsession.RPCAuthsession.authsession_bindAuthKeyUser:output_type -> mtproto.Int64
+	36, // 77: authsession.RPCAuthsession.authsession_unbindAuthKeyUser:output_type -> mtproto.Bool
+	40, // 78: authsession.RPCAuthsession.authsession_getPermAuthKeyId:output_type -> mtproto.Int64
+	36, // 79: authsession.RPCAuthsession.authsession_bindTempAuthKey:output_type -> mtproto.Bool
+	36, // 80: authsession.RPCAuthsession.authsession_setClientSessionInfo:output_type -> mtproto.Bool
+	42, // 81: authsession.RPCAuthsession.authsession_getAuthorization:output_type -> mtproto.Authorization
+	1,  // 82: authsession.RPCAuthsession.authsession_getAuthStateData:output_type -> authsession.AuthKeyStateData
+	36, // 83: authsession.RPCAuthsession.authsession_setLayer:output_type -> mtproto.Bool
+	36, // 84: authsession.RPCAuthsession.authsession_setInitConnection:output_type -> mtproto.Bool
+	36, // 85: authsession.RPCAuthsession.authsession_setAndroidPushSessionId:output_type -> mtproto.Bool
+	32, // 86: authsession.RPCAuthsession.authsession_destroyAuthKey:output_type -> authsession.Vector_Long
+	32, // 87: authsession.RPCAuthsession.authsession_dropTempAuthKeys:output_type -> authsession.Vector_Long
+	40, // 88: authsession.RPCAuthsession.authsession_changeAuthorizationSettings:output_type -> mtproto.Int64
+	39, // 89: authsession.RPCAuthsession.authsession_getRecentLangCode:output_type -> mtproto.String
+	39, // 90: authsession.RPCAuthsession.authsession_getIpRegion:output_type -> mtproto.String
+	39, // 91: authsession.RPCAuthsession.authsession_getIpCountry:output_type -> mtproto.String
+	65, // [65:92] is the sub-list for method output_type
+	38, // [38:65] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_authsession_tl_proto_init() }
@@ -2587,7 +2660,7 @@ func file_authsession_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_authsession_tl_proto_rawDesc), len(file_authsession_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   31,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -101,7 +101,10 @@ func (d *Dao) GetDialogByPeerDialogId(ctx context.Context, userId, peerDialogId 
 		dlgExt *dialog.DialogExt
 	)
 
-	err := d.CachedConn.QueryRow(
+	// Leased: msg changes the row in a box transaction and deletes the key
+	// after the commit; a load that read the row before the commit must not
+	// put it into the cache after that deletion.
+	err := d.CachedConn.QueryRowLeased(
 		ctx,
 		&dlgExt,
 		dialog.GetDialogCacheKey(userId, peerDialogId),

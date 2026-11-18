@@ -18,6 +18,8 @@ import (
 
 type (
 	Config = config.Config
+	// EdgeConfig is the Edge block of bff.yaml (task 109).
+	EdgeConfig = config.EdgeConfig
 )
 
 func New(c Config) *service.Service {

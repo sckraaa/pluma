@@ -47,6 +47,17 @@ Gnetway:
       PPV1: true
       Addresses:
         - 0.0.0.0:11444
+    # Behind the origin proxy of the CDN edges (task 109, ADR 0072): the
+    # client's address comes in X-Pluma-Client-Addr of the upgrade request,
+    # set by the proxy, and a connection without it is closed. The gateway
+    # pings every EdgePingInterval (default 20s, 5s..25s) so that the CDN,
+    # which drops a WebSocket after 30 s without data from the origin, keeps
+    # it. EdgeVias (default gcore, ru) are the values of X-Pluma-Edge-Via
+    # that label its metrics. Never publish this port.
+    - Proto: websocket
+      Edge: true
+      Addresses:
+        - 0.0.0.0:11445
   Multicore: false
   SendBuf: 65536
   ReceiveBuf: 65536

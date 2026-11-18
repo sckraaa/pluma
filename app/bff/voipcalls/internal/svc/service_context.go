@@ -34,7 +34,11 @@ type ServiceContext struct {
 
 // NewServiceContext loads the config: wrong ICE servers stop the service.
 func NewServiceContext(c config.Config) *ServiceContext {
-	servers, err := ice.Parse(c.Calls.IceServers, c.Calls.TurnSecret)
+	secrets, err := ice.ParseSecrets(c.Calls.TurnSecrets)
+	if err != nil {
+		panic(fmt.Errorf("voipcalls: Calls.TurnSecrets: %w", err))
+	}
+	servers, err := ice.Parse(c.Calls.IceServers, c.Calls.TurnSecret, secrets)
 	if err != nil {
 		panic(fmt.Errorf("voipcalls: Calls.IceServers: %w", err))
 	}

@@ -40,6 +40,9 @@ const (
 type Config struct {
 	// Addr is host:port of an MTProto TCP port of the server.
 	Addr string
+	// Dial, if set, opens the connection instead of the TCP one to Addr:
+	// e.g. DialWebSocket to a WebSocket entry.
+	Dial func(ctx context.Context) (Transport, error)
 	// PublicKey is the server RSA public key (tools/genserverkey).
 	PublicKey *rsa.PublicKey
 	// Layer is the API layer of invokeWithLayer (default DefaultLayer).
@@ -63,6 +66,14 @@ type Config struct {
 	// Logf, if set, receives a line for every message sent and received:
 	// TL types and message ids only, never content.
 	Logf func(format string, args ...any)
+}
+
+// dial opens the connection of the client (Config.Dial).
+func (cfg *Config) dial(ctx context.Context) (Transport, error) {
+	if cfg.Dial != nil {
+		return cfg.Dial(ctx)
+	}
+	return DialIntermediate(ctx, cfg.Addr)
 }
 
 func (cfg *Config) setDefaults() {
@@ -136,8 +147,9 @@ type call struct {
 	err     error
 }
 
-// Dial connects to cfg.Addr, creates a new permanent auth key, starts a
-// session and sends initConnection: the client is ready for requests.
+// Dial connects to cfg.Addr (or with cfg.Dial), creates a new permanent
+// auth key, starts a session and sends initConnection: the client is ready
+// for requests.
 func Dial(ctx context.Context, cfg Config) (*Client, error) {
 	c, err := DialNewKey(ctx, cfg, KeyOptions{DC: cfg.DC})
 	if err != nil {
@@ -157,7 +169,7 @@ func DialNewKey(ctx context.Context, cfg Config, opts KeyOptions) (*Client, erro
 	if cfg.PublicKey == nil {
 		return nil, errors.New("mtclient: Config.PublicKey is required")
 	}
-	t, err := DialIntermediate(ctx, cfg.Addr)
+	t, err := cfg.dial(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +185,7 @@ func DialNewKey(ctx context.Context, cfg Config, opts KeyOptions) (*Client, erro
 // (e.g. a second connection of the same device). It does not send
 // initConnection.
 func DialKey(ctx context.Context, cfg Config, key *AuthKey) (*Client, error) {
-	t, err := DialIntermediate(ctx, cfg.Addr)
+	t, err := cfg.dial(ctx)
 	if err != nil {
 		return nil, err
 	}

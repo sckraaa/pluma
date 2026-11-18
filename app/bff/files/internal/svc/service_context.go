@@ -29,6 +29,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/cdn"
+	"github.com/teamgram/teamgram-server/pkg/ipcountry"
 	"github.com/teamgram/teamgram-server/pkg/staticmap"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -99,8 +100,10 @@ func (s *ServiceContext) Stop() {
 
 // startCDN starts the HTTPS CDN of c (task 107, ADR 0071), nil when it is
 // off (no delivery with a BaseURL): then the origin does not listen. Its
-// redirects go only to the clients whose pluma_cdn authsession keeps. A
-// wrong Cdn block, or an origin address in use, stops the start instead of
+// redirects go only to the clients whose pluma_cdn authsession keeps, by
+// the record of CDN_ROUTES of the country authsession.getIpCountry tells
+// for the client's address (task 109, cached by pkg/ipcountry). A wrong
+// Cdn block, or an origin address in use, stops the start instead of
 // leaving the CDN silently off.
 func startCDN(c config.Config, d *dao.Dao) (*cdn.Runtime, error) {
 	set, err := c.Cdn.Parse()
@@ -112,7 +115,7 @@ func startCDN(c config.Config, d *dao.Dao) (*cdn.Runtime, error) {
 		return nil, err
 	}
 	files := &cdnFiles{media: d.MediaClient, encrypted: d.SecretChats, dfs: d.DfsClient}
-	r, err := cdn.Start(cdn.NewMySQLStore(sqlx.NewMySQL(&c.Mysql)), set, files, files, caps)
+	r, err := cdn.Start(cdn.NewMySQLStore(sqlx.NewMySQL(&c.Mysql)), set, files, files, caps, ipcountry.New(d.AuthsessionClient))
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +123,7 @@ func startCDN(c config.Config, d *dao.Dao) (*cdn.Runtime, error) {
 	for _, dl := range set.Deliveries {
 		ids = append(ids, dl.ID)
 	}
-	logx.Infof("files: HTTPS CDN on, deliveries %v, origin at %s", ids, set.Origin.Listen)
+	logx.Infof("files: HTTPS CDN on, deliveries %v, %d routes, origin at %s", ids, len(set.Routes), set.Origin.Listen)
 	return r, nil
 }
 

@@ -74,5 +74,37 @@ func TestBffConfigCdn(t *testing.T) {
 			set.MinFileSize != 1<<20 || len(set.Kinds) != 2 || set.DevAllowHTTP {
 			t.Fatalf("%s: settings %+v", f, set)
 		}
+		if _, ok := set.Delivery(202); ok {
+			t.Fatalf("%s: delivery 202 on without CDN_RU_BASE_URL", f)
+		}
+
+		// Delivery 202 of the Russian node, routed by country (task 109).
+		env := map[string]string{
+			"CDN_GCORE_BASE_URL":  "https://cdn.example.com",
+			"CDN_GCORE_TOKEN_KEY": hex.EncodeToString(randomBytes(t, 16)),
+			"CDN_ORIGIN_AUTH":     hex.EncodeToString(randomBytes(t, 32)),
+			"CDN_RU_BASE_URL":     "https://r1.example.com",
+			"CDN_RU_TOKEN_KEY":    hex.EncodeToString(randomBytes(t, 16)),
+			"CDN_RU_ORIGIN_AUTH":  hex.EncodeToString(randomBytes(t, 32)),
+			"CDN_RU_HEALTH_ADDR":  "10.78.0.1:443",
+			"CDN_RU_MONTHLY_GB":   "2000",
+			"CDN_ROUTES":          "RU,BY:202,201;*:201",
+		}
+		if set, err = loadBffCdn(t, f, env).Parse(); err != nil || set == nil {
+			t.Fatalf("%s with delivery 202: %v", f, err)
+		}
+		ru, ok := set.Delivery(202)
+		if !ok || ru.Name != "ru" || ru.Signer.Name() != SignerGcoreMD5 || ru.Source != SourceHomeOrigin || ru.HealthAddr != "10.78.0.1:443" ||
+			string(ru.OriginAuth) != env["CDN_RU_ORIGIN_AUTH"] || ru.MonthlyBytes != 2000_000_000_000 {
+			t.Fatalf("%s: delivery 202 %+v", f, ru)
+		}
+		if len(set.Routes) != 2 || len(set.Routes[0].Countries) != 2 || set.Routes[0].Deliveries[0] != 202 {
+			t.Fatalf("%s: routes %+v", f, set.Routes)
+		}
+		// Without its own value 202 would share 201's: the start stops.
+		env["CDN_RU_ORIGIN_AUTH"] = ""
+		if _, err = loadBffCdn(t, f, env).Parse(); err == nil {
+			t.Fatalf("%s: delivery 202 without CDN_RU_ORIGIN_AUTH accepted", f)
+		}
 	}
 }

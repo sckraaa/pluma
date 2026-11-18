@@ -37,9 +37,18 @@ import (
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 )
+
+// redialMax bounds the pause between attempts to connect a node that is
+// down. gRPC's default grows it to 2 min (backoff.DefaultConfig), and a
+// node that came back stays unused until the next attempt: the calls fail
+// at once meanwhile (no WaitForReady), so every join is refused, while the
+// clients, whose rooms the restart lost, join again at once. A few nodes
+// dialled every 2 s cost nothing.
+const redialMax = 2 * time.Second
 
 // Errors of the client.
 var (
@@ -126,7 +135,11 @@ func New(c config.GroupCalls) (*Client, error) {
 		// and gRPC's own DNS resolver would keep the dead address for up to
 		// 30 s (grpc internal/resolver/dns MinResolutionInterval), failing
 		// every join meanwhile.
-		conn, err := grpc.NewClient("passthrough:///"+n.Endpoint, grpc.WithTransportCredentials(credentials.NewTLS(tc)))
+		redial := backoff.DefaultConfig
+		redial.MaxDelay = redialMax
+		conn, err := grpc.NewClient("passthrough:///"+n.Endpoint,
+			grpc.WithTransportCredentials(credentials.NewTLS(tc)),
+			grpc.WithConnectParams(grpc.ConnectParams{Backoff: redial}))
 		if err != nil {
 			return nil, fmt.Errorf("sfuclient: node %q: %w", n.Name, err)
 		}

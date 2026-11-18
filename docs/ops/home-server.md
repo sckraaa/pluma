@@ -43,6 +43,64 @@ ip rule; ip route show table 77     # дома: pref 100, 110 и default dev plu
 docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- https://ifconfig.me   # 195.201.252.126
 ```
 
+## Второй туннель: российский узел amf (задача 109)
+Решение — ADR 0072 §8. Узел amf (194.87.226.185, Timeweb, Москва) несёт для пользователей из России выдачу файлов 202, край `ru.pluma.chat` и TURN; что стоит на самом узле — `ru-node.md`, края — `edge.md`. Дом связан с ним вторым каналом WireGuard, независимым от Hetzner:
+
+```
+дом 10.78.0.2 ──WireGuard plumaru, дом звонит, MTU 1280──► amf 10.78.0.1, 51820/udp
+amf nginx ──с 10.78.0.1──► дом 10.78.0.2:80, :443, :8443 (Caddy, docker-compose.ru.yaml)
+дом: bff (проба выдачи 202), Prometheus ──► 10.78.0.1:443, :9100
+```
+
+- **Адреса:** интерфейс `plumaru`, сеть `10.78.0.0/24`, amf — `10.78.0.1`, дом — `10.78.0.2`. Звонит дом (`PersistentKeepalive = 25`), роутер дома не трогается.
+- **MTU 1280 с обеих сторон.** Замер 2026-11-17: при 1420 дом → amf не проходит ничего (чёрная дыра PMTU), при 1280 — около 50 Мбит/с; amf → дом — около 109 Мбит/с. Плюс `TCPMSS --clamp-mss-to-pmtu`: дома в `mangle FORWARD` в обе стороны (`-o` и `-i plumaru`), на amf — в `mangle OUTPUT`.
+- **Без пересылки и без своей таблицы.** amf не делает DNAT: все соединения домой открывает сам (nginx, с `10.78.0.1`), адрес клиента идёт внутри PROXY v1. Поэтому `Table = off`, новых `ip rule` нет. Ответы контейнеров на `10.78.0.1` уходят по уже существующему правилу Hetzner `pref 100 lookup main suppress_prefixlength 0` (в `main` есть маршрут `10.78.0.0/24 dev plumaru`) и до `pref 110` (всё остальное — в Hetzner) не доходят.
+- **`AllowedIPs`:** дома для amf — `10.78.0.1/32`; на amf для дома — `10.78.0.2/32, 10.77.0.2/32`. Второй адрес — источник исходящих соединений контейнеров дома (SNAT моста на `host_ipv4`, `docker-compose.public-ip.yaml`): bff и Prometheus ходят на amf именно с него. Других адресов дома и Hetzner amf не получает.
+- **ufw дома:** первым правилом `deny in on plumaru` (выше `22/tcp`) — amf не видит SSH и прочие службы хоста. Порты Docker на `10.78.0.2` идут мимо ufw через DNAT Docker; так и нужно.
+- **Порядок старта:** Docker публикует порты на `10.78.0.2`, поэтому адрес должен существовать до dockerd: drop-in `/etc/systemd/system/docker.service.d/10-pluma-tunnel-ru.conf` (`Wants=`/`After=wg-quick@plumaru`). Интерфейс поднимается без ответа amf: выключенный amf не мешает дому стартовать. Если `wg-quick@plumaru` не поднялся вовсе, Docker не опубликует порты `docker-compose.ru.yaml` и `web` не стартует — поэтому выкладка с узлом сначала проверяет интерфейс (`deployment.md`, «Края и российский узел»).
+- **Файлы:** `/etc/wireguard/plumaru.{conf,key,env}` с правами 600 (AppArmor Ubuntu не даёт `wg` читать `/root`) и служба правил `pluma-tunnel-ru-rules` (правила — отдельной службой, не в `PostUp`: AppArmor не даёт `wg-quick` запускать скрипты). Drop-in `systemd-networkd` `ManageForeignRoutingPolicyRules=no` уже есть (раздел «Дом: хост»).
+
+Один раз на каждой стороне, от root; приватные ключи не печатаются, на экран выходит только публичный:
+
+```bash
+tunnel.sh --link ru key                                     # amf, затем дом: публичный ключ машины
+tunnel.sh --link ru node <ключ дома> 194.87.226.185         # на amf
+tunnel.sh --link ru home <ключ amf> 194.87.226.185          # дома
+```
+
+Посмотреть заранее, что скрипт сделает, ничего не меняя: `tunnel.sh --link ru --dry-run /tmp/ru-check home <ключ amf> 194.87.226.185` — файлы ложатся под `/tmp/ru-check`, команды — в `/tmp/ru-check/commands`. В каталоге остаётся сгенерированный приватный ключ: удалить его сразу после просмотра (`rm -rf /tmp/ru-check`).
+
+**Первый туннель после установки второго.** `tunnel.sh … home` ставит себя в `/usr/local/sbin/pluma-tunnel`, а этот же файл запускает служба правил Hetzner `pluma-tunnel-rules`. Без `--link` скрипт ведёт себя как раньше (канал `hetzner` байт в байт, эталоны `teamgramd/deploy/edge/testdata/hetzner-*`), но после установки проверить и его:
+
+```bash
+systemctl restart pluma-tunnel-rules && systemctl is-active pluma-tunnel-rules   # active; правила снимаются и ставятся заново — в тихое время
+ip rule                                    # как до установки: pref 100 и 110, новых правил нет
+grep ExecStart /etc/systemd/system/pluma-tunnel-rules.service                    # без --link
+```
+
+Проверка второго туннеля:
+
+```bash
+wg show plumaru                                  # обе стороны: latest handshake — секунды назад
+ping -M do -s 1252 -c 5 10.78.0.1                # дом: без потерь (1252 + 28 = 1280)
+ping -M do -s 1253 -c 1 10.78.0.1                # дом: message too long
+ip route get 10.78.0.1                           # дом: dev plumaru
+iptables -t mangle -S FORWARD | grep plumaru     # дом: два TCPMSS (-o и -i)
+ufw status numbered | head -5                    # дом: первым — Anywhere on plumaru DENY IN
+systemctl list-dependencies --after docker.service | grep plumaru   # дом: wg-quick@plumaru
+ss -ltn | grep 10.78.0.2                         # дом, стек с docker-compose.ru.yaml: 80, 443, 8443
+docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- -T5 http://10.78.0.1:9100/metrics | head -1   # после deploy.sh узла: ответ есть
+```
+
+С amf: `nc -zv -w3 10.78.0.2 22` — не соединяется (ufw), `curl -sI http://10.78.0.2/` — отвечает Caddy. Исходящий трафик дома по-прежнему выходит с адреса Hetzner (проверка `ifconfig.me` первого туннеля).
+
+Мониторинг: цель Prometheus `/opt/pluma/prometheus-targets/node-ru.json` — `[{"targets":["10.78.0.1:9100"],"labels":{"node":"amf"}}]`; метрика рукопожатия `pluma_wg_latest_handshake_seconds` узла и алерты `teamgramd/deploy/prometheus/server/rules/ru-node.yml` (узел недоступен, рукопожатие старше 3 минут).
+
+Откат туннеля — только после отката узла (`ru-node.md`, «Откат и выключение»: пока `RU` есть в `CDN_ROUTES` и `EDGE_ROUTES`, клиентов из России ведут на узел):
+1. Убрать `docker-compose.ru.yaml` из команды выкладки и выкатить: без туннеля `web` с ним не стартует.
+2. На обеих сторонах: `systemctl disable --now pluma-tunnel-ru-rules wg-quick@plumaru`.
+3. Дома: удалить `/etc/systemd/system/docker.service.d/10-pluma-tunnel-ru.conf`, `systemctl daemon-reload`; правило `plumaru` — `ufw status numbered`, затем `ufw delete <номер>` (и его v6-пару).
+
 ## Дом: хост
 - Ubuntu 26.04, LVM на весь диск. Автообновления безопасности включены. ufw открывает только 22/tcp; порты Docker идут мимо ufw и опубликованы только на `10.77.0.2`.
 - Docker из `download.docker.com`. `/etc/docker/daemon.json` настраивает:
@@ -80,6 +138,11 @@ docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- https://ifco
   - `.env` дома (только имена): `CDN_GCORE_BASE_URL`, `CDN_GCORE_TOKEN_KEY`, `CDN_GCORE_SIGNER`, `CDN_GCORE_MONTHLY_GB`, `CDN_ORIGIN_AUTH`, `PLUMA_CDN_ORIGIN_DOMAIN`, `CDN_ROUTES`, `CDN_URL_TTL`, `CDN_KINDS`; `CDN_DEV_ALLOW_HTTP`, `CDN_NODE_CONTROL` и `PLUMA_DC1_ADDRESSES` не задавать. Пустой `CDN_GCORE_BASE_URL` — CDN выключен;
   - проверки здоровья выдачи идут из bff наружу через туннель, как весь исходящий трафик дома;
   - Gcore тянет у дома каждый кусок 10 МБ один раз на точку за 36 ч простоя: на отдачу канала дома приходятся первые просмотры, повторные идут с точек Gcore.
+- **Края клиентов и российский узел** (задача 109, ADR 0072, `docs/ops/edge.md`, `docs/ops/ru-node.md`):
+  - край Gcore — сайт Caddy `edge-origin.caddy` на имени `PLUMA_EDGE_ORIGIN_DOMAIN` (A-запись на 195.201.252.126, как у `PLUMA_CDN_ORIGIN_DOMAIN`; 443 уже идёт домой DNAT, на VPS ничего нового); вход `Edge` шлюза — `gnetway:11445`, только сеть Docker;
+  - край и выдача 202 узла amf — через второй туннель (раздел выше) и `docker-compose.ru.yaml`: Caddy публикует 80, 443 и 8443 на `10.78.0.2`. Сертификат `ru.pluma.chat` выпускает Caddy дома (HTTP-01 через порт 80 amf, CAA `pluma.chat` не меняются); сертификат `r1.pluma.chat` — certbot на amf под своим аккаунтом и своими CAA на этом имени (`ru-node.md`, шаг 4);
+  - `.env` дома (только имена): `PLUMA_EDGE_ORIGIN_DOMAIN`, `PLUMA_EDGE_ORIGIN_AUTH`, `PLUMA_RU_EDGE_DOMAIN`, `PLUMA_RU_TUNNEL_IPV4=10.78.0.2`, `EDGE_WS_URLS`, `EDGE_ROUTES`, `EDGE_STICKY_S`, `CDN_RU_BASE_URL`, `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH`, `CDN_RU_HEALTH_ADDR=10.78.0.1:443`, `CDN_RU_MONTHLY_GB`, `CDN_ROUTES` со страной, `CALLS_TURN_SECRETS`, `CALLS_ICE_SERVERS` с записью `@ru`; `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH` и запись `ru=` из `CALLS_TURN_SECRETS` — те же в `/etc/pluma-ru/env` узла (перенос без печати — `ru-node.md`, «Переменные»);
+  - с `PLUMA_RU_TUNNEL_IPV4` любая команда compose, пересоздающая `web`, включает `-f docker-compose.ru.yaml` после `docker-compose.web.yaml`, иначе Caddy потеряет порты туннеля; то же — в `pluma-deploy.sh`.
 - Сайты владельца: `/srv/pluma-caddy-sites/*.caddy`. В `sckra.dev.caddy` upstream — `10.77.0.1:3000`, это `site-relay` края.
 
 ## VPS: край

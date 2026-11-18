@@ -79,6 +79,60 @@ func (d *Dao) IpRegion(ip string) string {
 	return ""
 }
 
+// IpCountry is the country of an address: the ISO 3166-1 alpha-2 code of
+// the database's country in upper case, by the same database as the place
+// of a session. "" when it is not known: no database, an address that is
+// not one, an address that is not public (private, loopback, link-local,
+// multicast), or a record without a country. Clients are routed by it to
+// the edges and CDN deliveries of their country (task 109, ADR 0072), so a
+// guess is worse than none: the country of the registration of a network
+// (registered_country) is not taken in place of the country of the address.
+func (d *Dao) IpCountry(ip string) string {
+	addr := net.ParseIP(ip)
+	if addr == nil || !addr.IsGlobalUnicast() || addr.IsPrivate() {
+		return ""
+	}
+	r, err := d.geoIP.city(addr)
+	if errors.Is(err, errNoGeoIP) {
+		return ""
+	}
+	if err != nil {
+		// maxminddb puts the address in the text of a lookup error
+		// (maxminddb-golang v1.10.0 reader.go:252, an IPv6 address in an
+		// IPv4-only database): only its family goes to the log.
+		logx.Errorf("ipCountry - cannot look up an IPv%d address in the GeoIP database", ipFamily(addr))
+		return ""
+	}
+	return isoCountry(r.Country.IsoCode)
+}
+
+// ipFamily is 4 or 6, the version of addr.
+func ipFamily(addr net.IP) int {
+	if addr.To4() != nil {
+		return 4
+	}
+	return 6
+}
+
+// isoCountry is code in upper case when it is two ASCII letters, as an
+// ISO 3166-1 alpha-2 code is, and "" otherwise.
+func isoCountry(code string) string {
+	if len(code) != 2 {
+		return ""
+	}
+	b := []byte(code)
+	for i, c := range b {
+		switch {
+		case c >= 'A' && c <= 'Z':
+		case c >= 'a' && c <= 'z':
+			b[i] = c - 'a' + 'A'
+		default:
+			return ""
+		}
+	}
+	return string(b)
+}
+
 // maxCityRadius is the largest location.accuracy_radius, in kilometres, at
 // which placeOf names the city. MaxMind defines it as "the radius in
 // kilometers around the specified location where the IP address is likely to

@@ -79,6 +79,7 @@ services:
       # bff.yaml names the servers of one-to-one calls (task 068); empty: off.
       CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
       CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
+      CALLS_TURN_SECRETS: ${CALLS_TURN_SECRETS:-}
       CALLS_QUALITY: ${CALLS_QUALITY:-}
       # bff.yaml names the SFU of group calls (task 093); empty: off.
       GROUPCALLS_SFU_ENDPOINT: ${GROUPCALLS_SFU_ENDPOINT:-}
@@ -109,6 +110,10 @@ services:
       MAPS_PER_USER_PER_MINUTE: ${MAPS_PER_USER_PER_MINUTE:-}
       # bff.yaml names the public map tiles (task 112); empty: none.
       MAPS_PUBLIC_URL: ${MAPS_PUBLIC_URL:-}
+      # bff.yaml names the edges of the clients (task 109); empty: none.
+      EDGE_WS_URLS: ${EDGE_WS_URLS:-}
+      EDGE_ROUTES: ${EDGE_ROUTES:-}
+      EDGE_STICKY_S: ${EDGE_STICKY_S:-}
       # bff.yaml names the keys of the bot platform (task 106); empty: the
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
@@ -129,6 +134,13 @@ services:
       CDN_GCORE_BASE_URL: ${CDN_GCORE_BASE_URL:-}
       CDN_GCORE_TOKEN_KEY: ${CDN_GCORE_TOKEN_KEY:-}
       CDN_GCORE_MONTHLY_GB: ${CDN_GCORE_MONTHLY_GB:-}
+      # Delivery 202 of the Russian node (task 109, docs/ops/cdn.md); empty
+      # CDN_RU_BASE_URL: off.
+      CDN_RU_BASE_URL: ${CDN_RU_BASE_URL:-}
+      CDN_RU_TOKEN_KEY: ${CDN_RU_TOKEN_KEY:-}
+      CDN_RU_MONTHLY_GB: ${CDN_RU_MONTHLY_GB:-2000}
+      CDN_RU_ORIGIN_AUTH: ${CDN_RU_ORIGIN_AUTH:-}
+      CDN_RU_HEALTH_ADDR: ${CDN_RU_HEALTH_ADDR:-}
       CDN_ROUTES: ${CDN_ROUTES:-}
       CDN_ORIGIN_LISTEN: ${CDN_ORIGIN_LISTEN:-}
       CDN_ORIGIN_AUTH: ${CDN_ORIGIN_AUTH:-}
@@ -341,6 +353,7 @@ services:
       # The servers of one-to-one calls (task 068); empty: calls are off.
       CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
       CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
+      CALLS_TURN_SECRETS: ${CALLS_TURN_SECRETS:-}
       CALLS_QUALITY: ${CALLS_QUALITY:-}
       # The control API of the SFU of group calls (task 093,
       # docs/ops/group-calls.md); empty: group calls are off.
@@ -380,6 +393,13 @@ services:
       # docs/ops/maps.md), https://<PLUMA_MAPS_DOMAIN>/<MAPS_PUBLIC_KEY>,
       # which the app config hands out; empty: the clients get no map.
       MAPS_PUBLIC_URL: ${MAPS_PUBLIC_URL:-}
+      # The edges of the patched clients (task 109, ADR 0072,
+      # docs/ops/edge.md), pluma_edge of the app config by the country of
+      # the client; empty EDGE_WS_URLS: none, the clients keep the list
+      # built into them.
+      EDGE_WS_URLS: ${EDGE_WS_URLS:-}
+      EDGE_ROUTES: ${EDGE_ROUTES:-}
+      EDGE_STICKY_S: ${EDGE_STICKY_S:-}
       # bff.yaml names the keys of the bot platform (task 106); empty: the
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
@@ -400,6 +420,13 @@ services:
       CDN_GCORE_BASE_URL: ${CDN_GCORE_BASE_URL:-}
       CDN_GCORE_TOKEN_KEY: ${CDN_GCORE_TOKEN_KEY:-}
       CDN_GCORE_MONTHLY_GB: ${CDN_GCORE_MONTHLY_GB:-}
+      # Delivery 202 of the Russian node (task 109, docs/ops/cdn.md); empty
+      # CDN_RU_BASE_URL: off.
+      CDN_RU_BASE_URL: ${CDN_RU_BASE_URL:-}
+      CDN_RU_TOKEN_KEY: ${CDN_RU_TOKEN_KEY:-}
+      CDN_RU_MONTHLY_GB: ${CDN_RU_MONTHLY_GB:-2000}
+      CDN_RU_ORIGIN_AUTH: ${CDN_RU_ORIGIN_AUTH:-}
+      CDN_RU_HEALTH_ADDR: ${CDN_RU_HEALTH_ADDR:-}
       CDN_ROUTES: ${CDN_ROUTES:-}
       CDN_ORIGIN_LISTEN: ${CDN_ORIGIN_LISTEN:-}
       CDN_ORIGIN_AUTH: ${CDN_ORIGIN_AUTH:-}

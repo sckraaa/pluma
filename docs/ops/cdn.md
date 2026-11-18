@@ -1,6 +1,6 @@
-# CDN больших файлов (HTTPS, Gcore)
+# CDN больших файлов (HTTPS, Gcore и российский узел)
 
-Решение — ADR 0071, задача 107. Большие файлы (от 1 МиБ, документы и фото; файлы секретных чатов — никогда) патченные Android, Desktop, iOS и Web качают по HTTPS с Gcore CDN. Gcore тянет шифр из дома, ключи и хэши остаются дома. Старые сборки, официальные клиенты и сессии без признака `pluma_cdn` качают всё из дома, как раньше.
+Решение — ADR 0071, задача 107; выдача 202 и маршрут по стране — ADR 0072 §8, задача 109. Большие файлы (от 1 МиБ, документы и фото; файлы секретных чатов — никогда) патченные Android, Desktop, iOS и Web качают по HTTPS с Gcore CDN. Gcore тянет шифр из дома, ключи и хэши остаются дома. Старые сборки, официальные клиенты и сессии без признака `pluma_cdn` качают всё из дома, как раньше.
 
 ## Как устроено
 - Клиент просит часть файла (`upload.getFile` с `cdn_supported`). Если у его ключа есть признак `pluma_cdn` и файл подготовлен, bff отвечает `upload.fileCdnRedirect`:
@@ -16,6 +16,17 @@
   - тот же URL с испорченной подписью — ждёт 403/410.
   - Не прошла — через ≤ 3 минуты редиректов нет (`cdn_deliveries.unhealthy_reason`).
 - Выдача выходит из маршрута до конца месяца (UTC), когда её трафик за месяц (байты источника + оценка отдачи Gcore) достиг `CDN_GCORE_MONTHLY_GB`.
+
+## Выдача 202 и маршрут по стране (задача 109)
+- **Выдача 202** — nginx Pluma на российском узле amf (`https://r1.pluma.chat`, `docs/ops/ru-node.md`). Подпись — та же формула Secure Token, что у Gcore (`gcore-md5`), со своим ключом `CDN_RU_TOKEN_KEY`; nginx узла проверяет её модулем `secure_link`. Кэш — на узле, куски по 1 МиБ.
+- **Маршрут по стране** — `CDN_ROUTES`, записи `<страны через запятую или *>:<выдачи по порядку>` через `;`, ровно одна запись `*`, страна — не больше чем в одной записи. Рекомендуемое значение: `RU,BY:202,201;*:201`.
+  - Страну адреса клиента (`MD.ClientAddr`) называет `authsession.getIpCountry` по базе GeoIP дома, ответы кэшируются в bff (`pkg/ipcountry`, 10 000 адресов на час). Спрашивается только у клиента с `pluma_cdn`, которому может уйти редирект, и только если в маршруте есть записи со странами.
+  - Неизвестная страна (нет базы, частный адрес, authsession не ответил — `pluma_ipcountry_errors_total`) — запись `*`.
+  - Внутри записи — как раньше: первая здоровая выдача в бюджете, которую ключ не избегает; выбор держится за ключом 10 минут. Удержание помнит запись: клиент, сменивший страну (включил или выключил VPN), сразу получает выдачу своей новой записи.
+  - Клиент из России при нездоровой 202 уходит на 201 (следующую в записи), при отказе обеих — качает из дома.
+- **Источник различает выдачи по `X-Pluma-Origin-Auth`.** У каждой выдачи своё значение: у 201 — `CDN_ORIGIN_AUTH`, у 202 — `CDN_RU_ORIGIN_AUTH`. Источник сравнивает заголовок со всеми значениями за постоянное время и считает байты той выдаче, чьё значение пришло (бюджет `cdn_delivery_usage`, метрики по `dc`). Две выдачи `gcore-md5` с одним значением (например, пустой `CDN_RU_ORIGIN_AUTH` — тогда 202 взяла бы общий `CDN_ORIGIN_AUTH`) — bff не стартует: их байты не различить.
+- **Проверка 202** — та же канарейка раз в минуту, но соединение идёт на `CDN_RU_HEALTH_ADDR` (`10.78.0.1:443`, nginx `stream` узла через туннель); SNI, `Host` и имя в сертификате — `r1.pluma.chat`, сертификат проверяется. Исходящий трафик дома идёт через Hetzner, а путь Hetzner → amf может быть закрыт так же, как обратный (не проверено). Так проверяются nginx узла, его кэш, подпись и туннель, но не доступность amf из российских сетей: её показывают откаты клиентов (`pluma_cdn_fallback_total{dc="202"}`, `CdnFallbackHigh`).
+- **Бюджет 202** — `CDN_RU_MONTHLY_GB` [2000 в `docker-compose.yaml`]: предел от разгона, не тариф провайдера (тариф трафика Timeweb не проверен, проверка владельца 8 брифа 109). 80 % — `CdnBudget{dc="202"}`.
 
 ## Порядок включения
 1. Сервер с пустыми `CDN_*`: редиректов нет, источник не слушает, метрик `pluma_cdn_*` нет.
@@ -50,7 +61,7 @@
    - **Cache → CDN caching:** Origin controlled, Default cache expiry — 1 день. Источник сам шлёт `Cache-Control`.
    - **Cache → Always online:** выключить. Включённая опция отдаёт устаревший кэш в ответ на 403/404 источника.
    - **Content → Large files delivery optimization:** включить (куски по 10 МБ). Gzip, Brotli и Fetch compressed — выключены: с этой опцией они несовместимы, а шифр не сжимается.
-   - **HTTP headers → Access-Control-Allow-Origin:** адрес веб-клиента Pluma (`https://<PLUMA_WEB_DOMAIN>`), отметить «Always add … regardless of response code».
+   - **HTTP headers → Access-Control-Allow-Origin:** режим для указанных доменов (заголовок со значением `$http_origin` только для перечисленных, до 20 имён, [документация Gcore](https://gcore.com/docs/cdn/cdn-resource-options/http-headers/add-the-access-control-allow-origin-header-to-the-browser-response)): адрес веб-клиента Pluma (`https://<PLUMA_WEB_DOMAIN>`) и сайты краёв задачи 109, на которых тоже открывается Web K — `https://<PLUMA_RU_EDGE_DOMAIN>` и `https://<префикс2>.gcorecdn.com` (`docs/ops/edge.md`); отметить «Always add … regardless of response code». Без сайтов краёв Web K, открытый на крае, качает файлы мимо CDN, а `pluma_cdn_fallback_total` растёт.
    - **HTTP headers → Response headers (add):** `Access-Control-Expose-Headers: Content-Range, Content-Length`, тот же флажок. Без него веб-клиент не прочитает `Content-Range` и откатится домой.
    - **Enable Network Error Logging** — выключить. Иначе браузеры шлют Gcore отчёты о сетевых ошибках веб-клиента.
    - Logs uploader, Raw Logs, Origin Shielding — не включать.
@@ -80,7 +91,12 @@ URL тогда `https://<префикс>.gcorecdn.com/t/<срок>/<подпис
 | `CDN_GCORE_MONTHLY_GB` | бюджет месяца выдачи, ГБ (10⁹ байт) [800] |
 | `CDN_ORIGIN_AUTH` | секрет. Значение `X-Pluma-Origin-Auth`, 64 hex (`openssl rand -hex 32`); то же — в настройках ресурса |
 | `PLUMA_CDN_ORIGIN_DOMAIN` | имя источника для Caddy. Пустое — Caddy его не обслуживает |
-| `CDN_ROUTES` | маршрут [`*:201`]. Записи со странами bff отвергает при старте |
+| `CDN_ROUTES` | маршрут по стране [`*:201`]; с выдачей 202 — `RU,BY:202,201;*:201` (раздел «Выдача 202 и маршрут по стране») |
+| `CDN_RU_BASE_URL` | `https://r1.pluma.chat`. Пустая — выдача 202 выключена |
+| `CDN_RU_TOKEN_KEY` | секрет. Ключ подписи выдачи 202, 6–32 символа (`openssl rand -hex 16`); то же значение — в `/etc/pluma-ru/env` узла |
+| `CDN_RU_ORIGIN_AUTH` | секрет. `X-Pluma-Origin-Auth` выдачи 202, 64 hex (`openssl rand -hex 32`), **не равен** `CDN_ORIGIN_AUTH`; то же значение — в `/etc/pluma-ru/env` узла |
+| `CDN_RU_HEALTH_ADDR` | куда идёт проверка 202: `10.78.0.1:443` [хост `CDN_RU_BASE_URL`] |
+| `CDN_RU_MONTHLY_GB` | бюджет месяца выдачи 202, ГБ [2000] |
 | `CDN_URL_TTL` | срок подписанного URL, не больше 24 ч [6h] |
 | `CDN_KINDS` | `document`, `photo` [`document,photo`]; `encrypted` отвергается при старте |
 | `CDN_ORIGIN_LISTEN`, `CDN_PREPARE_RATE_MBIT`, `CDN_MIN_FILE_SIZE`, `CDN_HEALTH_EVERY`, `CDN_AVOID_TTL` | оставить пустыми (умолчания: `0.0.0.0:20480`, 800, 1 МиБ, 1m, 1h) |
@@ -91,8 +107,9 @@ URL тогда `https://<префикс>.gcorecdn.com/t/<срок>/<подпис
 При неверном значении bff не стартует и называет переменную, без значения:
 - `BaseURL` не `https://`;
 - ключ не той длины;
-- `CDN_ORIGIN_AUTH` не 64 hex;
-- маршрут со странами или с выключенной выдачей;
+- `CDN_ORIGIN_AUTH` или `CDN_RU_ORIGIN_AUTH` не 64 hex; две выдачи `gcore-md5` с одним значением источника;
+- `CDN_RU_HEALTH_ADDR` не `хост:порт`;
+- маршрут без записи `*`, со страной в двух записях или с выключенной выдачей;
 - `encrypted` в `CDN_KINDS`.
 
 ## Деплой
@@ -102,6 +119,7 @@ URL тогда `https://<префикс>.gcorecdn.com/t/<срок>/<подпис
   - Caddy (сервис `web`) читает `PLUMA_CDN_ORIGIN_DOMAIN` только при создании контейнера.
   - Обычный `pluma-deploy.sh` (`up -d`) пересоздаёт оба, когда их окружение изменилось.
 - **Исходящий адрес дома** (через него идут проверки здоровья): `docker run --rm --network pluma_teamgram_net alpine wget -qO- https://ifconfig.me` → 195.201.252.126.
+- **Выдача 202** (после туннеля и узла, `docs/ops/ru-node.md`, порядок первого включения): в `.env` — `CDN_RU_BASE_URL`, `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH`, `CDN_RU_HEALTH_ADDR=10.78.0.1:443`, при желании `CDN_RU_MONTHLY_GB`, и `CDN_ROUTES=RU,BY:202,201;*:201`; деплой. Те же `CDN_RU_TOKEN_KEY` и `CDN_RU_ORIGIN_AUTH` — в `/etc/pluma-ru/env` узла (создать `openssl rand` на одной машине, перенести по SSH без печати). В логе bff — `cdn: delivery 202 (r1.pluma.chat) is healthy`, в Grafana — `pluma_cdn_delivery_healthy{dc="202"}` = 1.
 - **После деплоя:**
   - в логе bff — `cdn: delivery 201 (<префикс>.gcorecdn.com) is healthy`;
   - в Grafana — `pluma_cdn_delivery_healthy{dc="201"}` = 1;
@@ -175,7 +193,7 @@ docker compose exec bff ./pluma-admin -f ../etc2/bff.yaml cdn canary-url -expire
 | `status` | канарейка не 206, или испорченная подпись не 403/410 | `canary-url` и `curl -D -` вручную. 403 на валидный URL от Gcore — ключ Secure Token в портале и `CDN_GCORE_TOKEN_KEY` разные. 403 от источника (в Log viewer — промах кэша с 403) — `X-Pluma-Origin-Auth` в портале и `CDN_ORIGIN_AUTH` разные. 5xx — источник: `docker compose logs --tail 100 bff \| grep 'cdn origin'`, Caddy (`web`), DNS имени источника |
 | `range` | другой `Content-Range` | опция «Large files delivery optimization», Purge all; проверка 1 |
 | `bytes` | другие байты или длина | включено сжатие (Gzip, Brotli, Fetch compressed) — выключить, Purge all |
-| `timeout`, `network`, `tls` | Gcore не ответил за 10 с, не соединился или его сертификат не принят | исходящая сеть дома (туннель, `wg show pluma`), статус Gcore; `tls` — сертификат ресурса (проверка 0) |
+| `timeout`, `network`, `tls` | Gcore не ответил за 10 с, не соединился или его сертификат не принят | исходящая сеть дома (туннель, `wg show pluma`), статус Gcore; `tls` — сертификат ресурса (проверка 0). У 202 — туннель узла (`wg show plumaru`, `ping 10.78.0.1`), nginx `stream` владельца на `10.78.0.1:443` (`owner-nginx.sh check`), сертификат `r1` на узле (`certbot` узла) |
 | `token_off` | испорченная подпись отдана: URL перестали истекать | Secure Token выключили в портале — включить; если включён, а закэшированный объект отдаётся без токена — перейти на `path-hmac` |
 | `store` | bff не подписал URL | лог bff |
 
@@ -218,9 +236,11 @@ docker compose exec bff ./pluma-admin -f ../etc2/bff.yaml cdn canary-url -expire
 - **`CDN_ORIGIN_AUTH`:**
   - новое значение `openssl rand -hex 32` — в портал (Request headers) и в `.env`, сразу деплой;
   - около минуты источник отвечает 403 на промахи кэша, клиенты на них откатываются домой.
+- **Ключи выдачи 202** (`CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH`): новое значение — в `.env` дома и в `/etc/pluma-ru/env` узла, деплой дома и `deploy.sh` узла (`docs/ops/ru-node.md`). Пока они расходятся, проверка выводит 202 (`status`), клиенты из России идут на 201 или домой.
 - После утечки любого из двух — сменить сразу. Утёкший ключ подписи открывает только шифр; ключ к шифру — только дома.
 
 ## Выключение и откат
+- **Выключить выдачу 202:** убрать `CDN_RU_BASE_URL` и вернуть `CDN_ROUTES=*:201` (или пустой) в `.env`, деплой. Запись маршрута с выключенной выдачей bff не примет: менять обе переменные вместе.
 - **Выключить CDN:**
   - убрать `CDN_GCORE_BASE_URL` из `.env`, деплой;
   - редиректов нет сразу, источник перестаёт слушать;

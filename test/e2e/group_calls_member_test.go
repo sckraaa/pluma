@@ -270,9 +270,16 @@ func (m *member) join(ctx context.Context, key ed25519.PrivateKey, wrongKey bool
 	// calls_group_call.cpp:1863-1872). It gives up after 10 refusals in a
 	// row only while the last block stays the same: a chain that moves is
 	// the race of joins at once, as after an SFU restart (ADR 0060 §5).
+	// A server error is sent again after 1 s, then after twice the pause
+	// each time, as the clients' network layers do (tdesktop
+	// mtp_instance.cpp:1583-1611; Android tgnet ConnectionsManager.cpp:
+	// 1372-1388 for requests without RequestFlagFailOnServerErrors, as its
+	// join is, VoIPService.java:2441): a join while bff connects again to a
+	// restarted SFU fails until it has.
 	var (
-		o    mtproto.TLObject
-		prev []byte
+		o     mtproto.TLObject
+		prev  []byte
+		pause = time.Second
 	)
 	for still, attempt := 0, 0; ; attempt++ {
 		var last []byte
@@ -289,6 +296,15 @@ func (m *member) join(ctx context.Context, key ed25519.PrivateKey, wrongKey bool
 			return err
 		}
 		o, err = m.u.c.Invoke(ctx, req)
+		var rpcErr *mtclient.RPCError
+		if errors.As(err, &rpcErr) && rpcErr.Code >= 500 {
+			select {
+			case <-ctx.Done():
+			case <-time.After(pause):
+				pause *= 2
+				continue
+			}
+		}
 		if !mtclient.IsRPCError(err, "CONF_WRITE_CHAIN_INVALID") || attempt == maxChainJoinAttempts-1 {
 			break
 		}

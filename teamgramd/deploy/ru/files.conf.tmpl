@@ -1,0 +1,154 @@
+# Delivery 202 of large files on the Russian node (task 109, ADR 0072 §8,
+# docs/ops/ru-node.md). deploy.sh writes /etc/pluma-ru/files.conf from this
+# template; its placeholders (a name between two pairs of at signs) are
+# the checked values of /etc/pluma-ru/env.
+#
+# The client comes through the owner's nginx stream on 443 (SNI
+# @@FILES_DOMAIN@@ → pluma_ru_files, stream-upstreams.conf) with its address
+# in PROXY v1. TLS ends here, so that the ciphertext can be cached: the node
+# sees what Gcore sees for delivery 201 (ADR 0071 §11), the cipher of files
+# under 256-bit names, ranges, addresses and times. Keys, IVs and hashes go
+# to the clients from home by MTProto only.
+
+# Slices of 1 MiB for 36 hours without a request, 15 GB of the 28 the node
+# has free. A client reads a file in parts of 128 KB, and a slice of 1 MiB
+# is cheap to pull through the tunnel (50 Mbit/s home → node).
+proxy_cache_path /var/cache/pluma-ru/files levels=1:2 keys_zone=pluma_files:20m
+	max_size=15g inactive=36h use_temp_path=off;
+
+limit_conn_zone $binary_remote_addr zone=pluma_files_addr:2m;
+
+# CORS of the web client: its own site, the site of the edge for Russia and,
+# when set, the site of the Gcore edge (PLUMA_GCORE_EDGE_DOMAIN): Web K
+# opened on an edge takes its files from the delivery of its country, which
+# may be this one.
+map $http_origin $pluma_cors_origin {
+	default "";
+	"https://@@WEB_DOMAIN@@" $http_origin;
+	"https://@@EDGE_DOMAIN@@" $http_origin;
+@@GCORE_EDGE_CORS@@
+}
+
+# The headers of a preflight only (an empty value is not sent).
+map $request_method $pluma_cors_methods {
+	OPTIONS "GET, HEAD";
+	default "";
+}
+map $request_method $pluma_cors_headers {
+	OPTIONS "Range";
+	default "";
+}
+map $request_method $pluma_cors_max_age {
+	OPTIONS "86400";
+	default "";
+}
+map $request_method $pluma_allow {
+	~^(?:GET|HEAD|OPTIONS)$ "";
+	default "GET, HEAD, OPTIONS";
+}
+
+# The origin of the CDN at home (Caddy, the site of PLUMA_CDN_ORIGIN_DOMAIN,
+# teamgramd/deploy/web/cdn-origin.caddy) through the tunnel.
+upstream pluma_origin {
+	server @@ORIGIN_ADDR@@;
+	keepalive 16;
+	keepalive_timeout 60s;
+}
+
+server {
+	listen 127.0.0.1:9443 ssl proxy_protocol;
+	http2 on;
+	server_name @@FILES_DOMAIN@@;
+
+	set_real_ip_from 127.0.0.1;
+	real_ip_header proxy_protocol;
+
+	# certbot of the node (deploy.sh cert-issue), its own configuration
+	# directory: the owner's certbot and account are not touched.
+	ssl_certificate /etc/pluma-ru/letsencrypt/live/@@FILES_DOMAIN@@/fullchain.pem;
+	ssl_certificate_key /etc/pluma-ru/letsencrypt/live/@@FILES_DOMAIN@@/privkey.pem;
+
+	# A client reads many parts one after another, so there is no request
+	# rate limit, only one of connections.
+	limit_conn pluma_files_addr 64;
+	limit_conn_status 429;
+
+	# The paths of pkg/cdn/origin.go that a gcore-md5 delivery asks for: the
+	# cipher of a file and the canary of the health check.
+	# (Quoted: a regex with braces must be.)
+	location ~ "^/(?:o/[0-9a-f]{64}|c/v1)$" {
+		add_header Access-Control-Allow-Origin $pluma_cors_origin always;
+		add_header Access-Control-Expose-Headers "Content-Range, Content-Length" always;
+		add_header Access-Control-Allow-Methods $pluma_cors_methods always;
+		add_header Access-Control-Allow-Headers $pluma_cors_headers always;
+		add_header Access-Control-Max-Age $pluma_cors_max_age always;
+		add_header Allow $pluma_allow always;
+		add_header Vary Origin always;
+		@@CACHE_STATUS_HEADER@@
+
+		# The Secure Token of Gcore, which pkg/cdn/signer_gcore.go makes:
+		# md5 = base64url(MD5(expires + path + " " + key)) without "=".
+		# secure_link decodes the base64url value of md5 and compares it
+		# with the MD5 of the expression; $secure_link is empty for a wrong
+		# or missing one and "0" for an expired one
+		# (https://nginx.org/en/docs/http/ngx_http_secure_link_module.html,
+		# read 2026-11-17). The path is checked by the location, so $uri is
+		# the path the server signed.
+		secure_link $arg_md5,$arg_expires;
+		secure_link_md5 "$secure_link_expires$uri $pluma_token_key";
+
+		if ($request_method = OPTIONS) {
+			return 204;
+		}
+		if ($request_method !~ ^(?:GET|HEAD)$) {
+			return 405;
+		}
+		if ($secure_link = "") {
+			return 403;
+		}
+		if ($secure_link = "0") {
+			return 410;
+		}
+
+		# Slices of 1 MiB, cached under the path alone: the query is the
+		# token, so every client shares an object whatever its token.
+		# nginx answers any single range from the slices with 206 and the
+		# exact Content-Range; several ranges get the whole object.
+		# (https://nginx.org/en/docs/http/ngx_http_slice_module.html, read
+		# 2026-11-17.) The origin's Cache-Control (immutable) decides how
+		# long a slice stays; proxy_cache_valid is for an answer without it.
+		max_ranges 1;
+		slice 1m;
+		proxy_cache pluma_files;
+		proxy_cache_key $uri$slice_range;
+		proxy_cache_valid 200 206 30d;
+		proxy_cache_lock on;
+		proxy_cache_lock_timeout 20s;
+		proxy_cache_lock_age 20s;
+
+		# Nothing of the client's request goes home but the path with its
+		# query (the token, which the origin does not read) and the range:
+		# no address, cookie, User-Agent or Accept-Encoding. The
+		# access value of delivery 202 is its own (CDN_RU_ORIGIN_AUTH), so
+		# the origin counts these bytes for 202, not for Gcore.
+		proxy_pass https://pluma_origin;
+		proxy_http_version 1.1;
+		proxy_pass_request_headers off;
+		proxy_set_header Host @@ORIGIN_DOMAIN@@;
+		proxy_set_header Connection "";
+		proxy_set_header Range $slice_range;
+		proxy_set_header X-Pluma-Origin-Auth $pluma_origin_auth;
+		proxy_ssl_server_name on;
+		proxy_ssl_name @@ORIGIN_DOMAIN@@;
+		proxy_ssl_verify on;
+		proxy_ssl_verify_depth 3;
+		proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+		proxy_connect_timeout 5s;
+		proxy_send_timeout 30s;
+		proxy_read_timeout 30s;
+	}
+
+	location / {
+		return 404;
+	}
+}

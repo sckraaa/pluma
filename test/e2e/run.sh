@@ -83,17 +83,28 @@ FAKEINLINE_URL=http://$FAKEINLINE_HOST:8080
 # The Gcore CDN resource of the HTTPS CDN of large files (task 107):
 # test/e2e/fakecdn, which pulls the cipher from bff's origin.
 FAKECDN_URL=http://fakecdn:8080
+# Delivery 202 of the Russian node (task 109): test/e2e/rufiles, the node's
+# nginx under the name below, with the run's certificate (RUFILES_TLS) of
+# the run's CA (RUFILES_CA, which bff's checks and the tests trust). Clients
+# from Russia (the stand's GeoIP database) are routed to it.
+RU_FILES_DOMAIN=r1.e2e.pluma.test
+RUFILES_TLS=$E2E_DIR/rufiles
+RUFILES_CA=$E2E_DIR/rufiles-ca
 # The SFU of group calls (docker-compose.sfu.yaml, task 093): the
 # certificates of its control API, the SFU's and bff's.
 SFU_CERTS=$E2E_DIR/sfu
 GROUPCALLS_CERTS=$E2E_DIR/groupcalls
+# The Caddy of the web client with the sites of the edges (task 109,
+# docker-compose.web.yaml): the plain image the web client's own is built
+# on (pluma-web ci/site.Dockerfile), so the site of Web K is empty here.
+WEB_IMAGE=caddy:2.11.6-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9
 
 # Teamgram services (docker-compose.yaml) and the infrastructure the tests
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
-# Services of their own images that must not exit during the run either.
-OWN_SERVICES=(sfu)
+# Services outside the teamgram image that must not exit during the run either.
+OWN_SERVICES=(sfu web rufiles)
 SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt faketranslate fakemail fakemaps fakeinline fakecdn "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
@@ -112,6 +123,7 @@ export E2E_FAKEMAIL_IMAGE=${E2E_FAKEMAIL_IMAGE:-pluma-e2e-fakemail:$E2E_PROJECT}
 export E2E_FAKEMAPS_IMAGE=${E2E_FAKEMAPS_IMAGE:-pluma-e2e-fakemaps:$E2E_PROJECT}
 export E2E_FAKEINLINE_IMAGE=${E2E_FAKEINLINE_IMAGE:-pluma-e2e-fakeinline:$E2E_PROJECT}
 export E2E_FAKECDN_IMAGE=${E2E_FAKECDN_IMAGE:-pluma-e2e-fakecdn:$E2E_PROJECT}
+export E2E_RUFILES_IMAGE=${E2E_RUFILES_IMAGE:-pluma-e2e-rufiles:$E2E_PROJECT}
 export PLUMA_SFU_IMAGE=${PLUMA_SFU_IMAGE:-pluma-e2e-sfu:$E2E_PROJECT}
 # A crash must fail the test, not be hidden by a restart.
 export TEAMGRAM_RESTART=${TEAMGRAM_RESTART:-no}
@@ -130,6 +142,7 @@ compose() {
 		-f "$ROOT/docker-compose-env.yaml" \
 		-f "$ROOT/docker-compose.yaml" \
 		-f "$ROOT/docker-compose.sfu.yaml" \
+		-f "$ROOT/docker-compose.web.yaml" \
 		-f "$ROOT/test/e2e/docker-compose.e2e.yaml" \
 		"$@"
 }
@@ -226,6 +239,7 @@ PLUMA_SFU_CERTS=$SFU_CERTS
 PLUMA_GROUPCALLS_CERTS=$GROUPCALLS_CERTS
 EOF
 		gen_cdn_env >>"$ENV_FILE"
+		gen_edge_env >>"$ENV_FILE"
 	) || {
 		rm -f "$ENV_FILE"
 		return 1
@@ -233,9 +247,13 @@ EOF
 }
 
 # gen_cdn_env prints the HTTPS CDN of the stand for the env file (task 107,
-# ADR 0071): the delivery is test/e2e/fakecdn over http://, which only the
+# ADR 0071): delivery 201 is test/e2e/fakecdn over http://, which only the
 # stand allows (CDN_DEV_ALLOW_HTTP), with the run's Secure Token key and
 # origin header, and intervals short enough for the tests to wait for.
+# Delivery 202 is test/e2e/rufiles over https:// with keys of its own,
+# checked at rufiles:443 as a server checks it through the tunnel, for the
+# clients from Russia (task 109); its origin is bff's through the stand's
+# Caddy under PLUMA_CDN_ORIGIN_DOMAIN.
 gen_cdn_env() {
 	local base=$FAKECDN_URL
 	if [[ -n ${E2E_CDN_ADDRESS:-} ]]; then
@@ -254,6 +272,69 @@ CDN_DEV_ALLOW_HTTP=1
 CDN_URL_TTL=${E2E_CDN_URL_TTL:-20s}
 CDN_HEALTH_EVERY=${E2E_CDN_HEALTH_EVERY:-5s}
 CDN_AVOID_TTL=${E2E_CDN_AVOID_TTL:-30s}
+CDN_RU_BASE_URL=https://$RU_FILES_DOMAIN
+CDN_RU_TOKEN_KEY=$(secret 16)
+CDN_RU_ORIGIN_AUTH=$(secret 32)
+CDN_RU_HEALTH_ADDR=rufiles:443
+CDN_ROUTES=RU:202,201;*:201
+PLUMA_CDN_ORIGIN_DOMAIN=origin.localhost
+E2E_RU_FILES_DOMAIN=$RU_FILES_DOMAIN
+E2E_RUFILES_TLS=$RUFILES_TLS
+E2E_RUFILES_CA=$RUFILES_CA
+EOF
+}
+
+# gen_rufiles issues the certificate of delivery 202 for the run: a CA of
+# its own (RUFILES_CA/ca.pem, which bff and the tests trust) and the
+# certificate of RU_FILES_DOMAIN (RUFILES_TLS). They are throwaway and lie
+# in E2E_DIR, which only the owner opens; nginx in rufiles reads them as
+# root, bff as its own user.
+gen_rufiles() {
+	if [[ -f $RUFILES_CA/ca.pem && -f $RUFILES_TLS/cert.pem && -f $RUFILES_TLS/key.pem ]]; then
+		return
+	fi
+	rm -rf "$RUFILES_CA" "$RUFILES_TLS"
+	mkdir -p "$RUFILES_CA" "$RUFILES_TLS" || return
+	local tmp status=0
+	tmp=$(mktemp -d "$E2E_DIR/rufiles.XXXXXX") || return
+	(
+		set -e
+		cd "$tmp"
+		openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 2 \
+			-subj "/CN=Pluma e2e rufiles CA" -keyout ca.key -out ca.pem 2>/dev/null
+		openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
+			-subj "/CN=$RU_FILES_DOMAIN" -keyout key.pem -out leaf.csr 2>/dev/null
+		printf 'subjectAltName=DNS:%s\nextendedKeyUsage=serverAuth\n' "$RU_FILES_DOMAIN" >leaf.ext
+		openssl x509 -req -in leaf.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 2 \
+			-extfile leaf.ext -out leaf.pem 2>/dev/null
+		cat leaf.pem ca.pem >"$RUFILES_TLS/cert.pem"
+		install -m 0600 key.pem "$RUFILES_TLS/key.pem"
+		install -m 0644 ca.pem "$RUFILES_CA/ca.pem"
+	) || status=$?
+	rm -rf "$tmp"
+	if [[ $status != 0 ]]; then
+		log "openssl made no certificate of delivery 202"
+		return 1
+	fi
+	chmod 0755 "$RUFILES_CA" "$RUFILES_TLS" && chmod 0644 "$RUFILES_TLS/cert.pem"
+}
+
+# gen_edge_env prints the edges of the stand for the env file (task 109,
+# ADR 0072): Caddy's sites of the Gcore origin and of the Russian node's
+# edge under *.localhost names, the run's X-Pluma-Edge-Auth, and the
+# pluma_edge of bff by country (Russia by the stand's GeoIP database). The
+# addresses of the edges in pluma_edge are only handed out, never dialled.
+gen_edge_env() {
+	cat <<EOF
+PLUMA_WEB_IMAGE=$WEB_IMAGE
+PLUMA_WEB_DOMAIN=web.localhost
+PLUMA_SITE_DOMAINS=site.localhost
+PLUMA_EDGE_ORIGIN_DOMAIN=edge.localhost
+PLUMA_EDGE_ORIGIN_AUTH=$(secret 32)
+PLUMA_RU_EDGE_DOMAIN=ru.localhost
+EDGE_WS_URLS=gcore=wss://edge.e2e.pluma.test/apiws,ru=wss://ru.e2e.pluma.test/apiws
+EDGE_ROUTES=RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru
+EDGE_STICKY_S=900
 EOF
 }
 
@@ -359,6 +440,7 @@ cmd_up() {
 	gen_push || return
 	gen_bff || return
 	gen_sfu || return
+	gen_rufiles || return
 	log "building the teamgram image"
 	compose build idgen || return
 	log "starting ${SERVICES[*]}"
@@ -449,6 +531,14 @@ cmd_test() {
 			PLUMA_E2E_CDN_URL_TTL=$(env_value CDN_URL_TTL) \
 			PLUMA_E2E_CDN_HEALTH_EVERY=$(env_value CDN_HEALTH_EVERY) \
 			PLUMA_E2E_CDN_AVOID_TTL=$(env_value CDN_AVOID_TTL) \
+			PLUMA_E2E_RU_FILES=$(compose port rufiles 443) \
+			PLUMA_E2E_RU_FILES_DOMAIN=$RU_FILES_DOMAIN \
+			PLUMA_E2E_RU_FILES_CA=$RUFILES_CA/ca.pem \
+			PLUMA_E2E_EDGE_ORIGIN=$(compose port web 443) \
+			PLUMA_E2E_RU_EDGE=$(compose port web 8443) \
+			PLUMA_E2E_EDGE_AUTH=$(env_value PLUMA_EDGE_ORIGIN_AUTH) \
+			PLUMA_E2E_EDGE_WS_URLS=$(env_value EDGE_WS_URLS) \
+			PLUMA_E2E_EDGE_STICKY_S=$(env_value EDGE_STICKY_S) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 60m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
@@ -472,10 +562,10 @@ cmd_down() {
 		compose down --volumes --remove-orphans --timeout 60 || true
 	fi
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
-		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKETRANSLATE_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$E2E_FAKEMAPS_IMAGE" "$E2E_FAKEINLINE_IMAGE" "$E2E_FAKECDN_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
+		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKETRANSLATE_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$E2E_FAKEMAPS_IMAGE" "$E2E_FAKEINLINE_IMAGE" "$E2E_FAKECDN_IMAGE" "$E2E_RUFILES_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE" "$OAUTH_KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
-	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS"
+	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS" "$RUFILES_TLS" "$RUFILES_CA"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs
 }
 

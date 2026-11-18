@@ -269,3 +269,62 @@ func TestPick(t *testing.T) {
 		t.Fatal("Has")
 	}
 }
+
+// A node that is down is dialled again at least every redialMax (and its
+// jitter), not after gRPC's pauses that grow to 2 min: a node that comes
+// back is used within seconds. The node here takes every connection and
+// drops it at once, as a node that is not up yet; the calls go on, as the
+// collector's do.
+func TestRedialOfNodeDown(t *testing.T) {
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lis.Close()
+	dials := make(chan time.Time, 16)
+	go func() {
+		for {
+			conn, err := lis.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+			select {
+			case dials <- time.Now():
+			default:
+			}
+		}
+	}()
+	p := newPKI(t)
+	cfg := groupCalls(p, "client.pem", config.Node{Name: "main", Endpoint: lis.Addr().String(), ServerName: "sfu"})
+	cfg.RequestTimeout = 100 * time.Millisecond
+	c, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		for ctx.Err() == nil {
+			_, _ = c.Sources(ctx, "main", 1)
+			time.Sleep(50 * time.Millisecond)
+		}
+	}()
+	// gRPC's pauses are 1 s, 1.6 s, 2.56 s, 4.1 s, each ±20%: the fourth
+	// is above the bound.
+	var last time.Time
+	for i := 0; i < 5; i++ {
+		select {
+		case at := <-dials:
+			if i > 0 {
+				if gap := at.Sub(last); gap > redialMax*6/5+500*time.Millisecond {
+					t.Fatalf("dial %d after %s", i, gap)
+				}
+			}
+			last = at
+		case <-time.After(10 * time.Second):
+			t.Fatalf("no dial %d", i)
+		}
+	}
+}

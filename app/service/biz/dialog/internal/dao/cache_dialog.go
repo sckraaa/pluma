@@ -294,7 +294,9 @@ func (d *Dao) GetDialogListByIdList(ctx context.Context, userId int64, idList []
 		keyList = append(keyList, dialog.GetDialogCacheKey(userId, id))
 	}
 
-	err := d.CachedConn.QueryRows(
+	// Leased, as GetDialogByPeerDialogId: the keys of the dialog rows are
+	// read only by the leased calls.
+	err := d.CachedConn.QueryRowsLeased(
 		ctx,
 		func(ctx context.Context, conn *sqlx.DB, keys ...string) (map[string]interface{}, error) {
 			vList := make(map[string]interface{}, len(keys))

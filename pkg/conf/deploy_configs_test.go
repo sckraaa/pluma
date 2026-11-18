@@ -91,6 +91,55 @@ func TestDeployConfigVariablesAreProvided(t *testing.T) {
 	}
 }
 
+// TestComposeRequiredVariablesAreDocumented: a variable a compose file of the
+// core host refuses to start without (${NAME:?…}) is a line of .env.example,
+// set or commented out, so an operator adding an overlay finds it there.
+func TestComposeRequiredVariablesAreDocumented(t *testing.T) {
+	// The edge VPS keeps its own .env (docs/ops/home-server.md, "VPS: край").
+	skipFiles := map[string]bool{"docker-compose.edge.yaml": true}
+	// Given on the command line of one run, never kept in .env
+	// (docs/ops/catalog.md).
+	perRun := map[string]bool{"PLUMA_CATALOG_RUN": true, "CATALOG_UPLOAD_TOKEN": true}
+
+	example, err := os.ReadFile(filepath.Join(repoRoot, ".env.example"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	documented := map[string]bool{}
+	for _, line := range strings.Split(string(example), "\n") {
+		line = strings.TrimPrefix(strings.TrimSpace(line), "#")
+		if name, _, ok := strings.Cut(line, "="); ok && !strings.ContainsAny(name, " \t") {
+			documented[name] = true
+		}
+	}
+
+	files, err := filepath.Glob(filepath.Join(repoRoot, "docker-compose*.yaml"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no compose files: %v", err)
+	}
+	required := regexp.MustCompile(`\$\{([A-Z0-9_]+):\?`)
+	for _, f := range files {
+		if skipFiles[filepath.Base(f)] {
+			continue
+		}
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen := map[string]bool{}
+		for _, m := range required.FindAllSubmatch(data, -1) {
+			name := string(m[1])
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			if !documented[name] && !perRun[name] {
+				t.Errorf("%s requires ${%s}, which .env.example does not document", filepath.Base(f), name)
+			}
+		}
+	}
+}
+
 // TestDeployConfigsHaveNoDefaultCredentials guards against reintroducing
 // hard-coded infrastructure credentials into the service configs.
 func TestDeployConfigsHaveNoDefaultCredentials(t *testing.T) {

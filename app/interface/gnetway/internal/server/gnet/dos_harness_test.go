@@ -157,6 +157,9 @@ func newTestHarness(t testing.TB) *testHarness {
 		authSessionMgr: NewAuthSessionManager(),
 		timeoutWheel:   newTimeoutWheel(),
 		httpHandshakes: handshake.NewStore(maxHttpHandshakes, httpHandshakeTTL),
+		pingWheel:      newPingWheel(),
+		pingInterval:   20,
+		edgeVias:       map[string]bool{"gcore": true, "ru": true},
 	}
 	s.cachedNow.Store(testNow)
 	s.saveAuthKey = func(_ context.Context, key *handshake.AuthKey, _ int32) error {

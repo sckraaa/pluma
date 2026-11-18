@@ -90,6 +90,22 @@ Maps:
   PerUserPerMinute: "${MAPS_PER_USER_PER_MINUTE}"
   PublicURL: "${MAPS_PUBLIC_URL}"
 
+# The edges of the patched clients (task 109, ADR 0072, docs/ops/edge.md):
+# MTProto in a WebSocket through the CDN (Gcore) or the Russian node, which
+# the clients try when the direct address fails. bff hands them pluma_edge
+# in help.getAppConfig, picked by the country of the client's address
+# (authsession.getIpCountry). EDGE_WS_URLS names the edges,
+# "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws";
+# empty: no pluma_edge, and the clients keep the list built into them.
+# EDGE_ROUTES, records "<countries or *>:<order>:<edges>" separated by ";",
+# e.g. "RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru"; empty: every edge
+# to everyone, the direct address first. EDGE_STICKY_S (1800) is how long a
+# client keeps to an edge it switched to. A wrong value stops bff.
+Edge:
+  WSURLs: "${EDGE_WS_URLS}"
+  Routes: "${EDGE_ROUTES}"
+  StickyS: "${EDGE_STICKY_S}"
+
 # The built-in inline bots @gif and @pic (task 099, ADR 0062,
 # docs/ops/inline-bots.md). @pic searches pictures with the SearXNG of
 # SEARXNG_URL (http://searxng:8080 in Docker; empty: @pic answers with empty
@@ -189,10 +205,13 @@ SyncClient:
   Topic: "Sync-T"
 
 # One-to-one calls (task 068, docs/ops/calls.md): STUN/TURN servers and the
-# static-auth-secret of coturn; calls are off without servers.
+# static-auth-secret of coturn; calls are off without servers. A server
+# written host:port:kinds@label takes the secret of its label from
+# TurnSecrets (label=secret, comma separated; task 109).
 Calls:
   IceServers: "${CALLS_ICE_SERVERS}"
   TurnSecret: "${CALLS_TURN_SECRET}"
+  TurnSecrets: "${CALLS_TURN_SECRETS}"
   # The quality parameters of a call (task 077): "pluma" when empty, or
   # "stock", then key=value changes (docs/ops/calls.md).
   Quality: "${CALLS_QUALITY}"
@@ -220,8 +239,10 @@ GroupCalls:
 # delivery without BaseURL is off; with none on, the CDN is off and the
 # origin does not listen. The keys come from .env only and are never logged.
 # Empty values take their defaults: CDN_GCORE_SIGNER gcore-md5 (path-hmac
-# when the Secure Token is unavailable), CDN_GCORE_MONTHLY_GB 800,
-# CDN_ROUTES *:201, CDN_ORIGIN_LISTEN 0.0.0.0:20480 (the Docker network
+# when the Secure Token is unavailable), CDN_GCORE_MONTHLY_GB 800 (and
+# CDN_RU_MONTHLY_GB 2000 by docker-compose.yaml; 800 when empty here),
+# CDN_ROUTES *:201, CDN_RU_HEALTH_ADDR the host of CDN_RU_BASE_URL,
+# CDN_ORIGIN_LISTEN 0.0.0.0:20480 (the Docker network
 # only, published by Caddy), CDN_URL_TTL 6h, CDN_PREPARE_RATE_MBIT 800,
 # CDN_KINDS document,photo, CDN_HEALTH_EVERY 1m, CDN_AVOID_TTL 1h.
 # CDN_DEV_ALLOW_HTTP=1 (an http:// BaseURL) is for the e2e stand only.
@@ -234,6 +255,21 @@ Cdn:
       Key: "${CDN_GCORE_TOKEN_KEY}"
       Source: home-origin
       MonthlyGB: "${CDN_GCORE_MONTHLY_GB}"
+    # Delivery 202 of the Russian node amf (task 109, ADR 0072 §8,
+    # docs/ops/cdn.md, docs/ops/ru-node.md): its nginx checks the Secure
+    # Token of Gcore, so it is signed as 201 is, with its own key; it pulls
+    # from the origin with its own X-Pluma-Origin-Auth, and is checked
+    # through the tunnel. Off without CDN_RU_BASE_URL; CDN_ROUTES sends the
+    # clients of its countries to it (RU,BY:202,201;*:201).
+    - Id: 202
+      Name: ru
+      Signer: gcore-md5
+      BaseURL: "${CDN_RU_BASE_URL}"
+      Key: "${CDN_RU_TOKEN_KEY}"
+      Source: home-origin
+      MonthlyGB: "${CDN_RU_MONTHLY_GB}"
+      OriginAuth: "${CDN_RU_ORIGIN_AUTH}"
+      HealthAddr: "${CDN_RU_HEALTH_ADDR}"
   Routes: "${CDN_ROUTES}"
   Origin:
     Listen: "${CDN_ORIGIN_LISTEN}"

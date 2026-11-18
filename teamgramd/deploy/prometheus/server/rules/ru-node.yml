@@ -1,0 +1,64 @@
+# The Russian node amf (task 109, ADR 0072 §8, docs/ops/ru-node.md): the
+# node-exporter of the node on 10.78.0.1:9100 through the tunnel (target
+# file node-ru.json, labels {node="amf"}), with the textfile metrics of
+# teamgramd/deploy/ru/wgstat.sh. When the node is out, the users in Russia
+# fall back to Gcore (files by the fallback signal, the edge by the next
+# address of pluma_edge) and the rest notice nothing, so these are warnings.
+#
+# Not here, because the general rules already cover the node: its disk
+# (DiskSpaceLow, DiskSpaceCritical) and memory (MemoryLow) in general.yml,
+# delivery 202 unhealthy for 10 minutes (CdnDeliveryUnhealthy, by dc) and
+# its budget (CdnBudget) in cdn.yml.
+groups:
+  - name: ru-node
+    rules:
+      # Prometheus at home has not reached the node for 5 minutes: the
+      # tunnel is down (the next alert, if the node still writes), or the
+      # node itself. ServiceDown of general.yml fires for the same target
+      # after 2 minutes, without saying which node it is.
+      - alert: RuNodeDown
+        expr: up{job="node-exporter", node="amf"} == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "The Russian node amf does not answer through the tunnel"
+          description: "From home: ping -c3 10.78.0.1; sudo wg show plumaru. On amf: systemctl status pluma-ru-node-exporter wg-quick@plumaru. docs/ops/ru-node.md, «Неполадки»"
+
+      # No handshake with home for over 3 minutes (home keeps the tunnel up
+      # with PersistentKeepalive, and WireGuard renews the handshake every
+      # 2 minutes while packets flow), or no interface. The metrics come
+      # through the same tunnel, so a tunnel that is down altogether shows
+      # as RuNodeDown; this one catches a tunnel that flaps, and an
+      # interface gone while the metrics still come.
+      - alert: RuTunnelHandshakeStale
+        expr: |
+          time() - pluma_wg_latest_handshake_seconds{interface="plumaru"} > 180
+          or
+          pluma_wg_up{interface="plumaru"} == 0
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "The tunnel home ↔ amf has no fresh handshake, or no interface on amf"
+          description: "Home: sudo systemctl status wg-quick@plumaru; sudo wg show plumaru (latest handshake, transfer). amf: wg show plumaru. MTU of both ends must be 1280. docs/ops/ru-node.md, «Неполадки»"
+
+      # The textfile of the node is older than 5 minutes: the timer of
+      # wgstat stopped, so the alert above cannot see the tunnel.
+      - alert: RuNodeStatsStale
+        expr: time() - pluma_ru_stats_timestamp_seconds > 300
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "The textfile metrics of amf are {{ $value | humanizeDuration }} old"
+          description: "On amf: systemctl status pluma-ru-wgstat.timer pluma-ru-wgstat.service; journalctl -u pluma-ru-wgstat --since -1h. docs/ops/ru-node.md, «Неполадки»"
+
+      # The cache of delivery 202 holds more than 110% of its max_size for
+      # 30 minutes: nginx's cache manager does not keep the limit (it runs
+      # with the master process), and the disk the owner's site shares
+      # fills up.
+      - alert: RuNodeCacheOverLimit
+        expr: pluma_ru_cache_bytes > 1.1 * pluma_ru_cache_max_bytes
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "The cache of delivery 202 on amf takes {{ $value | humanize1024 }}B, over its max_size"
+          description: "On amf: systemctl status pluma-ru-nginx; journalctl -u pluma-ru-nginx --since -1h | grep -i cache; du -sh /var/cache/pluma-ru/files. docs/ops/ru-node.md, «Неполадки»"

@@ -47,6 +47,13 @@ type Caps interface {
 	PlumaCdn(ctx context.Context, permAuthKeyID int64) (int, error)
 }
 
+// Locator tells the country of a client's address as
+// authsession.getIpCountry does: an ISO 3166-1 alpha-2 code in upper case,
+// "" when it is not known (pkg/ipcountry, cached).
+type Locator interface {
+	Country(ctx context.Context, ip string) string
+}
+
 // Limits of the home side.
 const (
 	// stateCacheBytes and stateCacheTTL bound the cache of the files'
@@ -72,6 +79,10 @@ type Home struct {
 	router *Router
 	now    func() time.Time
 
+	// countries tells the country of a client, by which the routes pick
+	// a delivery; nil when no record of the routes names countries.
+	countries Locator
+
 	files *stateCache
 
 	reuploads *userLimiter
@@ -82,17 +93,26 @@ type Home struct {
 }
 
 // NewHome returns the Home of set over store. set is a parsed Config: its
-// route names enabled deliveries. caps tells which clients take a redirect.
-func NewHome(store Store, set *Settings, sizer Sizer, caps Caps) (*Home, error) {
+// route names enabled deliveries. caps tells which clients take a redirect,
+// countries the country of a client for the records of the routes that
+// name countries; it may be nil only when none does.
+func NewHome(store Store, set *Settings, sizer Sizer, caps Caps, countries Locator) (*Home, error) {
 	router, err := NewRouter(set, NewStoreGate(store))
 	if err != nil {
 		return nil, err
+	}
+	if router.ByCountry() && countries == nil {
+		return nil, errors.New("cdn: CDN_ROUTES names countries, and there is no source of the country of a client")
+	}
+	if !router.ByCountry() {
+		countries = nil
 	}
 	return &Home{
 		store:     store,
 		set:       set,
 		sizer:     sizer,
 		caps:      caps,
+		countries: countries,
 		router:    router,
 		now:       time.Now,
 		files:     newStateCache(stateCacheBytes, stateCacheTTL),
@@ -114,9 +134,10 @@ type fileState struct {
 
 // Redirect decides a request of upload.getFile that Wants a redirect, after
 // the checks of the request, for the client of the permanent auth key
-// authKeyID: upload.fileCdnRedirect with a PLH1 file_token (token.go) when
-// the client sent pluma_cdn, the file is prepared and a delivery of the
-// route takes it; nil when the file is served from home. A file that may go
+// authKeyID at the address clientAddr (MD.ClientAddr): upload.fileCdnRedirect
+// with a PLH1 file_token (token.go) when the client sent pluma_cdn, the
+// file is prepared and a delivery of the record of the client's country
+// takes it; nil when the file is served from home. A file that may go
 // through the CDN and is not prepared is queued. The result is for the
 // metrics and the tests, empty for a location that never goes through the
 // CDN. The redirect is an optimization: a failure here is logged and the
@@ -127,12 +148,12 @@ type fileState struct {
 // build (FileLoadOperation.java:2469, download_manager_mtproto.cpp:581),
 // and an unpatched Android waits forever for a DC it does not know
 // (jni/tgnet/ConnectionsManager.cpp:2585-2590).
-func (h *Home) Redirect(ctx context.Context, authKeyID int64, loc *mtproto.InputFileLocation, offset int64) (*mtproto.Upload_File, string) {
+func (h *Home) Redirect(ctx context.Context, authKeyID int64, clientAddr string, loc *mtproto.InputFileLocation, offset int64) (*mtproto.Upload_File, string) {
 	key, ok := Key(loc)
 	if !ok || !h.set.AllowsKind(key.Kind) {
 		return nil, ""
 	}
-	res, dc, result, err := h.redirect(ctx, authKeyID, key, loc, offset)
+	res, dc, result, err := h.redirect(ctx, authKeyID, clientAddr, key, loc, offset)
 	if err != nil {
 		logx.WithContext(ctx).Errorf("cdn: upload.getFile served from home: %v", err)
 	}
@@ -140,7 +161,10 @@ func (h *Home) Redirect(ctx context.Context, authKeyID int64, loc *mtproto.Input
 	return res, result
 }
 
-func (h *Home) redirect(ctx context.Context, authKeyID int64, key FileKey, loc *mtproto.InputFileLocation, offset int64) (*mtproto.Upload_File, int32, string, error) {
+func (h *Home) redirect(ctx context.Context, authKeyID int64, clientAddr string, key FileKey, loc *mtproto.InputFileLocation, offset int64) (*mtproto.Upload_File, int32, string, error) {
+	// Until the country is known, the metrics name the preferred delivery
+	// of the record "*": it is looked up only for a client that may be
+	// redirected.
 	dc := h.router.First().ID
 	if authKeyID == 0 {
 		return nil, dc, ResultNoCaps, nil
@@ -159,8 +183,15 @@ func (h *Home) redirect(ctx context.Context, authKeyID int64, key FileKey, loc *
 	if !st.file.Eligible {
 		return nil, dc, ResultSmall, nil
 	}
+	country := ""
+	if h.countries != nil {
+		// An unknown country (no GeoIP answer, a failed lookup) is routed by
+		// the record "*".
+		country = h.countries.Country(ctx, clientAddr)
+		dc = h.router.FirstOf(country).ID
+	}
 	now := h.now()
-	d, result, err := h.router.Pick(ctx, authKeyID, now)
+	d, result, err := h.router.Pick(ctx, authKeyID, country, now)
 	if d == nil {
 		return nil, dc, result, err
 	}

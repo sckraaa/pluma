@@ -1,0 +1,14 @@
+# Written by teamgramd/deploy/edge/tunnel.sh.
+[Unit]
+Description=Routing and firewall rules of Pluma's tunnel
+BindsTo=wg-quick@pluma.service
+After=wg-quick@pluma.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/pluma-tunnel rules home up
+ExecStop=/usr/local/sbin/pluma-tunnel rules home down
+
+[Install]
+WantedBy=wg-quick@pluma.service

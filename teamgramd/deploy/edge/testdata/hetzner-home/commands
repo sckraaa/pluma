@@ -1,0 +1,14 @@
+install -m 0755 @SCRIPT@ /usr/local/sbin/pluma-tunnel
+systemctl daemon-reload
+systemctl enable -q wg-quick@pluma pluma-tunnel-rules.service
+systemctl restart wg-quick@pluma
+systemctl restart pluma-tunnel-rules.service
+ip route replace default dev pluma table 77
+ip rule add pref 100 lookup main suppress_prefixlength 0
+ip rule add pref 110 from 172.20.0.0/16 lookup 77
+iptables -t mangle -I FORWARD -o pluma -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+sysctl -qw net.ipv4.conf.pluma.rp_filter=2
+ip rule del pref 110
+ip rule del pref 100
+ip route flush table 77
+iptables -t mangle -D FORWARD -o pluma -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu

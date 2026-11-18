@@ -1,0 +1,25 @@
+# The Russian node amf (task 109, ADR 0072 §8): the node reaches home's
+# Caddy through the second WireGuard tunnel (teamgramd/deploy/edge/tunnel.sh
+# --link ru, interface plumaru), and only there. Caddy gets three more
+# ports, on the tunnel's address at home alone:
+#
+#   80    the HTTP-01 challenges of ru.pluma.chat, which the node's port 80
+#         passes here;
+#   443   the origin of the node's file CDN (dc 202), whose cache pulls from
+#         home as Gcore's does;
+#   8443  the edge of ru.pluma.chat: the client's TLS as it came, behind
+#         PROXY v1 from the node, which Caddy accepts from 10.78.0.1 only.
+#         It has no secret of its own: that nothing but the tunnel reaches
+#         the port is its guard, so it is never published anywhere else.
+#
+# The address must exist before Docker starts (tunnel.sh writes the
+# drop-in docker.service.d/10-pluma-tunnel-ru.conf). Added to the services
+# command after docker-compose.web.yaml:
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml -f docker-compose.ru.yaml ...
+services:
+  web:
+    ports:
+      - "${PLUMA_RU_TUNNEL_IPV4:?set PLUMA_RU_TUNNEL_IPV4 in .env, home's address in the tunnel to the Russian node}:80:80"
+      - "${PLUMA_RU_TUNNEL_IPV4:?set PLUMA_RU_TUNNEL_IPV4 in .env, home's address in the tunnel to the Russian node}:443:443"
+      - "${PLUMA_RU_TUNNEL_IPV4:?set PLUMA_RU_TUNNEL_IPV4 in .env, home's address in the tunnel to the Russian node}:8443:8443"

@@ -88,6 +88,14 @@ func TestAppConfig(t *testing.T) {
 		t.Error("help.appConfig with hash 0")
 	}
 	got := jsonOf(t, r.GetConfig())
+	// pluma_edge is the stand's edges for a client of no country (task 109,
+	// edge_origin_test.go), set over the file.
+	if edgeWSURLs != "" {
+		if m, _ := got.(map[string]any); !reflect.DeepEqual(m["pluma_edge"], any(wantStackEdge(t, false))) {
+			t.Errorf("pluma_edge %v, want %v", m["pluma_edge"], wantStackEdge(t, false))
+		}
+		delete(got.(map[string]any), "pluma_edge")
+	}
 	if !reflect.DeepEqual(got, any(want)) {
 		t.Errorf("help.getAppConfig: %v, want app_config.json %v", got, want)
 	}
@@ -126,7 +134,11 @@ func TestAppConfig(t *testing.T) {
 	if err := d.GetError(); err != nil || !ok {
 		t.Fatalf("help.getAppConfig (JSONValue) returned %T (%v), want jsonObject", obj, err)
 	}
-	if got := jsonOf(t, old.To_JSONValue()); !reflect.DeepEqual(got, any(want)) {
+	oldGot := jsonOf(t, old.To_JSONValue())
+	if edgeWSURLs != "" {
+		delete(oldGot.(map[string]any), "pluma_edge")
+	}
+	if got := oldGot; !reflect.DeepEqual(got, any(want)) {
 		t.Errorf("help.getAppConfig (JSONValue): %v, want app_config.json %v", got, want)
 	}
 }

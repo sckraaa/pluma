@@ -52,6 +52,8 @@ enum TLConstructor {
   CRC32_authsession_getRecentLangCode = 299421713;
   // pluma: task 106
   CRC32_authsession_getIpRegion = 415119041;
+  // pluma: task 109
+  CRC32_authsession_getIpCountry = -1892541567;
 }
 
 // AuthKeyStateData <--
@@ -303,6 +305,18 @@ message TL_authsession_getIpRegion {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: authsession.getIpCountry ip:string = String;
+// The country of an address by the GeoIP database of authsession, as an
+// ISO 3166-1 alpha-2 code in upper case; empty when it is not known (no
+// database, a private address, no country in the record). The route of a
+// client by its country: the edges of pluma_edge and the CDN deliveries
+// (task 109).
+message TL_authsession_getIpCountry {
+  TLConstructor constructor = 1;
+  string ip = 3;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_Long {
   repeated int64 datas = 1;
@@ -362,5 +376,8 @@ service RPCAuthsession {
       returns (mtproto.String) {}
   // pluma: task 106
   rpc authsession_getIpRegion(TL_authsession_getIpRegion)
+      returns (mtproto.String) {}
+  // pluma: task 109
+  rpc authsession_getIpCountry(TL_authsession_getIpCountry)
       returns (mtproto.String) {}
 }

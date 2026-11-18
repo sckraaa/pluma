@@ -149,6 +149,7 @@ func (s *Server) countConn(c gnet.Conn, ctx *connContext) bool {
 	}
 	subject := ipSubject(ctx.clientIp)
 	if !s.limits.openConn(subject) {
+		ctx.closeReason = closeReasonLimit
 		metricLimitRefused.Inc("conn")
 		logx.Errorf("conn(%d) refused: %s holds too many connections", c.ConnId(), subject)
 		return false

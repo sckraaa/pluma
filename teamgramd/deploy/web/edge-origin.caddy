@@ -1,0 +1,57 @@
+# The origin of the CDN edge (task 109, ADR 0072 §3, docs/ops/edge.md): the
+# second Gcore resource, <prefix2>.gcorecdn.com, pulls this name. Its
+# WebSocket /apiws carries the clients' MTProto to the gateway's Edge entry
+# (gnetway:11445, on teamgram_net only, never published on the host); the
+# rest is the web client, as on PLUMA_WEB_DOMAIN, so that Web K opens through
+# the CDN as well.
+#
+# The Caddyfile imports this file only when PLUMA_EDGE_ORIGIN_DOMAIN is set
+# (docker-compose.web.yaml, which refuses to start Caddy without an
+# X-Pluma-Edge-Auth value that fits): a site with an empty address would stop
+# the whole Caddyfile. The certificate is Let's Encrypt's, as for the other
+# names.
+#
+# - Every request without the right X-Pluma-Edge-Auth, which the Gcore
+#   resource adds, is 403 before its path is looked at. The comparison is
+#   Caddy's, not one of constant time; the value is 256 random bits, which no
+#   one guesses over the network by the time it takes.
+# - The gateway takes the client's address from X-Pluma-Client-Addr: the
+#   X-Forwarded-For the request came with, whose last element Gcore wrote,
+#   the address its edge saw (the gateway takes the last valid address of the
+#   list; the elements before it are the client's to forge). Caddy's own
+#   X-Forwarded-For, the address of Gcore, is not used: it trusts no proxy.
+#   X-Pluma-Edge-Via labels the gateway's metrics; neither header nor the
+#   secret passes on as the client sent it.
+# - The pages and files say no-cache: the resource caches what the origin
+#   allows, and Gcore revalidates them by their ETag, so a new version of the
+#   web client is seen at once.
+# - No log directive, so no access log; neither Server nor Via in the
+#   answers, Caddy's own errors (502 while the gateway is down) included.
+{$PLUMA_EDGE_ORIGIN_DOMAIN} {
+	@denied not header X-Pluma-Edge-Auth {$PLUMA_EDGE_ORIGIN_AUTH}
+	route {
+		respond @denied 403
+		handle /apiws {
+			reverse_proxy gnetway:11445 {
+				header_up X-Pluma-Client-Addr {http.request.header.X-Forwarded-For}
+				header_up X-Pluma-Edge-Via gcore
+				header_up -X-Pluma-Edge-Auth
+			}
+		}
+		handle {
+			root * /srv
+			encode zstd gzip
+			header Cache-Control "no-cache"
+			file_server
+		}
+	}
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+		-Via
+	}
+	handle_errors {
+		header -Server
+	}
+}

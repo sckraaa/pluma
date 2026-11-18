@@ -30,6 +30,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
+	"github.com/teamgram/teamgram-server/pkg/ipcountry"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -57,6 +58,13 @@ type ServiceContext struct {
 	// the GIF tab while @gif searches by text (task 099), and the public
 	// map tiles of the clients' maps (task 112).
 	AppConfig *appconfig.Live
+	// Edges is pluma_edge of the app config by the country of the client
+	// (task 109, ADR 0072); nil without edges.
+	Edges *appconfig.Edges
+	// Countries tells the country of a client's address
+	// (authsession.getIpCountry, cached); used only when Edges has
+	// records of countries.
+	Countries *ipcountry.Locator
 	// IOSUpdate asks the install service what an Ad Hoc build of the iPhone
 	// app can update to from the app (task 085); nil when that is off.
 	IOSUpdate *iosupdate.Checker
@@ -85,6 +93,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if mapsPublic.Enabled() {
 		appConfig = appConfig.WithMaps(mapsPublic.URL, mapsPublic.Styles)
 	}
+	// The edges of the patched clients (task 109): a wrong value stops the
+	// start instead of handing the clients a pluma_edge they drop.
+	edges, err := appconfig.ParseEdges(c.Edge.WSURLs, c.Edge.Routes, c.Edge.StickyS)
+	logx.Must(err)
 	logx.Must(c.IOSUpdate.Check())
 	var iosUpdate *iosupdate.Checker
 	if c.IOSUpdate.Enabled() {
@@ -95,6 +107,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config:       c,
 		ClientConfig: clientConfig,
 		AppConfig:    appconfig.NewLive(appConfig, botstore.New(d.DB()).LoginDomains, loginDomainsEvery),
+		Edges:        edges,
+		Countries:    ipcountry.New(d.AuthsessionClient),
 		IOSUpdate:    iosUpdate,
 		Dao:          d,
 	}

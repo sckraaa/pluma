@@ -324,6 +324,8 @@ var optionalVars = map[string]bool{
 	// The servers of one-to-one calls (task 068): calls are off when empty.
 	"CALLS_ICE_SERVERS": true,
 	"CALLS_TURN_SECRET": true,
+	// The secrets of labelled TURN servers (task 109): none when empty.
+	"CALLS_TURN_SECRETS": true,
 	// The quality parameters of calls (task 077): the Pluma profile when
 	// empty.
 	"CALLS_QUALITY": true,
@@ -362,6 +364,11 @@ var optionalVars = map[string]bool{
 	"MAPS_PER_USER_PER_MINUTE": true,
 	// The public map tiles of the clients' maps (task 112): none when empty.
 	"MAPS_PUBLIC_URL": true,
+	// The edges of the patched clients (task 109): none when empty, the
+	// rest take their defaults.
+	"EDGE_WS_URLS":  true,
+	"EDGE_ROUTES":   true,
+	"EDGE_STICKY_S": true,
 	// The built-in inline bots (task 099, ADR 0062): @pic answers with
 	// empty lists without SearXNG, @gif has no search by text without the
 	// KLIPY key; the import budget is 1 GiB when empty.
@@ -392,6 +399,12 @@ var optionalVars = map[string]bool{
 	"CDN_DEV_ALLOW_HTTP":    true,
 	"CDN_HEALTH_EVERY":      true,
 	"CDN_AVOID_TTL":         true,
+	// Delivery 202 of the Russian node (task 109): off without its URL;
+	// its monthly budget defaults in defaultVars.
+	"CDN_RU_BASE_URL":    true,
+	"CDN_RU_TOKEN_KEY":   true,
+	"CDN_RU_ORIGIN_AUTH": true,
+	"CDN_RU_HEALTH_ADDR": true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }
@@ -403,6 +416,9 @@ var defaultVars = map[string]string{
 	// The name of the provider of the login on sites (task 106): the site
 	// of Caddy (docker-compose.web.yaml) and the issuer of links.
 	"PLUMA_OAUTH_DOMAIN": "oauth.pluma.chat",
+	// The monthly budget of delivery 202 (task 109), GB: a bound against a
+	// runaway, not the provider's (docs/ops/cdn.md).
+	"CDN_RU_MONTHLY_GB": "2000",
 }
 
 // passed tells whether val, the compose value of the variable name, gives it

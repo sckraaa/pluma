@@ -18,6 +18,8 @@ package cdn
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
@@ -177,7 +179,9 @@ func TestHealthFailures(t *testing.T) {
 	}
 	for _, c := range cases {
 		e := newHealthEnv(t, SignerGcoreMD5, false)
-		e.health.client.Timeout = 100 * time.Millisecond
+		for _, c := range e.health.clients {
+			c.Timeout = 100 * time.Millisecond
+		}
 		e.cdn.setMode(c.mode)
 		h := e.round()
 		if h.UnhealthyReason != c.reason || h.HealthyUntil != 0 {
@@ -279,5 +283,71 @@ func TestBreakSignature(t *testing.T) {
 		if _, err := breakSignature(SignerGcoreMD5, s); err == nil {
 			t.Errorf("broke %q", s)
 		}
+	}
+}
+
+// TestHealthAddr: a delivery with HealthAddr is checked at that address,
+// with the name of its BaseURL as the SNI, the Host and the name of the
+// certificate (delivery 202 through the tunnel to its node, task 109).
+func TestHealthAddr(t *testing.T) {
+	cdn := &fakeCDN{}
+	var mu sync.Mutex
+	var snis, hosts []string
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		hosts = append(hosts, r.Host)
+		mu.Unlock()
+		cdn.ServeHTTP(w, r)
+	}))
+	srv.TLS = &tls.Config{GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+		mu.Lock()
+		snis = append(snis, hello.ServerName)
+		mu.Unlock()
+		return nil, nil
+	}}
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+	roots := x509.NewCertPool()
+	roots.AddCert(srv.Certificate())
+
+	// The certificate of httptest is for example.com, which the test never
+	// resolves: only HealthAddr is dialled.
+	c := testConfig(t)
+	c.Deliveries[0].BaseURL = "https://example.com"
+	c.Deliveries[0].HealthAddr = srv.Listener.Addr().String()
+	cdn.key = c.Deliveries[0].Key
+	set, err := c.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := NewMemStore()
+	origin, err := NewOrigin(store, set, newMemReader(), &usageCounts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cdn.origin, cdn.auth = origin, string(set.Origin.AuthValue)
+	h := newHealth(store, set, roots)
+	h.Round(context.Background())
+	row, err := store.DeliveryHealth(context.Background(), testDc)
+	if err != nil || row == nil || row.UnhealthyReason != "" {
+		t.Fatalf("checked at HealthAddr: %+v, %v", row, err)
+	}
+	mu.Lock()
+	if len(hosts) != 2 || hosts[0] != "example.com" || hosts[1] != "example.com" || len(snis) == 0 || snis[0] != "example.com" {
+		t.Errorf("Host %v, SNI %v, want example.com", hosts, snis)
+	}
+	mu.Unlock()
+
+	// The certificate is checked for the name of BaseURL: another name at
+	// the same address is refused (that of httptest is for example.com and
+	// *.example.com).
+	c.Deliveries[0].BaseURL = "https://r1.example.org"
+	if set, err = c.Parse(); err != nil {
+		t.Fatal(err)
+	}
+	h = newHealth(store, set, roots)
+	h.Round(context.Background())
+	if row, _ = store.DeliveryHealth(context.Background(), testDc); row == nil || row.UnhealthyReason != UnhealthyTLS {
+		t.Errorf("a certificate of another name: %+v, want tls", row)
 	}
 }

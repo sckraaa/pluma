@@ -29,6 +29,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -755,5 +756,65 @@ func TestOriginPathHMAC(t *testing.T) {
 	far, _, _ := signer.SignURL(ObjectPath(f.Secrets.Token), e.clock.now().Add(3*set.URLTTL))
 	if res, _ := e.do(http.MethodGet, strings.TrimPrefix(far, set.Deliveries[0].BaseURL), nil); res.StatusCode != http.StatusForbidden {
 		t.Errorf("a bucket too far ahead: %d, want 403", res.StatusCode)
+	}
+}
+
+// TestOriginTwoDeliveries: delivery 201 of Gcore and delivery 202 of the
+// Russian node pull the same /o/<hex> with their own values of the header
+// (task 109, "Выдача 202"); the origin serves both and counts the bytes for
+// the delivery whose value came, the canary too. A value of neither is
+// refused as before.
+func TestOriginTwoDeliveries(t *testing.T) {
+	c := testConfig(t)
+	c.Deliveries = append(c.Deliveries, ruDelivery(t))
+	c.Routes = "RU:202,201;*:201"
+	set, err := c.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := newOriginEnv(t, set)
+	data := refFile()
+	f := e.file(docKey(1), data)
+	full := cipherOf(t, f, data)
+	ru := c.Deliveries[1].OriginAuth
+
+	res, body := e.do(http.MethodGet, ObjectPath(f.Secrets.Token), map[string]string{"Range": "bytes=0-999"})
+	if res.StatusCode != http.StatusPartialContent || !bytes.Equal(body, full[:1000]) {
+		t.Fatalf("201: %d", res.StatusCode)
+	}
+	res, body = e.do(http.MethodGet, ObjectPath(f.Secrets.Token), map[string]string{OriginAuthHeader: ru, "Range": "bytes=1000-2999"})
+	if res.StatusCode != http.StatusPartialContent || !bytes.Equal(body, full[1000:3000]) {
+		t.Fatalf("202: %d", res.StatusCode)
+	}
+	if got := e.usage.settled(201, 1000); got != 1000 {
+		t.Errorf("counted %d bytes for 201, want 1000", got)
+	}
+	if got := e.usage.settled(202, 2000); got != 2000 {
+		t.Errorf("counted %d bytes for 202, want 2000", got)
+	}
+	if res, _ = e.do(http.MethodGet, CanaryPath, map[string]string{OriginAuthHeader: ru, "Range": "bytes=0-99"}); res.StatusCode != http.StatusPartialContent {
+		t.Fatalf("canary of 202: %d", res.StatusCode)
+	}
+	if got := e.usage.settled(202, 2100); got != 2100 {
+		t.Errorf("the canary of 202 counted for it: %d bytes, want 2100", got)
+	}
+	if got := e.usage.of(201); got != 1000 {
+		t.Errorf("the bytes of 202 counted for 201: %d", got)
+	}
+	for _, auth := range []string{ru[:originAuthDigits-1], ru + "0", strings.ToUpper(ru), ""} {
+		if auth == ru {
+			continue
+		}
+		if res, _ := e.do(http.MethodGet, ObjectPath(f.Secrets.Token), map[string]string{OriginAuthHeader: auth}); res.StatusCode != http.StatusForbidden {
+			t.Errorf("auth %q: %d, want 403", auth, res.StatusCode)
+		}
+	}
+
+	// Settings that Parse would refuse do not make an origin either.
+	bad := *set
+	bad.Deliveries = slices.Clone(set.Deliveries)
+	bad.Deliveries[1].OriginAuth = bad.Deliveries[0].OriginAuth
+	if _, err := NewOrigin(e.store, &bad, e.reader, e.usage); err == nil {
+		t.Error("an origin of two gcore-md5 deliveries with one value")
 	}
 }

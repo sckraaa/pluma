@@ -188,6 +188,9 @@ type CdnFetchError struct {
 	// Reason says what was wrong: "status", "content-range", "length",
 	// "network", "timeout".
 	Reason string
+	// Err is the transport's error of a "network" or "timeout"; it may
+	// hold the URL, so Error leaves it out.
+	Err error
 }
 
 func (e *CdnFetchError) Error() string {
@@ -196,6 +199,9 @@ func (e *CdnFetchError) Error() string {
 	}
 	return fmt.Sprintf("mtclient: the CDN answered %d: %s", e.Status, e.Reason)
 }
+
+// Unwrap returns the transport's error, if any.
+func (e *CdnFetchError) Unwrap() error { return e.Err }
 
 // Refresh reports whether the client asks for a new URL (403 or 410,
 // contract p. 6) rather than fall back to the home.
@@ -341,15 +347,16 @@ func (f *HttpsFetcher) fetch(ctx context.Context, rawURL string, offset, end, to
 // transportFailure names a request that got no answer, without the URL
 // net/http puts into its errors.
 func transportFailure(err error) *CdnFetchError {
+	cause := err
 	var ue *url.Error
 	if errors.As(err, &ue) {
 		err = ue.Err
 	}
 	var ne net.Error
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || (errors.As(err, &ne) && ne.Timeout()) {
-		return &CdnFetchError{Reason: "timeout"}
+		return &CdnFetchError{Reason: "timeout", Err: cause}
 	}
-	return &CdnFetchError{Reason: "network"}
+	return &CdnFetchError{Reason: "network", Err: cause}
 }
 
 // ErrCdnHashMismatch is a piece of the file whose SHA-256 is not the

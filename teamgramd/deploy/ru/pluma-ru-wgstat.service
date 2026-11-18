@@ -1,0 +1,14 @@
+# Writes the textfile metrics of the Russian node (wgstat.sh, task 109,
+# docs/ops/ru-node.md) for pluma-ru-node-exporter. Run by
+# pluma-ru-wgstat.timer. As root: wg show needs CAP_NET_ADMIN.
+[Unit]
+Description=Pluma node textfile metrics
+
+[Service]
+Type=oneshot
+ExecStart=/opt/pluma-ru/bin/wgstat.sh /var/lib/pluma-ru/textfile/pluma_ru.prom
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/pluma-ru/textfile
+ProtectHome=yes
+PrivateTmp=yes

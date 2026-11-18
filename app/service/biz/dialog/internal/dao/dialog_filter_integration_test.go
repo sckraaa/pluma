@@ -31,14 +31,17 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/internal/config"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
+
+	"github.com/zeromicro/go-zero/core/stores/cache"
 )
 
 // The folders of a user on MySQL and Redis (task 013), with and without
 // Premium (task 014).
 
 var (
-	itDao  *Dao
-	itUser atomic.Int64
+	itDao   *Dao
+	itCache cache.CacheConf
+	itUser  atomic.Int64
 )
 
 func TestMain(m *testing.M) {
@@ -58,7 +61,8 @@ func TestMain(m *testing.M) {
 	if err := errors.Join(errs...); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
-		itDao = New(config.Config{Mysql: mysql.Config(), Cache: redis.CacheConf(), Topics: config.Topics{Sync: "Sync-T"}})
+		itCache = redis.CacheConf()
+		itDao = New(config.Config{Mysql: mysql.Config(), Cache: itCache, Topics: config.Topics{Sync: "Sync-T"}})
 		itUser.Store(time.Now().UnixNano() % 1_000_000_000 * 1000)
 		code = m.Run()
 	}

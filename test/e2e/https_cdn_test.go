@@ -99,16 +99,32 @@ func httpsCdnStand(t *testing.T) cdnStand {
 // three intervals, and the read of the checks cached for a moment in bff.
 func (s cdnStand) healthWithin() time.Duration { return 3*s.healthEvery + 15*time.Second }
 
-// fakeCDNPort is where this machine reaches port of fakecdn, read anew
-// each time: a recreated container has another ephemeral port.
+// fakeCDNPort is where this machine reaches port of fakecdn.
 func fakeCDNPort(t *testing.T, port string) string {
 	t.Helper()
-	out, err := exec.Command(runScript, "compose", "port", "fakecdn", port).Output()
-	addr := strings.TrimSpace(string(out))
-	if err != nil || addr == "" {
-		t.Fatalf("the port %s of fakecdn: %v", port, err)
+	return servicePort(t, "fakecdn", port)
+}
+
+// servicePort is where this machine reaches port of a service of the
+// stand, read anew each time: a recreated container (a restart of a service
+// it depends on recreates it too) has another ephemeral port.
+func servicePort(t *testing.T, service, port string) string {
+	t.Helper()
+	addr, err := stackPort(service, port)
+	if err != nil {
+		t.Fatal(err)
 	}
 	return addr
+}
+
+// stackPort is servicePort for code without a *testing.T.
+func stackPort(service, port string) (string, error) {
+	out, err := exec.Command(runScript, "compose", "port", service, port).Output()
+	addr := strings.TrimSpace(string(out))
+	if err != nil || addr == "" {
+		return "", fmt.Errorf("the port %s of %s: %v", port, service, err)
+	}
+	return addr, nil
 }
 
 // cdnFetcher is the HTTP side of a patched client on this machine.

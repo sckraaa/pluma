@@ -1,0 +1,7 @@
+install -m 0755 @SCRIPT@ /usr/local/sbin/pluma-tunnel
+systemctl daemon-reload
+systemctl enable -q wg-quick@plumaru pluma-tunnel-ru-rules.service
+systemctl restart wg-quick@plumaru
+systemctl restart pluma-tunnel-ru-rules.service
+iptables -t mangle -I OUTPUT -o plumaru -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+iptables -t mangle -D OUTPUT -o plumaru -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu

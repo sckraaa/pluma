@@ -79,6 +79,13 @@ type DeliveryConfig struct {
 	// MonthlyGB is the budget of a calendar month, GB of 10^9 bytes
 	// (CDN_GCORE_MONTHLY_GB, "800").
 	MonthlyGB string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// OriginAuth is the value of X-Pluma-Origin-Auth the CDN of this
+	// delivery sends the origin (CDN_RU_ORIGIN_AUTH), 64 hex digits; empty:
+	// Origin.AuthValue, CDN_ORIGIN_AUTH.
+	OriginAuth string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// HealthAddr is host:port the checks of the delivery dial
+	// (CDN_RU_HEALTH_ADDR); empty: the host of BaseURL.
+	HealthAddr string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 // OriginConfig is the origin in Config.
@@ -87,7 +94,8 @@ type OriginConfig struct {
 	// Docker network only (CDN_ORIGIN_LISTEN, "0.0.0.0:20480").
 	Listen string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// AuthValue is what the CDN puts in X-Pluma-Origin-Auth (CDN_ORIGIN_AUTH),
-	// 64 hex digits; required while a delivery pulls from the origin.
+	// 64 hex digits; required while a delivery that pulls from the origin
+	// has no OriginAuth of its own.
 	AuthValue string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// MaxConcurrent is how many requests the origin serves at once ("16").
 	MaxConcurrent string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
@@ -140,7 +148,9 @@ type OriginSettings struct {
 	// Listen is empty when no delivery pulls from the origin: it does not
 	// listen then.
 	Listen string
-	// AuthValue is the value of X-Pluma-Origin-Auth.
+	// AuthValue is CDN_ORIGIN_AUTH, the value of X-Pluma-Origin-Auth of
+	// the deliveries without their own; empty when every delivery has its
+	// own. The origin takes the OriginAuth of the deliveries.
 	AuthValue Secret
 	// MaxConcurrent is how many requests are served at once.
 	MaxConcurrent int
@@ -242,7 +252,37 @@ func (c Config) Parse() (*Settings, error) {
 	if err = c.Origin.parse(s); err != nil {
 		return nil, err
 	}
+	if err = originAuths(s); err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+// originAuths gives each delivery that pulls from the origin its value of
+// X-Pluma-Origin-Auth: its own, or CDN_ORIGIN_AUTH. The origin tells the
+// deliveries apart by that value (task 109, "Выдача 202"): a path-hmac
+// delivery also by the signature of its path, but every gcore-md5 one asks
+// for the same /o/<hex>, so two of them with one value are refused, their
+// bytes could not be counted to each.
+func originAuths(s *Settings) error {
+	byValue := map[Secret]int32{}
+	for i := range s.Deliveries {
+		d := &s.Deliveries[i]
+		if d.Source != SourceHomeOrigin {
+			continue
+		}
+		if d.OriginAuth == "" {
+			d.OriginAuth = s.Origin.AuthValue
+		}
+		if _, signed := d.Signer.(*PathHMACSigner); signed {
+			continue
+		}
+		if other, ok := byValue[d.OriginAuth]; ok {
+			return fmt.Errorf("cdn: deliveries %d and %d both pull /o/ from the origin with one X-Pluma-Origin-Auth: give one of them its own OriginAuth", other, d.ID)
+		}
+		byValue[d.OriginAuth] = d.ID
+	}
+	return nil
 }
 
 // parse checks a delivery; it returns one with an empty BaseURL when it is
@@ -268,6 +308,16 @@ func (c DeliveryConfig) parse(s *Settings) (Delivery, error) {
 	}
 	if d.Source != SourceHomeOrigin {
 		return d, fmt.Errorf("cdn: delivery %d: source %q, only %s is supported", d.ID, d.Source, SourceHomeOrigin)
+	}
+	// The values are compared as they are written, and never printed.
+	if c.OriginAuth != "" {
+		if !validOriginAuth(c.OriginAuth) {
+			return d, fmt.Errorf("cdn: delivery %d: OriginAuth must be %d hex digits (openssl rand -hex 32)", d.ID, originAuthDigits)
+		}
+		d.OriginAuth = Secret(c.OriginAuth)
+	}
+	if d.HealthAddr, err = parseHealthAddr(c.HealthAddr); err != nil {
+		return d, fmt.Errorf("cdn: delivery %d: %w", d.ID, err)
 	}
 	gb, err := intOr(c.MonthlyGB, DefaultMonthlyGB)
 	if err != nil || gb <= 0 || gb > maxMonthlyGB {
@@ -317,12 +367,32 @@ func parseBaseURL(base string, devHTTP bool) (string, bool, error) {
 	return u.Scheme + "://" + u.Host, insecure, nil
 }
 
+// parseHealthAddr checks HealthAddr: empty, or a host and a port.
+func parseHealthAddr(v string) (string, error) {
+	if v = strings.TrimSpace(v); v == "" {
+		return "", nil
+	}
+	host, port, err := net.SplitHostPort(v)
+	if p, perr := strconv.Atoi(port); err != nil || perr != nil || host == "" || p <= 0 || p > 65535 {
+		return "", fmt.Errorf("HealthAddr %q: host:port", v)
+	}
+	return v, nil
+}
+
+// validOriginAuth reports whether v is a value of X-Pluma-Origin-Auth:
+// originAuthDigits hex digits.
+func validOriginAuth(v string) bool {
+	_, err := hex.DecodeString(v)
+	return err == nil && len(v) == originAuthDigits
+}
+
 // parse checks the origin, which is required while a delivery pulls from
-// it.
+// it; its AuthValue only while one of them has no OriginAuth of its own.
 func (c OriginConfig) parse(s *Settings) error {
 	if !slices.ContainsFunc(s.Deliveries, func(d Delivery) bool { return d.Source == SourceHomeOrigin }) {
 		return nil
 	}
+	shared := slices.ContainsFunc(s.Deliveries, func(d Delivery) bool { return d.Source == SourceHomeOrigin && d.OriginAuth == "" })
 	o := &s.Origin
 	if o.Listen = strings.TrimSpace(c.Listen); o.Listen == "" {
 		o.Listen = DefaultOriginListen
@@ -332,7 +402,7 @@ func (c OriginConfig) parse(s *Settings) error {
 		return fmt.Errorf("cdn: CDN_ORIGIN_LISTEN %q: host:port", o.Listen)
 	}
 	// The value is compared as it is written, and never printed.
-	if _, err = hex.DecodeString(c.AuthValue); err != nil || len(c.AuthValue) != originAuthDigits {
+	if (shared || c.AuthValue != "") && !validOriginAuth(c.AuthValue) {
 		return fmt.Errorf("cdn: CDN_ORIGIN_AUTH must be %d hex digits (openssl rand -hex 32)", originAuthDigits)
 	}
 	o.AuthValue = Secret(c.AuthValue)
