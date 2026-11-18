@@ -1,0 +1,1733 @@
+{
+ "android": {
+  "AuthAnotherClientDownloadClientUrl": {
+   "ar": [
+    "https://desktop.telegram.org"
+   ],
+   "be": [
+    "https://desktop.telegram.org/"
+   ],
+   "ca": [
+    "https://desktop.telegram.org/"
+   ],
+   "cs": [
+    "https://desktop.telegram.org/"
+   ],
+   "de": [
+    "https://desktop.telegram.org/"
+   ],
+   "en": [
+    "https://desktop.telegram.org/"
+   ],
+   "es": [
+    "https://desktop.telegram.org/"
+   ],
+   "fa": [
+    "https://desktop.telegram.org/"
+   ],
+   "fi": [
+    "https://desktop.telegram.org/"
+   ],
+   "fr": [
+    "https://desktop.telegram.org/"
+   ],
+   "he": [
+    "https://desktop.telegram.org/"
+   ],
+   "hr": [
+    "https://desktop.telegram.org/"
+   ],
+   "hu": [
+    "https://desktop.telegram.org/"
+   ],
+   "id": [
+    "https://desktop.telegram.org/"
+   ],
+   "it": [
+    "https://desktop.telegram.org/"
+   ],
+   "kk": [
+    "https://desktop.telegram.org/"
+   ],
+   "ko": [
+    "https://desktop.telegram.org/"
+   ],
+   "ms": [
+    "https://desktop.telegram.org/"
+   ],
+   "nb": [
+    "https://desktop.telegram.org/"
+   ],
+   "nl": [
+    "https://desktop.telegram.org/"
+   ],
+   "pl": [
+    "https://desktop.telegram.org/?setln=pl"
+   ],
+   "pt-br": [
+    "https://desktop.telegram.org/"
+   ],
+   "ro": [
+    "https://desktop.telegram.org/"
+   ],
+   "ru": [
+    "https://desktop.telegram.org/"
+   ],
+   "sk": [
+    "https://desktop.telegram.org/"
+   ],
+   "sr": [
+    "https://desktop.telegram.org/"
+   ],
+   "sv": [
+    "https://desktop.telegram.org/"
+   ],
+   "tr": [
+    "https://desktop.telegram.org/"
+   ],
+   "uk": [
+    "https://desktop.telegram.org/"
+   ],
+   "uz": [
+    "https://desktop.telegram.org/"
+   ],
+   "vi": [
+    "https://desktop.telegram.org/"
+   ],
+   "zh-hans": [
+    "https://desktop.telegram.org/"
+   ],
+   "zh-hant": [
+    "https://desktop.telegram.org/"
+   ]
+  },
+  "AuthAnotherClientInfo1": {
+   "ar": [
+    "قم بتنزيل تيليجرام على حاسوبك من *desktop.telegram.org*."
+   ],
+   "be": [
+    "Спампуйце Telegram на ваш камп'ютар з *desktop.telegram.org*."
+   ],
+   "ca": [
+    "Baixeu el Telegram a l'ordinador des de *desktop.telegram.org*."
+   ],
+   "cs": [
+    "Stáhněte Telegram na váš počítač z *desktop.telegram.org*."
+   ],
+   "de": [
+    "Installiere Telegram Desktop auf deinem Computer von *desktop.telegram.org*."
+   ],
+   "en": [
+    "Download Telegram on your computer from *desktop.telegram.org*."
+   ],
+   "es": [
+    "Descarga Telegram en tu computadora desde *desktop.telegram.org*."
+   ],
+   "fa": [
+    "تلگرام را از *desktop.telegram.org* برای کامپیوتر خود دانلود کنید."
+   ],
+   "fi": [
+    "Lataa Telegram tietokoneellesi osoitteesta *desktop.telegram.org*."
+   ],
+   "fr": [
+    "Téléchargez Telegram sur votre ordinateur depuis *desktop.telegram.org*."
+   ],
+   "he": [
+    "הורד את טלגרם למחשב שלך מ *desktop.telegram.org*."
+   ],
+   "hr": [
+    "Preuzmite Telegram na računalo sa stranice *desktop.telegram.org*."
+   ],
+   "hu": [
+    "A Telegram letöltése a számítógépedre: *desktop.telegram.org*."
+   ],
+   "id": [
+    "Unduh Telegram ke komputer Anda dari *desktop.telegram.org*."
+   ],
+   "it": [
+    "Scarica Telegram sul tuo computer da *desktop.telegram.org*"
+   ],
+   "kk": [
+    "*Desktop.telegram.org* сайтынан қолданба жүктеп алыңыз."
+   ],
+   "ko": [
+    "컴퓨터에 텔레그램을 다운로드하세요 *desktop.telegram.org*."
+   ],
+   "ms": [
+    "Muat Turrun Telegram ke komputer anda dari *desktop.telegram.org*."
+   ],
+   "nb": [
+    "Last ned Telegram på datamaskinen din fra *desktop.telegram.org*."
+   ],
+   "nl": [
+    "Download Telegram op je computer via *desktop.telegram.org*"
+   ],
+   "pl": [
+    "Pobierz Telegram na swój komputer z *desktop.telegram.org*."
+   ],
+   "pt-br": [
+    "Baixe o Telegram em *desktop.telegram.org* no seu computador."
+   ],
+   "ro": [
+    "Descarcă Telegram pe calculator de pe *desktop.telegram.org*."
+   ],
+   "ru": [
+    "Установите Telegram для компьютера по ссылке *desktop.telegram.org*."
+   ],
+   "sk": [
+    "Stiahnuť Telegram do vášho počítača z *desktop.telegram.org*."
+   ],
+   "sr": [
+    "Преузмите Telegram на свој рачунар са *desktop.telegram.org*."
+   ],
+   "sv": [
+    "Hämta Telegram till din dator från *desktop.telegram.org*.."
+   ],
+   "tr": [
+    "Bilgisayarınıza *desktop.telegram.org* adresinden Telegram'ı indirin."
+   ],
+   "uk": [
+    "Завантажте Telegram на компʼютер з *desktop.telegram.org*."
+   ],
+   "uz": [
+    "Telegramni kompyuteringizda *desktop.telegram.org* saytidan yuklab oling."
+   ],
+   "vi": [
+    "Tải Telegram trên máy tính từ *desktop.telegram.org*."
+   ],
+   "zh-hans": [
+    "从 *desktop.telegram.org* 下载电脑版 Telegram 。"
+   ],
+   "zh-hant": [
+    "從 *desktop.telegram.org* 下載 Telegram 到您的電腦上。"
+   ]
+  },
+  "AuthAnotherClientInfo5": {
+   "ar": [
+    "يرجى الذهاب إلى *getdesktop.telegram.org* or *web.telegram.org* للحصول على رمز QR"
+   ],
+   "be": [
+    "Перайдзіце на *getdesktop.telegram.org* ці *web.telegram.org*, каб атрымаць QR-код"
+   ],
+   "ca": [
+    "Aneu a *getdesktop.telegram.org* o *web.telegram.org* per a obtenir un codi QR"
+   ],
+   "cs": [
+    "Přejděte na *getdesktop.telegram.org* nebo *web.telegram.org* pro získání QR kódu"
+   ],
+   "de": [
+    "Unter *getdesktop.telegram.org* oder *web.telegram.org* erhältst du einen QR-Code"
+   ],
+   "en": [
+    "Go to *getdesktop.telegram.org* or *web.telegram.org* to get a QR code"
+   ],
+   "es": [
+    "Ve a *getdesktop.telegram.org* o *web.telegram.org* para obtener el código"
+   ],
+   "fa": [
+    "برای دریافت کد QR به *getdesktop.telegram.org* یا *web.telegram.org* مراجعه کنید"
+   ],
+   "fi": [
+    "Avaa *getdesktop.telegram.org* tai *web.telegram.org* saadaksesi QR-koodin"
+   ],
+   "fr": [
+    "Accédez à *getdesktop.telegram.org* ou *web.telegram.org* pour obtenir un code QR"
+   ],
+   "he": [
+    "עבור ל*getdesktop.telegram.org* או *web.telegram.org* כדי לקבל קוד QR"
+   ],
+   "hr": [
+    "Otvorite *getdesktop.telegram.org* ili *web.telegram.org* da biste dobili QR kod"
+   ],
+   "hu": [
+    "Menj a *getdesktop.telegram.org* vagy a *web.telegram.org* oldalra a QR-kódért!"
+   ],
+   "id": [
+    "Silakan ke *getdesktop.telegram.org* atau *web.telegram.org* untuk mendapatkan kode QR."
+   ],
+   "it": [
+    "Vai su *getdesktop.telegram.org* o *web.telegram.org* per ottenere il QR"
+   ],
+   "kk": [
+    "*getdesktop.telegram.org* не *web.telegram.org* өтіп, QR кодты скандаңыз"
+   ],
+   "ko": [
+    "QR 코드를 얻으려면, *getdesktop.telegram.org* 혹은 *web.telegram.org* 을 방문하세요"
+   ],
+   "ms": [
+    "Sila ke *getdesktop.telegram.org* atau *web.telegram.org* untuk mendapat kod QR."
+   ],
+   "nb": [
+    "Besøk *getdesktop.telegram.org* eller *web.telegram.org* for å få en QR kode"
+   ],
+   "nl": [
+    "Ga naar *getdesktop.telegram.org* of *web.telegram.org* voor een QR-code"
+   ],
+   "pl": [
+    "Wejdź na *getdesktop.telegram.org* lub *web.telegram.org*, aby pobrać kod QR"
+   ],
+   "pt-br": [
+    "Acesse *getdesktop.telegram.org* ou *web.telegram.org* para obter o QR code"
+   ],
+   "ro": [
+    "Mergi la *getdesktop.telegram.org* sau *web.telegram.org* pentru a obține un cod QR"
+   ],
+   "ru": [
+    "Чтобы зайти по QR-коду, перейдите на *getdesktop.telegram.org* или *web.telegram.org*"
+   ],
+   "sk": [
+    "Prejsť na *getdesktop.telegram.org* alebo *web.telegram.org* a získať QR kód"
+   ],
+   "sr": [
+    "Идите на *getdesktop.telegram.org* или *web.telegram.org* да бисте добили QR кôд"
+   ],
+   "sv": [
+    "Gå till [getdesktop.telegram.org](desktop) eller [web.telegram.org](webb) för att få QR-koden."
+   ],
+   "tr": [
+    "QR kodu almak için *getdesktop.telegram.org* veya *web.telegram.org* adresine gidin"
+   ],
+   "uk": [
+    "Щоб отримати QR-код, відкрийте *getdesktop.telegram.org* чи *web.telegram.org* "
+   ],
+   "uz": [
+    "QR kodni olish uchun *getdesktop.telegram.org* yoki *web.telegram.org* manziliga kiring"
+   ],
+   "vi": [
+    "Truy cập *getdesktop.telegram.org* hay *web.telegram.org* để lấy mã QR"
+   ],
+   "zh-hans": [
+    "前往 *getdesktop.telegram.org* 或 *web.telegram.org* 获取二维码"
+   ],
+   "zh-hant": [
+    "前往 *getdesktop.telegram.org* 或 *web.telegram.org* 以獲取 QR Code"
+   ]
+  },
+  "AuthAnotherWebClientUrl": {
+   "ar": [
+    "https://web.telegram.org/"
+   ],
+   "be": [
+    "https://web.telegram.org/"
+   ],
+   "ca": [
+    "https://web.telegram.org/"
+   ],
+   "cs": [
+    "https://web.telegram.org/"
+   ],
+   "de": [
+    "https://web.telegram.org/"
+   ],
+   "en": [
+    "https://web.telegram.org/"
+   ],
+   "es": [
+    "https://web.telegram.org/"
+   ],
+   "fa": [
+    "https://web.telegram.org/"
+   ],
+   "fi": [
+    "https://web.telegram.org/"
+   ],
+   "fr": [
+    "https://web.telegram.org/"
+   ],
+   "he": [
+    "https://web.telegram.org/"
+   ],
+   "hr": [
+    "https://web.telegram.org/"
+   ],
+   "hu": [
+    "https://web.telegram.org/"
+   ],
+   "id": [
+    "https://web.telegram.org/"
+   ],
+   "it": [
+    "https://web.telegram.org/"
+   ],
+   "kk": [
+    "https://web.telegram.org/"
+   ],
+   "ko": [
+    "https://web.telegram.org/"
+   ],
+   "ms": [
+    "https://web.telegram.org/"
+   ],
+   "nb": [
+    "https://web.telegram.org/"
+   ],
+   "nl": [
+    "https://web.telegram.org/"
+   ],
+   "pl": [
+    "https://web.telegram.org/"
+   ],
+   "pt-br": [
+    "https://web.telegram.org/"
+   ],
+   "ro": [
+    "https://web.telegram.org/"
+   ],
+   "ru": [
+    "https://web.telegram.org/"
+   ],
+   "sk": [
+    "https://web.telegram.org/"
+   ],
+   "sr": [
+    "https://web.telegram.org/"
+   ],
+   "sv": [
+    "https://web.telegram.org/"
+   ],
+   "tr": [
+    "https://web.telegram.org/"
+   ],
+   "uk": [
+    "https://web.telegram.org/"
+   ],
+   "uz": [
+    "https://web.telegram.org/"
+   ],
+   "vi": [
+    "https://web.telegram.org/"
+   ],
+   "zh-hans": [
+    "https://web.telegram.org/"
+   ],
+   "zh-hant": [
+    "https://web.telegram.org/"
+   ]
+  },
+  "GroupDescription3": {
+   "ar": [
+    "تمتلك روابط عامة مثل t.me/title"
+   ],
+   "be": [
+    "Публічныя спасылкі, такія як t.me/title"
+   ],
+   "ca": [
+    "Enllaços públics, com t.me/títol"
+   ],
+   "cs": [
+    "Veřejné odkazy jako t.me/text"
+   ],
+   "de": [
+    "Öffentliche Links, wie t.me/title"
+   ],
+   "en": [
+    "Public links such as t.me/title"
+   ],
+   "es": [
+    "Enlaces públicos como t.me/title"
+   ],
+   "fa": [
+    "لینک‌های عمومی مانند t.me/title"
+   ],
+   "fi": [
+    "Julkiset linkit, kuten t.me/nimi"
+   ],
+   "fr": [
+    "Des liens publics comme t.me/titre"
+   ],
+   "he": [
+    "קישורים פומביים כגון t.me/title"
+   ],
+   "hr": [
+    "Javne linkove kao t.me/naziv"
+   ],
+   "hu": [
+    "Nyilvános hivatkozások, például: t.me/cím"
+   ],
+   "id": [
+    "Tautan publik seperti t.me/title"
+   ],
+   "it": [
+    "Link pubblici come t.me/title"
+   ],
+   "kk": [
+    "t.me/silteme секілді сілтеме жасай аласыз"
+   ],
+   "ko": [
+    "공개 링크를 t.me/제목으로 둘 수 있습니다"
+   ],
+   "ms": [
+    "Link awam seperti t.me/tajuk"
+   ],
+   "nb": [
+    "Offentlige lenker som t.me/title"
+   ],
+   "nl": [
+    "Openbare links zoals t.me/titel"
+   ],
+   "pl": [
+    "Linki publiczne, takie jak t.me/title"
+   ],
+   "pt-br": [
+    "Links públicos, como t.me/nome"
+   ],
+   "ro": [
+    "Linkuri publice ca t.me/titlu"
+   ],
+   "ru": [
+    "Публичные ссылки вида t.me/title"
+   ],
+   "sk": [
+    "Verejné adresy ako napr. t.me/názov"
+   ],
+   "sr": [
+    "Јавне везе као t.me/naziv"
+   ],
+   "sv": [
+    "Publika länkar som ex. t.me/title"
+   ],
+   "tr": [
+    "t.me/baslik gibi herkese açık bağlantılar"
+   ],
+   "uk": [
+    "Публічні посилання вигляду t.me"
+   ],
+   "uz": [
+    "t.me/title kabi ommaviy havolalar"
+   ],
+   "vi": [
+    "Link công khai, ví dụ: t.me/tên"
+   ],
+   "zh-hans": [
+    "公开链接，例如：t.me/title"
+   ],
+   "zh-hant": [
+    "公開連結，例如：t.me/title"
+   ]
+  }
+ },
+ "ios": {
+  "AuthSessions.AddDevice.ScanInstallInfo": {
+   "ar": [
+    "يرجى الذهاب إلى [getdesktop.telegram.org](desktop) or [web.telegram.org](web) للحصول على رمز QR"
+   ],
+   "be": [
+    "Перайдзіце на [getdesktop.telegram.org](getdesktop.telegram.org) ці [web.telegram.org](web.telegram.org), каб атрымаць QR-код"
+   ],
+   "ca": [
+    "Aneu a [getdesktop.telegram.org](desktop) o [web.telegram.org](web) per a obtenir el codi QR"
+   ],
+   "cs": [
+    "Přejděte na [getdesktop.telegram.org](desktop) nebo [web.telegram.org](web) pro získání QR kódu"
+   ],
+   "de": [
+    "Unter [getdesktop.telegram.org](desktop) oder [web.telegram.org](web) erhältst du einen QR-Code"
+   ],
+   "en": [
+    "Go to [getdesktop.telegram.org](desktop) or [web.telegram.org](web) to get the QR code"
+   ],
+   "es": [
+    "Ve a [getdesktop.telegram.org](desktop) o [web.telegram.org](web) para obtener el código"
+   ],
+   "fa": [
+    "برای دریافت کد QR به [getdesktop.telegram.org](desktop) یا [web.telegram.org](web) مراجعه کنید"
+   ],
+   "fi": [
+    "Avaa [getdesktop.telegram.org](desktop) tai [web.telegram.org](web) saadaksesi QR-koodin"
+   ],
+   "fr": [
+    "Allez sur [getdesktop.telegram.org](bureau) ou [web.telegram.org](web) pour obtenir le code QR."
+   ],
+   "he": [
+    "עבור ל[getdesktop.telegram.org](desktop) או [web.telegram.org](web) כדי לקבל קוד QR"
+   ],
+   "hr": [
+    "Otvorite [getdesktop.telegram.org](desktop) ili [web.telegram.org](web) da biste dobili QR kod"
+   ],
+   "hu": [
+    "Menj a [getdesktop.telegram.org](desktop) vagy a [web.telegram.org](web) oldalra a QR-kódért"
+   ],
+   "id": [
+    "Silakan ke [getdesktop.telegram.org](desktop) atau [web.telegram.org](web) untuk mendapatkan kode QR."
+   ],
+   "it": [
+    "Vai su [getdesktop.telegram.org](desktop) o [web.telegram.org](web) per ottenere il QR"
+   ],
+   "kk": [
+    "[getdesktop.telegram.org](desktop) не [web.telegram.org](web) өтіп, QR кодты скандаңыз"
+   ],
+   "ko": [
+    "QR 코드를 얻으려면, [getdesktop.telegram.org](desktop) 혹은 [web.telegram.org](web)을 방문하세요"
+   ],
+   "ms": [
+    "Sila ke [getdesktop.telegram.org](desktop) atau [web.telegram.org](web) untuk mendapat kod QR."
+   ],
+   "nb": [
+    "Besøk [getdesktop.telegram.org](desktop) eller [web.telegram.org](web) For å få QR koden"
+   ],
+   "nl": [
+    "Ga naar [getdesktop.telegram.org](desktop) of [web.telegram.org](web) om de QR-code te krijgen"
+   ],
+   "pl": [
+    "Wejdź na [getdesktop.telegram.org](desktop) lub [web.telegram.org](web), aby pobrać kod QR"
+   ],
+   "pt-br": [
+    "Acesse [getdesktop.telegram.org](desktop) ou [web.telegram.org](web) para obter o QR code"
+   ],
+   "ro": [
+    "Mergi la [getdesktop.telegram.org](desktop) sau [web.telegram.org](web) pentru a obține codul QR"
+   ],
+   "ru": [
+    "Чтобы зайти по QR-коду, перейдите на [getdesktop.telegram.org](desktop) или [web.telegram.org](web)."
+   ],
+   "sk": [
+    "Prejsť na [getdesktop.telegram.org](desktop) alebo [web.telegram.org](web) a získať QR kód"
+   ],
+   "sr": [
+    "Идите на [getdesktop.telegram.org](desktop) или [web.telegram.org](web) да бисте добили QR кôд"
+   ],
+   "sv": [
+    "Gå till [getdesktop.telegram.org](desktop) eller [web.telegram.org](webb) för att få QR-koden."
+   ],
+   "tr": [
+    "QR kodu almak için [getdesktop.telegram.org](desktop) veya [web.telegram.org](web) adresine gidin"
+   ],
+   "uk": [
+    "Щоб отримати QR-код, відкрийте\n[getdesktop.telegram.org](desktop) чи [web.telegram.org](web)"
+   ],
+   "uz": [
+    "QR kodni olish uchun [getdesktop.telegram.org](desktop) yoki [web.telegram.org](web) manziliga kiring"
+   ],
+   "vi": [
+    "Truy cập [getdesktop.telegram.org](desktop) hoặc [web.telegram.org](web) để lấy mã QR"
+   ],
+   "zh-hans": [
+    "前往 [getdesktop.telegram.org](desktop) 或 [web.telegram.org](web) 获取二维码"
+   ],
+   "zh-hant": [
+    "前往 [getdesktop.telegram.org](desktop) 或 [web.telegram.org](web) 以獲取 QR Code"
+   ]
+  },
+  "Business.Links.SimpleLinkInfoPhone": {
+   "ar": [
+    "يمكنك أيضًا استخدام رابط بسيط للمحادثة معك: [t.me/⁠+⁠⁨%@⁩](phone)."
+   ],
+   "be": [
+    "Таксама можна выкарыстоўваць простую спасылку на чат з вамі — [t.me/⁠+⁠%@](phone)."
+   ],
+   "ca": [
+    "També podeu usar un enllaç simple perquè obrin el vostre xat: [t.me/⁠+⁠%@](phone)."
+   ],
+   "cs": [
+    "Můžete také použít jednoduchý odkaz pro konverzaci s vámi — [t.me/⁠+⁠%@](phone)."
+   ],
+   "de": [
+    "Du kannst auch einen einfachen Link für einen Chat mit dir verwenden: [t.me/⁠+⁠%@](phone)."
+   ],
+   "en": [
+    "You can also use a simple link for a chat with you — [t.me/⁠+⁠%@](phone)."
+   ],
+   "es": [
+    "También puedes usar un enlace simple para un chat contigo: t.me/⁠+⁠%@](phone)."
+   ],
+   "fa": [
+    "شما همچنین می‌توانید از لینک ساده‌ای برای گفتگو با خود استفاده کنید؛ [t.me/⁠+⁠⁨%@⁩](phone)."
+   ],
+   "fi": [
+    "Voit myös käyttää linkkiä keskusteluun kanssasi — [t.me/+%@](phone)."
+   ],
+   "fr": [
+    "Vous pouvez aussi utiliser un simple lien pour un échange avec vous : [t.me/⁠+⁠%@](phone)."
+   ],
+   "he": [
+    "באפשרותך להשתמש בקישור פשוט לצ'אט איתך - [t.me/⁠+⁠⁨%@⁩](phone)."
+   ],
+   "hr": [
+    "Također možete koristiti jednostavni link za razgovor s vama — [t.me/⁠+⁠%@](phone)."
+   ],
+   "hu": [
+    "Egyszerű linket is használhatsz a veled való csevegéshez - [t.me/+%@](phone)."
+   ],
+   "id": [
+    "Anda juga dapat menggunakan tautan sederhana untuk percakapan biasa — [t.me/⁠+⁠%@](telepon)."
+   ],
+   "it": [
+    "Puoi anche usare un link semplice per una chat con te: [t.me/⁠+⁠%@](phone)."
+   ],
+   "kk": [
+    "Чатыңыздың қарапайым сілтемесін қолдана аласыз — [t.me/⁠+⁠%@](phone)."
+   ],
+   "ko": [
+    "회원님과의 대화에는 간단한 링크도 사용할 수 있습니다 — [t.me/⁠+⁠%@](phone)."
+   ],
+   "ms": [
+    "Anda juga boleh guna link mudah untuk bual dengan anda  — [t.me/⁠+⁠%@](phone)."
+   ],
+   "nb": [
+    "Du kan også benytte en enkel lenke for en samtale med deg — [t.me/%@](phone)."
+   ],
+   "nl": [
+    "Je kunt ook een eenvoudige link naar een chat met jou delen — [t.me/⁠+⁠%@](phone)."
+   ],
+   "pl": [
+    "Możesz także użyć prostego linku do rozmowy z tobą — [t.me/⁠+⁠%@](phone)."
+   ],
+   "pt-br": [
+    "Você também pode usar um link simples para conversarem com você — [t.me/⁠+⁠%@](phone)."
+   ],
+   "ro": [
+    "Poți folosi și un simplu link pentru o conversație cu tine — [t.me/⁠+⁠%@](phone)."
+   ],
+   "ru": [
+    "Также можно использовать обычную ссылку на чат с Вами — [t.me/⁠+⁠%@](phone)."
+   ],
+   "sr": [
+    "Можете користити и једноставну везу за ћаскање с вама — [t.me/⁠+⁠%@](phone)."
+   ],
+   "sv": [
+    "Du kan även använda en vanlig länk för att chatta med dig - [t.me/+%@](phone)."
+   ],
+   "tr": [
+    "Sizinle sohbet edilmesi için basit bir bağlantı da kullanabilirsiniz: [t.me/⁠+⁠%@](phone)."
+   ],
+   "uk": [
+    "Також можна використовувати звичайне посилання — [t.me/+%@](phone)."
+   ],
+   "vi": [
+    "Bạn cũng có thể dùng link đơn giản để bắt đầu chat — [t.me/⁠+⁠%@](phone)."
+   ],
+   "zh-hans": [
+    "您也可以使用短链接向你发起聊天 — [t.me/⁠+⁠%@](phone)."
+   ],
+   "zh-hant": [
+    "您也可以使用一條簡單的連結開始與您的聊天 - [t.me/⁠+⁠%@](電話)。"
+   ]
+  },
+  "Business.Links.SimpleLinkInfoUsername": {
+   "ar": [
+    "يمكنك أيضًا استخدام رابط بسيط للمحادثة معك: [t.me/⁨%@⁩](username)."
+   ],
+   "be": [
+    "Таксама можна скарыстацца простай спасылкай на чат з вамі — [t.me/%@](username)."
+   ],
+   "ca": [
+    "També podeu usar un enllaç simple perquè obrin el vostre xat: [t.me/%@](username)."
+   ],
+   "cs": [
+    "Můžete také použít jednoduchý odkaz pro konverzaci s vámi — [t.me/%@](username)."
+   ],
+   "de": [
+    "Du kannst auch einen einfachen Link für einen Chat mit dir verwenden: [t.me/%@](username)"
+   ],
+   "en": [
+    "You can also use a simple link for a chat with you — [t.me/%@](username)."
+   ],
+   "es": [
+    "También puedes usar un enlace simple para un chat contigo: [t.me/%@](username)."
+   ],
+   "fa": [
+    "شما همچنین می‌توانید از لینک ساده‌ای برای گفتگو با خود استفاده کنید؛ [t.me/⁨%@⁩](username)"
+   ],
+   "fi": [
+    "Voit myös käyttää linkkiä keskusteluun kanssasi — [t.me/%@](username)."
+   ],
+   "fr": [
+    "Vous pouvez aussi utiliser un simple lien pour un échange avec vous : [t.me/%@](username)."
+   ],
+   "he": [
+    "באפשרותך גם להשתמש בקישור פשוט לצ'אט איתך - [t.me/⁨%@⁩](username)"
+   ],
+   "hr": [
+    "Također možete koristiti jednostavni link za razgovor s vama — [t.me/%@](username)."
+   ],
+   "hu": [
+    "Egy egyszerű linket is használhatsz a veled való csevegéshez — [t.me/%@](username)."
+   ],
+   "id": [
+    "Anda juga dapat menggunakan tautan sederhana untuk percakapan biasa — [t.me/%@/(username)."
+   ],
+   "it": [
+    "Puoi anche usare un link semplice per una chat con te: [t.me/%@](username)."
+   ],
+   "kk": [
+    "Чатыңыздың қарапайым сілтемесін қолдана аласыз — [t.me/%@](username)."
+   ],
+   "ko": [
+    "회원님과의 대화에는 간단한 링크도 사용할 수 있습니다 — [t.me/%@](username)."
+   ],
+   "ms": [
+    "Anda juga boleh guna link mudah untuk bual dengan anda — [t.me/%@](username)."
+   ],
+   "nb": [
+    "Du kan også bruke en enkel lenke for en samtale med deg — [t.me/%@](username)."
+   ],
+   "nl": [
+    "Je kunt ook een eenvoudige link naar een chat met jou delen — [t.me/%@](username)."
+   ],
+   "pl": [
+    "Możesz także użyć prostego linku do rozmowy z tobą — [t.me/%@](username)."
+   ],
+   "pt-br": [
+    "Você também pode usar um link simples para conversarem com você — [t.me/%@](username)."
+   ],
+   "ro": [
+    "Poți folosi și un simplu link pentru o conversație cu tine — [t.me/%@](username)."
+   ],
+   "ru": [
+    "Также можно использовать обычную ссылку на чат с Вами — [t.me/%@](username)."
+   ],
+   "sr": [
+    "Можете користити и једноставну везу за ћаскање с вама — [t.me/%@](username)."
+   ],
+   "sv": [
+    "Du kan även använda en vanlig länk för att chatta med dig — [t.me/+%@](username)."
+   ],
+   "tr": [
+    "Sizinle sohbet edilmesi için basit bir bağlantı da kullanabilirsiniz: [t.me/⁠+⁠%@](username)."
+   ],
+   "uk": [
+    "Також можна використовувати звичайне посилання — [t.me/%@](username)."
+   ],
+   "uz": [
+    "Siz bilan chat uchun oddiy havoladan ham foydalanishingiz ham mumkin — [t.me/%@](foydalanuvchi nomi)."
+   ],
+   "vi": [
+    "Bạn cũng có thể dùng link đơn giản để bắt đầu chat — [t.me/%@](username)."
+   ],
+   "zh-hans": [
+    "您也可以使用短链接来与你发起聊天 — [t.me/%@](username)."
+   ],
+   "zh-hant": [
+    "您還可以使用一條簡單的連結開啟與您的聊天 - [t.me/%@](用戶名稱)。"
+   ]
+  },
+  "Business.Links.SimpleLinkInfoUsernamePhone": {
+   "ar": [
+    "يمكنك أيضًا استخدام رابط بسيط للمحادثة معك:\n[t.me/⁨%1$@⁩](username) أو [t.me/⁠+⁠⁨%2$@⁩](phone)."
+   ],
+   "be": [
+    "Можаце таксама прапанаваць звычайную спасылку на чат з вамі — %1$@ або %2$@."
+   ],
+   "ca": [
+    "També podeu usar un enllaç simple perquè obrin el vostre xat: [t.me/%1$@](username) o [t.me/+%2$@](phone)."
+   ],
+   "cs": [
+    "Můžete také použít jednoduchý odkaz pro konverzaci s vámi — [t.me/%1$@](username) nebo [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "de": [
+    "Du kannst auch einen einfachen Link für einen Chat mit dir verwenden: [t.me/%1$@](username) oder [t.me/+%2$@](phone)."
+   ],
+   "en": [
+    "You can also use a simple link for a chat with you — [t.me/%1$@](username) or [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "es": [
+    "También puedes usar un enlace simple para un chat contigo: [t.me/%1$@](username) o [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "fa": [
+    "شما همچنین می‌توانید از لینک ساده‌ای برای گفتگو با خود استفاده کنید؛ [t.me/⁨%1$@⁩](username) یا [t.me/⁠+⁠⁨%2$@⁩](phone)."
+   ],
+   "fi": [
+    "Voit myös käyttää linkkiä keskusteluun kanssasi — [t.me/%1$@](username) tai [t.me/+%2$@](phone)."
+   ],
+   "fr": [
+    "Vous pouvez aussi utiliser un simple lien pour un échange avec vous : [t.me/%1$@](username) ou [t.me/+%2$@](phone)."
+   ],
+   "he": [
+    "באפשרותך גם להשתמש בקישור פשוט לצ'אט איתך - [t.me/⁨%1$@⁩](username) או [t.me/+⁨%2$@⁩](phone)."
+   ],
+   "hr": [
+    "Također možete koristiti jednostavni link za razgovor s vama — [t.me/%1$@](username) ili [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "hu": [
+    "Használhatsz egyszerű linket is a veled történő csevegéshez — [t.me/%1$@](username) or [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "id": [
+    "Anda juga dapat menggunakan tautan sederhana untuk percakapan biasa — [t.me/%1$@](username) atau [t.me/⁠+⁠%2$@](telepon)."
+   ],
+   "it": [
+    "Puoi anche usare un link semplice per una chat con te: [t.me/%1$@](username) o [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "kk": [
+    "Чатыңыздың қарапайым сілтемесін қолдана аласыз — [t.me/%1$@](username) не [t.me/⁠+⁠%2$@](phone)"
+   ],
+   "ko": [
+    "회원님과의 대화에는 간단한 링크도 사용할 수 있습니다 — [t.me/%1$@](username) 또는 [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "ms": [
+    "Anda juga boleh guna link mudah untuk bual dengan anda — [t.me/%1$@](username) atau [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "nb": [
+    "Du kan også bruke en enkel lenke for en samtale med deg — [t.me/%1$@](username) eller [t.me/+%2$@](phone)."
+   ],
+   "nl": [
+    "Je kunt ook een eenvoudige link naar een chat met jou delen — [t.me/%1$@](username) of [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "pl": [
+    "Możesz także użyć prostego linku do rozmowy z tobą — [t.me/%1$@](username) lub [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "pt-br": [
+    "Você também pode usar um link simples para conversarem com você — [t.me/%1$@](username) ou [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "ro": [
+    "Poți folosi și un simplu link pentru o conversație cu tine — [t.me/%1$@](username) sau [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "ru": [
+    "Также можно использовать обычную ссылку на чат с Вами: [t.me/%1$@](username) или [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "sk": [
+    "Môžete tiež použiť jednoduchý odkaz na konverzáciu s vami – [t.me/%1$@](používateľské meno) alebo [t.me/+%2$@](telefón)."
+   ],
+   "sr": [
+    "Можете користити и једноставну везу за ћаскање с вама — [t.me/%1$@](username) или [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "sv": [
+    "Du kan också använda en vanlig länk för att chatta med dig - [t.me/%1$@](username) eller [t.me/+%2$@](phone)"
+   ],
+   "tr": [
+    "Sizinle sohbet etmek için basit bir bağlantı da kullanabilirsiniz: [t.me/%1$@](username) veya [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "uk": [
+    "Також можна використовувати звичайне посилання — [t.me/%1$@](username) або [t.me/+%2$@](phone)."
+   ],
+   "uz": [
+    "Siz bilan chat uchun oddiy havoladan ham foydalanishingiz mumkin – [t.me/%1$@](username) yoki [t.me/⁠+⁠%2$@](phone)"
+   ],
+   "vi": [
+    "Bạn có thể dùng link đơn giản để bắt đầu chat — [t.me/%1$@](username) hoặc [t.me/⁠+⁠%2$@](phone)."
+   ],
+   "zh-hans": [
+    "您也可以使用一个简单的链接来开始与您聊天 —  [t.me/%1$@](username) 或 [t.me/⁠+⁠%2$@](phone)。"
+   ],
+   "zh-hant": [
+    "您也可以使用簡單的連結開始與您的聊天——[t.me/%1$@](username) 或 [t.me/⁠+⁠%2$@](phone)。"
+   ]
+  },
+  "Channel.Username.LinkHint": {
+   "ar": [
+    "يقوم هذا الرابط بفتح قناتك:[\n⁨%@⁩/https://t.me]"
+   ],
+   "be": [
+    "Гэта спасылка адкрые ваш канал у Telegram:[\nhttps://t.me/%@]"
+   ],
+   "ca": [
+    "Aquest enllaç obre el vostre canal al Telegram:[\nhttps://t.me/%@]"
+   ],
+   "cs": [
+    "Tento odkaz otevře váš kanál:[\nhttps://t.me/%@]"
+   ],
+   "de": [
+    "Dieser Link öffnet deinen Kanal:[\nhttps://t.me/%@]"
+   ],
+   "en": [
+    "This link opens your channel:[\nhttps://t.me/%@]"
+   ],
+   "es": [
+    "Este enlace abre tu canal:[\nhttps://t.me/%@]"
+   ],
+   "fa": [
+    "این لینک کانال شما را باز می‌کند:[\nhttps://t.me/⁨%@⁩]"
+   ],
+   "fi": [
+    "Kanavalle pääsee tällä linkillä:[\nhttps://t.me/%@]"
+   ],
+   "fr": [
+    "Ce lien ouvre votre canal :[\nhttps://t.me/%@]"
+   ],
+   "he": [
+    "קישור זה פותח את הערוץ שלך: [\nhttps://t.me/⁨%@⁩]"
+   ],
+   "hr": [
+    "Ovaj link vodi do vašeg kanala:[\nhttps://t.me/%@]"
+   ],
+   "hu": [
+    "Ez a hivatkozás megnyitja a csatornádat:\nhttp://t.me/%@"
+   ],
+   "id": [
+    "Tautan ini membuka channel Anda di Telegram:[\nhttps://t.me/%@]"
+   ],
+   "it": [
+    "Questo link apre il tuo canale:[\nhttps://t.me/%@]"
+   ],
+   "kk": [
+    "Арнаңыздың сілтемесі:[\nhttps://t.me/%@]"
+   ],
+   "ko": [
+    "아래 링크로 채널이 열립니다:[\nhttps://t.me/%@]"
+   ],
+   "ms": [
+    "Link ini akan buka saluran anda:[\nhttps://t.me/%@]"
+   ],
+   "nb": [
+    "Denne lenken åpner kanalen:[\nhttps://t.me/%@]"
+   ],
+   "nl": [
+    "Deze link opent je kanaal:[\nhttps://t.me/%@]"
+   ],
+   "pl": [
+    "Ten link otwiera twój kanał:[\nhttps://t.me/%@]"
+   ],
+   "pt-br": [
+    "Este link abre o seu canal:[\nhttps://t.me/%@]"
+   ],
+   "ro": [
+    "Acest link deschide canalul tău:[\nhttps://t.me/%@]"
+   ],
+   "ru": [
+    "Эта ссылка откроет Ваш канал в Telegram:[\nhttps://t.me/%@]"
+   ],
+   "sk": [
+    "Tento odkaz otvorí váš kanál:[\nhttps://t.me/%@]"
+   ],
+   "sr": [
+    "Ова веза отвара ваш канал:\n[https://t.me/%@]"
+   ],
+   "sv": [
+    "Länken öppnar din kanal :[\nhttps://t.me/%@]"
+   ],
+   "tr": [
+    "Bu bağlantı kanalınızı açar:[\nhttps://t.me/%@]"
+   ],
+   "uk": [
+    "Це посилання відкриває ваш канал у Telegram:[\nhttps://t.me/%@]"
+   ],
+   "uz": [
+    "Bu havola kanalingizni ochadi:[\nhttps://t.me/%@]"
+   ],
+   "vi": [
+    "Link này dẫn tới kênh của bạn:[\nhttps://t.me/%@]"
+   ],
+   "zh-hans": [
+    "通过这个链接可以打开您的频道：[\nhttps://t.me/%@]"
+   ],
+   "zh-hant": [
+    "此連結開啟您在 Telegram 中的頻道：[\nhttps://t.me/%@]"
+   ]
+  },
+  "EmptyGroupInfo.Line3": {
+   "ar": [
+    "تمتلك روابط عامة مثل t.me/title"
+   ],
+   "be": [
+    "Публічныя спасылкі, такія як t.me/title"
+   ],
+   "ca": [
+    "Enllaços públics, com t.me/títol"
+   ],
+   "cs": [
+    "Veřejné odkazy jako t.me/text"
+   ],
+   "de": [
+    "Öffentliche Links, wie t.me/title"
+   ],
+   "en": [
+    "Public links such as t.me/title"
+   ],
+   "es": [
+    "Enlaces públicos como t.me/title"
+   ],
+   "fa": [
+    "لینک‌های عمومی مانند t.me/title"
+   ],
+   "fi": [
+    "Julkiset linkit, kuten t.me/nimi"
+   ],
+   "fr": [
+    "Des liens publics comme t.me/titre"
+   ],
+   "he": [
+    "קישורים פומביים כגון t.me/title"
+   ],
+   "hr": [
+    "Javne linkove kao t.me/naziv"
+   ],
+   "hu": [
+    "Nyilvános hivatkozások, mint: t.me/title"
+   ],
+   "id": [
+    "Tautan publik seperti t.me/title"
+   ],
+   "it": [
+    "Link pubblici come t.me/title"
+   ],
+   "kk": [
+    "t.me/silteme секілді сілтеме жасай аласыз"
+   ],
+   "ko": [
+    "공개 링크를 t.me/제목으로 둘 수 있습니다"
+   ],
+   "ms": [
+    "Link awam seperti t.me/tajuk"
+   ],
+   "nb": [
+    "Offentlige lenker som t.me/title"
+   ],
+   "nl": [
+    "Openbare links zoals t.me/titel"
+   ],
+   "pl": [
+    "Linki publiczne, takie jak t.me/title"
+   ],
+   "pt-br": [
+    "Links públicos, como t.me/nome"
+   ],
+   "ro": [
+    "Linkuri publice ca t.me/titlu"
+   ],
+   "ru": [
+    "Публичные ссылки вида t.me/title"
+   ],
+   "sk": [
+    "Verejné adresy ako napr. t.me/názov"
+   ],
+   "sr": [
+    "Јавне везе као t.me/naziv"
+   ],
+   "sv": [
+    "Publika länkar som ex. t.me/title"
+   ],
+   "tr": [
+    "t.me/title gibi herkese açık bağlantılar"
+   ],
+   "uk": [
+    "Публічні посилання вигляду t.me"
+   ],
+   "uz": [
+    "t.me/title kabi ommaviy havolalar"
+   ],
+   "vi": [
+    "Link công khai, ví dụ: t.me/tên"
+   ],
+   "zh-hans": [
+    "公开链接，例如：t.me/title"
+   ],
+   "zh-hant": [
+    "公開連結，例如：t.me/title"
+   ]
+  },
+  "PrivacyPhoneNumberSettings.CustomPublicLink": {
+   "ar": [
+    "المستخدمون الذين لديهم رقمك محفوظًا في جهات اتصالهم سيظهر لهم أيضًا على تيليجرام.\n\nهذا الرابط العام يفتح محادثة معك:\n[https://t.me/⁨%@⁩]()"
+   ],
+   "be": [
+    "Карыстальнікі, якія захавалі ваш нумар тэлефона ў сваіх кантактах, таксама будуць бачыць яго ў Telegram.\n\nГэтая спасылка адкрые чат з вамі:\n[https://t.me/%@]()"
+   ],
+   "ca": [
+    "Els usuaris que tinguin el vostre número als contactes també el veuran al Telegram.\n\nAquest enllaç públic obre el vostre xat:\n[https://t.me/%@]()"
+   ],
+   "cs": [
+    "Uživatelé, mající vaše telefonní číslo uložené u sebe v Kontaktech, ho také uvidí v Telegramu.\n\nTento veřejný odkaz otevře konverzaci s vámi:\n[https://t.me/%@]()"
+   ],
+   "de": [
+    "Nutzer, die deine Nummer bei sich als Kontakt gespeichert haben, sehen sie auch bei Telegram.\n\nDieser öffentliche Link öffnet einen Chat mit dir:\n[https://t.me/%@]()"
+   ],
+   "en": [
+    "Users who have your number saved in their contacts will also see it on Telegram.\n\nThis public link opens a chat with you:\n[https://t.me/%@]()"
+   ],
+   "es": [
+    "Los usuarios que tengan tu número guardado en sus contactos también lo verán en Telegram.\n\nEste enlace público abre un chat contigo:\n[https://t.me/%@]()"
+   ],
+   "fa": [
+    "کاربرانی که شماره شما را در مخاطبین خود ذخیره کرده باشند، آن را در تلگرام نیز مشاهده خواهند کرد.\n\nاین لینک گفتگویی را با خودتان باز می‌کند:\n[https://t.me/⁨%@⁩]()"
+   ],
+   "fi": [
+    "Käyttäjät, joilla on numerosi yhteystiedoissaan, näkevät sen myös Telegramissa.\n\nTämä julkinen linkki avaa keskustelun kanssasi Telegramissa:\n[https://t.me/%@]()"
+   ],
+   "fr": [
+    "Les utilisateurs disposant de votre numéro dans leurs contacts le verront également sur Telegram.\n\nCe lien public ouvre directement un échange avec vous :\n[https://t.me/%@]()"
+   ],
+   "he": [
+    "משתמשים ששמרו את מספר הטלפון שלך ברשימת אנשי הקשר שלהם יראו אותו גם בטלגרם.\n\nקישור זה יפתח צ'אט איתך:\n[https://t.me/⁨%@⁩]()"
+   ],
+   "hr": [
+    "Korisnici koji već imaju vaš broj spremljen u kontaktima će ga vidjeti i na Telegramu.\n\nOvaj javni link otvara razgovor s vama:\n[https://t.me/%@]()"
+   ],
+   "hu": [
+    "Azok a felhasználók, akik elmentették a számodat a névjegyeik közé, a Telegramban is látni fogják.\n\nEz a nyilvános link megnyit egy csevegést veled:\n[https://t.me/%@]()"
+   ],
+   "id": [
+    "Pengguna yang menyimpan nomor Anda di kontak akan dapat melihat di Telegram.\n\nTautan publik ini akan membuka obrolan ke Anda:\n[https://t.me/%@]()"
+   ],
+   "it": [
+    "Gli utenti che hanno il tuo numero salvato nei loro contatti lo vedranno anche su Telegram.\n\nQuesto link pubblico apre una chat con te:\n[https://t.me/%@]()"
+   ],
+   "kk": [
+    "Нөміріңізді сақтаған адам оны Telegram-нан да көре алады.\n\nTelegram-дағы сілтемеңіз:\n[https://t.me/%@]()"
+   ],
+   "ko": [
+    "회원님의 전화번호를 저장한 상대방도 텔레그램에서 볼 수 있게 됩니다.\n\n회원님과의 대화 공개 링크:\n[https://t.me/%@]()"
+   ],
+   "ms": [
+    "Pengguna yang ada nombor anda tersimpan dalam kenalan mereka juga akan kelihatan di Telegram.\n\nLink awam ini membuka bual dengan anda:\n[https://t.me/%@]()"
+   ],
+   "nb": [
+    "Brukere som allerede har telefonnummeret ditt lagret i sine kontakter vil også se det på Telegram.\n\nDenne offentlige lenken åpner en samtale med deg:\n[https://t.me/%@]()"
+   ],
+   "nl": [
+    "Gebruikers die je nummer in hun contacten hebben opgeslagen, zullen het ook op Telegram zien.\n\nVia deze openbare link wordt er een chat met jou geopend:\n[https://t.me/%@]()"
+   ],
+   "pl": [
+    "Użytkownicy, którzy mają zapisany twój numer w swoich kontaktach, zobaczą go również w Telegramie.\n\nTen publiczny link otwiera czat z tobą:\n[https://t.me/%@]()"
+   ],
+   "pt-br": [
+    "Usuários que têm seu número salvo nos contatos também irão ver o número no Telegram.\n\nEste link público abre uma conversa com você:\n[https://t.me/%@]()"
+   ],
+   "ro": [
+    "Utilizatorii care au numărul tău salvat la contacte îl vor vedea și pe Telegram.\n\nAcest link public deschide o conversație cu tine:\n[https://t.me/%@]()"
+   ],
+   "ru": [
+    "Пользователи, которые сохранили Ваш номер в телефонную книгу, будут видеть его и в Telegram.\n\nПубличная ссылка на чат с Вами:\n[https://t.me/%@]()"
+   ],
+   "sk": [
+    "Používatelia, ktorí majú vaše číslo uložené vo svojich kontaktoch, ho uvidia aj v Telegrame.\n\nTento verejný odkaz otvorí konverzáciu s vami:\n[https://t.me/%@]()"
+   ],
+   "sr": [
+    "Корисници који имају сачуван ваш број у својим контактима видеће га и на Telegram-у.\n\nОва јавна веза отвара ћаскање с вама:\n[https://t.me/%@]()"
+   ],
+   "sv": [
+    "Användare som har ditt telefonnummer i sin kontaktbok kommer också att se det på Telegram.\n\nDen här publika länken öppnar en chatt med dig:\n[https://t.me/%@]()"
+   ],
+   "tr": [
+    "Numaranızı kişilerine kaydeden kullanıcılar sizi Telegram'da da görür.\n\nBu genel bağlantı sizinle bir sohbet açar:\n[https://t.me/%@]()"
+   ],
+   "uk": [
+    "Ваш номер бачитимуть у Telegram також ті, у кого він записаний у контактах.\n\nЦе посилання відкриває чат з вами:\n[https://t.me/%@]()"
+   ],
+   "uz": [
+    "Kontaktlarida raqamingizni saqlagan kontaktlar uni Telegramda ham koʻradi.\n\nBu ommaviy havola siz bilan chatni ochadi:\n[https://t.me/%@]()"
+   ],
+   "vi": [
+    "Người có lưu số của bạn trong danh bạ của họ cũng sẽ thấy bạn trên Telegram.\n\nLink công khai để người khác chat với bạn: [https://t.me/%@]()"
+   ],
+   "zh-hans": [
+    "将您的手机号码保存为联系人的用户也将在 Telegram 上看到您的手机号码。\n\n 此公开链接将打开与您的聊天：\n [https://t.me/%@]()"
+   ],
+   "zh-hant": [
+    "將您的號碼加入到手機聯絡資訊的用戶也將在 Telegram 上看到它。\n\n這條公開連結開啟與您的聊天：\n[https://t.me/%@]()"
+   ]
+  },
+  "SocksProxySetup.QrCode.TMeLink": {
+   "ar": [
+    "t.me"
+   ],
+   "be": [
+    "спасылка t.me"
+   ],
+   "ca": [
+    "enllaç t.me"
+   ],
+   "cs": [
+    "odkaz t.me"
+   ],
+   "de": [
+    "t.me-Link"
+   ],
+   "en": [
+    "t.me link"
+   ],
+   "es": [
+    "enlace t.me"
+   ],
+   "fa": [
+    "لینک t.me"
+   ],
+   "fi": [
+    "t.me-linkki"
+   ],
+   "fr": [
+    "Lien t.me"
+   ],
+   "he": [
+    "קישור t.me"
+   ],
+   "hr": [
+    "t.me link"
+   ],
+   "hu": [
+    "t.me link"
+   ],
+   "id": [
+    "tautan t.me"
+   ],
+   "it": [
+    "link t.me"
+   ],
+   "kk": [
+    "t.me сілтеме"
+   ],
+   "ko": [
+    "t.me 링크"
+   ],
+   "ms": [
+    "t.me link"
+   ],
+   "nb": [
+    "t.me lenke"
+   ],
+   "nl": [
+    "t.me link"
+   ],
+   "pl": [
+    "t.me link"
+   ],
+   "pt-br": [
+    "Link t.me"
+   ],
+   "ro": [
+    "link t.me"
+   ],
+   "ru": [
+    "Cсылка t.me"
+   ],
+   "sk": [
+    "t.me link"
+   ],
+   "sr": [
+    "t.me веза"
+   ],
+   "sv": [
+    "t.me länk"
+   ],
+   "tr": [
+    "t.me link"
+   ],
+   "uk": [
+    "як t.me"
+   ],
+   "uz": [
+    "t.me havolasi"
+   ],
+   "vi": [
+    "Link t.me"
+   ],
+   "zh-hans": [
+    "t.me 链接"
+   ],
+   "zh-hant": [
+    "t.me 連結"
+   ]
+  },
+  "Username.LinkHint": {
+   "ar": [
+    "هذا الرابط يفتح محادثة معك:[\nhttps://t.me/⁨%@⁩]"
+   ],
+   "be": [
+    "Гэта спасылка адкрые чат з вамi:[\nhttps://t.me/%@]"
+   ],
+   "ca": [
+    "Aquest enllaç obre el vostre xat:[\nhttps://t.me/%@]"
+   ],
+   "cs": [
+    "Tento odkaz otevře konverzaci s vámi:[\nhttps://t.me/%@]"
+   ],
+   "de": [
+    "Dieser Link öffnet einen Chat mit dir:[\nhttps://t.me/%@]"
+   ],
+   "en": [
+    "This link opens a chat with you:[\nhttps://t.me/%@]"
+   ],
+   "es": [
+    "Este enlace abre un chat contigo:[\nhttps://t.me/%@]"
+   ],
+   "fa": [
+    "این لینک گفتگویی را با خودتان باز می‌کند:[\nhttps://t.me/⁨%@⁩]"
+   ],
+   "fi": [
+    "Tämä linkki avaa keskustelun kanssasi Telegramissa:[\nhttps://t.me/%@]"
+   ],
+   "fr": [
+    "Ce lien ouvre un échange avec vous :[\nhttps://t.me/%@]"
+   ],
+   "he": [
+    "קישור זה יפתח צ'אט איתך: [\nhttps://t.me/⁨%@⁩]"
+   ],
+   "hr": [
+    "Ovaj link otvara razgovor s vama:\n[https://t.me/%@]"
+   ],
+   "hu": [
+    "Ezen a hivatkozáson keresztül lehet csevegést kezdeményezni veled Telegramon::[\nhttps://t.me/%@]"
+   ],
+   "id": [
+    "Tautan ini membuka obrolan dengan Anda di Telegram:[\nhttps://t.me/%@]"
+   ],
+   "it": [
+    "Questo link apre una chat con te:[\nhttps://t.me/%@]"
+   ],
+   "kk": [
+    "Telegram-дағы сілтемеңіз:[\nhttps://t.me/%@]"
+   ],
+   "ko": [
+    "아래 링크로 회원님과의 대화방이 열립니다:[\nhttps://t.me/%@]"
+   ],
+   "ms": [
+    "Link ini membuka bual dengan anda:[\nhttps://t.me/%@]"
+   ],
+   "nb": [
+    "Denne lenken åpner en samtale med deg:[\nhttps://t.me/%@]"
+   ],
+   "nl": [
+    "Deze link opent een chat met je:[\nhttps://t.me/%@]"
+   ],
+   "pl": [
+    "Ten link otwiera czat z tobą:[\nhttps://t.me/%@]"
+   ],
+   "pt-br": [
+    "Este link abre um chat com você:[\nhttps://t.me/%@]"
+   ],
+   "ro": [
+    "Linkul începe o conversație cu tine:[\nhttps://t.me/%@]"
+   ],
+   "ru": [
+    "По этой ссылке откроется диалог с Вами в Telegram:[\nhttps://t.me/%@]"
+   ],
+   "sk": [
+    "Tento odkaz otvorí s vami konverzáciu na Telegrame: %@"
+   ],
+   "sr": [
+    "Ова веза отвара ћаскање с вама:\n[https://t.me/%@]"
+   ],
+   "sv": [
+    "Denna länk öppnar en chatt med dig:[\nhttps://t.me/%@]"
+   ],
+   "tr": [
+    "Bu bağlantı sizinle bir sohbet açar:\n[https://t.me/%@]"
+   ],
+   "uk": [
+    "Це посилання відкриває чат із вами в Telegram:[\nhttps://t.me/%@]"
+   ],
+   "uz": [
+    "Bu havola orqali siz bilan chat ochiladi:[\nhttps://t.me/%@]"
+   ],
+   "vi": [
+    "Link này mở cuộc chat với bạn:[\nhttps://t.me/%@]"
+   ],
+   "zh-hans": [
+    "通过此链接可以与您聊天：[\nhttps://t.me/%@]"
+   ],
+   "zh-hant": [
+    "此連結開啟與您的聊天：\n[https://t.me/%@]"
+   ]
+  }
+ },
+ "webk": {
+  "ChatAutomation.HeroDescription": {
+   "ar": [
+    "اضافة بوت إلى حسابك لمساعدتك في معالجة الرسائل التي تتلقاها والرد عليها تلقائيًا. [تعرّف على المزيد >]()"
+   ],
+   "be": [
+    "Далучыце бота да свайго ўліковага запісу, каб ён аўтаматычна адказваў на паведамленні, што вам пішуць. [Даведацца больш >]()"
+   ],
+   "ca": [
+    "Afegiu un bot al vostre compte perquè us ajudi a processar i respondre automàticament als missatges que rebeu. [Més informació >]()"
+   ],
+   "cs": [
+    "Přidejte k účtu bota, který vám pomůže automaticky zpracovávat a odpovídat na přijaté zprávy. [Další informace >]()"
+   ],
+   "en": [
+    "Add a bot to your account to help you automatically process and respond to the messages you receive. [Learn More >]()"
+   ],
+   "es": [
+    "Añade un bot a tu cuenta para que te ayude a procesar y responder automáticamente mensajes recibidos. [Saber más >]()"
+   ],
+   "fa": [
+    "یک ربات به حساب کاربری خود اضافه کنید تا به صورت خودکار پیام‌های دریافتی شما را پردازش کرده و به آن‌ها پاسخ دهد. [بیشتر بدانید >]()"
+   ],
+   "fi": [
+    "Lisää tilillesi botti, jolla voit automaattisesti käsitellä saamiasi viestejä ja vastata niihin. [Lue lisää >]()"
+   ],
+   "fr": [
+    "Ajoutez un bot à votre compte pour vous aider à traiter et à répondre automatiquement aux messages que vous recevez. [En savoir plus >]()"
+   ],
+   "it": [
+    "Aggiungi un bot al tuo account per aiutarti a elaborare e rispondere automaticamente ai messaggi che ricevi. [Scopri di più >]()"
+   ],
+   "kk": [
+    "Алынған хаттарды өздігінен өңдеуге және жауап беруге көмектесетін ботты тіркелгіңізге қосыңыз. [Толығырақ >]()"
+   ],
+   "ko": [
+    "받는 메시지를 자동으로 처리하고 답장할 수 있도록 계정에 봇을 추가하세요. [자세히 알아보기 >]()"
+   ],
+   "ms": [
+    "Tambah bot ke akaun anda untuk bantu anda auto proses dan respon ke mesej anda terima. [Pelajari Lagi >]()"
+   ],
+   "nb": [
+    "Legg til en robot på kontoen din for å hjelpe deg med å automatisk behandle og svare på meldingene du mottar. [Les mer >]()"
+   ],
+   "nl": [
+    "Voeg een bot toe aan je account om je te helpen met het automatisch verwerken van en reageren op berichten die je ontvangt. [Meer info >]()"
+   ],
+   "pl": [
+    "Dodaj bota do swojego konta, który pomoże ci automatycznie przetwarzać i odpowiadać na otrzymywane wiadomości. [Czytaj »]()"
+   ],
+   "pt-br": [
+    "Adicione um bot à sua conta para ajudar a processar e responder automaticamente às mensagens recebidas. [Saiba Mais >]()"
+   ],
+   "ro": [
+    "Adaugă un robot în contul tău pentru a te ajuta să procesezi și să răspunzi la mesajele pe care le primești automat. [Mai Multe >]()"
+   ],
+   "ru": [
+    "Подключите к учётной записи бота, который будет автоматически обрабатывать входящие сообщения и отвечать на них. [Подробнее >]()"
+   ],
+   "sr": [
+    "Додајте бота на свој налог како би вам помогао да аутоматски обрађујете и одговарате на поруке које примате. [Сазнај више >]()"
+   ],
+   "uk": [
+    "Підʼєднайте до акаунта бота, який оброблятиме ваші чати й відповідатиме на повідомлення за вас. [Докладніше >]()"
+   ],
+   "zh-hant": [
+    "將機器人新增至您的帳戶，以協助您自動處理並回覆收到的訊息。[了解更多 >]()"
+   ]
+  },
+  "ChatList.Main.EmptyPlaceholder.SubtitleNoContacts": {
+   "be": [
+    "Выкарыстоўвайце мабільную праграму Telegram для [Android](https://telegram.org/android) або [iOS](https://telegram.org/dl/ios), каб сінхранізаваць кантакты"
+   ],
+   "ca": [
+    "Useu l'aplicació del Telegram en un dispositiu [Android](https://telegram.org/android) o [iOS](https://telegram.org/dl/ios) per a sincronitzar els contactes"
+   ],
+   "cs": [
+    "K synchronizaci kontaktů použijte aplikaci Telegram v zařízení [Android](https://telegram.org/android) nebo [iOS](https://telegram.org/dl/ios)."
+   ],
+   "en": [
+    "Use Telegram app on your [Android](https://telegram.org/android) or [iOS](https://telegram.org/dl/ios) device to sync your contacts"
+   ],
+   "es": [
+    "Usa la app de Telegram en tu dispositivo [Android](https://telegram.org/android) o [iOS](https://telegram.org/dl/ios) para sincronizar tus contactos."
+   ],
+   "fa": [
+    "برای همگام‌سازی مخاطبین خود، از برنامه تلگرام در دستگاه [اندروید](https://telegram.org/android) یا [iOS](https://telegram.org/dl/ios) خود استفاده کنید."
+   ],
+   "fi": [
+    "Synkronoi yhteystietosi Telegramin [Android](https://telegram.org/android)- tai [iOS](https://telegram.org/dl/ios)-sovelluksella."
+   ],
+   "fr": [
+    "Utilisez l'application Telegram sur votre appareil [Android(https://telegram.org/android) ou [iOS](https://telegram.org/dl/ios) pour synchroniser vos contacts."
+   ],
+   "hr": [
+    "Koristite aplikaciju Telegram na svom [Android] (https://telegram.org/android) ili [iOS] (https://telegram.org/dl/ios) uređaju za sinkronizaciju kontakata"
+   ],
+   "hu": [
+    "Használd a Telegram alkalmazást az [Android](https://telegram.org/android) vagy [iOS](https://telegram.org/dl/ios) eszközödön a névjegyeid szinkronizálásához."
+   ],
+   "it": [
+    "Usa l'app Telegram sul tuo dispositivo [Android](https://telegram.org/android) o [iOS](https://telegram.org/dl/ios) per sincronizzare i tuoi contatti"
+   ],
+   "kk": [
+    "Telegram-ды [Android](https://telegram.org/android) не [iOS](https://telegram.org/dl/ios) құрылғыңызда қолданып, контактілерді үйлестіріңіз"
+   ],
+   "ko": [
+    "[Android](https://telegram.org/android) 또는 [iOS](https://telegram.org/dl/ios) 기기에서 텔레그램 앱을 사용하여 연락처를 동기화하세요."
+   ],
+   "ms": [
+    "Guna apTelegram di peranti [Android](https://telegram.org/android) atau [iOS](https://telegram.org/dl/ios) untuk segerak kenalan anda"
+   ],
+   "nb": [
+    "Bruk Telegram appen på din [Android](https://telegram.org/android) eller [iOS](https://telegram.org/dl/ios) enhet for å synkronisere kontaktene dine"
+   ],
+   "nl": [
+    "Gebruik de Telegram-app op je [Android](https://telegram.org/android) of [iOS](https://telegram.org/dl/ios)-apparaat om je contacten te synchroniseren"
+   ],
+   "pl": [
+    "Użyj aplikacji Telegram na urządzeniu z [Androidem](https://telegram.org/android) lub [iOS](https://telegram.org/dl/ios), aby zsynchronizować swoje kontakty."
+   ],
+   "pt-br": [
+    "Use o Telegram no seu dispositivo [Android](https://telegram.org/android) ou [iOS](https://telegram.org/dl/ios) para sincronizar seus contatos"
+   ],
+   "ro": [
+    "Folosește aplicația Telegram pe dispozitivul tău [Android](https://telegram.org/android) sau [iOS](https://telegram.org/dl/ios) pentru a-ți sincroniza contactele"
+   ],
+   "ru": [
+    "Синхронизация контактов доступна в мобильных приложениях Telegram для [Android](https://telegram.org/android) и [iOS](https://telegram.org/dl/ios)"
+   ],
+   "sr": [
+    "Користите апликацију Telegram на свом [Android](https://telegram.org/android) или [iOS](https://telegram.org/dl/ios) уређају да бисте синхронизовали своје контакте"
+   ],
+   "uk": [
+    "Скористайтеся застосунком Telegram для [Android](https://telegram.org/android) або [iOS](https://telegram.org/dl/ios), щоб синхронізувати ваші контакти"
+   ],
+   "zh-hans": [
+    "在您的 [Android](https://telegram.org/android) 或 [iOS](https://telegram.org/dl/ios) 设备上使用 Telegram 应用同步您的联系人"
+   ],
+   "zh-hant": [
+    "在 [Android](https://telegram.org/android) 或 [iOS](https://telegram.org/dl/ios) 裝置上使用 Telegram 應用程式來同步您的聯絡人"
+   ]
+  },
+  "GroupDescription3": {
+   "ar": [
+    "تمتلك روابط عامة مثل t.me/title"
+   ],
+   "be": [
+    "Публічныя спасылкі, такія як t.me/title"
+   ],
+   "ca": [
+    "Enllaços públics, com t.me/títol"
+   ],
+   "cs": [
+    "Veřejné odkazy jako t.me/text"
+   ],
+   "de": [
+    "Öffentliche Links, wie t.me/title"
+   ],
+   "en": [
+    "Public links such as t.me/title"
+   ],
+   "es": [
+    "Enlaces públicos como t.me/title"
+   ],
+   "fa": [
+    "لینک‌های عمومی مانند t.me/title"
+   ],
+   "fi": [
+    "Julkiset linkit, kuten t.me/nimi"
+   ],
+   "fr": [
+    "Des liens publics comme t.me/titre"
+   ],
+   "hr": [
+    "Javne linkove kao t.me/naziv"
+   ],
+   "hu": [
+    "Nyilvános hivatkozások, például: t.me/cím"
+   ],
+   "id": [
+    "Tautan publik seperti t.me/title"
+   ],
+   "it": [
+    "Link pubblici come t.me/title"
+   ],
+   "kk": [
+    "t.me/silteme секілді сілтеме жасай аласыз"
+   ],
+   "ko": [
+    "공개 링크를 t.me/제목으로 둘 수 있습니다"
+   ],
+   "ms": [
+    "Link awam seperti t.me/tajuk"
+   ],
+   "nb": [
+    "Offentlige lenker som t.me/title"
+   ],
+   "nl": [
+    "Openbare links zoals t.me/titel"
+   ],
+   "pl": [
+    "Linki publiczne, takie jak t.me/title"
+   ],
+   "pt-br": [
+    "Links públicos, como t.me/nome"
+   ],
+   "ro": [
+    "Link-uri publice ca t.me/titlu"
+   ],
+   "ru": [
+    "Публичные ссылки вида t.me/title"
+   ],
+   "sr": [
+    "Јавне везе као t.me/naziv"
+   ],
+   "tr": [
+    "t.me/baslik gibi herkese açık bağlantılar"
+   ],
+   "uk": [
+    "Публічні посилання вигляду t.me"
+   ],
+   "uz": [
+    "t.me/title kabi ommaviy havolalar"
+   ],
+   "zh-hans": [
+    "公开链接，例如：t.me/title"
+   ],
+   "zh-hant": [
+    "公開連結，例如：t.me/title"
+   ]
+  },
+  "PublicLinksLimitSubtitle": {
+   "ar": [
+    "حجز ما يصل إلى ⁨%d⁩ رابط t.me/username"
+   ],
+   "be": [
+    "Рэзервуйце да %d спасылак фармату t.me/username"
+   ],
+   "ca": [
+    "Reserveu fins a %d enllaços t.me/nom"
+   ],
+   "cs": [
+    "Zarezervujte si až %d odkazů t.me/username"
+   ],
+   "de": [
+    "Bis zu %d t.me/username Links"
+   ],
+   "en": [
+    "Reserve up to %d t.me/username links"
+   ],
+   "es": [
+    "Reserva hasta %d enlaces t.me/username"
+   ],
+   "fa": [
+    "تا ⁨%d⁩ لینک t.me/username را رزرو کنید"
+   ],
+   "fi": [
+    "Varaa jopa %d t.me/nimimerkki-linkkiä"
+   ],
+   "fr": [
+    "Réservez jusqu'à %d t.me/nom liens"
+   ],
+   "hr": [
+    "Rezervirajte do %d t.me/korisničkoime linkova"
+   ],
+   "hu": [
+    "Foglalj le akár %d t.me/felhasználónevet"
+   ],
+   "id": [
+    "Miliki hingga %d tautan t.me/username"
+   ],
+   "it": [
+    "Riserva fino a %d link t.me/username"
+   ],
+   "kk": [
+    "%d t.me/username сілтеме жасай алыңыз"
+   ],
+   "ko": [
+    "최대 %d개의 t.me/username 링크를 마련할 수 있어요"
+   ],
+   "ms": [
+    "Tersedia hingga %d link t.me/namasamaran"
+   ],
+   "nb": [
+    "Reserver inntil %d t.me/brukernavn lenker"
+   ],
+   "nl": [
+    "Reserveer maximaal %d t.me/gebruikersnaam-links"
+   ],
+   "pl": [
+    "Zarezerwuj do %d linków t.me/nazwa_uzytkownika"
+   ],
+   "pt-br": [
+    "Reserve até %d links t.me/usuario."
+   ],
+   "ro": [
+    "Rezervă până la %d linkuri t.me/username"
+   ],
+   "ru": [
+    "Использование до %d ссылок вида t.me/username"
+   ],
+   "sr": [
+    "Резервишите до %d веза t.me/korisnickoime"
+   ],
+   "tr": [
+    "%d adede kadar t.me/username bağlantısı ayırın"
+   ],
+   "uk": [
+    "До %d зайнятих посилань виду t.me/username"
+   ],
+   "uz": [
+    "%d tagacha t.me/username shaklidagi havoladan foydalaning"
+   ],
+   "zh-hans": [
+    "保留高达 %d 个 t.me/username 链接"
+   ],
+   "zh-hant": [
+    "最多可擁有 %d 個 t.me/username 連結"
+   ]
+  }
+ }
+}

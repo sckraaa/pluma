@@ -372,7 +372,7 @@ func (s *Store) Import(ctx context.Context, snap *Snapshot) (*ImportResult, erro
 	incoming := make([]pendingString, len(snap.Strings))
 	for i := range snap.Strings {
 		up := &snap.Strings[i]
-		rendered := Rebrand(lang, *up)
+		rendered := Rebrand(pack, lang, *up)
 		incoming[i] = pendingString{s: &rendered, upstream: up}
 		if words := leftoverWords(&rendered); len(words) > 0 {
 			res.Leftovers[up.Key] = words

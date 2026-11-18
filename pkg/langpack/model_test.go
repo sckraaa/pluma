@@ -152,7 +152,7 @@ func TestPlanImport(t *testing.T) {
 	}
 	incoming := make([]pendingString, len(upstream))
 	for i := range upstream {
-		r := Rebrand("en", upstream[i])
+		r := Rebrand("tdesktop", "en", upstream[i])
 		incoming[i] = pendingString{s: &r, upstream: &upstream[i]}
 	}
 	p := planImport(stored, incoming)
