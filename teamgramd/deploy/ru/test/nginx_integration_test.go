@@ -491,6 +491,10 @@ bash /src/teamgramd/deploy/ru/deploy.sh render /etc/pluma-ru/env /etc/pluma-ru -
 		if _, ok := a.headers["access-control-allow-methods"]; ok {
 			t.Errorf("preflight headers on a GET: %v", a)
 		}
+		a = n.fetch("-H", "Origin: https://edge.gcore.test", "-H", "Range: bytes=0-9", urlA)
+		if a.status != 206 || a.headers["access-control-allow-origin"] != "https://edge.gcore.test" {
+			t.Errorf("the Gcore edge's site: %v", a)
+		}
 		a = n.fetch("-H", "Origin: https://evil.test", "-H", "Range: bytes=0-9", urlA)
 		if _, ok := a.headers["access-control-allow-origin"]; ok || a.status != 206 {
 			t.Errorf("another site: %v", a)

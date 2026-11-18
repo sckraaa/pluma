@@ -76,6 +76,7 @@ func newNodeEnv(t *testing.T) *nodeEnv {
 	e.set("PLUMA_RU_EDGE_DOMAIN", "ru.pluma.test")
 	e.set("PLUMA_CDN_ORIGIN_DOMAIN", "origin.pluma.test")
 	e.set("PLUMA_WEB_DOMAIN", "web.pluma.test")
+	e.set("PLUMA_GCORE_EDGE_DOMAIN", "edge.gcore.test")
 	e.set("CDN_RU_TOKEN_KEY", randomHex(t, 16))
 	e.set("CDN_RU_ORIGIN_AUTH", randomHex(t, 32))
 	e.set("CALLS_TURN_SECRETS", "ru="+randomHex(t, 32))
@@ -219,6 +220,7 @@ func TestRender(t *testing.T) {
 		"proxy_ssl_name origin.pluma.test;",
 		`"https://web.pluma.test" $http_origin;`,
 		`"https://ru.pluma.test" $http_origin;`,
+		`"https://edge.gcore.test" $http_origin;`,
 	} {
 		if !strings.Contains(conf, want) {
 			t.Errorf("files.conf has no %q", want)
@@ -270,6 +272,25 @@ func TestRender(t *testing.T) {
 	}
 }
 
+// TestRenderWithoutGcoreEdge: the Gcore edge's site is optional; without it
+// the CORS map has the two sites of Pluma only.
+func TestRenderWithoutGcoreEdge(t *testing.T) {
+	needBash(t)
+	e := newNodeEnv(t)
+	e.del("PLUMA_GCORE_EDGE_DOMAIN")
+	dir, text, code := render(t, e)
+	if code != 0 {
+		t.Fatalf("render: exit %d\n%s", code, text)
+	}
+	conf := readFile(t, filepath.Join(dir, "files.conf"))
+	if strings.Contains(conf, "edge.gcore.test") || placeholder.MatchString(conf) {
+		t.Errorf("files.conf without PLUMA_GCORE_EDGE_DOMAIN:\n%s", conf)
+	}
+	if !strings.Contains(conf, `"https://ru.pluma.test" $http_origin;`) {
+		t.Error("files.conf lost the edge's site")
+	}
+}
+
 func TestRenderTestBuild(t *testing.T) {
 	needBash(t)
 	e := newNodeEnv(t)
@@ -307,6 +328,7 @@ func TestRenderRefusesBadValues(t *testing.T) {
 		{"TURN secret with a line break", func(e *nodeEnv) { e.set("CALLS_TURN_SECRETS", "ru="+strings.Repeat("c", 40)+"\nexternal-ip=1.2.3.4") }, "is not NAME=value"},
 		{"domain upper case", func(e *nodeEnv) { e.set("PLUMA_RU_FILES_DOMAIN", "R1.pluma.test") }, "PLUMA_RU_FILES_DOMAIN"},
 		{"domain with a semicolon", func(e *nodeEnv) { e.set("PLUMA_WEB_DOMAIN", "web.pluma.test;") }, "PLUMA_WEB_DOMAIN"},
+		{"Gcore edge with a path", func(e *nodeEnv) { e.set("PLUMA_GCORE_EDGE_DOMAIN", "edge.gcore.test/x") }, "PLUMA_GCORE_EDGE_DOMAIN"},
 		{"domain without a dot", func(e *nodeEnv) { e.set("PLUMA_CDN_ORIGIN_DOMAIN", "origin") }, "PLUMA_CDN_ORIGIN_DOMAIN"},
 		{"same names", func(e *nodeEnv) { e.set("PLUMA_RU_EDGE_DOMAIN", "r1.pluma.test") }, "the same name"},
 		{"address out of range", func(e *nodeEnv) { e.set("PLUMA_RU_PUBLIC_IPV4", "256.1.1.1") }, "PLUMA_RU_PUBLIC_IPV4"},

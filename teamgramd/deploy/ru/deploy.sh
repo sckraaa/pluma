@@ -54,7 +54,7 @@ say() { echo "deploy: $*"; }
 
 KNOWN_VARS=(PLUMA_RU_PUBLIC_IPV4 PLUMA_RU_FILES_DOMAIN PLUMA_RU_EDGE_DOMAIN PLUMA_CDN_ORIGIN_DOMAIN
 	PLUMA_WEB_DOMAIN CDN_RU_TOKEN_KEY CDN_RU_ORIGIN_AUTH CALLS_TURN_SECRETS PLUMA_RU_ORIGIN_ADDR
-	PLUMA_RU_ACME_EMAIL)
+	PLUMA_RU_ACME_EMAIL PLUMA_GCORE_EDGE_DOMAIN)
 declare -A ENV=()
 
 load_env() {
@@ -111,6 +111,9 @@ check_env() {
 	if [ -n "${ENV[PLUMA_RU_ORIGIN_ADDR]:-}" ]; then
 		[[ ${ENV[PLUMA_RU_ORIGIN_ADDR]} =~ ^[0-9.]+:[0-9]{1,5}$ ]] || die "PLUMA_RU_ORIGIN_ADDR is not <IPv4>:<port>"
 	fi
+	if [ -n "${ENV[PLUMA_GCORE_EDGE_DOMAIN]:-}" ]; then
+		[[ ${ENV[PLUMA_GCORE_EDGE_DOMAIN]} =~ $DOMAIN_RE ]] || die "PLUMA_GCORE_EDGE_DOMAIN is not a lower-case domain name"
+	fi
 	if [ -n "${ENV[PLUMA_RU_ACME_EMAIL]:-}" ]; then
 		[[ ${ENV[PLUMA_RU_ACME_EMAIL]} =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+$ ]] || die "PLUMA_RU_ACME_EMAIL is not an e-mail address"
 	fi
@@ -145,8 +148,12 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)
 # fill <template> <output> [cache status line]: the @@NAME@@ of the
 # template replaced by the checked values.
 fill() {
-	local s
+	local s gcore=
 	s=$(<"$1")
+	if [ -n "${ENV[PLUMA_GCORE_EDGE_DOMAIN]:-}" ]; then
+		gcore="	\"https://${ENV[PLUMA_GCORE_EDGE_DOMAIN]}\" \$http_origin;"
+	fi
+	s=${s//@@GCORE_EDGE_CORS@@/$gcore}
 	s=${s//@@FILES_DOMAIN@@/${ENV[PLUMA_RU_FILES_DOMAIN]}}
 	s=${s//@@EDGE_DOMAIN@@/${ENV[PLUMA_RU_EDGE_DOMAIN]}}
 	s=${s//@@ORIGIN_DOMAIN@@/${ENV[PLUMA_CDN_ORIGIN_DOMAIN]}}

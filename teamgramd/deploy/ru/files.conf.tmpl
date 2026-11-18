@@ -18,11 +18,15 @@ proxy_cache_path /var/cache/pluma-ru/files levels=1:2 keys_zone=pluma_files:20m
 
 limit_conn_zone $binary_remote_addr zone=pluma_files_addr:2m;
 
-# CORS of the web client: its own site and the site of the edge for Russia.
+# CORS of the web client: its own site, the site of the edge for Russia and,
+# when set, the site of the Gcore edge (PLUMA_GCORE_EDGE_DOMAIN): Web K
+# opened on an edge takes its files from the delivery of its country, which
+# may be this one.
 map $http_origin $pluma_cors_origin {
 	default "";
 	"https://@@WEB_DOMAIN@@" $http_origin;
 	"https://@@EDGE_DOMAIN@@" $http_origin;
+@@GCORE_EDGE_CORS@@
 }
 
 # The headers of a preflight only (an empty value is not sent).
