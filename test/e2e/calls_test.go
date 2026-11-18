@@ -352,3 +352,104 @@ func TestCallMissedAndDifference(t *testing.T) {
 		return a.GetPredicateName() == mtproto.Predicate_messageActionPhoneCall && a.GetCallId() == call.GetId()
 	})
 }
+
+// callEnd waits on u for the history message of call id and, when read is
+// set, for the read of u's inbox up to it; it returns the message id.
+func callEnd(ctx context.Context, t *testing.T, u *user, id int64, read bool) int32 {
+	t.Helper()
+	var msgId, readMax int32
+	_, err := u.c.WaitUpdate(ctx, func(us *mtproto.Updates) bool {
+		for _, x := range us.GetUpdates() {
+			switch x.GetPredicateName() {
+			case mtproto.Predicate_updateNewMessage:
+				if a := x.GetMessage_MESSAGE().GetAction(); a.GetPredicateName() == mtproto.Predicate_messageActionPhoneCall && a.GetCallId() == id {
+					msgId = x.GetMessage_MESSAGE().GetId()
+				}
+			case mtproto.Predicate_updateReadHistoryInbox:
+				readMax = x.GetMaxId()
+			}
+		}
+		return msgId != 0 && (!read || readMax >= msgId)
+	})
+	if err != nil {
+		t.Fatalf("call %d: message %d, read up to %d: %v", id, msgId, readMax, err)
+	}
+	if read && readMax != msgId {
+		t.Fatalf("call %d: read up to %d, want the call message %d", id, readMax, msgId)
+	}
+	return msgId
+}
+
+// The callee's inbox is read up to the message of a call they answered or
+// declined, on every device; a call the caller cancelled stays unread, as
+// on Telegram (updateReadHistoryInbox up to the answered call, missed calls
+// unread, observed 2026-11-18).
+func TestCallReadForCallee(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 2)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	bobLaptop := login(ctx, t, phones[1], "Bob")
+	defer closeChecked(t, "alice", alice.c)
+	defer closeChecked(t, "bob", bob.c)
+	defer closeChecked(t, "bob laptop", bobLaptop.c)
+	getState(ctx, t, alice)
+	getState(ctx, t, bob)
+	getState(ctx, t, bobLaptop)
+	peer := inputPeerOf(ctx, t, bob, alice)
+	dialog := func() *mtproto.Dialog {
+		t.Helper()
+		d := peerDialogs(ctx, t, bob, peer).GetDialogs()
+		if len(d) != 1 {
+			t.Fatalf("dialogs: %v", d)
+		}
+		return d[0]
+	}
+
+	// Answered: accepted, confirmed, hung up by the caller.
+	call := requestCall(ctx, t, alice, bob)
+	callOf(ctx, t, bob, call.GetId(), mtproto.Predicate_phoneCallRequested)
+	gB := make([]byte, 256)
+	gB[0] = 7
+	if _, err := bob.c.Invoke(ctx, &mtproto.TLPhoneAcceptCall{Constructor: bob.c.Constructor(mtproto.Predicate_phone_acceptCall), Peer: inputCall(bob, call), GB: gB, Protocol: callProtocol(bob)}); err != nil {
+		t.Fatalf("phone.acceptCall: %v", err)
+	}
+	callOf(ctx, t, alice, call.GetId(), mtproto.Predicate_phoneCallAccepted)
+	gA := make([]byte, 256)
+	gA[0] = 9
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLPhoneConfirmCall{Constructor: alice.c.Constructor(mtproto.Predicate_phone_confirmCall), Peer: inputCall(alice, call), GA: gA, KeyFingerprint: 1234, Protocol: callProtocol(alice)}); err != nil {
+		t.Fatalf("phone.confirmCall: %v", err)
+	}
+	if _, err := discard(ctx, alice, call, mtproto.Predicate_phoneCallDiscardReasonHangup); err != nil {
+		t.Fatalf("phone.discardCall: %v", err)
+	}
+	answered := callEnd(ctx, t, bob, call.GetId(), true)
+	if got := callEnd(ctx, t, bobLaptop, call.GetId(), true); got != answered {
+		t.Fatalf("laptop: message %d, phone %d", got, answered)
+	}
+	if d := dialog(); d.GetUnreadCount() != 0 || d.GetReadInboxMaxId() != answered {
+		t.Fatalf("after the answered call: unread %d, read up to %d, want 0 and %d", d.GetUnreadCount(), d.GetReadInboxMaxId(), answered)
+	}
+
+	// Declined by the callee while it rang (tdesktop and Telegram-iOS send
+	// busy).
+	call = requestCall(ctx, t, alice, bob)
+	callOf(ctx, t, bob, call.GetId(), mtproto.Predicate_phoneCallRequested)
+	if _, err := discard(ctx, bob, call, mtproto.Predicate_phoneCallDiscardReasonBusy); err != nil {
+		t.Fatalf("decline: %v", err)
+	}
+	declined := callEnd(ctx, t, bobLaptop, call.GetId(), true)
+
+	// Cancelled by the caller before an answer: the clients send missed.
+	call = requestCall(ctx, t, alice, bob)
+	callOf(ctx, t, bob, call.GetId(), mtproto.Predicate_phoneCallRequested)
+	if _, err := discard(ctx, alice, call, mtproto.Predicate_phoneCallDiscardReasonMissed); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	missed := callEnd(ctx, t, bob, call.GetId(), false)
+	if d := dialog(); d.GetUnreadCount() != 1 || d.GetReadInboxMaxId() != declined || d.GetTopMessage() != missed {
+		t.Fatalf("after the missed call: unread %d, read up to %d, top %d, want 1, %d, %d",
+			d.GetUnreadCount(), d.GetReadInboxMaxId(), d.GetTopMessage(), declined, missed)
+	}
+}

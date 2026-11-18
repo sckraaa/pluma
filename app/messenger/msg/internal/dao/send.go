@@ -171,6 +171,7 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 		out      = &Incoming{}
 		mentions int32
 		migrated int32
+		answered int32
 		period   int32
 		changed  bool
 	)
@@ -306,6 +307,9 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 		if peerType == mtproto.PEER_CHAT && message.GetAction().GetPredicateName() == mtproto.Predicate_messageActionChatMigrateTo {
 			migrated = id
 		}
+		if peerType == mtproto.PEER_USER && callTakenUp(message) {
+			answered = id
+		}
 	}
 	if len(out.Boxes) == 0 {
 		return out, nil
@@ -333,7 +337,45 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 			out.Updates = append(out.Updates, update)
 		}
 	}
+	// A call the recipient answered or declined: its message is read for
+	// them, a missed call stays unread. Telegram reads the history of the
+	// callee up to the message of the answered call (updateReadHistoryInbox
+	// with that max_id, observed 2026-11-18), and Android notifies every
+	// unread call message as missed (NotificationsController.java:2016-2021
+	// at 7be672ea).
+	if answered != 0 {
+		update, err := d.readInbox(b, dlgPeer, answered)
+		if err != nil {
+			return nil, err
+		}
+		if update != nil {
+			out.Updates = append(out.Updates, update)
+		}
+	}
 	return out, nil
+}
+
+// callTakenUp tells whether message is the history message of a call its
+// recipient, the callee, took up: answered (hangup or disconnect, the end
+// of a call that was accepted) or declined (busy, or hangup while it rang).
+// A call that rang out or that the caller cancelled is missed: the server
+// gives that reason to a call that timed out ringing, and the clients of
+// the caller send it when they hang up before an answer (Android
+// VoIPService.java:1058 at 7be672ea, tdesktop calls_call.cpp:722-730,
+// Telegram-iOS CallSessionManager.swift:873-881). A call without a reason
+// ended unseen and stays unread as well.
+func callTakenUp(message *mtproto.Message) bool {
+	action := message.GetAction()
+	if action.GetPredicateName() != mtproto.Predicate_messageActionPhoneCall {
+		return false
+	}
+	switch action.GetReason().GetPredicateName() {
+	case mtproto.Predicate_phoneCallDiscardReasonHangup,
+		mtproto.Predicate_phoneCallDiscardReasonDisconnect,
+		mtproto.Predicate_phoneCallDiscardReasonBusy:
+		return true
+	}
+	return false
 }
 
 // chatCopies returns which messages of boxes, a basic group's, b's box has
