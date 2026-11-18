@@ -2,11 +2,13 @@
 
 Сервис `releases` (задача 054, ADR 0035) принимает от CI подписанные сборки клиентов, раздаёт их на сайте по адресам `/dl/…` и даёт `help.getAppUpdate` знать о текущем выпуске каждой платформы. Отдельной DNS-записи не нужно: адреса живут на именах сайта (`PLUMA_SITE_DOMAINS`), Caddy передаёт `/dl/*` в контейнер `releases:9097`.
 
+Скачивают файлы `/dl/` через кэши (задача 115, раздел «Раздача через CDN»): весь мир — через ресурс Gcore края, Россия — через кэш российского узла. Сайт и служба установки iPhone остаются на своих именах.
+
 ## Как устроено
 - **Адреса:**
   - `POST /dl/upload` — CI выкладывает выпуск (`Authorization: Bearer <токен загрузки>`, `multipart/form-data`);
   - `GET /dl/releases.json` — текущие выпуски всех платформ для сайта (версия, сборка, дата, заметки, ссылки, размеры, SHA-256);
-  - `GET /dl/<платформа>/latest[/<арх>]` — переход (302, без кэша) на установщик текущего выпуска, путём на том же сайте (`Location: /dl/<платформа>/<версия>/<файл>`): так прямая ссылка работает и на зеркале сайта (задача 113);
+  - `GET /dl/<платформа>/latest[/<арх>]` — переход (302, `Cache-Control: no-store`) на установщик текущего выпуска. Запрос на имени самого сайта (`PLUMA_RELEASES_URL`) при заданном `PLUMA_RELEASES_FILES_URL` получает файл на CDN (`Location: https://<CDN>/dl/<платформа>/<версия>/<файл>`, задача 115): кнопки сайта ведут на `pluma.chat/dl/<платформа>/latest`, а качается файл с Gcore. На любом другом имени (зеркало сайта, CDN, кэш узла) — путь на том же имени (`Location: /dl/<платформа>/<версия>/<файл>`): так прямая ссылка работает и на зеркале (задача 113), и на кэше;
   - `GET /dl/<платформа>/<версия>/<файл>` — сам файл, неизменяемый (`Cache-Control: immutable`);
   - `GET /dl/desktop/current4` — для апдейтера Desktop: по ключу системы (`mac`, `armac`, `win`, `win64`, `winarm`, `linux`) версия и путь пакета текущего выпуска; апдейтер дописывает путь к префиксу `<сайт>/dl/desktop` и качает `GET /dl/desktop/<платформа>/<версия>/<пакет>`;
   - `GET /dl/health` — проверка (`204`).
@@ -25,10 +27,40 @@
 - **Что видят приложения** (`help.getAppUpdate`, платформа по `api_id` авторизации):
   - Android — `help.appUpdate` с документом APK, если клиент по своему правилу сравнения считает версию новее;
   - iOS — `help.appUpdate` со ссылкой, только сборкам, поставленным с сайта (`app_version` оканчивается на ` adhoc`) и с меньшим номером сборки; сборки TestFlight обновляет TestFlight. Ссылка — `itms-services://…` с билетом обновления, если задан `PLUMA_IOS_UPDATE_SECRET` и `iosinstall` уже переподписал текущий выпуск: установка идёт прямо из приложения (`ios-install.md`, «Обновление из приложения»). Иначе — `<сайт>/iphone/install`;
-  - Desktop — обновляется своим апдейтером, `help.getConfig` даёт ему `autoupdate_url_prefix = <сайт>/dl/desktop`;
+  - Desktop — обновляется своим апдейтером, `help.getConfig` даёт ему `autoupdate_url_prefix = <кэш файлов>/dl/desktop` (задача 115);
   - `<сайт>` — `PLUMA_RELEASES_URL` или, для клиента из страны записи `PLUMA_RELEASES_ROUTES`, зеркало сайта (задача 113): страна — по адресу клиента, как у `pluma_edge` (`authsession.getIpCountry`, кэш на час). Зеркало `pluma.sckra.dev` идёт через российский узел и отдаёт тот же `/dl/` (`ru-node.md`, «Зеркала»); ссылка `itms-services://` ведёт на манифест зеркала, а служба установки называет IPA на нём же (`MIRROR_HOSTS`, `ios-install.md`). Без зеркал страна не запрашивается;
+  - `<кэш файлов>` — по стране клиента так же: запись страны в `PLUMA_RELEASES_FILES_ROUTES` (кэш узла `https://r1.sckra.dev`), иначе зеркало сайта, если страна есть только в `PLUMA_RELEASES_ROUTES`, иначе `PLUMA_RELEASES_FILES_URL` (ресурс Gcore), а без него — сам сайт. Без обеих переменных всё как до задачи 115;
   - Web — `help.noAppUpdate`, он обновляется с сервера.
 - **Ошибки.** Если таблица или документ недоступны, `help.getAppUpdate` отвечает `help.noAppUpdate` и пишет ошибку в лог, а не 500.
+
+## Раздача через CDN (задача 115)
+Владелец (2026-11-19): «все приложения тоже отдавались по CDN, в том числе для пользователей РФ — по РФ серверу». Файлы выпусков неизменны и одинаковы для всех, поэтому их кэшируют:
+
+```
+мир:    браузер, апдейтер Desktop ──► <префикс2>.gcorecdn.com (кэш Gcore) ──► edge-origin.caddy дома (X-Pluma-Edge-Auth) ──► releases
+Россия: апдейтер Desktop, прямые ссылки ──► r1.sckra.dev (кэш nginx узла amf) ──► туннель ──► cdn-origin.caddy дома ──► releases
+```
+
+- **Что кэшируется.** Сервис сам ставит `Cache-Control`, и оба кэша ему следуют: файл версии (`/dl/[desktop/]<платформа>/<версия>/<файл>`) — `public, max-age=31536000, immutable`: версия не перезаписывается (раздел «Хранение»), новый выпуск — новые пути, поэтому сбрасывать кэш при выпуске не нужно. `releases.json` и `desktop/current4` — `no-cache` (Gcore перепроверяет по ETag, узел не хранит вовсе): новый выпуск виден сразу. Переходы `latest` — `no-store`.
+- **Gcore** (ресурс 2, источник `PLUMA_EDGE_ORIGIN_DOMAIN`, `edge.md`): `edge-origin.caddy` отдаёт `/dl/*` сервису для GET и HEAD (иначе 405), секрет ресурса дальше не идёт. Всё, что Gcore хранить нельзя, источник помечает `no-store`: `/apiws`, 403 без секрета, все переходы (301, 302, 303, 307, 308 — 308 файлового сервера на каталог однажды застрял в кэше Gcore) и все ошибки 4xx и 5xx, в том числе ошибки самого Caddy. 304 под правило не попадает: он обновляет то, что у Gcore уже лежит.
+- **Узел amf** (`ru-node.md`, «Выпуски»): `files.conf.tmpl` отдаёт `/dl/` на имени выдачи 202. Файлы версий — из своего кэша `pluma_releases` (куски по 8 МиБ, 6 ГБ, 30 дней без запросов), остальное — насквозь без кэша; только GET и HEAD (иначе 403). Домой — через туннель на имя источника CDN (`cdn-origin.caddy`, `/dl/*` → `releases` для GET и HEAD, без `X-Pluma-Origin-Auth`: файлы публичные), без заголовков клиента, кроме диапазона.
+- **Кто куда идёт.**
+  - Desktop — по `autoupdate_url_prefix` из `help.getConfig` (выше). Хост апдейтер берёт любой: префикс он сохраняет как есть (`Local::writeAutoupdatePrefix`, `mtproto/mtp_instance.cpp:945-947`, `storage/localstorage.cpp:561-579`), а пакет ставит только после проверки подписи ключом, встроенным в приложение (`Updates::VerifyUpdate`, `core/update_checker.cpp:475-488`; tdesktop v7.4.1, `157f5cfc`). Подмена файла в кэше не даёт установить чужое.
+  - Кнопки сайта (`https://pluma.chat/dl/<платформа>/latest`) — переход сервиса на Gcore (выше).
+  - iPhone (Ad Hoc) — без изменений: страница установки, манифест и IPA остаются у `iosinstall` на сайте и его зеркале. IPA выдаётся только по токену устройства или билету обновления и переподписывается при каждом новом айфоне, общий кэш для него не годится; из России он уже идёт через узел (зеркало `pluma.sckra.dev`).
+  - Android — APK документом через MTProto (как раньше); с сайта — по кнопке через Gcore.
+- **Переменные `.env`:** `PLUMA_RELEASES_FILES_URL=https://<префикс2>.gcorecdn.com` (тот же ресурс, что и край Gcore) и `PLUMA_RELEASES_FILES_ROUTES=RU,BY=https://r1.sckra.dev` (страны — те же, что у края `ru` в `EDGE_ROUTES`). Формат и проверки — как у `PLUMA_RELEASES_ROUTES`; неверное значение останавливает `bff` и `releases`. Нужны `bff` (префикс Desktop) и `releases` (переход кнопок). Пусто — файлы с сайта и его зеркал, как до задачи 115.
+- **Включение.** Порядок: сначала дом (Caddy умеет `/dl/` на обоих источниках), потом узел, последними — переменные `.env`.
+  1. Выкатка дома этой версии; пересоздать `web` (новые `edge-origin.caddy`, `cdn-origin.caddy`: Caddyfile смонтирован файлами, `--force-recreate --no-deps web` со всеми наложениями хоста, `deployment.md`, «Края и российский узел»).
+  2. Проверка источников из дома: `curl -sSI -H "X-Pluma-Edge-Auth: <значение>" https://<PLUMA_EDGE_ORIGIN_DOMAIN>/dl/releases.json` — 200, `Cache-Control: no-cache`; `curl -sSI https://<PLUMA_CDN_ORIGIN_DOMAIN>/dl/health` — 204.
+  3. Узел: `deploy.sh` этой версии (`ru-node.md`, «Выкладка»); переменных узла не прибавилось.
+  4. `.env` дома: `PLUMA_RELEASES_FILES_URL`, `PLUMA_RELEASES_FILES_ROUTES`; пересоздать `bff` и `releases` (`up -d --no-build bff releases` с `-f docker-compose.releases.yaml`).
+- **Проверка.**
+  - `curl -sSI https://<префикс2>.gcorecdn.com/dl/releases.json` — 200; `curl -sSI https://pluma.chat/dl/macos/latest` — 302 на `https://<префикс2>.gcorecdn.com/dl/macos/…`; тот же файл через Gcore дважды — второй раз из кэша (заголовок кэша Gcore — смотреть в ответе, по памяти `Cache: HIT`, НЕ ПРОВЕРЕНО).
+  - `curl -sSI https://r1.sckra.dev/dl/desktop/current4` — 200; файл версии через узел дважды — второй раз без запроса домой (`du -sh /var/cache/pluma-ru/releases` на узле растёт один раз).
+  - `help.getConfig` Desktop: из России `autoupdate_url_prefix = https://r1.sckra.dev/dl/desktop`, из Германии — `https://<префикс2>.gcorecdn.com/dl/desktop`.
+- **Откат.** Пустые `PLUMA_RELEASES_FILES_URL` и `PLUMA_RELEASES_FILES_ROUTES`, пересоздать `bff` и `releases`: префикс и кнопки снова на сайте и зеркалах. Уже выданный префикс Desktop хранит до следующего `help.getConfig` (то есть до ближайшего подключения). Маршруты `/dl/` в Caddy и на узле можно не убирать: это те же публичные файлы.
+- **Выпуск плохого файла.** Отзыв (`release withdraw`) меняет `current4`, `releases.json` и `latest` сразу; файл отозванной версии остаётся в кэшах до года (`immutable`), как и на сайте он остаётся по прямой ссылке (раздел «Отзыв и возврат выпуска»). Убрать его из кэша Gcore — Purge в панели ресурса; с узла — `rm -rf /var/cache/pluma-ru/releases/*` и `systemctl reload pluma-ru-nginx`.
 
 ## Панель
 Раздел «Выпуски» панели (`docs/ops/admin-panel.md`) показывает сборки всех платформ и делает то же, что `pluma-admin release withdraw|restore`: **откатить** текущую сборку и **вернуть** отозванную. Сервис отдаёт это на маршрутах `/internal/releases` (не под `/dl/`, Caddy их не проксирует), порт `127.0.0.1:9097` опубликован на хосте только для панели.
@@ -41,7 +73,7 @@
    teamgramd/deploy/releases/put-token.sh neo_old
    ```
    Скрипт создаёт `/opt/pluma/releases/upload-token` (режим 0400), если его нет, и записывает его секретом `RELEASES_UPLOAD_TOKEN` окружения `release` в pluma-android, pluma-ios и pluma-desktop (нужен `gh` с правом на эти репозитории).
-2. **`.env` сервера:** `PLUMA_RELEASES_URL=https://pluma.chat` — адрес сайта без `/` на конце. Без неё `bff` не предлагает обновлений и не даёт префикс Desktop, а `releases` не запускается. `PLUMA_RELEASES_ROUTES` (необязательно, задача 113) — зеркала сайта по стране клиента: записи `<страны>=<сайт>` через `;`, например `RU,BY=https://pluma.sckra.dev`; сайт — `https://<имя>` без пути; страна — код ISO 3166-1 alpha-2 в верхнем регистре, не больше одного раза. Неверное значение — `bff` не стартует. Пусто — один сайт для всех.
+2. **`.env` сервера:** `PLUMA_RELEASES_URL=https://pluma.chat` — адрес сайта без `/` на конце. Без неё `bff` не предлагает обновлений и не даёт префикс Desktop, а `releases` не запускается. `PLUMA_RELEASES_ROUTES` (необязательно, задача 113) — зеркала сайта по стране клиента: записи `<страны>=<сайт>` через `;`, например `RU,BY=https://pluma.sckra.dev`; сайт — `https://<имя>` без пути; страна — код ISO 3166-1 alpha-2 в верхнем регистре, не больше одного раза. Неверное значение — `bff` не стартует. Пусто — один сайт для всех. Кэши файлов — `PLUMA_RELEASES_FILES_URL` и `PLUMA_RELEASES_FILES_ROUTES` (необязательно, задача 115, раздел «Раздача через CDN»).
 3. **Запуск** — в команду сервисов добавляется `-f docker-compose.releases.yaml`:
    ```bash
    docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml -f docker-compose.releases.yaml up -d --no-build releases
