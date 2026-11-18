@@ -35,6 +35,19 @@ services:
       # name: no such site.
       PLUMA_MAPS_DOMAIN: ${PLUMA_MAPS_DOMAIN:-}
       MAPS_PUBLIC_KEY: ${MAPS_PUBLIC_KEY:-}
+      # The origin of the CDN edge (task 109, docs/ops/edge.md): the name
+      # the second Gcore resource pulls, and the X-Pluma-Edge-Auth value it
+      # adds, 64 hex digits. Empty name: no such site.
+      PLUMA_EDGE_ORIGIN_DOMAIN: ${PLUMA_EDGE_ORIGIN_DOMAIN:-}
+      PLUMA_EDGE_ORIGIN_AUTH: ${PLUMA_EDGE_ORIGIN_AUTH:-}
+      # The edge of the Russian node (task 109, docs/ops/ru-node.md), on
+      # :8443, which docker-compose.ru.yaml publishes on the tunnel. Empty:
+      # no such site.
+      PLUMA_RU_EDGE_DOMAIN: ${PLUMA_RU_EDGE_DOMAIN:-}
+      # The only address :8443 takes PROXY v1 from: the node in the plumaru
+      # tunnel (teamgramd/deploy/edge/tunnel.sh --link ru). Not a setting of
+      # the operator; the e2e stand sets its own.
+      PLUMA_RU_EDGE_PROXY_FROM: 10.78.0.1/32
     # Caddy refuses a whole Caddyfile with a site of an empty address, so the
     # site of the CDN origin is a file of its own that the Caddyfile imports
     # from /etc/caddy/cdn-origin.d, linked there at every start only when
@@ -42,10 +55,17 @@ services:
     # container); so is the site of the public map tiles, from
     # /etc/caddy/maps-public.d with PLUMA_MAPS_DOMAIN, whose key must be
     # there and fit (the rule of bff's MAPS_PUBLIC_URL), or Caddy does not
-    # start. Then Caddy runs as the image's own command runs it.
+    # start; so are the edges of the clients (task 109): edge-origin.caddy
+    # in /etc/caddy/edge-origin.d with PLUMA_EDGE_ORIGIN_DOMAIN, whose
+    # PLUMA_EDGE_ORIGIN_AUTH must be 64 hex digits, or Caddy does not start
+    # (an empty value would let every request through), and ru-edge.caddy
+    # in /etc/caddy/ru-edge.d with PLUMA_RU_EDGE_DOMAIN. Then Caddy runs as
+    # the image's own command runs it.
     tmpfs:
       - /etc/caddy/cdn-origin.d
       - /etc/caddy/maps-public.d
+      - /etc/caddy/edge-origin.d
+      - /etc/caddy/ru-edge.d
     command:
       - /bin/sh
       - -ec
@@ -64,11 +84,27 @@ services:
           fi
           ln -s /etc/caddy/maps-public.caddy /etc/caddy/maps-public.d/maps-public.caddy
         fi
+        if [ -n "$$PLUMA_EDGE_ORIGIN_DOMAIN" ]; then
+          case "$$PLUMA_EDGE_ORIGIN_AUTH" in
+            *[!0-9a-f]*) bad=1 ;;
+            *) bad= ;;
+          esac
+          if [ -n "$$bad" ] || [ "$${#PLUMA_EDGE_ORIGIN_AUTH}" -ne 64 ]; then
+            echo "PLUMA_EDGE_ORIGIN_DOMAIN needs PLUMA_EDGE_ORIGIN_AUTH of 64 hex digits, openssl rand -hex 32 (docs/ops/edge.md)" >&2
+            exit 1
+          fi
+          ln -s /etc/caddy/edge-origin.caddy /etc/caddy/edge-origin.d/edge-origin.caddy
+        fi
+        if [ -n "$$PLUMA_RU_EDGE_DOMAIN" ]; then
+          ln -s /etc/caddy/ru-edge.caddy /etc/caddy/ru-edge.d/ru-edge.caddy
+        fi
         exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
     volumes:
       - ./teamgramd/deploy/web/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./teamgramd/deploy/web/cdn-origin.caddy:/etc/caddy/cdn-origin.caddy:ro
       - ./teamgramd/deploy/web/maps-public.caddy:/etc/caddy/maps-public.caddy:ro
+      - ./teamgramd/deploy/web/edge-origin.caddy:/etc/caddy/edge-origin.caddy:ro
+      - ./teamgramd/deploy/web/ru-edge.caddy:/etc/caddy/ru-edge.caddy:ro
       # The landing page of PLUMA_SITE_DOMAINS: the dist/ of pluma-site,
       # copied to the host (docs/ops/deployment.md).
       - ${PLUMA_SITE_DIR:-/srv/pluma-site}:/pluma-site:ro

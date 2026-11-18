@@ -12,6 +12,27 @@
 # address on the way in cannot have a certificate issued for them.
 {
 	acme_ca https://acme-v02.api.letsencrypt.org/directory
+
+	# The server of the Russian node's edge (ru-edge.caddy, task 109, ADR
+	# 0072 §8): every connection to :8443 starts with PROXY v1 from the
+	# node's address in the plumaru tunnel, PLUMA_RU_EDGE_PROXY_FROM
+	# (10.78.0.1/32, docker-compose.web.yaml), whose address is the client's.
+	# A connection from elsewhere is closed; one of the node without the
+	# header is let through by proxy_protocol, and its requests are aborted
+	# by the site. HTTP/3 is off there: QUIC would bypass the PROXY header,
+	# and the node passes TCP only. The server of 443 is not touched.
+	# Without PLUMA_RU_EDGE_DOMAIN no site listens on :8443 and these
+	# options apply to nothing.
+	servers :8443 {
+		listener_wrappers {
+			proxy_protocol {
+				allow {$PLUMA_RU_EDGE_PROXY_FROM}
+				fallback_policy reject
+			}
+			tls
+		}
+		protocols h1 h2
+	}
 }
 
 {$PLUMA_WEB_DOMAIN} {
@@ -162,6 +183,14 @@
 # refuses a whole Caddyfile with a site of an empty address. Without it
 # nothing matches, which Caddy only warns about.
 import /etc/caddy/cdn-origin.d/*.caddy
+
+# The edges of the clients (task 109, ADR 0072, docs/ops/edge.md): the
+# origin of the CDN edge, edge-origin.caddy, linked into its directory only
+# when PLUMA_EDGE_ORIGIN_DOMAIN is set, and the edge of the Russian node,
+# ru-edge.caddy, only when PLUMA_RU_EDGE_DOMAIN is set
+# (docker-compose.web.yaml), for the same reason.
+import /etc/caddy/edge-origin.d/*.caddy
+import /etc/caddy/ru-edge.d/*.caddy
 
 # The public map tiles of the clients' maps (task 112): its site,
 # maps-public.caddy, is linked into this directory at the start of the

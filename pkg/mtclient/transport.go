@@ -3,6 +3,7 @@ package mtclient
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -130,7 +131,16 @@ func (t *intermediate) SetDeadline(d time.Time) error {
 // The connection answers the server's pings. A refused upgrade is an
 // error wrapping ws.StatusError, the HTTP status.
 func DialWebSocket(ctx context.Context, url string, header http.Header) (Transport, error) {
-	d := ws.Dialer{Protocols: []string{"binary"}}
+	return DialWebSocketVia(ctx, url, header, nil, nil)
+}
+
+// DialWebSocketVia is DialWebSocket with the TCP connection opened by dial
+// (to any address, whatever the host of url) and, for a wss:// URL, TLS by
+// tlsConfig: a test reaches a site of Caddy by its name on a loopback port,
+// and may write what a proxy in front of it writes (PROXY v1) before the
+// TLS. Nil dial and tlsConfig are the defaults of DialWebSocket.
+func DialWebSocketVia(ctx context.Context, url string, header http.Header, dial func(ctx context.Context, network, addr string) (net.Conn, error), tlsConfig *tls.Config) (Transport, error) {
+	d := ws.Dialer{Protocols: []string{"binary"}, NetDial: dial, TLSConfig: tlsConfig}
 	if len(header) > 0 {
 		d.Header = ws.HandshakeHeaderHTTP(header)
 	}

@@ -26,5 +26,5 @@ import (
 // help.getAppConfig#98914110 = JSONValue;
 // The older constructor: the same config, without a hash.
 func (c *ConfigurationCore) HelpGetAppConfig98914110(in *mtproto.TLHelpGetAppConfig98914110) (*mtproto.JSONValue, error) {
-	return c.svcCtx.AppConfig.Current(c.ctx).Config, nil
+	return c.appConfig().Config, nil
 }

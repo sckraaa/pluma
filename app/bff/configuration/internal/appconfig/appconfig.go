@@ -130,10 +130,15 @@ func (c *AppConfig) WithURLAuthDomains(domains []string) *AppConfig {
 	if !replaced {
 		values = append(values, value)
 	}
+	// The domains are part of what the hash is of, so that a key set over
+	// this config (Edges.Config) still gives a new hash for new domains;
+	// the hash itself is the one of the file and the domains, as before.
+	compact := append([]byte(nil), c.compact...)
+	compact = append(compact, "\n"+urlAuthDomainsKey+"="+strings.Join(domains, ",")...)
 	return &AppConfig{
 		Config:  mtproto.MakeTLJsonObject(&mtproto.JSONValue{Value_VECTORJSONOBJECTVALUE: values}).To_JSONValue(),
-		Hash:    hashOf(c.compact, []byte("\n"+urlAuthDomainsKey+"="+strings.Join(domains, ","))),
-		compact: c.compact,
+		Hash:    hashOf(compact),
+		compact: compact,
 	}
 }
 

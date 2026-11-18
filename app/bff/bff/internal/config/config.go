@@ -21,6 +21,7 @@ package config
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	bots_helper "github.com/teamgram/teamgram-server/app/bff/bots"
+	configuration_helper "github.com/teamgram/teamgram-server/app/bff/configuration"
 	groupcalls_helper "github.com/teamgram/teamgram-server/app/bff/groupcalls"
 	statistics_helper "github.com/teamgram/teamgram-server/app/bff/statistics"
 	voipcalls_helper "github.com/teamgram/teamgram-server/app/bff/voipcalls"
@@ -110,6 +111,10 @@ type Config struct {
 	// limits. Without CDN_GCORE_BASE_URL the CDN is off: no redirects, and
 	// the origin does not listen.
 	Cdn cdn.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Edge is the edges of the patched clients, pluma_edge of the app
+	// config by the country of the client (task 109, ADR 0072,
+	// docs/ops/edge.md); no edges without EDGE_WS_URLS.
+	Edge configuration_helper.EdgeConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// InlineBots is the built-in inline bots @gif and @pic (task 099, ADR
 	// 0062, docs/ops/inline-bots.md): the providers that answer their
 	// queries and the daily budget of the media they import into dfs.
