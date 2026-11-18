@@ -195,8 +195,12 @@ func (p *pki) leaf(name string, serial int64) (chain, key []byte) {
 // originConf is the stand-in of the origin at home (Caddy and bff's
 // origin, pkg/cdn/origin.go): TLS under the origin's name, GET and HEAD of
 // files with ranges, Cache-Control immutable, 403 without the access value
-// of delivery 202. It refuses any header of the client the node must not
-// pass home, and logs every request it serves.
+// of delivery 202. Under /dl/ it is the releases service behind
+// cdn-origin.caddy (task 115): files of a version immutable, the updater's
+// list no-cache, a latest link a redirect on the same name, no-store; and
+// 400 for the access value, which the node must not send there. It
+// refuses any header of the client the node must not pass home, and logs
+// every request it serves.
 const originConf = `
 pid /run/origin-test.pid;
 error_log stderr warn;
@@ -222,6 +226,24 @@ http {
 			if ($http_cookie != "") { return 400; }
 			if ($http_x_forwarded_for != "") { return 400; }
 			add_header Cache-Control "public, max-age=2592000, immutable";
+		}
+		location /dl/ {
+			if ($http_x_pluma_origin_auth != "") { return 400; }
+			if ($http_user_agent != "") { return 400; }
+			if ($http_cookie != "") { return 400; }
+			if ($http_x_forwarded_for != "") { return 400; }
+			add_header Cache-Control "public, max-age=31536000, immutable";
+		}
+		location = /dl/desktop/current4 {
+			if ($http_x_pluma_origin_auth != "") { return 400; }
+			add_header Cache-Control "no-cache";
+		}
+		location = /dl/linux/latest {
+			if ($http_x_pluma_origin_auth != "") { return 400; }
+			add_header Cache-Control "no-store" always;
+			# A path, as the service's http.Redirect writes it.
+			absolute_redirect off;
+			return 302 /dl/linux/7.0.9.00042/Pluma.tar.xz;
 		}
 	}
 }
@@ -329,6 +351,19 @@ func TestNodeNginx(t *testing.T) {
 	n.put("/test/origin/www"+objectPath, object, 0o644)
 	canary := []byte("canary")
 	n.put("/test/origin/www/c/v1", canary, 0o644)
+	// A release of the desktop app (task 115): an installer of two slices
+	// of 8 MiB and a bit, its update package, the updater's list.
+	installer := make([]byte, 16<<20+4321)
+	if _, err := rand.Read(installer); err != nil {
+		t.Fatal(err)
+	}
+	const installerPath = "/dl/linux/7.0.9.00042/Pluma.tar.xz"
+	n.put("/test/origin/www"+installerPath, installer, 0o644)
+	updatePkg := []byte("update package of build 42")
+	const updatePath = "/dl/desktop/linux/7.0.9.00042/tlinuxupd42"
+	n.put("/test/origin/www"+updatePath, updatePkg, 0o644)
+	current4 := []byte(`{"linux":{"stable":{"released":"42","link":"/linux/7.0.9.00042/tlinuxupd42"}}}`)
+	n.put("/test/origin/www/dl/desktop/current4", current4, 0o644)
 	n.sh("nginx -c /test/origin/nginx.conf")
 
 	// The node's files: deploy.sh render with the X-Cache-Status of the
@@ -341,7 +376,7 @@ func TestNodeNginx(t *testing.T) {
 	n.put("/etc/pluma-ru/env", []byte(envText.String()), 0o600)
 	n.sh(`useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin pluma-ru
 install -d -m 0755 /etc/pluma-ru /var/lib/pluma-ru /var/lib/pluma-ru/acme
-install -d -m 0700 -o pluma-ru -g pluma-ru /var/cache/pluma-ru /var/cache/pluma-ru/files /var/lib/pluma-ru/nginx
+install -d -m 0700 -o pluma-ru -g pluma-ru /var/cache/pluma-ru /var/cache/pluma-ru/files /var/cache/pluma-ru/releases /var/lib/pluma-ru/nginx
 bash /src/teamgramd/deploy/ru/deploy.sh render /etc/pluma-ru/env /etc/pluma-ru --cache-status-header`)
 	chain, key = p.leaf("r1.pluma.test", 4)
 	n.put("/etc/pluma-ru/letsencrypt/live/r1.pluma.test/fullchain.pem", chain, 0o644)
@@ -499,6 +534,78 @@ bash /src/teamgramd/deploy/ru/deploy.sh render /etc/pluma-ru/env /etc/pluma-ru -
 		a = n.fetch("-H", "Origin: https://evil.test", "-H", "Range: bytes=0-9", urlA)
 		if _, ok := a.headers["access-control-allow-origin"]; ok || a.status != 206 {
 			t.Errorf("another site: %v", a)
+		}
+	})
+	t.Run("releases", func(t *testing.T) {
+		base := "https://r1.pluma.test"
+		before := n.originRequests()
+		a := n.fetch(base + installerPath)
+		if a.status != 200 || a.sha != sum(installer) || a.size != len(installer) || a.headers["x-cache-status"] != "MISS" {
+			t.Fatalf("the installer: %v", a)
+		}
+		if !strings.Contains(a.headers["cache-control"], "immutable") {
+			t.Errorf("the installer's Cache-Control is not passed: %v", a)
+		}
+		// Three slices of 8 MiB, each pulled once.
+		if got := n.originRequests() - before; got != 3 {
+			t.Errorf("the installer took %d requests home, want 3", got)
+		}
+		before = n.originRequests()
+		a = n.fetch(base + installerPath)
+		if a.status != 200 || a.sha != sum(installer) || a.headers["x-cache-status"] != "HIT" {
+			t.Fatalf("the installer again: %v", a)
+		}
+		a = n.fetch("-H", "Range: bytes=8388000-8389999", base+installerPath)
+		if a.status != 206 || a.headers["content-range"] != fmt.Sprintf("bytes 8388000-8389999/%d", len(installer)) || a.sha != sum(installer[8388000:8390000]) {
+			t.Fatalf("a range across slices: %v", a)
+		}
+		if after := n.originRequests(); after != before {
+			t.Errorf("the cached installer went home: %d requests, then %d", before, after)
+		}
+
+		a = n.fetch(base + updatePath)
+		if a.status != 200 || a.sha != sum(updatePkg) || a.headers["x-cache-status"] != "MISS" {
+			t.Fatalf("the update package: %v", a)
+		}
+		if a = n.fetch(base + updatePath); a.headers["x-cache-status"] != "HIT" {
+			t.Errorf("the update package again: %v", a)
+		}
+
+		// The updater's list and the latest link pass every time.
+		before = n.originRequests()
+		for range 2 {
+			if a = n.fetch(base + "/dl/desktop/current4"); a.status != 200 || a.sha != sum(current4) || a.headers["cache-control"] != "no-cache" {
+				t.Errorf("current4: %v", a)
+			}
+			if a = n.fetch(base + "/dl/linux/latest"); a.status != 302 || a.headers["location"] != installerPath || a.headers["cache-control"] != "no-store" {
+				t.Errorf("the latest link: %v", a)
+			}
+			// A latest link of an arch is no file of a version (the
+			// stand-in origin has none: 404).
+			if a = n.fetch(base + "/dl/linux/latest/arm64"); a.status != 404 {
+				t.Errorf("the latest link of an arch: %v", a)
+			}
+		}
+		if got := n.originRequests() - before; got != 6 {
+			t.Errorf("the lists and links took %d requests home, want 6: cached", got)
+		}
+
+		before = n.originRequests()
+		for _, c := range []struct {
+			name   string
+			args   []string
+			status int
+		}{
+			{"an upload", []string{"-X", "POST", "--data-binary", "x", base + "/dl/upload"}, 403},
+			{"a POST of a file", []string{"-X", "POST", base + installerPath}, 403},
+			{"a path out of /dl/", []string{base + "/dlx/linux/7.0.9.00042/Pluma.tar.xz"}, 404},
+		} {
+			if a := n.fetch(c.args...); a.status != c.status {
+				t.Errorf("%s: %v, want %d", c.name, a, c.status)
+			}
+		}
+		if after := n.originRequests(); after != before {
+			t.Errorf("refused requests reached the origin: %d, then %d", before, after)
 		}
 	})
 	t.Run("port 80 and the owner's site", func(t *testing.T) {
