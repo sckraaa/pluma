@@ -801,6 +801,7 @@ func (m *MainAuthWrapper) rpcMetadata(request *rpcApiMessage) (*metadata.RpcMeta
 		LangCode:      m.LangCode(),
 		Takeout:       request.takeout,
 
+		SystemLangCode:       m.SystemLangCode(),
 		BusinessConnectionId: request.businessConnectionId,
 	}, nil
 }
