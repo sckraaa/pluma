@@ -74,6 +74,8 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       # bff.yaml names the site of the client releases (task 054); empty: none.
       PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:-}
+      # bff.yaml names its mirrors by country (task 113); empty: none.
+      PLUMA_RELEASES_ROUTES: ${PLUMA_RELEASES_ROUTES:-}
       # bff.yaml names the secret of the iPhone update tickets (task 085).
       PLUMA_IOS_UPDATE_SECRET: ${PLUMA_IOS_UPDATE_SECRET:-}
       # bff.yaml names the servers of one-to-one calls (task 068); empty: off.
@@ -114,6 +116,24 @@ services:
       EDGE_WS_URLS: ${EDGE_WS_URLS:-}
       EDGE_ROUTES: ${EDGE_ROUTES:-}
       EDGE_STICKY_S: ${EDGE_STICKY_S:-}
+      # bff.yaml names the settings of the path probes (task 113); empty:
+      # the defaults.
+      PATH_PROBE_GATE_DOWN: ${PATH_PROBE_GATE_DOWN:-}
+      PATH_PROBE_RANK_DOWN: ${PATH_PROBE_RANK_DOWN:-}
+      PATH_PROBE_UP: ${PATH_PROBE_UP:-}
+      PATH_PROBE_STALL_MS: ${PATH_PROBE_STALL_MS:-}
+      PATH_PROBE_DEADLINE_MS: ${PATH_PROBE_DEADLINE_MS:-}
+      PATH_PROBE_SUSPECT_MS: ${PATH_PROBE_SUSPECT_MS:-}
+      PATH_PROBE_REPROBE_S: ${PATH_PROBE_REPROBE_S:-}
+      PATH_PROBE_RANK_MIN_INTERVAL_S: ${PATH_PROBE_RANK_MIN_INTERVAL_S:-}
+      PATH_PROBE_MIN_DWELL_S: ${PATH_PROBE_MIN_DWELL_S:-}
+      PATH_PROBE_SWITCH_RATIO: ${PATH_PROBE_SWITCH_RATIO:-}
+      PATH_PROBE_SWITCH_RATIO_NOW: ${PATH_PROBE_SWITCH_RATIO_NOW:-}
+      PATH_PROBE_EDGE_PROBE_IF_DIRECT_MS: ${PATH_PROBE_EDGE_PROBE_IF_DIRECT_MS:-}
+      PATH_PROBE_BAD_TTL_S: ${PATH_PROBE_BAD_TTL_S:-}
+      PATH_PROBE_FAILED_TTL_S: ${PATH_PROBE_FAILED_TTL_S:-}
+      PATH_PROBE_RACE_STAGGER_MS: ${PATH_PROBE_RACE_STAGGER_MS:-}
+      PATH_PROBE_CONFIRM_S: ${PATH_PROBE_CONFIRM_S:-}
       # bff.yaml names the keys of the bot platform (task 106); empty: the
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
@@ -347,6 +367,9 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       # The site of the releases of the client apps (task 054); empty: none.
       PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:-}
+      # Its mirrors for the clients of some countries (task 113,
+      # docs/ops/ru-node.md); empty: the site for everyone.
+      PLUMA_RELEASES_ROUTES: ${PLUMA_RELEASES_ROUTES:-}
       # The secret of the update tickets of the iPhone app (task 085), shared
       # with iosinstall; empty: the update is the site's install page.
       PLUMA_IOS_UPDATE_SECRET: ${PLUMA_IOS_UPDATE_SECRET:-}
@@ -400,6 +423,25 @@ services:
       EDGE_WS_URLS: ${EDGE_WS_URLS:-}
       EDGE_ROUTES: ${EDGE_ROUTES:-}
       EDGE_STICKY_S: ${EDGE_STICKY_S:-}
+      # The settings of the path probes of the patched clients (task 113,
+      # ADR 0073, docs/ops/edge.md), pluma_probe of the app config; each
+      # empty one takes the default of the brief.
+      PATH_PROBE_GATE_DOWN: ${PATH_PROBE_GATE_DOWN:-}
+      PATH_PROBE_RANK_DOWN: ${PATH_PROBE_RANK_DOWN:-}
+      PATH_PROBE_UP: ${PATH_PROBE_UP:-}
+      PATH_PROBE_STALL_MS: ${PATH_PROBE_STALL_MS:-}
+      PATH_PROBE_DEADLINE_MS: ${PATH_PROBE_DEADLINE_MS:-}
+      PATH_PROBE_SUSPECT_MS: ${PATH_PROBE_SUSPECT_MS:-}
+      PATH_PROBE_REPROBE_S: ${PATH_PROBE_REPROBE_S:-}
+      PATH_PROBE_RANK_MIN_INTERVAL_S: ${PATH_PROBE_RANK_MIN_INTERVAL_S:-}
+      PATH_PROBE_MIN_DWELL_S: ${PATH_PROBE_MIN_DWELL_S:-}
+      PATH_PROBE_SWITCH_RATIO: ${PATH_PROBE_SWITCH_RATIO:-}
+      PATH_PROBE_SWITCH_RATIO_NOW: ${PATH_PROBE_SWITCH_RATIO_NOW:-}
+      PATH_PROBE_EDGE_PROBE_IF_DIRECT_MS: ${PATH_PROBE_EDGE_PROBE_IF_DIRECT_MS:-}
+      PATH_PROBE_BAD_TTL_S: ${PATH_PROBE_BAD_TTL_S:-}
+      PATH_PROBE_FAILED_TTL_S: ${PATH_PROBE_FAILED_TTL_S:-}
+      PATH_PROBE_RACE_STAGGER_MS: ${PATH_PROBE_RACE_STAGGER_MS:-}
+      PATH_PROBE_CONFIRM_S: ${PATH_PROBE_CONFIRM_S:-}
       # bff.yaml names the keys of the bot platform (task 106); empty: the
       # mini apps and the login of bots are off.
       BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}

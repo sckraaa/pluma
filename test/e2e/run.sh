@@ -324,6 +324,9 @@ gen_rufiles() {
 # edge under *.localhost names, the run's X-Pluma-Edge-Auth, and the
 # pluma_edge of bff by country (Russia by the stand's GeoIP database). The
 # addresses of the edges in pluma_edge are only handed out, never dialled.
+# Task 113: the mirrors of the site and of the login on sites through the
+# node, the releases' site with its mirror for Russia, and two settings of
+# the path probes off their defaults (path_probe_test.go).
 gen_edge_env() {
 	cat <<EOF
 PLUMA_WEB_IMAGE=$WEB_IMAGE
@@ -335,6 +338,12 @@ PLUMA_RU_EDGE_DOMAIN=ru.localhost
 EDGE_WS_URLS=gcore=wss://edge.e2e.pluma.test/apiws,ru=wss://ru.e2e.pluma.test/apiws
 EDGE_ROUTES=RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru
 EDGE_STICKY_S=900
+PLUMA_RU_SITE_DOMAIN=rusite.localhost
+PLUMA_RU_OAUTH_DOMAIN=ruoauth.localhost
+PLUMA_RELEASES_URL=https://site.localhost
+PLUMA_RELEASES_ROUTES=RU=https://rusite.localhost
+PATH_PROBE_STALL_MS=1700
+PATH_PROBE_SWITCH_RATIO=0.65
 EOF
 }
 

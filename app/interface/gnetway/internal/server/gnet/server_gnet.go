@@ -130,6 +130,9 @@ func (s *Server) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 		s.limits.closeConn(ctx.limitSubject)
 		ctx.limitSubject = ""
 	}
+	if ctx.probes > 0 {
+		s.probeSlots.release(c.ConnId())
+	}
 
 	defer func() {
 		s.timeoutWheel.Remove(c.ConnId(), ctx.closeDate)
@@ -338,6 +341,7 @@ func (s *Server) OnTick() (delay time.Duration, action gnet.Action) {
 		})
 	}
 	s.expirePings(now)
+	s.releaseSentProbes(time.Now())
 	return
 }
 
@@ -536,6 +540,9 @@ func (s *Server) onMTPRawMessage(ctx *connContext, c gnet.Conn, needAck bool, ms
 	authKeyId := int64(binary.LittleEndian.Uint64(msg2))
 
 	if authKeyId == 0 {
+		if handshake.IsProbe(msg2) {
+			return s.onProbe(c, ctx, msg2)
+		}
 		out, _, err := s.onHandshakeMessage(s.connHandshakeIO(c, ctx), msg2)
 		if err != nil {
 			logx.Errorf("conn(%d) handshake: %v", c.ConnId(), err)

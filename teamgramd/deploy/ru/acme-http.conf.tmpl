@@ -19,12 +19,13 @@ server {
     }
 }
 
-# The edge: the certificate is issued at home by Caddy under the home's ACME
-# account (the CAA records of the zone allow only it), so its challenges go
-# home through the tunnel.
+# The edge and the mirrors of the site and of the login on sites (task
+# 113): their certificates are issued at home by Caddy under the home's ACME
+# account (the CAA records of the zone allow only it), so their challenges
+# go home through the tunnel.
 server {
     listen 80;
-    server_name @@EDGE_DOMAIN@@;
+    server_name @@HOME_TLS_NAMES@@;
     access_log off;
 
     location ^~ /.well-known/acme-challenge/ {

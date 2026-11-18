@@ -35,7 +35,7 @@ func TestIPSubject(t *testing.T) {
 }
 
 func TestIPLimitsConnections(t *testing.T) {
-	l := newIPLimits(2, 60)
+	l := newIPLimits(2, 60, 0)
 	a, b := ipSubject("203.0.113.7"), ipSubject("203.0.113.8")
 	for i := 0; i < 2; i++ {
 		if !l.openConn(a) {
@@ -55,7 +55,7 @@ func TestIPLimitsConnections(t *testing.T) {
 }
 
 func TestIPLimitsKeyExchanges(t *testing.T) {
-	l := newIPLimits(10, 60) // 60 a minute: one a second, a burst of 60
+	l := newIPLimits(10, 60, 0) // 60 a minute: one a second, a burst of 60
 	a := ipSubject("2001:db8::1")
 	now := time.Unix(1_800_000_000, 0)
 	for i := 0; i < 60; i++ {

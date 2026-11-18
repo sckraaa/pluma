@@ -252,11 +252,13 @@ func (s *Server) Initialize() error {
 			AuthsessionClient: c.AuthSessionClient,
 			MediaClient:       c.MediaClient,
 			ReleasesURL:       c.ReleasesURL,
+			ReleasesRoutes:    c.ReleasesRoutes,
 			IOSUpdate:         c.IOSUpdate,
 			Translate:         c.Translate,
 			GifSearch:         c.InlineBots.GifSearch(),
 			Maps:              c.Maps,
 			Edge:              c.Edge,
+			Probe:             c.Probe,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)

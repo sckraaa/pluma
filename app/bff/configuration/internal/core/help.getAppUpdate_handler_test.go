@@ -27,11 +27,22 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
+	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/releasesite"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/svc"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
+	"github.com/teamgram/teamgram-server/pkg/ipcountry"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
+
+// mustReleaseSites is the releases' site main with the mirrors of routes.
+func mustReleaseSites(main, routes string) *releasesite.Sites {
+	s, err := releasesite.Parse(main, routes)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
 
 // TestIOSUpdateURL: an Ad Hoc build is sent to the itms-services link of
 // the build only when the update from the app is set up and the install
@@ -57,8 +68,7 @@ func TestIOSUpdateURL(t *testing.T) {
 	defer install.Close()
 
 	core := func(withSecret bool, authKey int64) *ConfigurationCore {
-		s := &svc.ServiceContext{}
-		s.Config.ReleasesURL = "https://pluma.example"
+		s := &svc.ServiceContext{ReleaseSites: mustReleaseSites("https://pluma.example", "")}
 		if withSecret {
 			s.Config.IOSUpdate = iosupdate.Settings{Secret: secret, StatusURL: install.URL}
 			// A checker of its own: each core asks the install service.
@@ -111,5 +121,68 @@ func TestIOSUpdateURL(t *testing.T) {
 		if got := core(true, 1).iosUpdateURL(c.build); got != page {
 			t.Errorf("%s: not the install page", name)
 		}
+	}
+}
+
+// TestIOSUpdateURLByCountry: with a mirror of the site for Russia (task
+// 113), an Ad Hoc build there is sent to the mirror's install page, or to
+// the itms-services link of the manifest on the mirror; a client of any
+// other country to the main site's. A manifest the install service names
+// outside the releases' site is left as it is.
+func TestIOSUpdateURLByCountry(t *testing.T) {
+	const (
+		secret = "0123456789abcdef0123456789abcdef0123456789abcdef"
+		prefix = "itms-services://?action=download-manifest&url="
+	)
+	var answer atomic.Value
+	answer.Store(iosupdate.Status{Build: 60, Manifest: "https://pluma.example/ios/adhoc/manifest"})
+	install := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		st, _ := answer.Load().(iosupdate.Status)
+		_ = json.NewEncoder(w).Encode(st)
+	}))
+	defer install.Close()
+	countries := &fakeCountries{country: map[string]string{"5.8.16.10": "RU", "203.0.113.5": "DE"}}
+
+	core := func(withSecret bool, addr string) *ConfigurationCore {
+		s := &svc.ServiceContext{
+			ReleaseSites: mustReleaseSites("https://pluma.example", "RU=https://pluma.mirror.example"),
+			Countries:    ipcountry.New(countries),
+		}
+		if withSecret {
+			s.Config.IOSUpdate = iosupdate.Settings{Secret: secret, StatusURL: install.URL}
+			s.IOSUpdate = iosupdate.NewChecker(install.URL)
+		}
+		ctx := context.Background()
+		return &ConfigurationCore{ctx: ctx, svcCtx: s, Logger: logx.WithContext(ctx), MD: &metadata.RpcMetadata{PermAuthKeyId: 1, ClientAddr: addr}}
+	}
+	manifestOf := func(link string) string {
+		t.Helper()
+		if !strings.HasPrefix(link, prefix) {
+			t.Fatalf("%q is not the install link", link)
+		}
+		m, err := url.QueryUnescape(strings.TrimPrefix(link, prefix))
+		if err != nil {
+			t.Fatal(err)
+		}
+		base, _, _ := strings.Cut(m, "?")
+		return base
+	}
+
+	for addr, site := range map[string]string{
+		"5.8.16.10":   "https://pluma.mirror.example",
+		"203.0.113.5": "https://pluma.example",
+		"":            "https://pluma.example",
+	} {
+		if got := core(false, addr).iosUpdateURL(60); got != site+"/iphone/install" {
+			t.Errorf("%q, no secret: %q", addr, got)
+		}
+		if got := manifestOf(core(true, addr).iosUpdateURL(60)); got != site+"/ios/adhoc/manifest" {
+			t.Errorf("%q: the manifest %q", addr, got)
+		}
+	}
+
+	answer.Store(iosupdate.Status{Build: 60, Manifest: "https://install.example/ios/adhoc/manifest"})
+	if got := manifestOf(core(true, "5.8.16.10").iosUpdateURL(60)); got != "https://install.example/ios/adhoc/manifest" {
+		t.Errorf("a manifest outside the site: %q", got)
 	}
 }

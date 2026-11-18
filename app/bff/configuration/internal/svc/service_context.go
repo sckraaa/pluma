@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/appconfig"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/dao"
+	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/releasesite"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
@@ -61,9 +62,16 @@ type ServiceContext struct {
 	// Edges is pluma_edge of the app config by the country of the client
 	// (task 109, ADR 0072); nil without edges.
 	Edges *appconfig.Edges
+	// Probe is pluma_probe of the app config by the country of the client
+	// (task 113, ADR 0073 §7).
+	Probe *appconfig.Probe
+	// ReleaseSites is the site of the releases of the client apps and its
+	// mirrors by the country of the client (tasks 054, 113); nil without
+	// PLUMA_RELEASES_URL.
+	ReleaseSites *releasesite.Sites
 	// Countries tells the country of a client's address
 	// (authsession.getIpCountry, cached); used only when Edges has
-	// records of countries.
+	// records of countries, for Probe, and when ReleaseSites has mirrors.
 	Countries *ipcountry.Locator
 	// IOSUpdate asks the install service what an Ad Hoc build of the iPhone
 	// app can update to from the app (task 085); nil when that is off.
@@ -97,6 +105,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	// start instead of handing the clients a pluma_edge they drop.
 	edges, err := appconfig.ParseEdges(c.Edge.WSURLs, c.Edge.Routes, c.Edge.StickyS)
 	logx.Must(err)
+	// The settings of the path probes (task 113) and the mirrors of the
+	// releases' site: a wrong value stops the start, as above.
+	probe, err := appconfig.ParseProbe(c.Probe.Variables())
+	logx.Must(err)
+	releaseSites, err := releasesite.Parse(c.ReleasesURL, c.ReleasesRoutes)
+	logx.Must(err)
 	logx.Must(c.IOSUpdate.Check())
 	var iosUpdate *iosupdate.Checker
 	if c.IOSUpdate.Enabled() {
@@ -108,6 +122,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		ClientConfig: clientConfig,
 		AppConfig:    appconfig.NewLive(appConfig, botstore.New(d.DB()).LoginDomains, loginDomainsEvery),
 		Edges:        edges,
+		Probe:        probe,
+		ReleaseSites: releaseSites,
 		Countries:    ipcountry.New(d.AuthsessionClient),
 		IOSUpdate:    iosUpdate,
 		Dao:          d,

@@ -25,7 +25,7 @@ import (
 // DH work; other addresses go on.
 func TestKeyExchangeLimitPerAddress(t *testing.T) {
 	h := newTestHarness(t)
-	h.s.limits = newIPLimits(10, 2)
+	h.s.limits = newIPLimits(10, 2, 0)
 	from := func(ip string) func(ctx *connContext) {
 		return func(ctx *connContext) { ctx.clientIp = ip }
 	}
@@ -58,7 +58,7 @@ func TestKeyExchangeLimitPerAddress(t *testing.T) {
 // when they close.
 func TestConnLimitPerAddress(t *testing.T) {
 	h := newTestHarness(t)
-	h.s.limits = newIPLimits(1, 10)
+	h.s.limits = newIPLimits(1, 10, 0)
 	from := func(ctx *connContext) { ctx.clientIp = "2001:db8::1" }
 	c1 := h.newConn(1, from)
 	c2 := h.newConn(2, func(ctx *connContext) { ctx.clientIp = "2001:db8::2" }) // the same /64

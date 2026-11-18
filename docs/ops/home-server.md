@@ -44,7 +44,7 @@ docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- https://ifco
 ```
 
 ## Второй туннель: российский узел amf (задача 109)
-Решение — ADR 0072 §8. Узел amf (194.87.226.185, Timeweb, Москва) несёт для пользователей из России выдачу файлов 202, край `ru.pluma.chat` и TURN; что стоит на самом узле — `ru-node.md`, края — `edge.md`. Дом связан с ним вторым каналом WireGuard, независимым от Hetzner:
+Решение — ADR 0072 §8. Узел amf (194.87.226.185, Timeweb, Москва) несёт для пользователей из России выдачу файлов 202, край `ru.sckra.dev` (с Web K), зеркала сайта и входа на сайты (`pluma.sckra.dev`, `oauth.sckra.dev`, задача 113) и TURN; что стоит на самом узле — `ru-node.md`, края — `edge.md`. Дом связан с ним вторым каналом WireGuard, независимым от Hetzner:
 
 ```
 дом 10.78.0.2 ──WireGuard plumaru, дом звонит, MTU 1280──► amf 10.78.0.1, 51820/udp
@@ -140,7 +140,7 @@ docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- -T5 http://1
   - Gcore тянет у дома каждый кусок 10 МБ один раз на точку за 36 ч простоя: на отдачу канала дома приходятся первые просмотры, повторные идут с точек Gcore.
 - **Края клиентов и российский узел** (задача 109, ADR 0072, `docs/ops/edge.md`, `docs/ops/ru-node.md`):
   - край Gcore — сайт Caddy `edge-origin.caddy` на имени `PLUMA_EDGE_ORIGIN_DOMAIN` (A-запись на 195.201.252.126, как у `PLUMA_CDN_ORIGIN_DOMAIN`; 443 уже идёт домой DNAT, на VPS ничего нового); вход `Edge` шлюза — `gnetway:11445`, только сеть Docker;
-  - край и выдача 202 узла amf — через второй туннель (раздел выше) и `docker-compose.ru.yaml`: Caddy публикует 80, 443 и 8443 на `10.78.0.2`. Сертификат `ru.pluma.chat` выпускает Caddy дома (HTTP-01 через порт 80 amf, CAA `pluma.chat` не меняются); сертификат `r1.pluma.chat` — certbot на amf под своим аккаунтом и своими CAA на этом имени (`ru-node.md`, шаг 4);
+  - край и выдача 202 узла amf — через второй туннель (раздел выше) и `docker-compose.ru.yaml`: Caddy публикует 80, 443 и 8443 на `10.78.0.2`. Сертификаты `ru.sckra.dev` и зеркал выпускает Caddy дома (HTTP-01 через порт 80 amf, CAA зоны не меняются); сертификат `r1.sckra.dev` — certbot на amf под своим аккаунтом и своими CAA на этом имени (`ru-node.md`, шаг 4);
   - `.env` дома (только имена): `PLUMA_EDGE_ORIGIN_DOMAIN`, `PLUMA_EDGE_ORIGIN_AUTH`, `PLUMA_RU_EDGE_DOMAIN`, `PLUMA_RU_TUNNEL_IPV4=10.78.0.2`, `EDGE_WS_URLS`, `EDGE_ROUTES`, `EDGE_STICKY_S`, `CDN_RU_BASE_URL`, `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH`, `CDN_RU_HEALTH_ADDR=10.78.0.1:443`, `CDN_RU_MONTHLY_GB`, `CDN_ROUTES` со страной, `CALLS_TURN_SECRETS`, `CALLS_ICE_SERVERS` с записью `@ru`; `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH` и запись `ru=` из `CALLS_TURN_SECRETS` — те же в `/etc/pluma-ru/env` узла (перенос без печати — `ru-node.md`, «Переменные»);
   - с `PLUMA_RU_TUNNEL_IPV4` любая команда compose, пересоздающая `web`, включает `-f docker-compose.ru.yaml` после `docker-compose.web.yaml`, иначе Caddy потеряет порты туннеля; то же — в `pluma-deploy.sh`.
 - Сайты владельца: `/srv/pluma-caddy-sites/*.caddy`. В `sckra.dev.caddy` upstream — `10.77.0.1:3000`, это `site-relay` края.

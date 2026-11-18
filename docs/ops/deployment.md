@@ -242,9 +242,9 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker
 
 **Шаг 2 — российский узел amf.** Порядок — бриф 109, «Эксплуатация»:
 1. Второй туннель — `home-server.md`, «Второй туннель: российский узел amf».
-2. Владелец: A-записи `ru.pluma.chat` и `r1.pluma.chat` → 194.87.226.185 (без проксирования Cloudflare).
+2. Владелец: A-записи имён узла → 194.87.226.185 (без проксирования Cloudflare). Имена `*.pluma.chat` в России заблокированы, поэтому узел — на `sckra.dev` (решение 8 брифа 113): `ru.sckra.dev` (край и Web K), `r1.sckra.dev` (выдача 202), `pluma.sckra.dev` и `oauth.sckra.dev` (зеркала сайта и входа, шаг 2а).
 3. Узел: `/etc/pluma-ru/env`, `deploy.sh`, `owner-nginx.sh check`, затем `install` по слову владельца, сертификат `r1` с CAA владельца — `ru-node.md`, «Первое включение», шаги 1–4. Сайт владельца `form.amf25.ru` проверить сразу после `install`.
-4. `.env` дома: `PLUMA_RU_TUNNEL_IPV4=10.78.0.2`, `PLUMA_RU_EDGE_DOMAIN=ru.pluma.chat`, `CDN_RU_BASE_URL=https://r1.pluma.chat`, `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH`, `CDN_RU_HEALTH_ADDR=10.78.0.1:443`, `CDN_RU_MONTHLY_GB`, `CDN_ROUTES=RU,BY:202,201;*:201`, `EDGE_WS_URLS` с `ru=wss://ru.pluma.chat/apiws`, `EDGE_ROUTES=RU,BY:edge,direct:ru,gcore;*:direct,edge:gcore,ru`, `CALLS_TURN_SECRETS=ru=…`, `CALLS_ICE_SERVERS` с записью `194.87.226.185:3478:stun+turn@ru`. Секреты создаются `openssl rand` на одной машине и переносятся на узел по SSH без печати (`ru-node.md`, «Переменные»). Значения стран и порядок краёв — решения владельца 1, 10, 11 брифа.
+4. `.env` дома: `PLUMA_RU_TUNNEL_IPV4=10.78.0.2`, `PLUMA_RU_EDGE_DOMAIN=ru.sckra.dev`, `CDN_RU_BASE_URL=https://r1.sckra.dev`, `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH`, `CDN_RU_HEALTH_ADDR=10.78.0.1:443`, `CDN_RU_MONTHLY_GB`, `CDN_ROUTES=RU,BY:202,201;*:201`, `EDGE_WS_URLS` с `ru=wss://ru.sckra.dev/apiws`, `EDGE_ROUTES=RU,BY:edge,direct:ru,gcore;*:direct,edge:gcore,ru`, `CALLS_TURN_SECRETS=ru=…`, `CALLS_ICE_SERVERS` с записью `194.87.226.185:3478:stun+turn@ru`. Секреты создаются `openssl rand` на одной машине и переносятся на узел по SSH без печати (`ru-node.md`, «Переменные»). Значения стран и порядок краёв — решения владельца 1, 10, 11 брифа.
 5. Выкладка с наложением узла. Порты `docker-compose.ru.yaml` публикуются на адресе туннеля, поэтому сначала проверить интерфейс:
    ```bash
    ip -4 addr show plumaru | grep -q 'inet 10.78.0.2/' || { echo "plumaru is down: see home-server.md" >&2; exit 1; }
@@ -254,7 +254,13 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker
 6. Цели Prometheus: `/opt/pluma/prometheus-targets/node-ru.json` (`home-server.md`).
 7. Проверки владельца 9–12 брифа 109; ручные проверки — `docs/project/TESTING-BACKLOG.md`, раздел «109».
 
-**Шаг 3 — сборки клиентов.** Переменная репозитория `PLUMA_EDGE_WS_URLS` в четырёх репозиториях клиентов (`pluma-android`, `pluma-ios`, `pluma-desktop`, `pluma-web`), рядом с адресом сервера: рекомендованное значение — `wss://<префикс2>.gcorecdn.com/apiws,wss://ru.pluma.chat/apiws` (решение владельца 10). Задаётся, когда края сервера уже отвечают: встроенный край, который не отвечает, клиенту не мешает (прямой путь первым), но и не помогает. Правки клиентов — A-128, I-133, D-106, W-086 (`clients/patches/`).
+**Шаг 2а — зеркала сайта и входа на сайты через узел** (задача 113, `ru-node.md`, «Зеркала сайта и входа на сайты»): из России должны работать установка и обновления приложений (`/dl/`), сайт и вход на сайты.
+1. Владелец: A-записи `pluma.sckra.dev` и `oauth.sckra.dev` → 194.87.226.185.
+2. Узел: `PLUMA_RU_MIRROR_DOMAINS=pluma.sckra.dev,oauth.sckra.dev` в `/etc/pluma-ru/env`, `deploy.sh`, `owner-nginx.sh check` и `install` (карта SNI и порт 80 владельца изменились).
+3. `.env` дома: `PLUMA_RU_SITE_DOMAIN=pluma.sckra.dev`, `PLUMA_RU_OAUTH_DOMAIN=oauth.sckra.dev`, `PLUMA_RELEASES_ROUTES=RU,BY=https://pluma.sckra.dev`. Пересоздать `web` с `docker-compose.ru.yaml` (новые сайты Caddy, монтирования `ru-site.caddy`, `ru-oauth.caddy`, tmpfs `ru-mirror.d`), выкатить `bff`, `releases` и `iosinstall` (у последнего новая переменная `MIRROR_HOSTS`, образ этой версии).
+4. Проверка — `ru-node.md`, «Зеркала», шаг 4; в `help.getConfig` клиента из России `autoupdate_url_prefix` = `https://pluma.sckra.dev/dl/desktop`.
+
+**Шаг 3 — сборки клиентов.** Переменная репозитория `PLUMA_EDGE_WS_URLS` в четырёх репозиториях клиентов (`pluma-android`, `pluma-ios`, `pluma-desktop`, `pluma-web`), рядом с адресом сервера: рекомендованное значение — `wss://<префикс2>.gcorecdn.com/apiws,wss://ru.sckra.dev/apiws` (решение владельца 10; имя узла — решение 8 брифа 113). Задаётся, когда края сервера уже отвечают: встроенный край, который не отвечает, клиенту не мешает (прямой путь первым), но и не помогает. Правки клиентов — A-128, I-133, D-106, W-086 (`clients/patches/`).
 
 **Проверка после выката** (подробно — `edge.md`, «Проверка после деплоя», и `ru-node.md`, «Проверка»):
 - метрики шлюза `gnetway_entry_conns{entry="edge",via=…}` и `gnetway_edge_no_client_addr_total` (рост — тревога: Gcore перестал слать адрес или кто-то ходит на вход мимо Caddy);

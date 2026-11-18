@@ -37,6 +37,11 @@ type Config struct {
 	// the update prefix of the desktop app (help.getConfig) and the install
 	// page of the iPhone app.
 	ReleasesURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// ReleasesRoutes is PLUMA_RELEASES_ROUTES, the mirrors of that site for
+	// the clients of some countries (task 113, docs/ops/releases.md):
+	// "RU,BY=https://pluma.sckra.dev"; the clients of every other country
+	// get ReleasesURL.
+	ReleasesRoutes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// IOSUpdate lets an Ad Hoc build of the iPhone app update from the app
 	// (task 085); off without its secret.
 	IOSUpdate iosupdate.Settings `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
@@ -56,13 +61,17 @@ type Config struct {
 	// config (task 109, ADR 0072, docs/ops/edge.md): no edges without
 	// WSURLs.
 	Edge EdgeConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Probe is the settings of the path probes of the patched clients,
+	// pluma_probe of the app config (task 113, ADR 0073 §7,
+	// docs/ops/edge.md): an empty value takes the default of the brief.
+	Probe ProbeConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 // EdgeConfig is the Edge block of bff.yaml, parsed by appconfig.ParseEdges
 // at the start.
 type EdgeConfig struct {
 	// WSURLs is EDGE_WS_URLS, the edges by name:
-	// "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws".
+	// "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.sckra.dev/apiws".
 	WSURLs string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// Routes is EDGE_ROUTES, the edges and their order by the country of
 	// the client: "RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru".
@@ -70,4 +79,48 @@ type EdgeConfig struct {
 	// StickyS is EDGE_STICKY_S, how many seconds a client keeps to an edge
 	// it switched to ("1800").
 	StickyS string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
+// ProbeConfig is the Probe block of bff.yaml, the PATH_PROBE_* variables,
+// parsed by appconfig.ParseProbe at the start.
+type ProbeConfig struct {
+	GateDown            string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	RankDown            string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	Up                  string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	StallMs             string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	DeadlineMs          string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	SuspectMs           string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	ReprobeS            string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	RankMinIntervalS    string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	MinDwellS           string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	SwitchRatio         string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	SwitchRatioNow      string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	EdgeProbeIfDirectMs string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	BadTTLS             string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	FailedTTLS          string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	RaceStaggerMs       string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	ConfirmS            string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
+// Variables is the block by the names of its variables, as
+// appconfig.ParseProbe takes them.
+func (p ProbeConfig) Variables() map[string]string {
+	return map[string]string{
+		"PATH_PROBE_GATE_DOWN":               p.GateDown,
+		"PATH_PROBE_RANK_DOWN":               p.RankDown,
+		"PATH_PROBE_UP":                      p.Up,
+		"PATH_PROBE_STALL_MS":                p.StallMs,
+		"PATH_PROBE_DEADLINE_MS":             p.DeadlineMs,
+		"PATH_PROBE_SUSPECT_MS":              p.SuspectMs,
+		"PATH_PROBE_REPROBE_S":               p.ReprobeS,
+		"PATH_PROBE_RANK_MIN_INTERVAL_S":     p.RankMinIntervalS,
+		"PATH_PROBE_MIN_DWELL_S":             p.MinDwellS,
+		"PATH_PROBE_SWITCH_RATIO":            p.SwitchRatio,
+		"PATH_PROBE_SWITCH_RATIO_NOW":        p.SwitchRatioNow,
+		"PATH_PROBE_EDGE_PROBE_IF_DIRECT_MS": p.EdgeProbeIfDirectMs,
+		"PATH_PROBE_BAD_TTL_S":               p.BadTTLS,
+		"PATH_PROBE_FAILED_TTL_S":            p.FailedTTLS,
+		"PATH_PROBE_RACE_STAGGER_MS":         p.RaceStaggerMs,
+		"PATH_PROBE_CONFIRM_S":               p.ConfirmS,
+	}
 }

@@ -18,8 +18,11 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -42,6 +45,11 @@ type config struct {
 	// releasesURL is releases.json of the releases service, which names
 	// the current release of the iPhone app.
 	releasesURL string
+	// mirrors are the host names of the mirrors of the site (task 113,
+	// MIRROR_HOSTS): a request that came to one of them is answered with
+	// the addresses of that mirror, not of publicURL, so that the whole
+	// install, and the update from the app, stays on the mirror.
+	mirrors []string
 }
 
 func configFromEnv(getenv func(string) string) (config, error) {
@@ -65,6 +73,15 @@ func configFromEnv(getenv func(string) string) (config, error) {
 		return c, errors.New("PUBLIC_URL must be the site's https:// address, as https://pluma.chat")
 	}
 	c.pageURL = or(c.pageURL, c.publicURL+"/iphone/install")
+	for h := range strings.SplitSeq(getenv("MIRROR_HOSTS"), ",") {
+		if h = strings.TrimSpace(h); h == "" {
+			continue
+		}
+		if !validHost(h) || h == u.Host {
+			return c, fmt.Errorf("MIRROR_HOSTS: %q is not a lower-case host name other than that of PUBLIC_URL", h)
+		}
+		c.mirrors = append(c.mirrors, h)
+	}
 	for name, v := range map[string]string{
 		"ASC_KEY_ID": c.ascKeyID, "ASC_ISSUER": c.ascIssuer, "ASC_KEY_FILE": c.ascKeyFile,
 		"SIGN_CERTIFICATE_ID": c.certificateID, "SIGN_P12_FILE": c.p12File, "SIGN_P12_PASSWORD_FILE": c.p12PasswordFile,
@@ -96,6 +113,52 @@ func configFromEnv(getenv func(string) string) (config, error) {
 		return c, fmt.Errorf("LIMIT_DEVICES_DAY: %w", err)
 	}
 	return c, nil
+}
+
+// validHost is whether h is a lower-case DNS name with a dot: the name of
+// a mirror, as a browser sends it in Host.
+func validHost(h string) bool {
+	if len(h) > 253 || !strings.Contains(h, ".") {
+		return false
+	}
+	for label := range strings.SplitSeq(h, ".") {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, c := range label {
+			if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// site is the site a request came to: the mirror of its Host when that is
+// one of mirrors (task 113), publicURL otherwise. Host is the browser's,
+// and only a name of the list makes it count.
+func (c config) site(r *http.Request) string {
+	host := strings.ToLower(r.Host)
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	if slices.Contains(c.mirrors, host) {
+		return "https://" + host
+	}
+	return c.publicURL
+}
+
+// page is the install page of the site of r: pageURL, on the mirror when r
+// came to one and pageURL is a page of publicURL.
+func (c config) page(r *http.Request) string {
+	site := c.site(r)
+	if site == c.publicURL {
+		return c.pageURL
+	}
+	if rest, ok := strings.CutPrefix(c.pageURL, c.publicURL+"/"); ok {
+		return site + "/" + rest
+	}
+	return c.pageURL
 }
 
 func or(v, def string) string {

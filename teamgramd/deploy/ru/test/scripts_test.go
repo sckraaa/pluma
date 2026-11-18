@@ -77,6 +77,7 @@ func newNodeEnv(t *testing.T) *nodeEnv {
 	e.set("PLUMA_CDN_ORIGIN_DOMAIN", "origin.pluma.test")
 	e.set("PLUMA_WEB_DOMAIN", "web.pluma.test")
 	e.set("PLUMA_GCORE_EDGE_DOMAIN", "edge.gcore.test")
+	e.set("PLUMA_RU_MIRROR_DOMAINS", "pluma.mirror.test,oauth.mirror.test")
 	e.set("CDN_RU_TOKEN_KEY", randomHex(t, 16))
 	e.set("CDN_RU_ORIGIN_AUTH", randomHex(t, 32))
 	e.set("CALLS_TURN_SECRETS", "ru="+randomHex(t, 32))
@@ -260,12 +261,18 @@ func TestRender(t *testing.T) {
 		}
 	}
 
+	// The edge and the mirrors go home, delivery 202 to the node's nginx.
 	sni := readFile(t, filepath.Join(dir, "owner", "pluma-sni.map"))
-	if !strings.Contains(sni, "\nru.pluma.test pluma_ru_edge;\n") || !strings.Contains(sni, "\nr1.pluma.test pluma_ru_files;\n") {
-		t.Errorf("pluma-sni.map:\n%s", sni)
+	for _, want := range []string{
+		"\nru.pluma.test pluma_ru_edge;\n", "\npluma.mirror.test pluma_ru_edge;\n", "\noauth.mirror.test pluma_ru_edge;\n",
+		"\nr1.pluma.test pluma_ru_files;\n",
+	} {
+		if !strings.Contains(sni, want) {
+			t.Errorf("pluma-sni.map has no %q:\n%s", strings.TrimSpace(want), sni)
+		}
 	}
 	acme := readFile(t, filepath.Join(dir, "owner", "pluma-acme-http.conf"))
-	for _, want := range []string{"server_name r1.pluma.test;", "server_name ru.pluma.test;", "root /var/lib/pluma-ru/acme;", "proxy_pass http://10.78.0.2:80;"} {
+	for _, want := range []string{"server_name r1.pluma.test;", "server_name ru.pluma.test pluma.mirror.test oauth.mirror.test;", "root /var/lib/pluma-ru/acme;", "proxy_pass http://10.78.0.2:80;"} {
 		if !strings.Contains(acme, want) {
 			t.Errorf("pluma-acme-http.conf has no %q", want)
 		}
@@ -288,6 +295,26 @@ func TestRenderWithoutGcoreEdge(t *testing.T) {
 	}
 	if !strings.Contains(conf, `"https://ru.pluma.test" $http_origin;`) {
 		t.Error("files.conf lost the edge's site")
+	}
+}
+
+// TestRenderWithoutMirrors: the mirrors are optional; without them the
+// edge alone goes home.
+func TestRenderWithoutMirrors(t *testing.T) {
+	needBash(t)
+	e := newNodeEnv(t)
+	e.del("PLUMA_RU_MIRROR_DOMAINS")
+	dir, text, code := render(t, e)
+	if code != 0 {
+		t.Fatalf("render: exit %d\n%s", code, text)
+	}
+	sni := readFile(t, filepath.Join(dir, "owner", "pluma-sni.map"))
+	if strings.Count(sni, "pluma_ru_edge;") != 1 || !strings.Contains(sni, "\nru.pluma.test pluma_ru_edge;\n") || strings.Contains(sni, "mirror.test") {
+		t.Errorf("pluma-sni.map without mirrors:\n%s", sni)
+	}
+	acme := readFile(t, filepath.Join(dir, "owner", "pluma-acme-http.conf"))
+	if !strings.Contains(acme, "server_name ru.pluma.test;") {
+		t.Errorf("pluma-acme-http.conf without mirrors:\n%s", acme)
 	}
 }
 
@@ -331,6 +358,17 @@ func TestRenderRefusesBadValues(t *testing.T) {
 		{"Gcore edge with a path", func(e *nodeEnv) { e.set("PLUMA_GCORE_EDGE_DOMAIN", "edge.gcore.test/x") }, "PLUMA_GCORE_EDGE_DOMAIN"},
 		{"domain without a dot", func(e *nodeEnv) { e.set("PLUMA_CDN_ORIGIN_DOMAIN", "origin") }, "PLUMA_CDN_ORIGIN_DOMAIN"},
 		{"same names", func(e *nodeEnv) { e.set("PLUMA_RU_EDGE_DOMAIN", "r1.pluma.test") }, "the same name"},
+		{"mirror upper case", func(e *nodeEnv) { e.set("PLUMA_RU_MIRROR_DOMAINS", "Pluma.mirror.test") }, "PLUMA_RU_MIRROR_DOMAINS: an item is not"},
+		{"mirror with a space", func(e *nodeEnv) { e.set("PLUMA_RU_MIRROR_DOMAINS", "pluma.mirror.test, oauth.mirror.test") }, "PLUMA_RU_MIRROR_DOMAINS: an item is not"},
+		{"mirror with a semicolon", func(e *nodeEnv) { e.set("PLUMA_RU_MIRROR_DOMAINS", "pluma.mirror.test;") }, "PLUMA_RU_MIRROR_DOMAINS: an item is not"},
+		{"mirror empty item", func(e *nodeEnv) { e.set("PLUMA_RU_MIRROR_DOMAINS", "pluma.mirror.test,,oauth.mirror.test") }, "PLUMA_RU_MIRROR_DOMAINS: an item is not"},
+		{"mirror trailing comma", func(e *nodeEnv) { e.set("PLUMA_RU_MIRROR_DOMAINS", "pluma.mirror.test,") }, "ends with a comma"},
+		{"mirror twice", func(e *nodeEnv) { e.set("PLUMA_RU_MIRROR_DOMAINS", "pluma.mirror.test,pluma.mirror.test") }, "pluma.mirror.test is named twice"},
+		{"mirror is the edge", func(e *nodeEnv) { e.set("PLUMA_RU_MIRROR_DOMAINS", "ru.pluma.test") }, "ru.pluma.test is named twice, or is the edge's"},
+		{"mirror is delivery 202", func(e *nodeEnv) { e.set("PLUMA_RU_MIRROR_DOMAINS", "r1.pluma.test") }, "r1.pluma.test is named twice, or is the edge's"},
+		{"too many mirrors", func(e *nodeEnv) {
+			e.set("PLUMA_RU_MIRROR_DOMAINS", "m1.test,m2.test,m3.test,m4.test,m5.test,m6.test,m7.test,m8.test,m9.test")
+		}, "more than 8 names"},
 		{"address out of range", func(e *nodeEnv) { e.set("PLUMA_RU_PUBLIC_IPV4", "256.1.1.1") }, "PLUMA_RU_PUBLIC_IPV4"},
 		{"origin address", func(e *nodeEnv) { e.set("PLUMA_RU_ORIGIN_ADDR", "home:443") }, "PLUMA_RU_ORIGIN_ADDR"},
 		{"missing", func(e *nodeEnv) { e.del("PLUMA_WEB_DOMAIN") }, "PLUMA_WEB_DOMAIN is not set"},
@@ -482,6 +520,14 @@ func TestOwnerCheck(t *testing.T) {
 			tree["stream.d/sni.conf"] = strings.Replace(tree["stream.d/sni.conf"], "default owner_site;", "default owner_site;\n    r1.pluma.test owner_site;", 1)
 			return version
 		}, "the owner's map already routes r1.pluma.test"},
+		{"mirror routed by the owner", func(tree map[string]string) string {
+			tree["stream.d/sni.conf"] = strings.Replace(tree["stream.d/sni.conf"], "default owner_site;", "default owner_site;\n    oauth.mirror.test owner_site;", 1)
+			return version
+		}, "the owner's map already routes oauth.mirror.test"},
+		{"mirror served by the owner", func(tree map[string]string) string {
+			tree["sites-enabled/owner-site"] = strings.Replace(tree["sites-enabled/owner-site"], "server_name site.test;", "server_name site.test pluma.mirror.test;", 1)
+			return version
+		}, "an http server of the owner already has server_name pluma.mirror.test"},
 		{"name served by the owner", func(tree map[string]string) string {
 			tree["sites-enabled/owner-site"] = strings.Replace(tree["sites-enabled/owner-site"], "server_name site.test;", "server_name site.test ru.pluma.test;", 1)
 			return version

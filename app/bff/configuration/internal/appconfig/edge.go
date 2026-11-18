@@ -91,7 +91,7 @@ type edgeValue struct {
 // ParseEdges parses the edges of bff's config:
 //
 //   - urls is EDGE_WS_URLS, the edges by name, "<name>=<wss URL>" separated
-//     by ",", e.g. "gcore=wss://x.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws";
+//     by ",", e.g. "gcore=wss://x.gcorecdn.com/apiws,ru=wss://ru.sckra.dev/apiws";
 //     a name is 1-16 of a-z and 0-9. Empty: no edges, and nil.
 //   - routes is EDGE_ROUTES, records "<countries or *>:<order>:<names>"
 //     separated by ";", e.g. "RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru",

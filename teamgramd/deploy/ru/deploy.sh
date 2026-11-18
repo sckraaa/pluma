@@ -54,7 +54,7 @@ say() { echo "deploy: $*"; }
 
 KNOWN_VARS=(PLUMA_RU_PUBLIC_IPV4 PLUMA_RU_FILES_DOMAIN PLUMA_RU_EDGE_DOMAIN PLUMA_CDN_ORIGIN_DOMAIN
 	PLUMA_WEB_DOMAIN CDN_RU_TOKEN_KEY CDN_RU_ORIGIN_AUTH CALLS_TURN_SECRETS PLUMA_RU_ORIGIN_ADDR
-	PLUMA_RU_ACME_EMAIL PLUMA_GCORE_EDGE_DOMAIN)
+	PLUMA_RU_ACME_EMAIL PLUMA_GCORE_EDGE_DOMAIN PLUMA_RU_MIRROR_DOMAINS)
 declare -A ENV=()
 
 load_env() {
@@ -111,12 +111,38 @@ check_env() {
 	if [ -n "${ENV[PLUMA_RU_ORIGIN_ADDR]:-}" ]; then
 		[[ ${ENV[PLUMA_RU_ORIGIN_ADDR]} =~ ^[0-9.]+:[0-9]{1,5}$ ]] || die "PLUMA_RU_ORIGIN_ADDR is not <IPv4>:<port>"
 	fi
+	mirror_names
 	if [ -n "${ENV[PLUMA_GCORE_EDGE_DOMAIN]:-}" ]; then
 		[[ ${ENV[PLUMA_GCORE_EDGE_DOMAIN]} =~ $DOMAIN_RE ]] || die "PLUMA_GCORE_EDGE_DOMAIN is not a lower-case domain name"
 	fi
 	if [ -n "${ENV[PLUMA_RU_ACME_EMAIL]:-}" ]; then
 		[[ ${ENV[PLUMA_RU_ACME_EMAIL]} =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+$ ]] || die "PLUMA_RU_ACME_EMAIL is not an e-mail address"
 	fi
+}
+
+# mirror_names sets MIRROR_NAMES to the names of PLUMA_RU_MIRROR_DOMAINS
+# (task 113): the other names whose TLS goes home as the edge's does, the
+# mirrors of the site and of the login on sites (pluma.sckra.dev,
+# oauth.sckra.dev), separated by commas. Each is a lower-case domain name,
+# at most MAX_MIRRORS of them, none twice, and none is the name of the edge
+# or of delivery 202: the SNI map routes a name once. Empty: none.
+MAX_MIRRORS=8
+MIRROR_NAMES=()
+mirror_names() {
+	local name list=${ENV[PLUMA_RU_MIRROR_DOMAINS]:-}
+	local -a names
+	MIRROR_NAMES=()
+	[ -n "$list" ] || return 0
+	IFS=, read -r -a names <<<"$list"
+	[[ $list != *, ]] || die "PLUMA_RU_MIRROR_DOMAINS ends with a comma"
+	for name in "${names[@]}"; do
+		[[ $name =~ $DOMAIN_RE ]] || die "PLUMA_RU_MIRROR_DOMAINS: an item is not a lower-case domain name"
+		case " ${MIRROR_NAMES[*]} ${ENV[PLUMA_RU_EDGE_DOMAIN]} ${ENV[PLUMA_RU_FILES_DOMAIN]} " in
+		*" $name "*) die "PLUMA_RU_MIRROR_DOMAINS: $name is named twice, or is the edge's or delivery 202's name" ;;
+		esac
+		MIRROR_NAMES+=("$name")
+	done
+	[ ${#MIRROR_NAMES[@]} -le $MAX_MIRRORS ] || die "PLUMA_RU_MIRROR_DOMAINS has more than $MAX_MIRRORS names"
 }
 
 # turn_secret sets TURN_SECRET to the secret of the label "ru" of
@@ -154,6 +180,18 @@ fill() {
 		gcore="	\"https://${ENV[PLUMA_GCORE_EDGE_DOMAIN]}\" \$http_origin;"
 	fi
 	s=${s//@@GCORE_EDGE_CORS@@/$gcore}
+	# The names whose TLS goes home: the edge and the mirrors, each a line
+	# of the SNI map to the edge's upstream, and all of them the server
+	# names of port 80 that passes their challenges home.
+	local name sni names
+	sni="${ENV[PLUMA_RU_EDGE_DOMAIN]} pluma_ru_edge;"
+	names=${ENV[PLUMA_RU_EDGE_DOMAIN]}
+	for name in "${MIRROR_NAMES[@]}"; do
+		sni+=$'\n'"$name pluma_ru_edge;"
+		names+=" $name"
+	done
+	s=${s//@@HOME_TLS_SNI@@/$sni}
+	s=${s//@@HOME_TLS_NAMES@@/$names}
 	s=${s//@@FILES_DOMAIN@@/${ENV[PLUMA_RU_FILES_DOMAIN]}}
 	s=${s//@@EDGE_DOMAIN@@/${ENV[PLUMA_RU_EDGE_DOMAIN]}}
 	s=${s//@@ORIGIN_DOMAIN@@/${ENV[PLUMA_CDN_ORIGIN_DOMAIN]}}

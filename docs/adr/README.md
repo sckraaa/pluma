@@ -77,3 +77,4 @@
 | [0070](0070-maplibre-location-picker.md) | Выбор места на карте: MapLibre в Android и Desktop, свои векторные тайлы дома (`maps-tiles`) через Caddy с ключом в пути, адрес — в app config; заменяет пункты «Что не делается» ADR 0063 о выборе точки | proposed |
 | [0071](0071-https-cdn.md) | HTTPS-CDN: Gcore тянет шифр из дома, ключи и хэши дома | accepted (2026-11-16): Gcore, без карты, Россия позже |
 | [0072](0072-edge-websocket-through-cdn.md) | Доступ через CDN: MTProto в WebSocket через второй ресурс Gcore, прямой путь первым | accepted (2026-11-17): узел в России — amf, имена `ru.pluma.chat` и `r1.pluma.chat` |
+| [0073](0073-smart-path-selection.md) | Выбор пути к серверу по надёжной пробе: проба в шлюзе больше порога «замерзания», гонка по пропуску, память по сети, фоновый замер с гистерезисом | proposed |

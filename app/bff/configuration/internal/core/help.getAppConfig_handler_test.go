@@ -158,3 +158,53 @@ func TestHelpGetAppConfigEdgeNoLookup(t *testing.T) {
 		t.Errorf("looked up %v without records of countries", countries.asked)
 	}
 }
+
+// probeCountry is pluma_probe.country of the answer; ok is false without
+// the key.
+func probeCountry(t *testing.T, cfg *mtproto.JSONValue) (country string, ok bool) {
+	t.Helper()
+	for _, kv := range cfg.GetValue_VECTORJSONOBJECTVALUE() {
+		if kv.GetKey() != "pluma_probe" {
+			continue
+		}
+		for _, f := range kv.GetValue().GetValue_VECTORJSONOBJECTVALUE() {
+			if f.GetKey() == "country" {
+				return f.GetValue().GetValue_STRING(), true
+			}
+		}
+		t.Fatal("pluma_probe without country")
+	}
+	return "", false
+}
+
+// help.getAppConfig hands each client pluma_probe with the country of its
+// address (task 113), even with no edge by country, and a hash of that
+// country: a client that moved takes the new config. A client whose
+// country authsession could not tell gets an empty country.
+func TestHelpGetAppConfigProbeByCountry(t *testing.T) {
+	probe, err := appconfig.ParseProbe(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	countries := &fakeCountries{country: map[string]string{"5.8.16.10": "RU", "203.0.113.5": "DE"}}
+	hashes := map[int32]string{}
+	for addr, want := range map[string]string{"5.8.16.10": "RU", "203.0.113.5": "DE", "198.51.100.1": "", "": ""} {
+		c := newAppConfigCore(t, nil, countries, addr)
+		c.svcCtx.Probe = probe
+		r, err := c.HelpGetAppConfig61E3F854(&mtproto.TLHelpGetAppConfig61E3F854{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, ok := probeCountry(t, r.GetConfig())
+		if !ok || got != want {
+			t.Errorf("%q: pluma_probe %v, country %q, want %q", addr, ok, got, want)
+		}
+		if other, seen := hashes[r.GetHash()]; seen && other != want {
+			t.Errorf("%q and %q share the hash %d", want, other, r.GetHash())
+		}
+		hashes[r.GetHash()] = want
+	}
+	if len(hashes) != 3 {
+		t.Errorf("%d hashes for three countries (RU, DE, none)", len(hashes))
+	}
+}
