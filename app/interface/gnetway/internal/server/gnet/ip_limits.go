@@ -31,41 +31,54 @@ import (
 // address counts by its /64, which one client usually holds whole. The
 // defaults leave room for a group behind one NAT.
 type ipLimits struct {
-	mu       sync.Mutex
-	maxConns int
-	dhRate   rate.Limit
-	dhBurst  int
-	byIP     map[string]*ipState
+	mu         sync.Mutex
+	maxConns   int
+	dhRate     rate.Limit
+	dhBurst    int
+	probeRate  rate.Limit
+	probeBurst int
+	byIP       map[string]*ipState
 }
 
 type ipState struct {
 	conns int
 	dh    *rate.Limiter
+	// probe is the budget of path probes (pluma.probe, task 113).
+	probe *rate.Limiter
 }
 
 const (
 	defaultMaxConnsPerIP           = 512
 	defaultKeyExchangesPerIPMinute = 300
+	// defaultProbesPerIPMinute: a client probes its two or three paths on
+	// start, on a change of network and now and then in the background
+	// (task 113); 30 a minute leave room for a few devices behind one NAT.
+	defaultProbesPerIPMinute = 30
 	// ipStatesPurgeAt is how many addresses the limits remember before they
 	// forget the idle ones (no connection, a full key exchange budget).
 	ipStatesPurgeAt = 10000
 )
 
-// newIPLimits returns the limits: maxConns connections per address and
-// keyExchangesPerMinute req_DH_params per address and minute, as a burst
-// of that many; 0 takes the default.
-func newIPLimits(maxConns, keyExchangesPerMinute int) *ipLimits {
+// newIPLimits returns the limits: maxConns connections per address,
+// keyExchangesPerMinute req_DH_params and probesPerMinute pluma.probe per
+// address and minute, each as a burst of that many; 0 takes the default.
+func newIPLimits(maxConns, keyExchangesPerMinute, probesPerMinute int) *ipLimits {
 	if maxConns <= 0 {
 		maxConns = defaultMaxConnsPerIP
 	}
 	if keyExchangesPerMinute <= 0 {
 		keyExchangesPerMinute = defaultKeyExchangesPerIPMinute
 	}
+	if probesPerMinute <= 0 {
+		probesPerMinute = defaultProbesPerIPMinute
+	}
 	return &ipLimits{
-		maxConns: maxConns,
-		dhRate:   rate.Every(time.Minute / time.Duration(keyExchangesPerMinute)),
-		dhBurst:  keyExchangesPerMinute,
-		byIP:     make(map[string]*ipState),
+		maxConns:   maxConns,
+		dhRate:     rate.Every(time.Minute / time.Duration(keyExchangesPerMinute)),
+		dhBurst:    keyExchangesPerMinute,
+		probeRate:  rate.Every(time.Minute / time.Duration(probesPerMinute)),
+		probeBurst: probesPerMinute,
+		byIP:       make(map[string]*ipState),
 	}
 }
 
@@ -88,7 +101,10 @@ func (l *ipLimits) stateLocked(subject string) *ipState {
 		if len(l.byIP) >= ipStatesPurgeAt {
 			l.purgeLocked(time.Now())
 		}
-		st = &ipState{dh: rate.NewLimiter(l.dhRate, l.dhBurst)}
+		st = &ipState{
+			dh:    rate.NewLimiter(l.dhRate, l.dhBurst),
+			probe: rate.NewLimiter(l.probeRate, l.probeBurst),
+		}
 		l.byIP[subject] = st
 	}
 	return st
@@ -96,7 +112,7 @@ func (l *ipLimits) stateLocked(subject string) *ipState {
 
 func (l *ipLimits) purgeLocked(now time.Time) {
 	for subject, st := range l.byIP {
-		if st.conns == 0 && st.dh.TokensAt(now) >= float64(l.dhBurst) {
+		if st.conns == 0 && st.dh.TokensAt(now) >= float64(l.dhBurst) && st.probe.TokensAt(now) >= float64(l.probeBurst) {
 			delete(l.byIP, subject)
 		}
 	}
@@ -139,6 +155,17 @@ func (l *ipLimits) allowKeyExchange(subject string, now time.Time) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.stateLocked(subject).dh.AllowN(now, 1)
+}
+
+// allowProbe takes one path probe of subject at now; false when it asked
+// too many.
+func (l *ipLimits) allowProbe(subject string, now time.Time) bool {
+	if l == nil {
+		return true
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.stateLocked(subject).probe.AllowN(now, 1)
 }
 
 // countConn counts connection c against its address once the address is

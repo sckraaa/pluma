@@ -26,7 +26,7 @@ import (
 // closed.
 func TestProxyProtocolV1(t *testing.T) {
 	h := newTestHarness(t)
-	h.s.limits = newIPLimits(1, 10)
+	h.s.limits = newIPLimits(1, 10, 0)
 	behindProxy := func(ctx *connContext) {
 		ctx.ppv1 = true
 		ctx.clientIp = "172.20.0.30" // the TLS proxy

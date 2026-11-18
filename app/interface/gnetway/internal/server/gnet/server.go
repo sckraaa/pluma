@@ -63,8 +63,14 @@ type Server struct {
 	queryKey func(authKeyId int64, known *authKeyUtil) (*authKeyUtil, error)
 	// triggerFn, when set (tests), replaces eng.Trigger.
 	triggerFn func(connId int64, cb func(c gnet.Conn))
-	// limits bounds the connections and key exchanges of one address.
+	// limits bounds the connections, key exchanges and probes of one
+	// address.
 	limits *ipLimits
+	// probeSlots bounds the path probes being sent at once (probe.go);
+	// probeQueued returns the bytes written to a connection that have not
+	// left the gateway (queuedBytes; tests replace it).
+	probeSlots  *probeSlots
+	probeQueued func(c gnet.Conn) int
 
 	// pingWheel holds the upgraded Edge connections by the second of their
 	// next ping (connContext.nextPing); pingInterval is that interval in
@@ -112,7 +118,9 @@ func New(svcCtx *svc.ServiceContext, c config.Config, keys []*serverkey.Key) (*S
 	s.httpHandshakes = handshake.NewStore(maxHttpHandshakes, httpHandshakeTTL)
 	s.saveAuthKey = s.saveAuthKeyInfo
 	s.queryKey = s.fetchAuthKey
-	s.limits = newIPLimits(c.Gnetway.MaxConnsPerIP, c.Gnetway.KeyExchangesPerIPMinute)
+	s.limits = newIPLimits(c.Gnetway.MaxConnsPerIP, c.Gnetway.KeyExchangesPerIPMinute, c.Gnetway.ProbesPerIPMinute)
+	s.probeSlots = newProbeSlots(c.Gnetway.ProbeConcurrency)
+	s.probeQueued = queuedBytes
 
 	cacheSizeMB := c.Gnetway.AuthKeyCacheM
 	if cacheSizeMB <= 0 {

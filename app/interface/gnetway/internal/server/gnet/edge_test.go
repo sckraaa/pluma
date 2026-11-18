@@ -176,7 +176,7 @@ func TestEdgeUpgradeWithoutClientAddr(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			h := newTestHarness(t)
-			h.s.limits = newIPLimits(1, 10)
+			h.s.limits = newIPLimits(1, 10, 0)
 			c := h.edgeConn(1)
 			if a := h.traffic(c, []byte(upgradeRequest(extra))); a != gnet.Close {
 				t.Fatalf("an upgrade without an address: %v, want closed", a)
@@ -204,7 +204,7 @@ func TestEdgeUpgradeWithoutClientAddr(t *testing.T) {
 // second one of the same client does.
 func TestEdgeLimitsByClientAddr(t *testing.T) {
 	h := newTestHarness(t)
-	h.s.limits = newIPLimits(1, 10)
+	h.s.limits = newIPLimits(1, 10, 0)
 	upgrade := func(id int64, addr string) (*fakeConn, gnet.Action) {
 		c := h.edgeConn(id)
 		return c, h.traffic(c, []byte(upgradeRequest("X-Pluma-Client-Addr: "+addr+"\r\n")))

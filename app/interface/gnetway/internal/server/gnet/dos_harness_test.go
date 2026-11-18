@@ -123,6 +123,9 @@ type testHarness struct {
 	// refuse, when set, decides (under mu) whether a key is saved: an error
 	// is what saveAuthKey returns instead.
 	refuse func(k *mtproto.AuthKeyInfo) error
+	// queued is what the server takes for the bytes of any connection that
+	// have not left the gateway (Server.probeQueued).
+	queued int
 }
 
 var (
@@ -160,6 +163,10 @@ func newTestHarness(t testing.TB) *testHarness {
 		pingWheel:      newPingWheel(),
 		pingInterval:   20,
 		edgeVias:       map[string]bool{"gcore": true, "ru": true},
+		probeSlots:     newProbeSlots(0),
+	}
+	s.probeQueued = func(gnet.Conn) int {
+		return h.queued // under mu, on the "event loop"
 	}
 	s.cachedNow.Store(testNow)
 	s.saveAuthKey = func(_ context.Context, key *handshake.AuthKey, _ int32) error {
