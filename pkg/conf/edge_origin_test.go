@@ -109,6 +109,18 @@ func TestEdgeSites(t *testing.T) {
 			t.Errorf("edge-origin.caddy: no %s", d)
 		}
 	}
+	// Task 115: /dl/ of the releases for reading, and nothing Gcore must
+	// not keep is cacheable: /apiws, redirects and errors say no-store.
+	for what, block := range map[string]string{
+		"/dl/ to the releases service for GET and HEAD": "handle /dl/* {\n@write not method GET HEAD\nrespond @write 405\nreverse_proxy releases:9097 {\nheader_up -X-Pluma-Edge-Auth\n}\n}",
+		"/apiws no-store":               "header_up -X-Pluma-Edge-Auth\n}\nheader Cache-Control \"no-store\"\n}\nhandle /dl/* {",
+		"redirects and errors no-store": "header {\nCache-Control \"no-store\"\nmatch status 301 302 303 307 308 4xx 5xx\n}",
+		"Caddy's errors no-store":       "handle_errors {\nheader -Server\nheader Cache-Control \"no-store\"\n}",
+	} {
+		if !strings.Contains(gcore, block) {
+			t.Errorf("edge-origin.caddy: not %s", what)
+		}
+	}
 
 	ru := caddyDirectives(readRepo(t, "teamgramd/deploy/web/ru-edge.caddy"))
 	if !strings.HasPrefix(ru, "{$PLUMA_RU_EDGE_DOMAIN}:8443 {\n"+

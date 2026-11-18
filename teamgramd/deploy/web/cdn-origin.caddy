@@ -12,14 +12,29 @@
 #
 # - No encode, and no Accept-Encoding to bff: the answers are byte ranges of
 #   ciphertext, which neither compresses nor may change.
+# - /dl/, the releases of the client apps (task 115, docs/ops/releases.md),
+#   is the releases service for GET and HEAD, as on the site: the cache of
+#   the Russian node pulls its files under this name through the tunnel
+#   (teamgramd/deploy/ru/files.conf.tmpl), as it pulls the cipher. The
+#   files are public; no X-Pluma-Origin-Auth is asked for them, and
+#   bff's paths never see one of them.
 # - Neither Server nor Via in the answers, Caddy's own errors (502 while bff
 #   is down) included.
 # - No log directive, so no access log: the header, the token of the query
 #   and the ids of files in the paths are never written. bff logs the
 #   origin's requests without them.
 {$PLUMA_CDN_ORIGIN_DOMAIN} {
-	reverse_proxy bff:20480 {
-		header_up -Accept-Encoding
+	handle /dl/* {
+		@write not method GET HEAD
+		respond @write 405
+		reverse_proxy releases:9097 {
+			header_up -X-Pluma-Origin-Auth
+		}
+	}
+	handle {
+		reverse_proxy bff:20480 {
+			header_up -Accept-Encoding
+		}
 	}
 	header {
 		-Server
