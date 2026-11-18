@@ -238,7 +238,7 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker
 1. Владелец: A-запись `PLUMA_EDGE_ORIGIN_DOMAIN` на адрес Pluma (без проксирования Cloudflare), ресурс Gcore 2 и его проверка 0.
 2. `.env`: `PLUMA_EDGE_ORIGIN_DOMAIN`, `PLUMA_EDGE_ORIGIN_AUTH` (`openssl rand -hex 32`, отдельно от `CDN_ORIGIN_AUTH`), `EDGE_WS_URLS=gcore=wss://<префикс2>.gcorecdn.com/apiws`.
 3. Пересоздать `web` (команда шага 0) и выкатить `bff` обычным деплоем.
-4. Проверки владельца 1 и 2 брифа 109: Web K через `https://<префикс2>.gcorecdn.com/`, адрес в «Устройствах».
+4. Проверки владельца 1 и 2 брифа 109: Web K через `https://<префикс2>.gcorecdn.com/`, место сессии в «Устройствах».
 
 **Шаг 2 — российский узел amf.** Порядок — бриф 109, «Эксплуатация»:
 1. Второй туннель — `home-server.md`, «Второй туннель: российский узел amf».
