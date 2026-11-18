@@ -25,12 +25,18 @@ import (
 // Calls is the media side of the calls (docs/ops/calls.md).
 type Calls struct {
 	// IceServers are the STUN and TURN servers the clients get, comma
-	// separated: "host:port:stun+turn". Empty: calls are off and
+	// separated: "host:port:stun+turn", "host:port:stun+turn@label" for a
+	// TURN server with a secret of its own. Empty: calls are off and
 	// phone.requestCall says so.
 	IceServers string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// TurnSecret is the static-auth-secret of coturn; the credentials of a
-	// call are made from it. Required when a server has "turn".
+	// call are made from it. Required when a server has "turn" and no
+	// label.
 	TurnSecret string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// TurnSecrets are the secrets of the labelled TURN servers,
+	// "label=secret" comma separated (task 109: the node in Russia has its
+	// own). A label in IceServers without its secret stops the service.
+	TurnSecrets string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// Quality is the profile of the call parameters, "pluma" (empty) or
 	// "stock", and changes to it: phonecalls.CustomParameters,
 	// docs/ops/calls.md.

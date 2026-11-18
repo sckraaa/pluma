@@ -324,6 +324,8 @@ var optionalVars = map[string]bool{
 	// The servers of one-to-one calls (task 068): calls are off when empty.
 	"CALLS_ICE_SERVERS": true,
 	"CALLS_TURN_SECRET": true,
+	// The secrets of labelled TURN servers (task 109): none when empty.
+	"CALLS_TURN_SECRETS": true,
 	// The quality parameters of calls (task 077): the Pluma profile when
 	// empty.
 	"CALLS_QUALITY": true,
