@@ -64,4 +64,8 @@ message RpcMetadata {
   // (core.telegram.org/api/bots/connected-business-bots). Empty for a query
   // without the wrapper.
   string business_connection_id = 24;
+
+  // pluma: the system_lang_code of the session's initConnection, the
+  // language of the device's system (help.getConfig suggests it).
+  string system_lang_code = 25;
 }
