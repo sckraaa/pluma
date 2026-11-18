@@ -76,4 +76,4 @@
 | [0069](0069-story-albums-and-search.md) | Альбомы историй и поиск историй: хранение, видимость, индекс тегов и мест | proposed |
 | [0070](0070-maplibre-location-picker.md) | Выбор места на карте: MapLibre в Android и Desktop, свои векторные тайлы дома (`maps-tiles`) через Caddy с ключом в пути, адрес — в app config; заменяет пункты «Что не делается» ADR 0063 о выборе точки | proposed |
 | [0071](0071-https-cdn.md) | HTTPS-CDN: Gcore тянет шифр из дома, ключи и хэши дома | accepted (2026-11-16): Gcore, без карты, Россия позже |
-| [0072](0072-edge-websocket-through-cdn.md) | Доступ через CDN: MTProto в WebSocket через второй ресурс Gcore, прямой путь первым | proposed |
+| [0072](0072-edge-websocket-through-cdn.md) | Доступ через CDN: MTProto в WebSocket через второй ресурс Gcore, прямой путь первым | accepted (2026-11-17): узел в России — amf, имена `ru.pluma.chat` и `r1.pluma.chat` |
