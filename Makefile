@@ -163,8 +163,12 @@ test:
 	go test -count=1 ./...
 	cd $(PROTO_DIR) && go test -count=1 ./...
 
+# tools/boxaudit type-checks the repository against the export data `go list
+# -export` builds; with a cold build cache (any go.sum change) that build runs
+# next to the race build of every package and takes longer than the default
+# 10 minutes per package.
 test-race:
-	go test -race -count=1 $(RACE_PKGS)
+	go test -race -count=1 -timeout 20m $(RACE_PKGS)
 	cd $(PROTO_DIR) && go test -race -count=1 ./...
 
 # Integration tests on real MySQL (production schema), Redis and Kafka in
