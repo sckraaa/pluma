@@ -224,6 +224,48 @@ Web K раздаёт с адреса Pluma контейнер `web` (`docker-com
 
 Откат: миграция только добавляет таблицы и колонки, прежняя версия их не читает. Ключи ботов остаются в `bot_secret_keys` и снова работают после повторного выката; боту, получившему токен на прежней версии, после него нужен новый токен.
 
+## Края и российский узел (задача 109)
+
+Патченные клиенты, у которых прямой адрес закрыт или «замерзает», ходят к серверу через **край** — MTProto в WebSocket по TLS (`wss://<хост>/apiws`). Краёв два: второй ресурс Gcore и российский узел amf; у узла ещё выдача файлов 202 и TURN для пользователей из России. Решение — ADR 0072; как устроено и переменные — `edge.md` (края), `ru-node.md` (узел), `cdn.md` (выдача 202), `calls.md` (TURN узла), `home-server.md` (второй туннель). Миграций нет. Всё включается по частям и выключается пустыми переменными; без них сервер ведёт себя как до задачи.
+
+**Шаг 0 — выкат кода с пустыми переменными** (обычное обновление или `pluma-deploy.sh`), затем пересоздать `web`: у него новые Caddyfile (сервер `:8443`, импорты `edge-origin.d`, `ru-edge.d`), переменные и монтирования, а `pluma-deploy.sh` `web` не пересоздаёт (как в разделе «Платформа ботов»):
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml up -d --no-deps --force-recreate web
+```
+Здесь и ниже в команду входят и прочие наложения хоста, которые меняют `web` (карты, установка iOS, выпуски и т. д., как в обычной выкладке): без них пересозданный `web` теряет их маршруты и монтирования. Проверка: `web`, `bff`, `gnetway` здоровы; в `help.getAppConfig` нет `pluma_edge`; порт `11445` шлюза не опубликован (`ss -ltn | grep 11445` пусто).
+
+**Шаг 1 — край Gcore** (`edge.md`, «Ресурс Gcore 2» и «Включение»):
+1. Владелец: A-запись `PLUMA_EDGE_ORIGIN_DOMAIN` на адрес Pluma (без проксирования Cloudflare), ресурс Gcore 2 и его проверка 0.
+2. `.env`: `PLUMA_EDGE_ORIGIN_DOMAIN`, `PLUMA_EDGE_ORIGIN_AUTH` (`openssl rand -hex 32`, отдельно от `CDN_ORIGIN_AUTH`), `EDGE_WS_URLS=gcore=wss://<префикс2>.gcorecdn.com/apiws`.
+3. Пересоздать `web` (команда шага 0) и выкатить `bff` обычным деплоем.
+4. Проверки владельца 1 и 2 брифа 109: Web K через `https://<префикс2>.gcorecdn.com/`, адрес в «Устройствах».
+
+**Шаг 2 — российский узел amf.** Порядок — бриф 109, «Эксплуатация»:
+1. Второй туннель — `home-server.md`, «Второй туннель: российский узел amf».
+2. Владелец: A-записи `ru.pluma.chat` и `r1.pluma.chat` → 194.87.226.185 (без проксирования Cloudflare).
+3. Узел: `/etc/pluma-ru/env`, `deploy.sh`, `owner-nginx.sh check`, затем `install` по слову владельца, сертификат `r1` с CAA владельца — `ru-node.md`, «Первое включение», шаги 1–4. Сайт владельца `form.amf25.ru` проверить сразу после `install`.
+4. `.env` дома: `PLUMA_RU_TUNNEL_IPV4=10.78.0.2`, `PLUMA_RU_EDGE_DOMAIN=ru.pluma.chat`, `CDN_RU_BASE_URL=https://r1.pluma.chat`, `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH`, `CDN_RU_HEALTH_ADDR=10.78.0.1:443`, `CDN_RU_MONTHLY_GB`, `CDN_ROUTES=RU,BY:202,201;*:201`, `EDGE_WS_URLS` с `ru=wss://ru.pluma.chat/apiws`, `EDGE_ROUTES=RU,BY:edge,direct:ru,gcore;*:direct,edge:gcore,ru`, `CALLS_TURN_SECRETS=ru=…`, `CALLS_ICE_SERVERS` с записью `194.87.226.185:3478:stun+turn@ru`. Секреты создаются `openssl rand` на одной машине и переносятся на узел по SSH без печати (`ru-node.md`, «Переменные»). Значения стран и порядок краёв — решения владельца 1, 10, 11 брифа.
+5. Выкладка с наложением узла. Порты `docker-compose.ru.yaml` публикуются на адресе туннеля, поэтому сначала проверить интерфейс:
+   ```bash
+   ip -4 addr show plumaru | grep -q 'inet 10.78.0.2/' || { echo "plumaru is down: see home-server.md" >&2; exit 1; }
+   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml -f docker-compose.ru.yaml up -d --no-build --no-deps --force-recreate web bff
+   ```
+   С этого момента **каждая** команда compose, пересоздающая `web`, включает `-f docker-compose.ru.yaml` (вместе с прочими наложениями хоста — карты, выпуски и т. д.), иначе Caddy потеряет порты туннеля и край `ru` с выдачей 202 перестанут отвечать. `pluma-deploy.sh` (вне репозитория) при заданном `PLUMA_RU_TUNNEL_IPV4` добавляет этот файл и делает ту же проверку `plumaru` до `up`.
+6. Цели Prometheus: `/opt/pluma/prometheus-targets/node-ru.json` (`home-server.md`).
+7. Проверки владельца 9–12 брифа 109; ручные проверки — `docs/project/TESTING-BACKLOG.md`, раздел «109».
+
+**Шаг 3 — сборки клиентов.** Переменная репозитория `PLUMA_EDGE_WS_URLS` в четырёх репозиториях клиентов (`pluma-android`, `pluma-ios`, `pluma-desktop`, `pluma-web`), рядом с адресом сервера: рекомендованное значение — `wss://<префикс2>.gcorecdn.com/apiws,wss://ru.pluma.chat/apiws` (решение владельца 10). Задаётся, когда края сервера уже отвечают: встроенный край, который не отвечает, клиенту не мешает (прямой путь первым), но и не помогает. Правки клиентов — A-128, I-133, D-106, W-086 (`clients/patches/`).
+
+**Проверка после выката** (подробно — `edge.md`, «Проверка после деплоя», и `ru-node.md`, «Проверка»):
+- метрики шлюза `gnetway_entry_conns{entry="edge",via=…}` и `gnetway_edge_no_client_addr_total` (рост — тревога: Gcore перестал слать адрес или кто-то ходит на вход мимо Caddy);
+- `pluma_cdn_delivery_healthy{dc="202"}` = 1 через минуту после выката; в логе bff `deliveries [201 202], 2 routes`;
+- цель `10.78.0.1:9100` в Prometheus — UP, алерты `ru-node.yml` молчат.
+
+**Откат** — пустые переменные и деплой, в обратном порядке включения:
+- узел: убрать `RU` (и `BY`) из `CDN_ROUTES` и `EDGE_ROUTES`, деплой — пользователи из России снова идут по записи `*`; затем `ru-node.md`, «Откат и выключение»; затем пустые `PLUMA_RU_EDGE_DOMAIN`, `CDN_RU_BASE_URL`, `PLUMA_RU_TUNNEL_IPV4`, `ru=…` из `EDGE_WS_URLS` вместе с `ru` из краёв всех записей `EDGE_ROUTES` (край, которого нет в `EDGE_WS_URLS`, останавливает bff), запись `@ru` из `CALLS_ICE_SERVERS`, выкладка без `docker-compose.ru.yaml`; туннель — `home-server.md`;
+- край Gcore: пустой `PLUMA_EDGE_ORIGIN_DOMAIN`, `gcore=…` из `EDGE_WS_URLS` и `gcore` из краёв `EDGE_ROUTES`, пересоздать `web`, деплой;
+- всё сразу: пустой `EDGE_WS_URLS` — ключа `pluma_edge` нет; встроенные края клиентов перестают отвечать, клиенты остаются на прямом пути.
+
 ## Обновление слоёв (ADR 0045)
 
 Сервер обслуживает клиентов разных слоёв (сейчас 228 и 233) одновременно, клиенты переходят поэтапно.
