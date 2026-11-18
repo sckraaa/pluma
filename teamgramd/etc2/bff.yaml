@@ -121,7 +121,7 @@ Maps:
 # the clients try when the direct address fails. bff hands them pluma_edge
 # in help.getAppConfig, picked by the country of the client's address
 # (authsession.getIpCountry). EDGE_WS_URLS names the edges,
-# "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws";
+# "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.sckra.dev/apiws";
 # empty: no pluma_edge, and the clients keep the list built into them.
 # EDGE_ROUTES, records "<countries or *>:<order>:<edges>" separated by ";",
 # e.g. "RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru"; empty: every edge

@@ -71,7 +71,7 @@ type Config struct {
 // at the start.
 type EdgeConfig struct {
 	// WSURLs is EDGE_WS_URLS, the edges by name:
-	// "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws".
+	// "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.sckra.dev/apiws".
 	WSURLs string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// Routes is EDGE_ROUTES, the edges and their order by the country of
 	// the client: "RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru".

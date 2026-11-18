@@ -1,8 +1,9 @@
 # The edge through the Russian node amf (task 109, ADR 0072 §8,
-# docs/ops/edge.md, docs/ops/ru-node.md): ru.pluma.chat points at the node,
-# whose nginx passes the TLS of the client as it came, behind PROXY v1,
-# through the plumaru tunnel to port 8443 here (docker-compose.ru.yaml
-# publishes it on home's tunnel address alone). TLS ends here, with home's
+# docs/ops/edge.md, docs/ops/ru-node.md): PLUMA_RU_EDGE_DOMAIN
+# (ru.sckra.dev) points at the node, whose nginx passes the TLS of the
+# client as it came, behind PROXY v1, through the plumaru tunnel to port
+# 8443 here (docker-compose.ru.yaml publishes it on home's tunnel address
+# alone). TLS ends here, with home's
 # certificate: the node sees only TLS. /apiws carries the clients' MTProto to
 # the gateway's Edge entry (gnetway:11445, on teamgram_net only); the rest is
 # the web client, as on PLUMA_WEB_DOMAIN.
