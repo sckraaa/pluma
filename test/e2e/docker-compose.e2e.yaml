@@ -84,9 +84,13 @@ services:
   status: *needs-infra
   authsession:
     <<: *needs-infra
-    # No GeoIP database in the tests, and nothing mounted from the working
-    # tree: every place is UNKNOWN.
-    volumes: !reset []
+    # The GeoIP database of the tests (task 109, written by
+    # TestE2EGeoIPDatabase of authsession's dao): the IPv4 addresses below
+    # 128.0.0.0 are in Moscow, Russia, the others in Frankfurt, Germany, so
+    # that the tests of the edges route clients by country. The stand's own
+    # private addresses have no place, as without a database.
+    volumes: !override
+      - ./test/e2e/testdata/geoip:/app/geoip:ro
   dfs: *needs-infra
 
   gnetway:
@@ -100,6 +104,31 @@ services:
       - "127.0.0.1:${E2E_GATEWAY_PORT:-}:10443"
       - "127.0.0.1:${E2E_GATEWAY_WS_PORT:-}:11443"
       - "127.0.0.1::11445"
+
+  # Caddy of docker-compose.web.yaml with the sites of the edges (task 109,
+  # edge_origin_test.go): the tests reach the origin of the Gcore edge on
+  # 443 and the Russian node's edge on 8443, on ephemeral loopback ports, by
+  # *.localhost names, which Caddy certifies with its own CA. run.sh sets
+  # the names and the plain Caddy image of the web client's (no site of
+  # Web K in it). The tests stand in for the node: its PROXY v1 comes from
+  # the address Docker gives their connection, a private one, so the stand
+  # takes PROXY from the private ranges. No other site of the server is
+  # given a public name, so Caddy asks no ACME CA for anything.
+  web:
+    environment:
+      PLUMA_OAUTH_DOMAIN: oauth.localhost
+      PLUMA_RU_EDGE_PROXY_FROM: 172.16.0.0/12 192.168.0.0/16 10.0.0.0/8 fc00::/7
+    volumes: !override
+      - ./teamgramd/deploy/web/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./teamgramd/deploy/web/cdn-origin.caddy:/etc/caddy/cdn-origin.caddy:ro
+      - ./teamgramd/deploy/web/maps-public.caddy:/etc/caddy/maps-public.caddy:ro
+      - ./teamgramd/deploy/web/edge-origin.caddy:/etc/caddy/edge-origin.caddy:ro
+      - ./teamgramd/deploy/web/ru-edge.caddy:/etc/caddy/ru-edge.caddy:ro
+      - caddy_data:/data
+    ports: !override
+      - "127.0.0.1::443"
+      - "127.0.0.1::8443"
+    restart: "no"
 
   # The pages of pluma.chat links (task 026): the tests read a page on an
   # ephemeral loopback port (PLUMA_E2E_LINKS).

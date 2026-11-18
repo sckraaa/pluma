@@ -87,13 +87,17 @@ FAKECDN_URL=http://fakecdn:8080
 # certificates of its control API, the SFU's and bff's.
 SFU_CERTS=$E2E_DIR/sfu
 GROUPCALLS_CERTS=$E2E_DIR/groupcalls
+# The Caddy of the web client with the sites of the edges (task 109,
+# docker-compose.web.yaml): the plain image the web client's own is built
+# on (pluma-web ci/site.Dockerfile), so the site of Web K is empty here.
+WEB_IMAGE=caddy:2.11.6-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9
 
 # Teamgram services (docker-compose.yaml) and the infrastructure the tests
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
-# Services of their own images that must not exit during the run either.
-OWN_SERVICES=(sfu)
+# Services outside the teamgram image that must not exit during the run either.
+OWN_SERVICES=(sfu web)
 SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt faketranslate fakemail fakemaps fakeinline fakecdn "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
@@ -130,6 +134,7 @@ compose() {
 		-f "$ROOT/docker-compose-env.yaml" \
 		-f "$ROOT/docker-compose.yaml" \
 		-f "$ROOT/docker-compose.sfu.yaml" \
+		-f "$ROOT/docker-compose.web.yaml" \
 		-f "$ROOT/test/e2e/docker-compose.e2e.yaml" \
 		"$@"
 }
@@ -226,6 +231,7 @@ PLUMA_SFU_CERTS=$SFU_CERTS
 PLUMA_GROUPCALLS_CERTS=$GROUPCALLS_CERTS
 EOF
 		gen_cdn_env >>"$ENV_FILE"
+		gen_edge_env >>"$ENV_FILE"
 	) || {
 		rm -f "$ENV_FILE"
 		return 1
@@ -254,6 +260,25 @@ CDN_DEV_ALLOW_HTTP=1
 CDN_URL_TTL=${E2E_CDN_URL_TTL:-20s}
 CDN_HEALTH_EVERY=${E2E_CDN_HEALTH_EVERY:-5s}
 CDN_AVOID_TTL=${E2E_CDN_AVOID_TTL:-30s}
+EOF
+}
+
+# gen_edge_env prints the edges of the stand for the env file (task 109,
+# ADR 0072): Caddy's sites of the Gcore origin and of the Russian node's
+# edge under *.localhost names, the run's X-Pluma-Edge-Auth, and the
+# pluma_edge of bff by country (Russia by the stand's GeoIP database). The
+# addresses of the edges in pluma_edge are only handed out, never dialled.
+gen_edge_env() {
+	cat <<EOF
+PLUMA_WEB_IMAGE=$WEB_IMAGE
+PLUMA_WEB_DOMAIN=web.localhost
+PLUMA_SITE_DOMAINS=site.localhost
+PLUMA_EDGE_ORIGIN_DOMAIN=edge.localhost
+PLUMA_EDGE_ORIGIN_AUTH=$(secret 32)
+PLUMA_RU_EDGE_DOMAIN=ru.localhost
+EDGE_WS_URLS=gcore=wss://edge.e2e.pluma.test/apiws,ru=wss://ru.e2e.pluma.test/apiws
+EDGE_ROUTES=RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru
+EDGE_STICKY_S=900
 EOF
 }
 
@@ -449,6 +474,11 @@ cmd_test() {
 			PLUMA_E2E_CDN_URL_TTL=$(env_value CDN_URL_TTL) \
 			PLUMA_E2E_CDN_HEALTH_EVERY=$(env_value CDN_HEALTH_EVERY) \
 			PLUMA_E2E_CDN_AVOID_TTL=$(env_value CDN_AVOID_TTL) \
+			PLUMA_E2E_EDGE_ORIGIN=$(compose port web 443) \
+			PLUMA_E2E_RU_EDGE=$(compose port web 8443) \
+			PLUMA_E2E_EDGE_AUTH=$(env_value PLUMA_EDGE_ORIGIN_AUTH) \
+			PLUMA_E2E_EDGE_WS_URLS=$(env_value EDGE_WS_URLS) \
+			PLUMA_E2E_EDGE_STICKY_S=$(env_value EDGE_STICKY_S) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 60m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...

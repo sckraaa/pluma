@@ -1,0 +1,54 @@
+# The edge through the Russian node amf (task 109, ADR 0072 §8,
+# docs/ops/edge.md, docs/ops/ru-node.md): ru.pluma.chat points at the node,
+# whose nginx passes the TLS of the client as it came, behind PROXY v1,
+# through the plumaru tunnel to port 8443 here (docker-compose.ru.yaml
+# publishes it on home's tunnel address alone). TLS ends here, with home's
+# certificate: the node sees only TLS. /apiws carries the clients' MTProto to
+# the gateway's Edge entry (gnetway:11445, on teamgram_net only); the rest is
+# the web client, as on PLUMA_WEB_DOMAIN.
+#
+# The Caddyfile imports this file only when PLUMA_RU_EDGE_DOMAIN is set
+# (docker-compose.web.yaml): a site with an empty address would stop the
+# whole Caddyfile. Its server, :8443, takes PROXY v1 from the node's address
+# in the tunnel only and refuses any other connection (the servers option of
+# the Caddyfile).
+#
+# - No secret, unlike the Gcore origin: that only the node reaches the port,
+#   and Caddy believes the PROXY header from the node alone, is the guard.
+#   The client's address is the one of the PROXY header, which Caddy makes
+#   the remote address of the request; it goes to the gateway in
+#   X-Pluma-Client-Addr, and X-Pluma-Edge-Via says ru. Both replace what a
+#   client may have sent under those names.
+# - Caddy takes the PROXY header from the node, but does not require it
+#   (proxy_protocol's policy for an allowed source): a request from the
+#   node without one would come from the node's own address, and is aborted
+#   here, so no client is ever counted under the node's address.
+# - No log directive, so no access log; neither Server nor Via in the
+#   answers, Caddy's own errors (502 while the gateway is down) included.
+{$PLUMA_RU_EDGE_DOMAIN}:8443 {
+	@unwrapped remote_ip {$PLUMA_RU_EDGE_PROXY_FROM}
+	route {
+		abort @unwrapped
+		handle /apiws {
+			reverse_proxy gnetway:11445 {
+				header_up X-Pluma-Client-Addr {http.request.remote.host}
+				header_up X-Pluma-Edge-Via ru
+			}
+		}
+		handle {
+			root * /srv
+			encode zstd gzip
+			file_server
+		}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+		-Via
+	}
+	handle_errors {
+		header -Server
+	}
+}

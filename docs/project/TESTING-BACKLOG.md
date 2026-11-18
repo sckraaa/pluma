@@ -1452,3 +1452,15 @@ authsession раньше не читал `params` и `proxy` из таблицы
 - [ ] `owner-nginx.sh remove` (на время, потом снова `install`): `sni.conf` совпадает с копией в `/var/lib/pluma-ru/owner-nginx-backup/`, файлов `pluma-*` в `/etc/nginx` нет, `form.amf25.ru` работает.
 - [ ] После обновления пакета nginx на amf (`unattended-upgrades`): `systemctl restart pluma-ru-nginx` — сервис поднимается, канарейка отвечает 206.
 - [ ] Память на amf через сутки работы: `systemctl status pluma-ru-nginx pluma-ru-turn pluma-ru-node-exporter` (строка Memory) — записать в `docs/ops/memory.md`.
+
+### Часть 2: источники краёв (`edge-origin.caddy`, `ru-edge.caddy`) и ключ `pluma_edge`
+Сервер — ветка `task/109-edge-origin`. Клиенты читают `pluma_edge` после частей 3–6.
+- [ ] После выката с пустыми `PLUMA_EDGE_ORIGIN_DOMAIN`, `PLUMA_RU_EDGE_DOMAIN` и `EDGE_WS_URLS`: `web` и `bff` стартуют, сайты `web.pluma.chat` и `pluma.chat` работают как раньше; в `help.getAppConfig` нет ключа `pluma_edge`.
+- [ ] Задать `PLUMA_EDGE_ORIGIN_DOMAIN` с `PLUMA_EDGE_ORIGIN_AUTH` из 63 символов — `docker compose logs web`: «PLUMA_EDGE_ORIGIN_DOMAIN needs PLUMA_EDGE_ORIGIN_AUTH of 64 hex digits», контейнер не стартует; с верным значением — стартует, сертификат имени выпущен (в логе `certificate obtained successfully`).
+- [ ] `curl -s -o /dev/null -w '%{http_code}\n' https://<PLUMA_EDGE_ORIGIN_DOMAIN>/apiws` и `…/` без заголовка — 403; с `-H "X-Pluma-Edge-Auth: <значение>"` страница `/` — 200, в ответе `Cache-Control: no-cache`, нет `Server` и `Via`.
+- [ ] Ресурс Gcore 2 по `docs/ops/edge.md`, затем Web K по `https://<префикс2>.gcorecdn.com/`: вход, сообщения; в «Устройствах» на телефоне у этой сессии ваш адрес и страна, а не адрес Gcore (если там адрес Gcore — Gcore не шлёт `X-Forwarded-For`, записать в бриф).
+- [ ] Край amf (после частей 9 и 10): `https://ru.pluma.chat/` из России — Web K открывается, вход, сообщения; в «Устройствах» — российский адрес; в метриках `gnetway_entry_conns{entry="edge",via="ru"}` ≥ 1.
+- [ ] С дома: `curl -sk --resolve ru.pluma.chat:8443:10.78.0.2 https://ru.pluma.chat:8443/` (без PROXY, не с amf) — соединение закрыто; с amf `curl -sk --resolve ru.pluma.chat:8443:10.78.0.2 https://ru.pluma.chat:8443/` (адрес amf без PROXY) — соединение оборвано, в «Устройствах» никогда не появляется адрес `10.78.0.1`.
+- [ ] `EDGE_WS_URLS=gcore=…,ru=…` и `EDGE_ROUTES=RU,BY:edge,direct:ru,gcore;*:direct,edge:gcore,ru`, деплой: телефон через мобильную сеть в России получает `pluma_edge` с `ru` первым и `order: ["edge","direct"]`, тот же телефон через VPN в Германии после перезахода (до часа — кэш страны) — с `gcore` первым и `direct` первым. Смотреть в отладочном журнале клиента или через Web K (`invokeApi('help.getAppConfig', {hash: 0})` в консоли).
+- [ ] Опечатка в `EDGE_ROUTES` (например `RU:edge:ru`) — bff не стартует, в логе понятная ошибка с записью; вернуть верное значение — стартует.
+- [ ] Вход с `pluma_edge` не ломает остальное: в Desktop, Android, iOS и Web K карты, переводы и вход на сайты через ботов (ключи того же `help.getAppConfig`) работают как до выката.
