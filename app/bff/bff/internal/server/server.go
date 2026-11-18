@@ -256,6 +256,7 @@ func (s *Server) Initialize() error {
 			Translate:         c.Translate,
 			GifSearch:         c.InlineBots.GifSearch(),
 			Maps:              c.Maps,
+			Edge:              c.Edge,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)

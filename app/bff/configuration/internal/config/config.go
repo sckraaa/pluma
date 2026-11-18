@@ -52,4 +52,22 @@ type Config struct {
 	// PublicURL the app config hands the clients the public map tiles of
 	// their interactive maps and the styles there.
 	Maps staticmap.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Edge is the edges of the patched clients, pluma_edge of the app
+	// config (task 109, ADR 0072, docs/ops/edge.md): no edges without
+	// WSURLs.
+	Edge EdgeConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
+// EdgeConfig is the Edge block of bff.yaml, parsed by appconfig.ParseEdges
+// at the start.
+type EdgeConfig struct {
+	// WSURLs is EDGE_WS_URLS, the edges by name:
+	// "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws".
+	WSURLs string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Routes is EDGE_ROUTES, the edges and their order by the country of
+	// the client: "RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru".
+	Routes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// StickyS is EDGE_STICKY_S, how many seconds a client keeps to an edge
+	// it switched to ("1800").
+	StickyS string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

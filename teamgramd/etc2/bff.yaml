@@ -111,6 +111,22 @@ Maps:
   PerUserPerMinute: "${MAPS_PER_USER_PER_MINUTE}"
   PublicURL: "${MAPS_PUBLIC_URL}"
 
+# The edges of the patched clients (task 109, ADR 0072, docs/ops/edge.md):
+# MTProto in a WebSocket through the CDN (Gcore) or the Russian node, which
+# the clients try when the direct address fails. bff hands them pluma_edge
+# in help.getAppConfig, picked by the country of the client's address
+# (authsession.getIpCountry). EDGE_WS_URLS names the edges,
+# "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws";
+# empty: no pluma_edge, and the clients keep the list built into them.
+# EDGE_ROUTES, records "<countries or *>:<order>:<edges>" separated by ";",
+# e.g. "RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru"; empty: every edge
+# to everyone, the direct address first. EDGE_STICKY_S (1800) is how long a
+# client keeps to an edge it switched to. A wrong value stops bff.
+Edge:
+  WSURLs: "${EDGE_WS_URLS}"
+  Routes: "${EDGE_ROUTES}"
+  StickyS: "${EDGE_STICKY_S}"
+
 # The built-in inline bots @gif and @pic (task 099, ADR 0062,
 # docs/ops/inline-bots.md). @pic searches pictures with the SearXNG of
 # SEARXNG_URL (http://searxng:8080 in Docker; empty: @pic answers with empty
