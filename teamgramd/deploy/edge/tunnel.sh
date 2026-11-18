@@ -40,7 +40,14 @@ usage() {
 	exit 2
 }
 
-SELF=$(readlink -f "$0")
+SELF=$(readlink -f -- "$0" 2>/dev/null) || SELF=
+# The home role installs this file as the rules units' command; read from
+# standard input ("bash -s"), $0 is bash itself and would be installed in
+# its place.
+if ! grep -q '^# The WireGuard tunnels of Pluma' "$SELF" 2>/dev/null; then
+	echo "tunnel.sh: run it as a file (bash tunnel.sh ...), not from standard input" >&2
+	exit 2
+fi
 LINK=hetzner
 DRY=
 while [ $# -gt 0 ]; do

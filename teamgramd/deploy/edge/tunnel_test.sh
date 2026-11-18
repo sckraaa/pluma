@@ -154,6 +154,12 @@ refuse --link ru home not-a-key "$PEER_IP"
 refuse --link ru home "$PEER_KEY" 203.0.113
 refuse --link ru home "$PEER_KEY"
 
+# Read from standard input, the script would install bash as itself.
+code=0
+bash -s -- --dry-run "$work/stdin" key <"$SCRIPT" >/dev/null 2>&1 || code=$?
+[ "$code" = 2 ] || fail "tunnel.sh from standard input exited $code, want 2"
+[ ! -e "$work/stdin" ] || fail "tunnel.sh from standard input wrote $work/stdin"
+
 # The node and the VPS must be set up on their own address.
 code=0
 "$SCRIPT" --link ru --dry-run "$work/elsewhere" node "$PEER_KEY" 192.0.2.77 >/dev/null 2>&1 || code=$?
