@@ -90,6 +90,12 @@ FAKECDN_URL=http://fakecdn:8080
 RU_FILES_DOMAIN=r1.e2e.pluma.test
 RUFILES_TLS=$E2E_DIR/rufiles
 RUFILES_CA=$E2E_DIR/rufiles-ca
+# The releases of the client apps (docker-compose.releases.yaml, task 115):
+# the run's upload token, and the name of the CDN in front of /dl/, which
+# bff and the site's latest links name and nothing dials (the tests stand
+# in for Gcore at the edge's origin).
+RELEASES_SECRETS=$E2E_DIR/releases
+RELEASES_CDN_URL=https://cdn.e2e.pluma.test
 # The SFU of group calls (docker-compose.sfu.yaml, task 093): the
 # certificates of its control API, the SFU's and bff's.
 SFU_CERTS=$E2E_DIR/sfu
@@ -102,7 +108,7 @@ WEB_IMAGE=caddy:2.11.6-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882
 # Teamgram services (docker-compose.yaml) and the infrastructure the tests
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
-TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
+TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links releases)
 # Services outside the teamgram image that must not exit during the run either.
 OWN_SERVICES=(sfu web rufiles)
 SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt faketranslate fakemail fakemaps fakeinline fakecdn "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}")
@@ -143,6 +149,7 @@ compose() {
 		-f "$ROOT/docker-compose.yaml" \
 		-f "$ROOT/docker-compose.sfu.yaml" \
 		-f "$ROOT/docker-compose.web.yaml" \
+		-f "$ROOT/docker-compose.releases.yaml" \
 		-f "$ROOT/test/e2e/docker-compose.e2e.yaml" \
 		"$@"
 }
@@ -326,7 +333,9 @@ gen_rufiles() {
 # addresses of the edges in pluma_edge are only handed out, never dialled.
 # Task 113: the mirrors of the site and of the login on sites through the
 # node, the releases' site with its mirror for Russia, and two settings of
-# the path probes off their defaults (path_probe_test.go).
+# the path probes off their defaults (path_probe_test.go). Task 115: the
+# caches of the releases' /dl/, the CDN for everyone and delivery 202's
+# node for Russia, and the directory of the upload token (gen_releases).
 gen_edge_env() {
 	cat <<EOF
 PLUMA_WEB_IMAGE=$WEB_IMAGE
@@ -342,6 +351,9 @@ PLUMA_RU_SITE_DOMAIN=rusite.localhost
 PLUMA_RU_OAUTH_DOMAIN=ruoauth.localhost
 PLUMA_RELEASES_URL=https://site.localhost
 PLUMA_RELEASES_ROUTES=RU=https://rusite.localhost
+PLUMA_RELEASES_FILES_URL=$RELEASES_CDN_URL
+PLUMA_RELEASES_FILES_ROUTES=RU=https://$RU_FILES_DOMAIN
+PLUMA_RELEASES_SECRETS=$RELEASES_SECRETS
 PATH_PROBE_STALL_MS=1700
 PATH_PROBE_SWITCH_RATIO=0.65
 EOF
@@ -444,12 +456,21 @@ gen_bff() {
 		grep -q "^  Endpoint: $FAKEMAIL_URL\$" "$BFF_CONFIG" && grep -q "^    - $FAKEINLINE_HOST\$" "$BFF_CONFIG"
 }
 
+# gen_releases writes the upload token of the releases service for the run,
+# in E2E_DIR, which only the owner opens; the service runs as root.
+gen_releases() {
+	[[ -s $RELEASES_SECRETS/upload-token ]] && return
+	mkdir -p "$RELEASES_SECRETS" && chmod 700 "$RELEASES_SECRETS" || return
+	(umask 077 && secret 32 >"$RELEASES_SECRETS/upload-token") || return
+}
+
 cmd_up() {
 	gen_secrets || return
 	gen_push || return
 	gen_bff || return
 	gen_sfu || return
 	gen_rufiles || return
+	gen_releases || return
 	log "building the teamgram image"
 	compose build idgen || return
 	log "starting ${SERVICES[*]}"
@@ -543,6 +564,8 @@ cmd_test() {
 			PLUMA_E2E_RU_FILES=$(compose port rufiles 443) \
 			PLUMA_E2E_RU_FILES_DOMAIN=$RU_FILES_DOMAIN \
 			PLUMA_E2E_RU_FILES_CA=$RUFILES_CA/ca.pem \
+			PLUMA_E2E_RELEASES_TOKEN_FILE=$RELEASES_SECRETS/upload-token \
+			PLUMA_E2E_RELEASES_CDN_URL=$RELEASES_CDN_URL \
 			PLUMA_E2E_EDGE_ORIGIN=$(compose port web 443) \
 			PLUMA_E2E_RU_EDGE=$(compose port web 8443) \
 			PLUMA_E2E_EDGE_AUTH=$(env_value PLUMA_EDGE_ORIGIN_AUTH) \
@@ -574,7 +597,7 @@ cmd_down() {
 		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKETRANSLATE_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$E2E_FAKEMAPS_IMAGE" "$E2E_FAKEINLINE_IMAGE" "$E2E_FAKECDN_IMAGE" "$E2E_RUFILES_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE" "$OAUTH_KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
-	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS" "$RUFILES_TLS" "$RUFILES_CA"
+	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS" "$RUFILES_TLS" "$RUFILES_CA" "$RELEASES_SECRETS"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs
 }
 
