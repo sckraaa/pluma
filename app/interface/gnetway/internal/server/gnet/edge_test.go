@@ -78,8 +78,7 @@ func upgradeRequest(extra string) string {
 // edgeConn opens a connection of the Edge entry: from the origin proxy,
 // whose address is the fake connection's remote one.
 func (h *testHarness) edgeConn(id int64) *fakeConn {
-	var c *fakeConn
-	c = h.newConn(id, func(ctx *connContext) {
+	c := h.newConn(id, func(ctx *connContext) {
 		ctx.codec = nil
 		ctx.tcp = false
 		ctx.websocket = true

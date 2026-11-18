@@ -33,8 +33,8 @@ type RSAKey struct {
 }
 
 type GnetwayServer struct {
-	Proto string `json:",default=tcp,options=tcp|websocket|http"`
-	PPV1  bool   `json:",optional"`
+	Proto string `json:",default=tcp,options=tcp|websocket|http"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	PPV1  bool   `json:",optional"`                               //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// Edge marks the entry behind the CDN edges (task 109, ADR 0072): a
 	// WebSocket listener whose client address comes in the
 	// X-Pluma-Client-Addr header of the upgrade request, which the origin
