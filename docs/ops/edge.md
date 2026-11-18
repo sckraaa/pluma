@@ -3,7 +3,7 @@
 Решение — ADR 0072, задача 109 (`docs/tasks/109-access-through-cdn.md`). Патченные клиенты, у которых прямой адрес сервера закрыт или «замерзает», подключаются к **краю**: WebSocket по TLS `wss://<хост края>/apiws`, внутри — тот же обфусцированный MTProto, что по TCP. Край — только труба: MTProto зашифрован ключом авторизации между клиентом и домом. Краёв два:
 
 - **Gcore** — второй ресурс Gcore на домене Gcore (`<префикс2>.gcorecdn.com`), источник — сайт Caddy дома `edge-origin.caddy`;
-- **ru** — российский узел amf (`ru.pluma.chat`), чистая TCP-труба до Caddy дома, сайт `ru-edge.caddy` (узел — `docs/ops/ru-node.md`).
+- **ru** — российский узел amf (`ru.sckra.dev`: имена `*.pluma.chat` в России заблокированы, решение 8 задачи 113), чистая TCP-труба до Caddy дома, сайт `ru-edge.caddy` (узел — `docs/ops/ru-node.md`). Тем же путём через узел идут зеркала сайта и входа на сайты (`pluma.sckra.dev`, `oauth.sckra.dev`, `ru-site.caddy`, `ru-oauth.caddy`; `docs/ops/ru-node.md`, «Зеркала»).
 
 Оба ведут на вход `Edge` шлюза (`gnetway:11445`, только сеть Docker, не публикуется). Адрес клиента шлюз берёт из `X-Pluma-Client-Addr`, который ставит только Caddy.
 
@@ -14,7 +14,7 @@
   - остальное — Web K из `/srv` с `Cache-Control: no-cache` (Gcore перепроверяет по ETag, новая версия видна сразу);
   - без журнала доступа, без `Server` и `Via`.
 - **amf → `ru-edge.caddy`** (имя `PLUMA_RU_EDGE_DOMAIN`, порт 8443):
-  - nginx `stream` узла передаёт TLS клиента как есть, с PROXY v1, по туннелю `plumaru` на `10.78.0.2:8443` (`docker-compose.ru.yaml`); сертификат `ru.pluma.chat` — дома;
+  - nginx `stream` узла передаёт TLS клиента как есть, с PROXY v1, по туннелю `plumaru` на `10.78.0.2:8443` (`docker-compose.ru.yaml`); сертификат `ru.sckra.dev` — дома;
   - сервер Caddy `:8443` (блок `servers :8443` в `Caddyfile`) принимает PROXY только от `10.78.0.1/32`, остальные соединения закрывает; HTTP/3 на нём выключен; сервер 443 не затронут;
   - запрос с адресом самого узла (узел подключился без PROXY) обрывается: клиент не может оказаться посчитан под адресом узла;
   - `/apiws` → `gnetway:11445`; `X-Pluma-Client-Addr` = адрес из PROXY, `X-Pluma-Edge-Via: ru` (то же имя от клиента затирается);
@@ -36,8 +36,9 @@
 |---|---|---|
 | `PLUMA_EDGE_ORIGIN_DOMAIN` | имя источника края Gcore (A-запись на адрес Pluma, CAA как у остальных имён) | сайта нет |
 | `PLUMA_EDGE_ORIGIN_AUTH` | значение `X-Pluma-Edge-Auth`, ровно 64 hex (`openssl rand -hex 32`) | обязателен при заданном имени, иначе Caddy не стартует |
-| `PLUMA_RU_EDGE_DOMAIN` | `ru.pluma.chat` — край узла amf | сайта нет |
-| `EDGE_WS_URLS` | края по именам: `gcore=wss://<префикс2>.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws` | ключа `pluma_edge` нет |
+| `PLUMA_RU_EDGE_DOMAIN` | `ru.sckra.dev` — край узла amf и Web K на нём | сайта нет |
+| `PLUMA_RU_SITE_DOMAIN`, `PLUMA_RU_OAUTH_DOMAIN` | `pluma.sckra.dev`, `oauth.sckra.dev` — зеркала сайта и входа на сайты через узел (задача 113, `docs/ops/ru-node.md`) | сайта нет |
+| `EDGE_WS_URLS` | края по именам: `gcore=wss://<префикс2>.gcorecdn.com/apiws,ru=wss://ru.sckra.dev/apiws` | ключа `pluma_edge` нет |
 | `EDGE_ROUTES` | записи `<страны или *>:<порядок>:<края>` через `;` | `*:direct,edge:<все края в порядке EDGE_WS_URLS>` |
 | `EDGE_STICKY_S` | сколько секунд клиент держится края после перехода, 60–86400 | 1800 |
 
@@ -71,7 +72,7 @@
 
 Пример с узлом amf (рекомендация брифа, решения владельца 1, 10, 11):
 ```
-EDGE_WS_URLS=gcore=wss://<префикс2>.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws
+EDGE_WS_URLS=gcore=wss://<префикс2>.gcorecdn.com/apiws,ru=wss://ru.sckra.dev/apiws
 EDGE_ROUTES=RU,BY:edge,direct:ru,gcore;*:direct,edge:gcore,ru
 ```
 «Всегда через CDN» для всех — `EDGE_ROUTES=*:edge,direct:gcore,ru`; клиенты не меняются.
@@ -87,10 +88,10 @@ EDGE_ROUTES=RU,BY:edge,direct:ru,gcore;*:direct,edge:gcore,ru
 1. DNS: A-запись `PLUMA_EDGE_ORIGIN_DOMAIN` на адрес Pluma; CAA как у остальных имён (задача 096).
 2. `.env`: `PLUMA_EDGE_ORIGIN_DOMAIN`, `PLUMA_EDGE_ORIGIN_AUTH`, `EDGE_WS_URLS` (сначала только `gcore=…`), при желании `EDGE_ROUTES`, `EDGE_STICKY_S`. Деплой обычный.
 3. Ресурс Gcore (выше), проверки 1 и 2 брифа.
-4. Узел amf — по `docs/ops/ru-node.md`; затем `PLUMA_RU_EDGE_DOMAIN=ru.pluma.chat`, `ru=…` в `EDGE_WS_URLS`, `EDGE_ROUTES` со странами, деплой с `docker-compose.ru.yaml`.
+4. Узел amf — по `docs/ops/ru-node.md`; затем `PLUMA_RU_EDGE_DOMAIN=ru.sckra.dev`, `ru=…` в `EDGE_WS_URLS`, `EDGE_ROUTES` со странами, деплой с `docker-compose.ru.yaml`.
 5. Файлы для Web K на краях: имя `<префикс2>.gcorecdn.com` — в `PLUMA_GCORE_EDGE_DOMAIN` узла amf, а оба сайта краёв — в списке Access-Control-Allow-Origin ресурса файлов Gcore (`docs/ops/cdn.md`, шаг 3). Иначе Web K на крае качает файлы мимо CDN.
 
-Сертификат `ru.pluma.chat` выпускает домашний Caddy: HTTP-01 приходит на порт 80 узла и проксируется на `10.78.0.2:80`. Отвечает ли Caddy на TLS-ALPN-01 на сервере `:8443` за PROXY — НЕ ПРОВЕРЕНО; HTTP-01 от этого не зависит.
+Сертификаты `ru.sckra.dev` и зеркал выпускает домашний Caddy: HTTP-01 приходит на порт 80 узла и проксируется на `10.78.0.2:80`. Отвечает ли Caddy на TLS-ALPN-01 на сервере `:8443` за PROXY — НЕ ПРОВЕРЕНО; HTTP-01 от этого не зависит.
 
 ## Проверка после деплоя
 - `docker compose logs web` — нет ошибок разбора Caddyfile; при неверном `PLUMA_EDGE_ORIGIN_AUTH` контейнер не стартует с сообщением о 64 hex.

@@ -35,28 +35,12 @@
 	}
 }
 
-{$PLUMA_WEB_DOMAIN} {
-	handle /apiws {
-		reverse_proxy gnetway:11444 {
-			transport http {
-				proxy_protocol v1
-			}
-		}
-	}
-	handle {
-		root * /srv
-		encode zstd gzip
-		file_server
-	}
-	header {
-		Strict-Transport-Security "max-age=31536000"
-		X-Content-Type-Options nosniff
-		Referrer-Policy no-referrer
-		-Server
-	}
-}
-
-{$PLUMA_SITE_DOMAINS} {
+# The site and the login on sites as snippets: the sites of their own names
+# below import them, and so do the sites of their mirrors through the
+# Russian node (ru-site.caddy, ru-oauth.caddy, task 113), which therefore
+# never drift from them. pluma_site is all of the site but its error pages,
+# pluma_site_errors, which Caddy takes at the level of a site only.
+(pluma_site) {
 	# The iPhone app from the site (docker-compose.iosinstall.yaml): the
 	# profile, the device's answer, the install link and the IPA, and CI's
 	# uploads of builds. Without that service these answer 502.
@@ -149,12 +133,58 @@
 	}
 
 	file_server
+}
+
+(pluma_site_errors) {
 	handle_errors {
 		rewrite * /404.html
 		file_server {
 			status {err.status_code}
 		}
 	}
+}
+
+(pluma_oauth) {
+	encode zstd gzip
+	# links answers as the provider on the host of its issuer alone, the
+	# name of this site: a mirror of it (ru-oauth.caddy) hands that name on.
+	reverse_proxy links:9096 {
+		header_up Host {$PLUMA_OAUTH_DOMAIN}
+	}
+	header {
+		?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		Referrer-Policy no-referrer
+		X-Content-Type-Options nosniff
+		Permissions-Policy "interest-cohort=(), camera=(), microphone=(), geolocation=()"
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}
+
+{$PLUMA_WEB_DOMAIN} {
+	handle /apiws {
+		reverse_proxy gnetway:11444 {
+			transport http {
+				proxy_protocol v1
+			}
+		}
+	}
+	handle {
+		root * /srv
+		encode zstd gzip
+		file_server
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+}
+
+{$PLUMA_SITE_DOMAINS} {
+	import pluma_site
+	import pluma_site_errors
 }
 
 # The login of users on sites with Pluma (task 106, ADR 0068 p. 6): the
@@ -165,16 +195,7 @@
 # in the app. The page sends its own policy; the provider's documents
 # (/.well-known/*) are public.
 {$PLUMA_OAUTH_DOMAIN} {
-	encode zstd gzip
-	reverse_proxy links:9096
-	header {
-		?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
-		Referrer-Policy no-referrer
-		X-Content-Type-Options nosniff
-		Permissions-Policy "interest-cohort=(), camera=(), microphone=(), geolocation=()"
-		Strict-Transport-Security "max-age=31536000"
-		-Server
-	}
+	import pluma_oauth
 }
 
 # The origin of the HTTPS CDN (task 107): its site, cdn-origin.caddy, is
@@ -191,6 +212,13 @@ import /etc/caddy/cdn-origin.d/*.caddy
 # (docker-compose.web.yaml), for the same reason.
 import /etc/caddy/edge-origin.d/*.caddy
 import /etc/caddy/ru-edge.d/*.caddy
+
+# The mirrors of the site and of the login on sites through the Russian node
+# (task 113, docs/ops/ru-node.md): ru-site.caddy, linked into this directory
+# only when PLUMA_RU_SITE_DOMAIN is set, and ru-oauth.caddy, only when
+# PLUMA_RU_OAUTH_DOMAIN is set (docker-compose.web.yaml), for the same
+# reason. They import the snippets above.
+import /etc/caddy/ru-mirror.d/*.caddy
 
 # The public map tiles of the clients' maps (task 112): its site,
 # maps-public.caddy, is linked into this directory at the start of the

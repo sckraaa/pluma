@@ -42,7 +42,7 @@ import (
 
 // oauthHost is the host of the provider on the stand's links service, which
 // tells it by the Host header as behind Caddy.
-const oauthHost = "oauth.pluma.chat"
+const oauthHost = "oauth.localhost"
 
 var (
 	oauthSecretRe = regexp.MustCompile(`(?m)^client_secret: (\S+)$`)
@@ -159,7 +159,7 @@ func TestOAuthSite(t *testing.T) {
 	secret := m[1]
 
 	res, body := oauthDo(ctx, t, http.MethodGet, "/.well-known/openid-configuration", nil, nil)
-	if res.StatusCode != http.StatusOK || !strings.Contains(body, `"issuer":"https://oauth.pluma.chat"`) {
+	if res.StatusCode != http.StatusOK || !strings.Contains(body, `"issuer":"https://`+oauthHost+`"`) {
 		t.Fatalf("the discovery document: %d %s", res.StatusCode, body)
 	}
 
@@ -230,7 +230,7 @@ func TestOAuthSite(t *testing.T) {
 		t.Fatalf("the exchange: %d %s", res.StatusCode, body)
 	}
 	claims := checkIDToken(ctx, t, reply.IdToken)
-	if claims["iss"] != "https://oauth.pluma.chat" || claims["aud"] != botId || claims["sub"] != fmt.Sprint(alice.self.GetId()) ||
+	if claims["iss"] != "https://"+oauthHost || claims["aud"] != botId || claims["sub"] != fmt.Sprint(alice.self.GetId()) ||
 		claims["nonce"] != "nc" || claims["given_name"] != "Alice" {
 		t.Fatalf("the claims: %v", claims)
 	}

@@ -3,11 +3,13 @@
 # --link ru, interface plumaru), and only there. Caddy gets three more
 # ports, on the tunnel's address at home alone:
 #
-#   80    the HTTP-01 challenges of ru.pluma.chat, which the node's port 80
-#         passes here;
+#   80    the HTTP-01 challenges of the names whose TLS ends here (the edge,
+#         PLUMA_RU_EDGE_DOMAIN, and the mirrors of the site and of the login,
+#         PLUMA_RU_SITE_DOMAIN and PLUMA_RU_OAUTH_DOMAIN), which the node's
+#         port 80 passes here;
 #   443   the origin of the node's file CDN (dc 202), whose cache pulls from
 #         home as Gcore's does;
-#   8443  the edge of ru.pluma.chat: the client's TLS as it came, behind
+#   8443  the edge and the mirrors: the client's TLS as it came, behind
 #         PROXY v1 from the node, which Caddy accepts from 10.78.0.1 only.
 #         It has no secret of its own: that nothing but the tunnel reaches
 #         the port is its guard, so it is never published anywhere else.
