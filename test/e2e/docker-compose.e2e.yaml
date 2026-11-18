@@ -278,12 +278,49 @@ services:
       - teamgram_net
     restart: "no"
 
+  # Delivery 202 of the Russian node (test/e2e/rufiles, task 109): the
+  # node's nginx of Ubuntu 26.04 with the files deploy.sh renders, behind a
+  # stand-in of the owner's stream on 443, pulling from bff's origin through
+  # the stand's Caddy (the site of PLUMA_CDN_ORIGIN_DOMAIN) with its own
+  # CDN_RU_ORIGIN_AUTH. Its certificate is the run's (run.sh, gen_rufiles),
+  # under E2E_RU_FILES_DOMAIN; Caddy's CA, which signs the origin's, is read
+  # from Caddy's data. bff checks it at rufiles:443 (CDN_RU_HEALTH_ADDR),
+  # the tests reach it on an ephemeral loopback port.
+  rufiles:
+    build:
+      context: .
+      dockerfile: test/e2e/rufiles/Dockerfile
+    image: ${E2E_RUFILES_IMAGE:-pluma-e2e-rufiles:local}
+    mem_limit: 192m
+    memswap_limit: 192m
+    environment:
+      PLUMA_RU_FILES_DOMAIN: ${E2E_RU_FILES_DOMAIN:?run test/e2e/run.sh up}
+      PLUMA_CDN_ORIGIN_DOMAIN: ${PLUMA_CDN_ORIGIN_DOMAIN:?run test/e2e/run.sh up}
+      CDN_RU_TOKEN_KEY: ${CDN_RU_TOKEN_KEY:?run test/e2e/run.sh up}
+      CDN_RU_ORIGIN_AUTH: ${CDN_RU_ORIGIN_AUTH:?run test/e2e/run.sh up}
+    volumes:
+      - ${E2E_RUFILES_TLS:?run test/e2e/run.sh up}:/test/tls:ro
+      - caddy_data:/caddy-data:ro
+    ports:
+      - "127.0.0.1::443"
+    networks:
+      - teamgram_net
+    depends_on:
+      web:
+        condition: service_started
+    restart: "no"
+
   bff:
     # The config with the limits of transcription and the waits of
     # translation, the mail provider of the tests and the hosts of
-    # fakeinline, written by run.sh. The CDN of large files is fakecdn.
+    # fakeinline, written by run.sh. The CDN of large files is fakecdn and
+    # rufiles; the checks of rufiles trust the run's CA (SSL_CERT_DIR keeps
+    # the system's roots and adds it).
+    environment:
+      SSL_CERT_DIR: /etc/ssl/certs:/test/rufiles-ca
     volumes:
       - ${E2E_BFF_CONFIG:?run test/e2e/run.sh up}:/app/etc2/bff.yaml:ro
+      - ${E2E_RUFILES_CA:?run test/e2e/run.sh up}:/test/rufiles-ca:ro
     depends_on:
       fakecdn:
         condition: service_started
