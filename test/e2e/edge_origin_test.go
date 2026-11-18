@@ -216,14 +216,11 @@ func wantStackEdge(t *testing.T, russia bool) map[string]any {
 }
 
 // checkEdgeClient: u, connected through an edge from clientAddr in Russia,
-// sees that address in its session, gets pluma_edge of Russia, and sends
+// has that address in its session, gets pluma_edge of Russia, and sends
 // and gets messages with other.
 func checkEdgeClient(ctx context.Context, t *testing.T, u, other *user, clientAddr string) {
 	t.Helper()
-	current, _ := authorizations(ctx, t, u)
-	if current.GetIp() != clientAddr {
-		t.Errorf("the session through the edge shows address %q, want %s", current.GetIp(), clientAddr)
-	}
+	checkSessionAddr(ctx, t, u, clientAddr)
 	cfg, _, _ := appConfigHashed(ctx, t, u, 0)
 	if got, want := cfg["pluma_edge"], any(wantStackEdge(t, true)); !reflect.DeepEqual(got, want) {
 		t.Errorf("pluma_edge of a client from Russia: %v, want %v", got, want)
@@ -240,7 +237,7 @@ func checkEdgeClient(ctx context.Context, t *testing.T, u, other *user, clientAd
 }
 
 // TestEdgeOriginGcore: through the origin of the Gcore edge a client logs
-// in, its session shows the address Gcore appended to X-Forwarded-For (not
+// in, its session has the address Gcore appended to X-Forwarded-For (not
 // the forged one, nor Caddy's or the X-Pluma-Client-Addr the client sent),
 // the gateway counts it under gcore whatever the client claimed, and it
 // works as any client. A request without the resource's secret, or with a
@@ -278,7 +275,7 @@ func TestEdgeOriginGcore(t *testing.T) {
 }
 
 // TestEdgeOriginRu: through the Russian node's edge a client logs in with
-// the address of the node's PROXY header, which its session shows (not
+// the address of the node's PROXY header, which its session has (not
 // the X-Pluma-Client-Addr the client sent); the gateway counts it under ru;
 // it works as any client. A connection without the PROXY header, or one
 // whose header names the node's own (private) address, is cut before it

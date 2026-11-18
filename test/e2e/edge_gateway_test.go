@@ -61,6 +61,25 @@ func edgeHeader(clientAddr string) http.Header {
 	}
 }
 
+// edgeSessionPlace is authorization.country of a session whose address is
+// below 128.0.0.0 in the stand's GeoIP database (test/e2e/testdata/geoip).
+// authorization.ip stays empty, as Telegram sends it (authsession
+// GetAuthorization), so a test sees the address a session was given by its
+// place: the clients behind an edge get addresses below 128.0.0.0, while
+// the addresses of the stand's networks (172.16.0.0/12) and the forged ones
+// the tests put before the client's are above it, in Germany.
+const edgeSessionPlace = "Moscow, Russia"
+
+// checkSessionAddr checks that u's session has the address clientAddr,
+// one below 128.0.0.0, by its place.
+func checkSessionAddr(ctx context.Context, t *testing.T, u *user, clientAddr string) {
+	t.Helper()
+	current, _ := authorizations(ctx, t, u)
+	if got := current.GetCountry(); got != edgeSessionPlace {
+		t.Errorf("the session through the edge from %s is placed in %q, want %q", clientAddr, got, edgeSessionPlace)
+	}
+}
+
 // edgeConfig is config for a client that connects to url with header.
 func edgeConfig(t *testing.T, device, url string, header http.Header) mtclient.Config {
 	cfg := config(t, device)
@@ -101,7 +120,7 @@ next:
 }
 
 // TestEdgeGatewayMessage: a client logs in through the Edge entry, gets
-// pushed messages after updates.getState and sends them; its session shows
+// pushed messages after updates.getState and sends them; its session has
 // the address from the header (the last one of the list), not the proxy's;
 // the entry counts it under its edge.
 func TestEdgeGatewayMessage(t *testing.T) {
@@ -110,14 +129,11 @@ func TestEdgeGatewayMessage(t *testing.T) {
 	defer cancel()
 
 	phones := testPhones(t, 2)
-	const aliceAddr = "203.0.113.71"
+	const aliceAddr = "5.8.16.71"
 	alice := loginWith(ctx, t, phones[0], "Alice", edgeConfig(t, "e2e Alice edge", edgeURL(t), edgeHeader(aliceAddr)))
 	bob := login(ctx, t, phones[1], "Bob")
 
-	current, _ := authorizations(ctx, t, alice)
-	if current.GetIp() != aliceAddr {
-		t.Errorf("the session through the edge shows address %q, want %s", current.GetIp(), aliceAddr)
-	}
+	checkSessionAddr(ctx, t, alice, aliceAddr)
 	if n := gatewayMetric(t, "gnetway_entry_conns", `entry="edge"`, `via="gcore"`); n < 1 {
 		t.Errorf("gnetway_entry_conns{entry=edge,via=gcore} = %v while connected", n)
 	}
