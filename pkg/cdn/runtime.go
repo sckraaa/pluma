@@ -68,16 +68,18 @@ type Runtime struct {
 }
 
 // Start starts the CDN of set over store, whose redirects go to the clients
-// caps tells sent pluma_cdn: it listens at the origin (an
+// caps tells sent pluma_cdn, by the record of the routes of the country
+// countries tells (nil only when no record names countries): it listens at
+// the origin (an
 // address in use stops the start) and starts the preparers, the checks
 // and the budget. Several processes may run them at once: preparations
 // are claimed by lease, the checks write the same rows and the traffic is
 // added up.
-func Start(store Store, set *Settings, sizer Sizer, reader FileReader, caps Caps) (*Runtime, error) {
+func Start(store Store, set *Settings, sizer Sizer, reader FileReader, caps Caps, countries Locator) (*Runtime, error) {
 	if len(set.Deliveries) == 0 {
 		return nil, errors.New("cdn: no delivery")
 	}
-	home, err := NewHome(store, set, sizer, caps)
+	home, err := NewHome(store, set, sizer, caps, countries)
 	if err != nil {
 		return nil, err
 	}

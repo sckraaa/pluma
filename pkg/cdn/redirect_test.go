@@ -18,6 +18,7 @@ package cdn
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"strconv"
 	"strings"
@@ -88,7 +89,7 @@ func newHomeEnvWith(t *testing.T, set *Settings) *homeEnv {
 		caps: &fakeCaps{versions: map[int64]int{testKey: 1}}, clock: newClock(),
 	}
 	var err error
-	if e.home, err = NewHome(e.store, e.set, e.files, e.caps); err != nil {
+	if e.home, err = NewHome(e.store, e.set, e.files, e.caps, nil); err != nil {
 		t.Fatal(err)
 	}
 	e.home.now = e.clock.now
@@ -162,7 +163,7 @@ func TestRedirectQueuesNewFile(t *testing.T) {
 	plain := randomBytes(t, 3<<20+5)
 	e.files.add(FileKey{Kind: KindDocument, Id: 10}, plain)
 
-	res, result := e.home.Redirect(e.ctx, testKey, docLoc(10), 0)
+	res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(10), 0)
 	if res != nil || result != ResultNotReady {
 		t.Fatalf("first request: %v, %q", res, result)
 	}
@@ -171,7 +172,7 @@ func TestRedirectQueuesNewFile(t *testing.T) {
 	}
 
 	e.prepareAll()
-	res, result = e.home.Redirect(e.ctx, testKey, docLoc(10), 1<<20)
+	res, result = e.home.Redirect(e.ctx, testKey, testAddr, docLoc(10), 1<<20)
 	if result != ResultRedirect || res.GetPredicateName() != mtproto.Predicate_upload_fileCdnRedirect {
 		t.Fatalf("after the preparation: %v, %q", res, result)
 	}
@@ -210,7 +211,7 @@ func TestRedirectSmall(t *testing.T) {
 	e := newHomeEnv(t)
 	e.files.add(FileKey{Kind: KindDocument, Id: 11}, randomBytes(t, 900<<10))
 	for range 2 {
-		if res, result := e.home.Redirect(e.ctx, testKey, docLoc(11), 0); res != nil || result != ResultSmall {
+		if res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(11), 0); res != nil || result != ResultSmall {
 			t.Fatalf("%v, %q", res, result)
 		}
 	}
@@ -224,15 +225,15 @@ func TestRedirectSmall(t *testing.T) {
 func TestRedirectUnhealthy(t *testing.T) {
 	e := newHomeEnv(t)
 	e.files.add(FileKey{Kind: KindDocument, Id: 12}, randomBytes(t, 2<<20))
-	e.home.Redirect(e.ctx, testKey, docLoc(12), 0)
+	e.home.Redirect(e.ctx, testKey, testAddr, docLoc(12), 0)
 	e.prepareAll()
 	e.healthy(false)
-	if res, result := e.home.Redirect(e.ctx, testKey, docLoc(12), 0); res != nil || result != ResultUnhealthy {
+	if res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(12), 0); res != nil || result != ResultUnhealthy {
 		t.Fatalf("%v, %q", res, result)
 	}
 	e.healthy(true)
 	e.clock.add(3 * time.Minute)
-	if res, result := e.home.Redirect(e.ctx, testKey, docLoc(12), 0); res != nil || result != ResultUnhealthy {
+	if res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(12), 0); res != nil || result != ResultUnhealthy {
 		t.Fatalf("stale check: %v, %q", res, result)
 	}
 }
@@ -242,12 +243,12 @@ func TestRedirectStoreError(t *testing.T) {
 	e := newHomeEnv(t)
 	e.files.add(FileKey{Kind: KindDocument, Id: 13}, randomBytes(t, 2<<20))
 	e.store.SetErr(errors.New("mysql is down"))
-	if res, result := e.home.Redirect(e.ctx, testKey, docLoc(13), 0); res != nil || result != ResultError {
+	if res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(13), 0); res != nil || result != ResultError {
 		t.Fatalf("%v, %q", res, result)
 	}
 	e.store.SetErr(nil)
 	e.files.sizeErr = errors.New("media is down")
-	if res, result := e.home.Redirect(e.ctx, testKey, docLoc(13), 0); res != nil || result != ResultError {
+	if res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(13), 0); res != nil || result != ResultError {
 		t.Fatalf("media down: %v, %q", res, result)
 	}
 }
@@ -264,7 +265,7 @@ func TestRedirectOtherLocations(t *testing.T) {
 		mtproto.MakeTLInputDocumentFileLocation(&mtproto.InputFileLocation{Id: 5, ThumbSize: "m"}).To_InputFileLocation(),
 		mtproto.MakeTLInputEncryptedFileLocation(&mtproto.InputFileLocation{Id: 5, AccessHash: 7}).To_InputFileLocation(),
 	} {
-		if res, result := e.home.Redirect(e.ctx, testKey, loc, 0); res != nil || result != "" {
+		if res, result := e.home.Redirect(e.ctx, testKey, testAddr, loc, 0); res != nil || result != "" {
 			t.Fatalf("%s: %v, %q", loc.GetPredicateName(), res, result)
 		}
 	}
@@ -277,12 +278,16 @@ func TestRedirectOtherLocations(t *testing.T) {
 func TestNewHomeRoute(t *testing.T) {
 	set := testSettings(t)
 	set.Routes = []Route{{Deliveries: []int32{202}}}
-	if _, err := NewHome(NewMemStore(), set, newFakeFiles(), &fakeCaps{}); err == nil {
+	if _, err := NewHome(NewMemStore(), set, newFakeFiles(), &fakeCaps{}, nil); err == nil {
 		t.Fatal("a Home on a delivery that is off")
 	}
 	set.Routes = nil
-	if _, err := NewHome(NewMemStore(), set, newFakeFiles(), &fakeCaps{}); err == nil {
+	if _, err := NewHome(NewMemStore(), set, newFakeFiles(), &fakeCaps{}, nil); err == nil {
 		t.Fatal("a Home without a route")
+	}
+	set.Routes = []Route{{Countries: []string{"RU"}, Deliveries: []int32{testDc}}, {Deliveries: []int32{testDc}}}
+	if _, err := NewHome(NewMemStore(), set, newFakeFiles(), &fakeCaps{}, nil); err == nil {
+		t.Fatal("a Home routing by country without a source of the country")
 	}
 }
 
@@ -317,9 +322,9 @@ func TestReupload(t *testing.T) {
 func TestFileHashes(t *testing.T) {
 	e := newHomeEnv(t)
 	e.files.add(FileKey{Kind: KindDocument, Id: 30}, randomBytes(t, 9<<20))
-	e.home.Redirect(e.ctx, testKey, docLoc(30), 0)
+	e.home.Redirect(e.ctx, testKey, testAddr, docLoc(30), 0)
 	e.prepareAll()
-	res, result := e.home.Redirect(e.ctx, testKey, docLoc(30), 0)
+	res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(30), 0)
 	if result != ResultRedirect {
 		t.Fatalf("redirect: %q", result)
 	}
@@ -387,9 +392,9 @@ func redirectable(t *testing.T, id int64, size int) *homeEnv {
 	t.Helper()
 	e := newHomeEnv(t)
 	e.files.add(FileKey{Kind: KindDocument, Id: id}, randomBytes(t, size))
-	e.home.Redirect(e.ctx, testKey, docLoc(id), 0)
+	e.home.Redirect(e.ctx, testKey, testAddr, docLoc(id), 0)
 	e.prepareAll()
-	if _, result := e.home.Redirect(e.ctx, testKey, docLoc(id), 0); result != ResultRedirect {
+	if _, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(id), 0); result != ResultRedirect {
 		t.Fatalf("prepared file: %q", result)
 	}
 	return e
@@ -401,12 +406,12 @@ func redirectable(t *testing.T, id int64, size int) *homeEnv {
 func TestRedirectRequiresPlumaCdnParam(t *testing.T) {
 	e := redirectable(t, 40, 2<<20)
 	for name, key := range map[string]int64{"no pluma_cdn": otherKey, "no key": 0} {
-		if res, result := e.home.Redirect(e.ctx, key, docLoc(40), 0); res != nil || result != ResultNoCaps {
+		if res, result := e.home.Redirect(e.ctx, key, testAddr, docLoc(40), 0); res != nil || result != ResultNoCaps {
 			t.Fatalf("%s: %s, %q", name, res.GetPredicateName(), result)
 		}
 	}
 	e.caps.set(otherKey, 1)
-	if _, result := e.home.Redirect(e.ctx, otherKey, docLoc(40), 0); result != ResultRedirect {
+	if _, result := e.home.Redirect(e.ctx, otherKey, testAddr, docLoc(40), 0); result != ResultRedirect {
 		t.Fatalf("after pluma_cdn: %q", result)
 	}
 }
@@ -416,7 +421,7 @@ func TestRedirectRequiresPlumaCdnParam(t *testing.T) {
 func TestRedirectCapsError(t *testing.T) {
 	e := redirectable(t, 41, 2<<20)
 	e.caps.err = errors.New("authsession is down")
-	if res, result := e.home.Redirect(e.ctx, testKey, docLoc(41), 0); res != nil || result != ResultError {
+	if res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(41), 0); res != nil || result != ResultError {
 		t.Fatalf("%v, %q", res, result)
 	}
 }
@@ -433,17 +438,17 @@ func TestRedirectFallbackAvoids(t *testing.T) {
 	if e.home.ServedHome(testKey, docLoc(42)) {
 		t.Fatal("one redirect counted as two fallbacks")
 	}
-	if res, result := e.home.Redirect(e.ctx, testKey, docLoc(42), 0); res != nil || result != ResultAvoided {
+	if res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(42), 0); res != nil || result != ResultAvoided {
 		t.Fatalf("after the fallback: %v, %q", res, result)
 	}
 	e.caps.set(otherKey, 1)
-	if _, result := e.home.Redirect(e.ctx, otherKey, docLoc(42), 0); result != ResultRedirect {
+	if _, result := e.home.Redirect(e.ctx, otherKey, testAddr, docLoc(42), 0); result != ResultRedirect {
 		t.Fatalf("another key: %q", result)
 	}
 
 	e.clock.add(e.set.AvoidTTL)
 	e.healthy(true)
-	if _, result := e.home.Redirect(e.ctx, testKey, docLoc(42), 0); result != ResultRedirect {
+	if _, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(42), 0); result != ResultRedirect {
 		t.Fatalf("after AvoidTTL: %q", result)
 	}
 	e.clock.add(fallbackWindow)
@@ -466,9 +471,9 @@ func TestRedirectBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.files.add(FileKey{Kind: KindDocument, Id: 44}, randomBytes(t, 2<<20))
-	e.home.Redirect(e.ctx, testKey, docLoc(44), 0)
+	e.home.Redirect(e.ctx, testKey, testAddr, docLoc(44), 0)
 	e.prepareAll()
-	if _, result := e.home.Redirect(e.ctx, testKey, docLoc(44), 0); result != ResultRedirect {
+	if _, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(44), 0); result != ResultRedirect {
 		t.Fatalf("below the budget: %q", result)
 	}
 	if err := e.store.AddUsage(e.ctx, testDc, month, 0, 1); err != nil {
@@ -476,13 +481,13 @@ func TestRedirectBudget(t *testing.T) {
 	}
 	e.clock.add(budgetCacheTTL)
 	e.healthy(true)
-	if res, result := e.home.Redirect(e.ctx, testKey, docLoc(44), 0); res != nil || result != ResultBudget {
+	if res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(44), 0); res != nil || result != ResultBudget {
 		t.Fatalf("at the budget: %v, %q", res, result)
 	}
 	// 2026-12-01 00:00 UTC.
 	e.clock.add(time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC).Sub(e.clock.now()))
 	e.healthy(true)
-	if _, result := e.home.Redirect(e.ctx, testKey, docLoc(44), 0); result != ResultRedirect {
+	if _, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(44), 0); result != ResultRedirect {
 		t.Fatalf("the next month: %q", result)
 	}
 }
@@ -493,6 +498,7 @@ func TestRedirectSecondDelivery(t *testing.T) {
 	c := testConfig(t)
 	second := c.Deliveries[0]
 	second.Id, second.Name, second.BaseURL = 202, "second", "https://cdn2.example.com"
+	second.OriginAuth = hex.EncodeToString(randomBytes(t, 32))
 	c.Deliveries = append(c.Deliveries, second)
 	c.Routes = "*:201,202"
 	set, err := c.Parse()
@@ -501,11 +507,11 @@ func TestRedirectSecondDelivery(t *testing.T) {
 	}
 	e := newHomeEnvWith(t, set)
 	e.files.add(FileKey{Kind: KindDocument, Id: 45}, randomBytes(t, 2<<20))
-	e.home.Redirect(e.ctx, testKey, docLoc(45), 0)
+	e.home.Redirect(e.ctx, testKey, testAddr, docLoc(45), 0)
 	e.prepareAll()
 	e.healthy(false)
 	e.healthyDc(202, true)
-	res, result := e.home.Redirect(e.ctx, testKey, docLoc(45), 0)
+	res, result := e.home.Redirect(e.ctx, testKey, testAddr, docLoc(45), 0)
 	if result != ResultRedirect || res.GetDcId() != 202 {
 		t.Fatalf("%q to %d, want a redirect to 202", result, res.GetDcId())
 	}
@@ -513,7 +519,7 @@ func TestRedirectSecondDelivery(t *testing.T) {
 		t.Fatalf("URL of the second delivery: %v", err)
 	}
 	e.healthyDc(202, false)
-	if res, result = e.home.Redirect(e.ctx, testKey, docLoc(45), 0); res != nil || result != ResultUnhealthy {
+	if res, result = e.home.Redirect(e.ctx, testKey, testAddr, docLoc(45), 0); res != nil || result != ResultUnhealthy {
 		t.Fatalf("both out: %v, %q", res, result)
 	}
 }

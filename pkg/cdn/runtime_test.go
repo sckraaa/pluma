@@ -62,7 +62,7 @@ func TestRuntime(t *testing.T) {
 	reader.add(key, data)
 
 	caps := &fakeCaps{versions: map[int64]int{runtimeKey: 1}}
-	r, err := Start(store, set, sizer, reader, caps)
+	r, err := Start(store, set, sizer, reader, caps, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestRuntime(t *testing.T) {
 		}
 	}()
 
-	if res, result := r.Home.Redirect(ctx, runtimeKey, docLoc(42), 0); res != nil || result != ResultUnhealthy && result != ResultNotReady {
+	if res, result := r.Home.Redirect(ctx, runtimeKey, "203.0.113.7", docLoc(42), 0); res != nil || result != ResultUnhealthy && result != ResultNotReady {
 		t.Fatalf("the first request: %v, %q", res, result)
 	}
 	var f *File
@@ -141,7 +141,7 @@ func TestRuntimeOriginAddressInUse(t *testing.T) {
 	defer ln.Close()
 	set := runtimeSettings(t)
 	set.Origin.Listen = ln.Addr().String()
-	if r, err := Start(NewMemStore(), set, newFakeFiles(), newMemReader(), &fakeCaps{}); err == nil {
+	if r, err := Start(NewMemStore(), set, newFakeFiles(), newMemReader(), &fakeCaps{}, nil); err == nil {
 		r.Stop()
 		t.Fatal("started on an address in use")
 	}

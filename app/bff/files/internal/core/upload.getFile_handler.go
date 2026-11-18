@@ -140,9 +140,11 @@ func (c *FilesCore) UploadGetFile(in *mtproto.TLUploadGetFile) (*mtproto.Upload_
 	// client falling back from the delivery, which its key then avoids;
 	// one under invokeWithTakeout is a data export, which never asks for
 	// the CDN (tdesktop export/export_api_wrap.cpp:760-766 sends flags 0).
+	// The delivery is picked by the country of the client's address (task
+	// 109): delivery 202 of the Russian node for a client from Russia.
 	if c.svcCtx.CDN != nil {
 		if cdn.Wants(in) {
-			if redirect, _ := c.svcCtx.CDN.Redirect(c.ctx, c.MD.GetPermAuthKeyId(), location, offset); redirect != nil {
+			if redirect, _ := c.svcCtx.CDN.Redirect(c.ctx, c.MD.GetPermAuthKeyId(), c.MD.GetClientAddr(), location, offset); redirect != nil {
 				return redirect, nil
 			}
 		} else if !in.GetCdnSupported() && c.MD.GetTakeout().GetId() == 0 {

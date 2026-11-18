@@ -1464,3 +1464,15 @@ authsession раньше не читал `params` и `proxy` из таблицы
 - [ ] `EDGE_WS_URLS=gcore=…,ru=…` и `EDGE_ROUTES=RU,BY:edge,direct:ru,gcore;*:direct,edge:gcore,ru`, деплой: телефон через мобильную сеть в России получает `pluma_edge` с `ru` первым и `order: ["edge","direct"]`, тот же телефон через VPN в Германии после перезахода (до часа — кэш страны) — с `gcore` первым и `direct` первым. Смотреть в отладочном журнале клиента или через Web K (`invokeApi('help.getAppConfig', {hash: 0})` в консоли).
 - [ ] Опечатка в `EDGE_ROUTES` (например `RU:edge:ru`) — bff не стартует, в логе понятная ошибка с записью; вернуть верное значение — стартует.
 - [ ] Вход с `pluma_edge` не ломает остальное: в Desktop, Android, iOS и Web K карты, переводы и вход на сайты через ботов (ключи того же `help.getAppConfig`) работают как до выката.
+
+### Часть 11: выдача 202 и маршрут файлов по стране (`CDN_ROUTES`, `CDN_RU_*`)
+Сервер — ветка `task/109-cdn-country`. Проверяется после частей 9 и 10 (туннель, nginx узла) и сертификата `r1.pluma.chat`; клиенты — с патчами CDN задачи 107 (`pluma_cdn`).
+- [ ] После выката с пустыми `CDN_RU_*` и прежним `CDN_ROUTES`: bff стартует, в логе `files: HTTPS CDN on, deliveries [201], 1 routes`; большой файл на телефоне (≥ 1 МБ) качается через Gcore, как раньше.
+- [ ] Задать `CDN_RU_BASE_URL`, `CDN_RU_TOKEN_KEY`, но оставить пустым `CDN_RU_ORIGIN_AUTH` — bff не стартует, в логе «deliveries 201 and 202 both pull /o/ from the origin with one X-Pluma-Origin-Auth»; с отдельным значением — стартует.
+- [ ] `CDN_ROUTES=RU,BY:202,201` (без записи `*`) — bff не стартует, ошибка называет запись `*`; `RU,BY:202,201;*:201` — стартует, в логе `deliveries [201 202], 2 routes`.
+- [ ] Через минуту после выката: в логе bff `cdn: delivery 202 (r1.pluma.chat) is healthy`, в Grafana `pluma_cdn_delivery_healthy{dc="202"}` = 1. Остановить nginx узла (`systemctl stop pluma-ru-nginx` на amf) — через ≤ 3 минуты `is out: network`, после запуска — снова healthy.
+- [ ] Телефон (Android, затем iOS) в России без VPN: открыть файл ≥ 5 МБ, который ещё никто не смотрел — качается до конца, видео играет с перемоткой; `pluma_cdn_redirects_total{dc="202",result="redirect"}` растёт, у `dc="201"` — нет. Второй телефон в России открывает тот же файл — быстро, на amf в кэше (`du -sh /var/cache/pluma-ru/files`) объём не вырос.
+- [ ] Тот же телефон с VPN в Германии (или Desktop вне России): новый файл приходит через Gcore (`dc="201"`), не через amf; выключить VPN — следующий файл снова через 202 (без ожидания 10 минут).
+- [ ] Desktop и Web K из России (Web K — с `https://ru.pluma.chat` и с `web.pluma.chat`): файл ≥ 1 МБ открывается, в консоли браузера нет ошибок CORS у `r1.pluma.chat`.
+- [ ] Через сутки: `select dc_id, month, origin_bytes, edge_bytes_est from cdn_delivery_usage;` — у 202 свои байты источника, у 201 они не выросли от просмотров из России; `CdnBudget{dc="202"}` молчит.
+- [ ] Сломать 202 (на amf поменять `CDN_RU_TOKEN_KEY` в `/etc/pluma-ru/env` и выкатить узел): в России файлы всё равно открываются — через Gcore или из дома; дома `is out: status`; вернуть ключ — 202 снова здорова.

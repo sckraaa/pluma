@@ -36,8 +36,9 @@ import (
 )
 
 // OriginAuthHeader is the header the CDN adds to every request to the
-// origin (a request header of the CDN resource), with CDN_ORIGIN_AUTH as
-// its value (task 107, "Источник").
+// origin (a request header of the CDN resource), with the OriginAuth of its
+// delivery as its value: CDN_ORIGIN_AUTH, or the delivery's own (task 107,
+// "Источник"; task 109, "Выдача 202").
 const OriginAuthHeader = "X-Pluma-Origin-Auth"
 
 // Limits of the origin (task 107, "Пределы").
@@ -93,16 +94,20 @@ type UsageCounter interface {
 // encrypted on the fly from the plaintext dfs keeps, by range. Nothing is
 // written anywhere: a CDN keeps what it pulled.
 //
-// Every request must carry OriginAuthHeader with the value of the config,
-// compared in constant time before the path is looked at, so that without
-// it an object that exists is not told from one that does not. The paths:
+// Every request must carry OriginAuthHeader with the OriginAuth of a
+// delivery, compared in constant time with every value before the path is
+// looked at, so that without it an object that exists is not told from one
+// that does not, and the time does not tell which value came. The value
+// names the deliveries a request may be for, and the bytes are counted for
+// the one it is for (task 109: delivery 202 of the Russian node has its
+// own value, so its bytes are not counted for Gcore). The paths:
 //
 //   - /o/<64 hex>: the cipher of the file whose cdn_files.file_token is the
-//     hex, while a delivery whose CDN checks its own token (gcore-md5)
-//     pulls from the origin;
+//     hex, for the delivery with that value whose CDN checks its own token
+//     (gcore-md5); Parse gives no two of them one value;
 //   - /t/<bucket>/<sig>/o/<64 hex>: the same, signed by a path-hmac
-//     delivery, whose signature the origin checks itself (403, 410 for an
-//     expired one);
+//     delivery with that value, whose signature the origin checks itself
+//     (403, 410 for an expired one);
 //   - /c/v1 and /t/<bucket>/<sig>/c/v1: the canary.
 //
 // GET and HEAD answer by http.ServeContent: one range is 206 with
@@ -116,14 +121,23 @@ type Origin struct {
 	reader FileReader
 	usage  UsageCounter
 	now    func() time.Time
-	auth   []byte
 	// busy bounds the requests that read files (MaxConcurrent): past it,
 	// 503.
 	busy chan struct{}
-	// plain is the delivery /o/ paths are counted for; nil when no
-	// delivery's CDN checks its own token, and /o/ is refused.
+	// access are the values of OriginAuthHeader, each with the deliveries
+	// that send it.
+	access []originAccess
+}
+
+// originAccess is a value of OriginAuthHeader and the deliveries whose CDN
+// sends it.
+type originAccess struct {
+	value []byte
+	// plain is the delivery /o/ paths with this value are counted for;
+	// nil when no delivery with it checks its own token, and /o/ is
+	// refused.
 	plain *Delivery
-	// signed are the path-hmac deliveries.
+	// signed are the path-hmac deliveries with this value.
 	signed []signedDelivery
 }
 
@@ -135,8 +149,8 @@ type signedDelivery struct {
 // NewOrigin returns the origin of the home-origin deliveries of set,
 // reading files by reader and counting what it serves in usage.
 func NewOrigin(store Store, set *Settings, reader FileReader, usage UsageCounter) (*Origin, error) {
-	if len(set.Origin.AuthValue) != originAuthDigits || set.Origin.MaxConcurrent < 1 {
-		return nil, errors.New("cdn: the origin has no auth value or concurrency")
+	if set.Origin.MaxConcurrent < 1 {
+		return nil, errors.New("cdn: the origin has no concurrency")
 	}
 	o := &Origin{
 		store:  store,
@@ -144,7 +158,6 @@ func NewOrigin(store Store, set *Settings, reader FileReader, usage UsageCounter
 		reader: reader,
 		usage:  usage,
 		now:    time.Now,
-		auth:   []byte(set.Origin.AuthValue),
 		busy:   make(chan struct{}, set.Origin.MaxConcurrent),
 	}
 	for i := range set.Deliveries {
@@ -152,22 +165,52 @@ func NewOrigin(store Store, set *Settings, reader FileReader, usage UsageCounter
 		if d.Source != SourceHomeOrigin {
 			continue
 		}
+		if len(d.OriginAuth) != originAuthDigits {
+			return nil, fmt.Errorf("cdn: delivery %d has no origin auth value", d.ID)
+		}
+		a := o.accessOf([]byte(d.OriginAuth))
 		if s, ok := d.Signer.(*PathHMACSigner); ok {
-			o.signed = append(o.signed, signedDelivery{id: d.ID, signer: s})
+			a.signed = append(a.signed, signedDelivery{id: d.ID, signer: s})
 			continue
 		}
-		if o.plain == nil {
-			o.plain = d
-		} else {
-			// Both CDNs ask for /o/<hex> with the same header; the origin
-			// cannot tell them apart and counts their bytes for the first.
-			logx.Errorf("cdn: deliveries %d and %d both pull /o/ from the origin: its bytes are counted for %d", o.plain.ID, d.ID, o.plain.ID)
+		if a.plain != nil {
+			// Parse refuses it: both CDNs would ask for /o/<hex> with the
+			// same header, and the origin could not count their bytes.
+			return nil, fmt.Errorf("cdn: deliveries %d and %d both pull /o/ from the origin with one auth value", a.plain.ID, d.ID)
 		}
+		a.plain = d
 	}
-	if o.plain == nil && len(o.signed) == 0 {
+	if len(o.access) == 0 {
 		return nil, errors.New("cdn: no delivery pulls from the origin")
 	}
 	return o, nil
+}
+
+// accessOf returns the entry of value in o.access, adding it if there is
+// none.
+func (o *Origin) accessOf(value []byte) *originAccess {
+	for i := range o.access {
+		if bytes.Equal(o.access[i].value, value) {
+			return &o.access[i]
+		}
+	}
+	o.access = append(o.access, originAccess{value: value})
+	return &o.access[len(o.access)-1]
+}
+
+// match returns the entry of o.access whose value is got, nil for none.
+// Every value is compared, in constant time, whichever matches: the time
+// tells neither how much of a value was right nor which one it was.
+func (o *Origin) match(got []byte) *originAccess {
+	found := -1
+	for i := range o.access {
+		eq := subtle.ConstantTimeCompare(got, o.access[i].value)
+		found = subtle.ConstantTimeSelect(eq, i, found)
+	}
+	if found < 0 {
+		return nil
+	}
+	return &o.access[found]
 }
 
 // ServeHTTP serves a request of a CDN. The log names the method, the
@@ -205,7 +248,8 @@ func (o *Origin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (o *Origin) serve(w http.ResponseWriter, r *http.Request) (int32, error) {
 	h := w.Header()
 	h.Set("Cache-Control", "no-store") // an answer that is not an object is never kept
-	if subtle.ConstantTimeCompare([]byte(r.Header.Get(OriginAuthHeader)), o.auth) != 1 {
+	access := o.match([]byte(r.Header.Get(OriginAuthHeader)))
+	if access == nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return 0, nil
 	}
@@ -225,17 +269,17 @@ func (o *Origin) serve(w http.ResponseWriter, r *http.Request) (int32, error) {
 	cacheControl := "public, max-age=" + strconv.Itoa(int(objectMaxAge/time.Second)) + ", immutable"
 	switch {
 	case path == CanaryPath:
-		dc = o.plainID()
+		dc = access.plainID()
 	case objectPathRe.MatchString(path):
-		if o.plain == nil {
+		if access.plain == nil {
 			http.NotFound(w, r)
 			return 0, nil
 		}
-		dc = o.plain.ID
-	case len(o.signed) > 0 && signedPathRe.MatchString(path):
+		dc = access.plain.ID
+	case len(access.signed) > 0 && signedPathRe.MatchString(path):
 		var bucket int64
 		var status int
-		dc, path, bucket, status = o.verify(path)
+		dc, path, bucket, status = o.verify(access.signed, path)
 		if status != 0 {
 			http.Error(w, http.StatusText(status), status)
 			return 0, nil
@@ -298,21 +342,23 @@ func (o *Origin) serve(w http.ResponseWriter, r *http.Request) (int32, error) {
 	return dc, nil
 }
 
-// plainID is the delivery the canary of /c/v1 is counted for.
-func (o *Origin) plainID() int32 {
-	if o.plain != nil {
-		return o.plain.ID
+// plainID is the delivery the canary of /c/v1 with this value is counted
+// for, 0 for none.
+func (a *originAccess) plainID() int32 {
+	if a.plain != nil {
+		return a.plain.ID
 	}
 	return 0
 }
 
-// verify checks a signed path with the path-hmac deliveries: the delivery,
-// the path of the object, the bucket, and 0; or the status of the refusal
-// (410 for a URL a delivery made whose time passed, 403 for any other).
-func (o *Origin) verify(path string) (int32, string, int64, int) {
+// verify checks a signed path with the path-hmac deliveries signed: the
+// delivery, the path of the object, the bucket, and 0; or the status of
+// the refusal (410 for a URL a delivery made whose time passed, 403 for
+// any other).
+func (o *Origin) verify(signed []signedDelivery, path string) (int32, string, int64, int) {
 	now := o.now()
 	status := http.StatusForbidden
-	for _, d := range o.signed {
+	for _, d := range signed {
 		object, bucket, err := d.signer.Verify(path, now)
 		switch {
 		case err == nil:

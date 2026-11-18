@@ -77,12 +77,15 @@ const (
 // A delivery that passes both takes redirects for healthValidChecks
 // intervals (healthy_until); one that fails is out at once, with its
 // reason. The requests take the usual way out of the container (through
-// the VPS, ADR 0061 §3), never a redirect or a compressed answer.
+// the VPS, ADR 0061 §3), or go straight to the HealthAddr of the delivery
+// (delivery 202 through the tunnel to its node), never follow a redirect
+// and never take a compressed answer.
 type Health struct {
-	store  Store
-	set    *Settings
-	client *http.Client
-	now    func() time.Time
+	store Store
+	set   *Settings
+	// clients are the HTTP clients of the checks of each delivery.
+	clients map[int32]*http.Client
+	now     func() time.Time
 
 	mu   sync.Mutex
 	last map[int32]string // the last reason of each delivery, "" healthy; for the log of changes
@@ -90,21 +93,51 @@ type Health struct {
 
 // NewHealth returns the checks of the deliveries of set.
 func NewHealth(store Store, set *Settings) *Health {
+	return newHealth(store, set, nil)
+}
+
+// newHealth is NewHealth whose checks trust roots instead of the system's
+// certificates, nil for the system's.
+func newHealth(store Store, set *Settings, roots *x509.CertPool) *Health {
+	h := &Health{
+		store:   store,
+		set:     set,
+		clients: map[int32]*http.Client{},
+		now:     time.Now,
+		last:    map[int32]string{},
+	}
+	for i := range set.Deliveries {
+		d := &set.Deliveries[i]
+		h.clients[d.ID] = healthClient(d.HealthAddr, roots)
+	}
+	return h
+}
+
+// healthClient is the HTTP client of the checks of a delivery: it dials
+// addr, when there is one, for every request, without a proxy; the host
+// of the URL stays the SNI, the Host and the name the certificate is
+// checked for (net/http takes them from the URL, not from the address
+// dialled).
+func healthClient(addr string, roots *x509.CertPool) *http.Client {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.DisableCompression = true
 	tr.MaxIdleConnsPerHost = 2
-	return &Health{
-		store: store,
-		set:   set,
-		client: &http.Client{
-			Transport: tr,
-			Timeout:   healthTimeout,
-			CheckRedirect: func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
+	if roots != nil {
+		tr.TLSClientConfig = &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}
+	}
+	if addr != "" {
+		tr.Proxy = nil
+		d := &net.Dialer{Timeout: healthTimeout, KeepAlive: 30 * time.Second}
+		tr.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return d.DialContext(ctx, network, addr)
+		}
+	}
+	return &http.Client{
+		Transport: tr,
+		Timeout:   healthTimeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
 		},
-		now:  time.Now,
-		last: map[int32]string{},
 	}
 }
 
@@ -145,7 +178,13 @@ func (h *Health) Check(ctx context.Context, d *Delivery) string {
 		logx.WithContext(ctx).Errorf("cdn: delivery %d: sign the canary: %v", d.ID, err)
 		return UnhealthyStore
 	}
-	if reason := h.checkCanary(ctx, signed); reason != "" {
+	client := h.clients[d.ID]
+	if client == nil {
+		// Round checks only the deliveries of set, which all have one.
+		logx.WithContext(ctx).Errorf("cdn: delivery %d: no client of its checks", d.ID)
+		return UnhealthyStore
+	}
+	if reason := h.checkCanary(ctx, client, signed); reason != "" {
 		return reason
 	}
 	broken, err := breakSignature(d.Signer.Name(), signed)
@@ -153,12 +192,12 @@ func (h *Health) Check(ctx context.Context, d *Delivery) string {
 		logx.WithContext(ctx).Errorf("cdn: delivery %d: break the signature of the canary: %v", d.ID, err)
 		return UnhealthyStore
 	}
-	return h.checkRefused(ctx, broken)
+	return h.checkRefused(ctx, client, broken)
 }
 
 // checkCanary fetches the range of the canary at signed.
-func (h *Health) checkCanary(ctx context.Context, signed string) string {
-	res, err := h.get(ctx, signed)
+func (h *Health) checkCanary(ctx context.Context, client *http.Client, signed string) string {
+	res, err := h.get(ctx, client, signed)
 	if err != nil {
 		return failureReason(err)
 	}
@@ -182,8 +221,8 @@ func (h *Health) checkCanary(ctx context.Context, signed string) string {
 
 // checkRefused fetches the canary at broken, whose signature is broken:
 // the CDN must refuse it.
-func (h *Health) checkRefused(ctx context.Context, broken string) string {
-	res, err := h.get(ctx, broken)
+func (h *Health) checkRefused(ctx context.Context, client *http.Client, broken string) string {
+	res, err := h.get(ctx, client, broken)
 	if err != nil {
 		return failureReason(err)
 	}
@@ -199,7 +238,7 @@ func (h *Health) checkRefused(ctx context.Context, broken string) string {
 }
 
 // get asks for the range of the canary at u, as a client asks for a part.
-func (h *Health) get(ctx context.Context, u string) (*http.Response, error) {
+func (h *Health) get(ctx context.Context, client *http.Client, u string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, errors.New("the URL does not parse")
@@ -207,7 +246,7 @@ func (h *Health) get(ctx context.Context, u string) (*http.Response, error) {
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", healthRangeFrom, healthRangeTo))
 	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("User-Agent", healthUserAgent)
-	res, err := h.client.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		// The error of net/http names the URL, signature and all.
 		var ue *url.Error

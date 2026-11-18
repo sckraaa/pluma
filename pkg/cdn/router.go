@@ -62,23 +62,35 @@ type RedirectObserver interface {
 }
 
 // Router picks the delivery of a redirect (task 107, "Выдачи, маршрут,
-// шов"): the first of the route that is healthy, within its budget and not
-// avoided by the key, held for the key for pickHold. It also takes the
-// fallback signal: a client of the key asked for a file it was just
-// redirected to without cdn_supported, so that delivery failed it, and the
-// key avoids it for AvoidTTL. The state is in memory, which a restart loses
-// safely: the next failure of a client is a fallback again. It is safe for
-// concurrent use.
+// шов"): the record of CDN_ROUTES of the client's country, or the record
+// "*" (task 109, "Выдача 202 и маршрут по стране"); in it, the first
+// delivery that is healthy, within its budget and not avoided by the key,
+// held for the key for pickHold. It also takes the fallback signal: a
+// client of the key asked for a file it was just redirected to without
+// cdn_supported, so that delivery failed it, and the key avoids it for
+// AvoidTTL. The state is in memory, which a restart loses safely: the next
+// failure of a client is a fallback again. It is safe for concurrent use.
 type Router struct {
-	// route are the deliveries of every client, the preferred first: the
-	// record "*" of CDN_ROUTES, the only one accepted today.
-	route    []*Delivery
-	gate     Gate
-	avoidTTL time.Duration
+	// routes are the records of CDN_ROUTES, their deliveries the
+	// preferred first; all is the index of the record "*", and byCountry
+	// that of the record of each country it names.
+	routes    [][]*Delivery
+	all       int
+	byCountry map[string]int
+	gate      Gate
+	avoidTTL  time.Duration
 
-	held      *ttlLRU[int64, int32]
+	held      *ttlLRU[int64, heldPick]
 	avoided   *ttlLRU[avoidKey, struct{}]
 	redirects *ttlLRU[redirectKey, int32]
+}
+
+// heldPick is the delivery a key holds and the record it was picked by: a
+// client whose country changed (a VPN went on or off) is routed by its new
+// record at once.
+type heldPick struct {
+	route int
+	dc    int32
 }
 
 type avoidKey struct {
@@ -93,54 +105,96 @@ type redirectKey struct {
 
 // NewRouter returns the Router of set over gate.
 func NewRouter(set *Settings, gate Gate) (*Router, error) {
-	if len(set.Routes) == 0 || len(set.Routes[0].Deliveries) == 0 {
+	if len(set.Routes) == 0 {
 		return nil, errors.New("cdn: no route")
 	}
-	if len(set.Routes) > 1 || set.Routes[0].Countries != nil {
-		// ParseRoutes refuses them; the country of a client is not known.
-		return nil, ErrCountryRoutes
-	}
 	r := &Router{
+		all:       -1,
+		byCountry: map[string]int{},
 		gate:      gate,
 		avoidTTL:  set.AvoidTTL,
-		held:      newTTLLRU[int64, int32](routerKeys, pickHold),
+		held:      newTTLLRU[int64, heldPick](routerKeys, pickHold),
 		avoided:   newTTLLRU[avoidKey, struct{}](routerKeys, set.AvoidTTL),
 		redirects: newTTLLRU[redirectKey, int32](routerRedirects, fallbackWindow),
 	}
-	for _, id := range set.Routes[0].Deliveries {
-		d, ok := set.Delivery(id)
-		if !ok {
-			return nil, fmt.Errorf("cdn: the route names delivery %d, which is off", id)
+	for i, route := range set.Routes {
+		if len(route.Deliveries) == 0 {
+			return nil, errors.New("cdn: a route without deliveries")
 		}
-		r.route = append(r.route, d)
+		var ds []*Delivery
+		for _, id := range route.Deliveries {
+			d, ok := set.Delivery(id)
+			if !ok {
+				return nil, fmt.Errorf("cdn: the route names delivery %d, which is off", id)
+			}
+			ds = append(ds, d)
+		}
+		r.routes = append(r.routes, ds)
+		if route.Countries == nil {
+			if r.all >= 0 {
+				return nil, errors.New("cdn: two routes for *")
+			}
+			r.all = i
+			continue
+		}
+		for _, c := range route.Countries {
+			if _, ok := r.byCountry[c]; ok {
+				return nil, fmt.Errorf("cdn: two routes for %s", c)
+			}
+			r.byCountry[c] = i
+		}
+	}
+	if r.all < 0 {
+		return nil, errors.New("cdn: no route for *")
 	}
 	return r, nil
 }
 
-// First is the preferred delivery of the route: the one the metrics name
-// when no delivery was picked.
-func (r *Router) First() *Delivery { return r.route[0] }
+// ByCountry reports whether a record of the routes names countries: only
+// then is the country of a client looked up.
+func (r *Router) ByCountry() bool { return len(r.byCountry) > 0 }
 
-// Targets are the cdn_replicas targets the deliveries of the route serve
+// First is the preferred delivery of the record "*": the one the metrics
+// name when no delivery was picked before the client's country was known.
+func (r *Router) First() *Delivery { return r.routes[r.all][0] }
+
+// FirstOf is the preferred delivery of the record of country: the one the
+// metrics name when no delivery was picked for a client of country.
+func (r *Router) FirstOf(country string) *Delivery { return r.routes[r.route(country)][0] }
+
+// route is the index of the record of country, "" being not known.
+func (r *Router) route(country string) int {
+	if i, ok := r.byCountry[country]; ok {
+		return i
+	}
+	return r.all
+}
+
+// Targets are the cdn_replicas targets the deliveries of the routes serve
 // from, each once.
 func (r *Router) Targets() []int32 {
 	var ts []int32
-	for _, d := range r.route {
-		if t := d.Target(); !slices.Contains(ts, t) {
-			ts = append(ts, t)
+	for _, route := range r.routes {
+		for _, d := range route {
+			if t := d.Target(); !slices.Contains(ts, t) {
+				ts = append(ts, t)
+			}
 		}
 	}
 	return ts
 }
 
-// Pick returns the delivery a client of authKeyID is redirected to at now.
+// Pick returns the delivery a client of authKeyID from country (an ISO
+// 3166-1 alpha-2 code, "" when it is not known) is redirected to at now.
 // With none, it returns nil and the result that kept out the preferred
-// delivery of the route: ResultAvoided, ResultUnhealthy or ResultBudget; or
-// ResultError and the failure of the gate.
-func (r *Router) Pick(ctx context.Context, authKeyID int64, now time.Time) (*Delivery, string, error) {
-	if dc, ok := r.held.get(authKeyID, now); ok {
-		for _, d := range r.route {
-			if d.ID != dc {
+// delivery of its record: ResultAvoided, ResultUnhealthy or ResultBudget;
+// or ResultError and the failure of the gate.
+func (r *Router) Pick(ctx context.Context, authKeyID int64, country string, now time.Time) (*Delivery, string, error) {
+	ri := r.route(country)
+	route := r.routes[ri]
+	if h, ok := r.held.get(authKeyID, now); ok && h.route == ri {
+		for _, d := range route {
+			if d.ID != h.dc {
 				continue
 			}
 			out, err := r.out(ctx, authKeyID, d, now)
@@ -153,13 +207,13 @@ func (r *Router) Pick(ctx context.Context, authKeyID int64, now time.Time) (*Del
 		}
 	}
 	first := ""
-	for _, d := range r.route {
+	for _, d := range route {
 		out, err := r.out(ctx, authKeyID, d, now)
 		if err != nil {
 			return nil, ResultError, err
 		}
 		if out == "" {
-			r.held.put(authKeyID, d.ID, now)
+			r.held.put(authKeyID, heldPick{route: ri, dc: d.ID}, now)
 			return d, "", nil
 		}
 		if first == "" {
@@ -195,7 +249,7 @@ func (r *Router) FellBack(authKeyID int64, key FileKey, now time.Time) (int32, b
 		return 0, false
 	}
 	r.avoided.put(avoidKey{authKeyID, dc}, struct{}{}, now)
-	if held, ok := r.held.get(authKeyID, now); ok && held == dc {
+	if held, ok := r.held.get(authKeyID, now); ok && held.dc == dc {
 		r.held.remove(authKeyID)
 	}
 	return dc, true
