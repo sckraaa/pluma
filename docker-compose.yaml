@@ -79,6 +79,7 @@ services:
       # bff.yaml names the servers of one-to-one calls (task 068); empty: off.
       CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
       CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
+      CALLS_TURN_SECRETS: ${CALLS_TURN_SECRETS:-}
       CALLS_QUALITY: ${CALLS_QUALITY:-}
       # bff.yaml names the SFU of group calls (task 093); empty: off.
       GROUPCALLS_SFU_ENDPOINT: ${GROUPCALLS_SFU_ENDPOINT:-}
@@ -352,6 +353,7 @@ services:
       # The servers of one-to-one calls (task 068); empty: calls are off.
       CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
       CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
+      CALLS_TURN_SECRETS: ${CALLS_TURN_SECRETS:-}
       CALLS_QUALITY: ${CALLS_QUALITY:-}
       # The control API of the SFU of group calls (task 093,
       # docs/ops/group-calls.md); empty: group calls are off.

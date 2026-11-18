@@ -17,6 +17,31 @@
 // 0004): STUN and TURN servers from the config, with TURN credentials made
 // per call from coturn's static-auth-secret (use-auth-secret), so no
 // password is stored or shared between calls.
+//
+// A TURN server may have a secret of its own, named by a label (task 109,
+// ADR 0072 §8): a node that holds only its own secret can make credentials
+// for itself and for no other TURN server of the list.
+//
+// Both sides of a call get the whole list, and every client hands every
+// TURN server of it to WebRTC, each with its own credentials, so ICE
+// gathers relay candidates on all of them and picks the pair that works;
+// no client takes only the first (Android 13.2.1, tdesktop v7.4.1, iOS
+// release-13.2, Web K aa74832e):
+//   - Android: VoIPService.java:3538-3542 makes an endpoint of every
+//     connection, org_telegram_messenger_voip_Instance.cpp:954-976 an
+//     RtcServer of every endpoint with its username and password;
+//   - tdesktop: calls_call.cpp:1237-1238 and :172-183 (AppendServer), a
+//     TURN RtcServer of every phoneConnectionWebrtc with turn;
+//   - iOS: CallSessionManager.swift:1232 keeps all connections,
+//     OngoingCallContext.swift:1011-1035 and :92-104 map each of them,
+//     OngoingCallThreadLocalContext.mm:1969-1992 an RtcServer of each;
+//   - tgcalls (Android 545f5ae, tdesktop 1c236c0, iOS c1de088): every TURN
+//     RtcServer goes to the port allocator (v2/NativeNetworkingImpl.cpp:612-626,
+//     NetworkManager.cpp:158-176) or to the peer connection's servers
+//     (v2/InstanceV2ReferenceImpl.cpp:749-802 at 545f5ae and c1de088,
+//     :717-770 at 1c236c0);
+//   - Web K: callInstance.ts:735-747 keeps every phoneConnectionWebrtc,
+//     p2P/utils.ts:173-203 (buildIceServers) makes an RTCIceServer of each.
 package ice
 
 import (
@@ -27,6 +52,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -35,31 +61,78 @@ import (
 )
 
 // Server is one configured STUN/TURN endpoint. Host6 is the IPv6 address of
-// a Host given as an IPv4 address.
+// a Host given as an IPv4 address. Label names the secret of a TURN server
+// in Secrets; empty: the shared TurnSecret.
 type Server struct {
 	Host  string
 	Host6 string
 	Port  int32
 	Stun  bool
 	Turn  bool
+	Label string
+
+	secret []byte
 }
 
 // Servers are the endpoints; the zero value has none.
 type Servers struct {
 	list     []Server
-	secret   []byte
 	now      func() time.Time
 	resolver func(ctx context.Context, host string) ([]net.IPAddr, error)
 }
 
-// Parse reads "host:port:stun+turn,host:port:turn". A host may be an
+// Secrets are the TURN secrets by label; the zero value has none.
+type Secrets struct {
+	byLabel map[string][]byte
+}
+
+var (
+	labelRe = regexp.MustCompile(`^[a-z0-9]{1,32}$`)
+	// secretRe is what the node's deploy script accepts for its secret
+	// (teamgramd/deploy/ru/deploy.sh, turn_secret): a secret the node would
+	// refuse is refused here too, not found out at the node's deploy.
+	secretRe = regexp.MustCompile(`^[A-Za-z0-9]{32,128}$`)
+)
+
+// ParseSecrets reads "label=secret,label=secret": a label is 1 to 32
+// lowercase letters and digits, a secret 32 to 128 letters and digits
+// (openssl rand -hex 32). Errors never quote a secret. A secret no entry
+// uses is allowed: taking a node out of the server list leaves its secret.
+func ParseSecrets(cfg string) (Secrets, error) {
+	s := Secrets{byLabel: map[string][]byte{}}
+	for i, entry := range strings.Split(cfg, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		label, secret, ok := strings.Cut(entry, "=")
+		if !ok {
+			return Secrets{}, fmt.Errorf("entry %d: want label=secret", i+1)
+		}
+		if !labelRe.MatchString(label) {
+			return Secrets{}, fmt.Errorf("entry %d: a label is 1 to 32 lowercase letters and digits", i+1)
+		}
+		if _, dup := s.byLabel[label]; dup {
+			return Secrets{}, fmt.Errorf("the label %q is set twice", label)
+		}
+		if !secretRe.MatchString(secret) {
+			return Secrets{}, fmt.Errorf("the secret of %q must be 32 to 128 letters and digits (openssl rand -hex 32)", label)
+		}
+		s.byLabel[label] = []byte(secret)
+	}
+	return s, nil
+}
+
+// Parse reads "host:port:stun+turn,host:port:turn@label". A host may be an
 // IPv4 address, a host name or an IPv6 address in square brackets; the
-// flag stun or turn or both separated by "+" says what it serves. The TURN
-// secret must be set if any entry has turn. An IPv6 address is one more
-// address of the entry with an IPv4 address and the same port and flags: a
-// connection needs an IPv4 address (see Connections).
-func Parse(cfg, secret string) (*Servers, error) {
-	s := &Servers{secret: []byte(secret), now: time.Now, resolver: net.DefaultResolver.LookupIPAddr}
+// flag stun or turn or both separated by "+" says what it serves. A TURN
+// entry's credentials are made from the secret of its label in secrets,
+// which must be there, or from the shared secret, which must then be set.
+// An IPv6 address is one more address of the entry with an IPv4 address
+// and the same port, flags and label: a connection needs an IPv4 address
+// (see Connections).
+func Parse(cfg, secret string, secrets Secrets) (*Servers, error) {
+	s := &Servers{now: time.Now, resolver: net.DefaultResolver.LookupIPAddr}
 	for _, entry := range strings.Split(cfg, ",") {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
@@ -79,6 +152,10 @@ func Parse(cfg, secret string) (*Servers, error) {
 			return nil, fmt.Errorf("%q: bad port", entry)
 		}
 		srv := Server{Host: host, Port: int32(p)} //nolint:gosec // G109: p is at most 65535, checked above
+		kinds, label, labelled := strings.Cut(kinds, "@")
+		if labelled && !labelRe.MatchString(label) {
+			return nil, fmt.Errorf("%q: a label is 1 to 32 lowercase letters and digits", entry)
+		}
 		for _, k := range strings.Split(kinds, "+") {
 			switch k {
 			case "stun":
@@ -89,8 +166,19 @@ func Parse(cfg, secret string) (*Servers, error) {
 				return nil, fmt.Errorf("%q: unknown kind %q", entry, k)
 			}
 		}
-		if srv.Turn && secret == "" {
-			return nil, errors.New("a TURN server needs a TurnSecret")
+		switch {
+		case labelled && !srv.Turn:
+			return nil, fmt.Errorf("%q: a label names the secret of a TURN server", entry)
+		case labelled:
+			sec, ok := secrets.byLabel[label]
+			if !ok {
+				return nil, fmt.Errorf("%q: TurnSecrets has no secret labelled %q", entry, label)
+			}
+			srv.Label, srv.secret = label, sec
+		case srv.Turn && secret == "":
+			return nil, errors.New("a TURN server without a label needs a TurnSecret")
+		case srv.Turn:
+			srv.secret = []byte(secret)
 		}
 		s.list = append(s.list, srv)
 	}
@@ -115,13 +203,13 @@ func (s *Servers) pairIPv6() error {
 		paired := false
 		for i := range out {
 			o := &out[i]
-			if o.Host6 == "" && o.Port == srv.Port && o.Stun == srv.Stun && o.Turn == srv.Turn && net.ParseIP(o.Host) != nil {
+			if o.Host6 == "" && o.Port == srv.Port && o.Stun == srv.Stun && o.Turn == srv.Turn && o.Label == srv.Label && net.ParseIP(o.Host) != nil {
 				o.Host6, paired = srv.Host, true
 				break
 			}
 		}
 		if !paired {
-			return fmt.Errorf("[%s]:%d: an IPv6 address needs an IPv4 entry with the same port and kinds", srv.Host, srv.Port)
+			return fmt.Errorf("[%s]:%d: an IPv6 address needs an IPv4 entry with the same port, kinds and label", srv.Host, srv.Port)
 		}
 	}
 	s.list = out
@@ -141,10 +229,11 @@ const resolveTimeout = 2 * time.Second
 
 // Connections returns the connections of callId. The clients take numeric
 // addresses only (ADR 0004: names are resolved before they are handed out).
-// A host without an IPv4 address is left out: Android reads only ip for such
-// a connection (jni/voip/org_telegram_messenger_voip_Instance.cpp:854), Web K
-// makes an URL of it unchecked (p2P/utils.ts:169,175) and tdesktop a TURN
-// server (calls_call.cpp:155). A TURN credential lives as long as a call may.
+// A host without an IPv4 address is left out: Android takes the server's
+// host from ip (jni/voip/org_telegram_messenger_voip_Instance.cpp:960), Web K
+// makes an URL of it unchecked (p2P/utils.ts:179) and tdesktop a TURN
+// server (calls_call.cpp:182). A TURN credential lives as long as a call
+// may; each TURN server's is made from its own secret.
 func (s *Servers) Connections(ctx context.Context, callId int64, lifetime time.Duration) []*mtproto.PhoneConnection {
 	out := make([]*mtproto.PhoneConnection, 0, len(s.list))
 	expires := s.now().Add(lifetime).Unix()
@@ -167,7 +256,7 @@ func (s *Servers) Connections(ctx context.Context, callId int64, lifetime time.D
 		}
 		if srv.Turn {
 			conn.Username = username
-			conn.Password = credential(s.secret, username)
+			conn.Password = credential(srv.secret, username)
 		}
 		out = append(out, mtproto.MakeTLPhoneConnectionWebrtc(conn).To_PhoneConnection())
 	}

@@ -153,6 +153,7 @@ func TestServicePhotoConfig(t *testing.T) {
 	t.Setenv("PLUMA_IOS_UPDATE_SECRET", "")
 	t.Setenv("CALLS_ICE_SERVERS", "")
 	t.Setenv("CALLS_TURN_SECRET", "")
+	t.Setenv("CALLS_TURN_SECRETS", "")
 	t.Setenv("CALLS_QUALITY", "")
 	t.Setenv("STT_URL", "")
 	t.Setenv("STT_TOKEN", "")

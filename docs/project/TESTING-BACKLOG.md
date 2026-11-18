@@ -1476,3 +1476,12 @@ authsession раньше не читал `params` и `proxy` из таблицы
 - [ ] Desktop и Web K из России (Web K — с `https://ru.pluma.chat` и с `web.pluma.chat`): файл ≥ 1 МБ открывается, в консоли браузера нет ошибок CORS у `r1.pluma.chat`.
 - [ ] Через сутки: `select dc_id, month, origin_bytes, edge_bytes_est from cdn_delivery_usage;` — у 202 свои байты источника, у 201 они не выросли от просмотров из России; `CdnBudget{dc="202"}` молчит.
 - [ ] Сломать 202 (на amf поменять `CDN_RU_TOKEN_KEY` в `/etc/pluma-ru/env` и выкатить узел): в России файлы всё равно открываются — через Gcore или из дома; дома `is out: status`; вернуть ключ — 202 снова здорова.
+
+### Часть 12: TURN на amf со своим секретом (`CALLS_ICE_SERVERS` с `@ru`, `CALLS_TURN_SECRETS`)
+Сервер — ветка `task/109-ru-turn`. Проверяется после части 10 (coturn узла, `pluma-ru-turn`); клиенты не меняются.
+- [ ] После выката с пустым `CALLS_TURN_SECRETS` и прежним `CALLS_ICE_SERVERS`: bff стартует, звонок Android ↔ iOS соединяется, как раньше.
+- [ ] `CALLS_ICE_SERVERS=…,194.87.226.185:3478:stun+turn@ru` при пустом `CALLS_TURN_SECRETS` — bff не стартует, ошибка называет запись `@ru` и «no secret labelled "ru"»; секрета в логе нет. `CALLS_TURN_SECRETS=ru=abc` — не стартует, «the secret of "ru" must be 32 to 128 letters and digits», значения в логе нет.
+- [ ] С `CALLS_TURN_SECRETS=ru=<секрет узла>` (тот же, что в `/etc/pluma-ru/env` amf) bff стартует. С компьютера дома: `turnutils_uclient -u <истечение>:<id> -w <пароль> 194.87.226.185` (команды — `docs/ops/calls.md`, «Несколько TURN и свои секреты») — выделение реле проходит; тот же логин с паролем от общего `CALLS_TURN_SECRET` — отказ на amf.
+- [ ] Звонок двух телефонов в России без VPN (Android ↔ iOS): соединяется, звук в обе стороны; на amf в `journalctl -u pluma-ru-turn` есть записи о выделении реле (allocation). Повторить Android ↔ Desktop и Desktop ↔ Web K (Web K — с `https://ru.pluma.chat`).
+- [ ] Звонок Россия ↔ Европа (один телефон в России без VPN, другой в Германии): соединяется; записать, через какой TURN пошло (статистика coturn amf и Hetzner, `journalctl`), и качество звука.
+- [ ] Остановить TURN на amf (`systemctl stop pluma-ru-turn`): звонок двух пользователей вне России соединяется, как раньше (через Hetzner или напрямую); пользователи в России — записать, соединяется ли без amf. Запустить обратно.
