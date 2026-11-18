@@ -41,6 +41,7 @@
 //	pluma-admin langpack fetch -out <dir> [-pack <packs>] [-lang <langs>] [-api-id <id>]
 //	pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
 //	pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
+//	pluma-admin [-f bff.yaml] langpack coverage -pack <pack> -keys <file> [-lang <langs>] [-snapshots <dir>] [-list]
 //	pluma-admin [-f bff.yaml] catalog import <dir>
 //	pluma-admin [-f bff.yaml] release list|withdraw|restore|mandatory|optional [<platform> <build>]
 //	pluma-admin [-f bff.yaml] import-chat accounts|map|plan|run|status|abort ...
@@ -123,8 +124,10 @@
 // files (<dir>/<pack>/<lang>.json), with the api_id of the owner's
 // application from -api-id or $TELEGRAM_API_ID; import puts the files into
 // the database with "Telegram" replaced by "Pluma", one new version per
-// language that changed, and lists what still names Telegram; list prints
-// the stored languages and their versions.
+// language that changed, lists what still names Telegram and tells the
+// online clients of a changed language (updateLangPackTooLong); list prints
+// the stored languages and their versions; coverage compares the keys of a
+// built client with the server's strings in each language.
 //
 // import-chat brings a group of Telegram into Pluma from the export
 // Telegram Desktop makes of it, with its files: a new supergroup whose
@@ -276,6 +279,7 @@ const usage = `Usage:
   pluma-admin langpack fetch -out <dir> [-pack android,ios,...] [-lang ru,...] [-api-id <id>]   (from Telegram; $TELEGRAM_API_ID)
   pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
   pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
+  pluma-admin [-f bff.yaml] langpack coverage -pack <pack> -keys <file> [-lang ru,...] [-snapshots <dir>] [-list]
   pluma-admin [-f bff.yaml] catalog import <dir>   (a collection of the catalog from Telegram, task 024)
   pluma-admin [-f bff.yaml] release list           (the current release of each client app, task 054)
   pluma-admin [-f bff.yaml] release withdraw|restore <platform> <build>   (roll a release back, or forward again)

@@ -97,8 +97,13 @@ func (c *ConfigurationCore) setDefaultReaction(cfg *mtproto.TLConfig) {
 }
 
 // setLangPack fills flags.2 of config for the session's pack and language:
-// suggested_lang_code, lang_pack_version and base_lang_pack_version, the
-// versions langpack.getDifference answers with. The clients ask for a
+// suggested_lang_code, the language of the device's system when the pack has
+// it (langpack.Store.ConfigVersions), and lang_pack_version and
+// base_lang_pack_version, the versions langpack.getDifference answers with.
+// iOS offers the suggested language on its first screen when it differs
+// from the app's (Localizations.swift:6-14,
+// AuthorizationSequenceSplashController.swift:39-40), Web K by its language
+// button (languageChangeButton.tsx:10-23). The clients ask for a
 // difference when their version is behind (Android
 // checkUpdateForCurrentRemoteLocale, LocaleController.java:847-874; iOS
 // ManagedConfigurationUpdates.swift:98-111; tdesktop
@@ -112,7 +117,7 @@ func (c *ConfigurationCore) setLangPack(cfg *mtproto.TLConfig) {
 
 	pack := langpack.CanonicalPack(c.MD.GetLangpack())
 	lang := langpack.CanonicalLangCode(c.MD.GetLangCode())
-	v, err := c.svcCtx.Dao.Langpacks.ConfigVersions(c.ctx, pack, lang)
+	v, err := c.svcCtx.Dao.Langpacks.ConfigVersions(c.ctx, pack, lang, c.MD.GetSystemLangCode())
 	if err != nil {
 		// The rest of config still serves the client; its language pack
 		// waits for the next help.getConfig.

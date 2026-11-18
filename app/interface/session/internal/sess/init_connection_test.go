@@ -125,3 +125,25 @@ func TestInitConnectionStoresPlumaCdnChange(t *testing.T) {
 		t.Fatalf("stored params have pluma_cdn %d, want 0", got)
 	}
 }
+
+// The requests of a key carry its client's language and the language of the
+// device's system, for help.getConfig's suggested_lang_code (task 114).
+func TestRpcMetadataCarriesLanguages(t *testing.T) {
+	w, sess, _ := newTestBotWrapper(t)
+	w.onUpdateInitConnection(context.Background(), testClientIp, &mtproto.TLInitConnection{
+		ApiId:          4,
+		DeviceModel:    "iPhone",
+		SystemVersion:  "iOS 18",
+		AppVersion:     "13.2",
+		SystemLangCode: "ru-RU",
+		LangPack:       "ios",
+		LangCode:       "en",
+	})
+	md, err := w.rpcMetadata(testRequest(sess, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if md.Langpack != "ios" || md.LangCode != "en" || md.SystemLangCode != "ru-RU" {
+		t.Errorf("metadata lang_pack %q, lang_code %q, system_lang_code %q", md.Langpack, md.LangCode, md.SystemLangCode)
+	}
+}

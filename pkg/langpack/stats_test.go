@@ -41,9 +41,9 @@ var statsKeys = append([]string{
 // a series name), and every key is one the code names: a constant, a day of
 // the week or the name of a language.
 func TestStatsTextsHaveEveryLanguage(t *testing.T) {
-	langs := ownLanguages()
+	langs := textLanguages()
 	if len(langs) != 37 {
-		t.Fatalf("own.json has %d languages, want the 37 of ADR 0046", len(langs))
+		t.Fatalf("%d languages, want the 37 of ADR 0046", len(langs))
 	}
 	named := map[string]bool{}
 	for _, key := range statsKeys {
@@ -82,7 +82,7 @@ func TestStatsTextsHaveEveryLanguage(t *testing.T) {
 // base code, and only those.
 func TestStatsLanguageNames(t *testing.T) {
 	bases := map[string]bool{}
-	for _, lang := range ownLanguages() {
+	for _, lang := range textLanguages() {
 		base, _, _ := strings.Cut(lang, "-")
 		bases[base] = true
 		key, ok := StatsLanguageKey(lang)

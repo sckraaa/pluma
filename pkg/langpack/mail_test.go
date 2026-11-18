@@ -16,38 +16,32 @@
 package langpack
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
 
-// ownLanguages are the languages of own.json: the languages of the clients.
-// The file is read again: the integration tests empty ownStrings.
-func ownLanguages() []string {
-	own, err := loadOwn(ownJSON)
-	if err != nil {
-		panic(err)
-	}
-	set := map[string]bool{}
-	for _, keys := range own {
-		for _, texts := range keys {
-			for lang := range texts {
-				set[lang] = true
-			}
+// textLanguages returns the 37 languages of the server's texts outside the
+// language packs (mail, statistics; ADR 0046): the languages of all packs
+// but the five only tdesktop has, which get those texts in English.
+func textLanguages() []string {
+	var langs []string
+	for _, l := range allLanguages() {
+		if !slices.Contains(tdesktopOnlyLanguages, l) {
+			langs = append(langs, l)
 		}
 	}
-	langs := make([]string, 0, len(set))
-	for l := range set {
-		langs = append(langs, l)
-	}
-	sort.Strings(langs)
 	return langs
 }
 
+// tdesktopOnlyLanguages are the languages of the tdesktop pack no other pack
+// has (task 114).
+var tdesktopOnlyLanguages = []string{"af", "az", "et", "lv", "sq"}
+
 func TestMailJSONHasEveryLanguage(t *testing.T) {
-	langs := ownLanguages()
+	langs := textLanguages()
 	if len(langs) != 37 {
-		t.Fatalf("own.json has %d languages, want the 37 of ADR 0046", len(langs))
+		t.Fatalf("%d languages, want the 37 of ADR 0046", len(langs))
 	}
 	if len(mailTexts) == 0 {
 		t.Fatal("mail.json is empty")

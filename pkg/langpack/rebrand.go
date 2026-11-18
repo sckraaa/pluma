@@ -37,9 +37,9 @@ import (
 //     first (Android STRING_LOCAL_NAMES; Persian from the iOS patch,
 //     INFOPLIST_NAMES). Korean particles follow the last sound: "Pluma" ends
 //     in a vowel.
-//   - The links of the QR login to the desktop and web clients lead to
-//     Pluma's site and web client (Android CLIENT_LINKS), the one exception
-//     to keeping telegram.org.
+//   - The links the client patches changed in their built-in English lead to
+//     Pluma's site, web client and link host (linkRules), the exceptions to
+//     keeping telegram.org and t.me.
 //   - Keys whose text names Telegram's API itself keep it (Desktop
 //     LANG_KEEP: lng_about_text1_api).
 //
@@ -57,24 +57,124 @@ var keepKeys = map[string]bool{
 // isKept reports whether the value of key stays as Telegram wrote it.
 func isKept(key string) bool { return keepKeys[key] }
 
-// clientLinkKeys are the keys of the QR login's links (Android).
-var clientLinkKeys = map[string]bool{
-	"AuthAnotherClientDownloadClientUrl": true,
-	"AuthAnotherWebClientUrl":            true,
-	"AuthAnotherClientInfo1":             true,
-	"AuthAnotherClientInfo5":             true,
+// linkRules rewrite the links of the strings whose links the client patches
+// changed in the apps' built-in English, by pack and key, as the patch of
+// that client does:
+//
+//   - android: the QR login's links to the desktop and web clients (Android
+//     CLIENT_LINKS) and the public link of an empty group (LINK_STRINGS);
+//   - ios: the same QR login text (CLIENT_TEXTS) and the texts that show a
+//     username's, a phone number's or a proxy's link (STRINGS_LINKS);
+//   - webk: the public links of a group and of the Premium limits
+//     (LINK_BUILDERS of lang.ts), and the two texts whose links to
+//     Telegram's site the patch took away (TELEGRAM_SITE_EDITS): the links
+//     to Telegram's apps keep their words, the "Learn More" link with no
+//     address goes.
+//
+// tdesktop changes no link of its strings.
+var linkRules = map[string]map[string]func(string) string{
+	"android": {
+		"AuthAnotherClientDownloadClientUrl": clientLinks,
+		"AuthAnotherWebClientUrl":            clientLinks,
+		"AuthAnotherClientInfo1":             clientLinks,
+		"AuthAnotherClientInfo5":             clientLinks,
+		"GroupDescription3":                  replaceLinkHost,
+	},
+	"ios": {
+		"AuthSessions.AddDevice.ScanInstallInfo":      clientLinks,
+		"Username.LinkHint":                           replaceLinkHost,
+		"Channel.Username.LinkHint":                   replaceLinkHost,
+		"EmptyGroupInfo.Line3":                        replaceLinkHost,
+		"PrivacyPhoneNumberSettings.CustomPublicLink": replaceLinkHost,
+		"Business.Links.SimpleLinkInfoUsernamePhone":  replaceLinkHost,
+		"Business.Links.SimpleLinkInfoUsername":       replaceLinkHost,
+		"Business.Links.SimpleLinkInfoPhone":          replaceLinkHost,
+		"SocksProxySetup.QrCode.TMeLink":              replaceLinkHost,
+	},
+	"webk": {
+		"PublicLinksLimitSubtitle":                          replaceLinkHost,
+		"GroupDescription3":                                 replaceLinkHost,
+		"ChatList.Main.EmptyPlaceholder.SubtitleNoContacts": unlinkTelegramSite,
+		"ChatAutomation.HeroDescription":                    dropEmptyLink,
+	},
 }
 
-// clientLinks are the replacements in clientLinkKeys, in this order.
-var clientLinks = strings.NewReplacer(
-	"https://getdesktop.telegram.org/", "https://pluma.chat/",
-	"https://desktop.telegram.org/", "https://pluma.chat/",
-	"https://desktop.telegram.org", "https://pluma.chat/",
-	"https://web.telegram.org/", "https://web.pluma.chat/",
-	"getdesktop.telegram.org", "pluma.chat",
-	"desktop.telegram.org", "pluma.chat",
-	"web.telegram.org", "web.pluma.chat",
-)
+// clientSite is an address of Telegram's desktop or web client, in any
+// case ("Desktop.telegram.org" in the Kazakh pack).
+var clientSite = regexp.MustCompile(`(?i)(https://)?(getdesktop\.|desktop\.|web\.)telegram\.org(/)?`)
+
+// clientLinks replaces the addresses of Telegram's desktop and web clients
+// with Pluma's site and web client (Android CLIENT_LINKS): a link to the
+// site ends with a slash.
+func clientLinks(value string) string {
+	return clientSite.ReplaceAllStringFunc(value, func(m string) string {
+		p := clientSite.FindStringSubmatch(m)
+		host := "pluma.chat"
+		if strings.EqualFold(p[2], "web.") {
+			host = "web.pluma.chat"
+		}
+		slash := p[3]
+		if p[1] != "" && host == "pluma.chat" {
+			slash = "/"
+		}
+		return p[1] + host + slash
+	})
+}
+
+// linkHost is the host of Pluma's links to users, chats and proxies.
+const linkHost = "pluma.chat"
+
+// replaceLinkHost replaces the host t.me, as a whole host, with linkHost:
+// the rule of the iOS patch, (?<![0-9A-Za-z_.])t\.me(?![0-9A-Za-z_]).
+func replaceLinkHost(value string) string {
+	var b strings.Builder
+	pos := 0
+	for i := 0; ; {
+		j := strings.Index(value[i:], "t.me")
+		if j < 0 {
+			break
+		}
+		j += i
+		end := j + len("t.me")
+		i = j + 1
+		if j > 0 && (isASCIIAlnum(value[j-1]) || value[j-1] == '_' || value[j-1] == '.') {
+			continue
+		}
+		if end < len(value) && (isASCIIAlnum(value[end]) || value[end] == '_') {
+			continue
+		}
+		b.WriteString(value[pos:j])
+		b.WriteString(linkHost)
+		pos, i = end, end
+	}
+	if pos == 0 {
+		return value
+	}
+	b.WriteString(value[pos:])
+	return b.String()
+}
+
+// telegramSiteAddress is an address of telegram.org in parentheses, the
+// target of a Markdown link, with the spaces before it.
+var telegramSiteAddress = regexp.MustCompile(`\s*\(https?://(?:[\w-]+\.)*telegram\.org(?:/[^)\s]*)?\)`)
+
+// unlinkTelegramSite keeps the words of the links to telegram.org and drops
+// the links: their addresses and the brackets, which some translations do
+// not pair ("[Android] (https://telegram.org/android)" in Croatian, an
+// unclosed one in French).
+func unlinkTelegramSite(value string) string {
+	value = telegramSiteAddress.ReplaceAllString(value, "")
+	return strings.NewReplacer("[", "", "]", "").Replace(value)
+}
+
+// emptyLink is a Markdown link the client fills with an element of its own
+// ("[Learn More >]()"), with the spaces before it.
+var emptyLink = regexp.MustCompile(`\s*\[[^\]]*\]\(\)`)
+
+// dropEmptyLink removes the links the client would fill.
+func dropEmptyLink(value string) string {
+	return emptyLink.ReplaceAllString(value, "")
+}
 
 // sentenceRewrites are sentences that would turn false with the name
 // changed (Android STRING_REWRITES).
@@ -126,28 +226,28 @@ var localNames = map[string]*strings.Replacer{
 	),
 }
 
-// Rebrand returns s with "Telegram" replaced in its texts for language
-// lang. Keys never change.
-func Rebrand(lang string, s String) String {
+// Rebrand returns s of pack with "Telegram" replaced in its texts for
+// language lang. Keys never change.
+func Rebrand(pack, lang string, s String) String {
 	r := s
-	r.Value = RebrandValue(lang, s.Key, s.Value)
+	r.Value = RebrandValue(pack, lang, s.Key, s.Value)
 	for i, f := range r.forms() {
 		if v := *s.forms()[i]; v != nil {
-			nv := RebrandValue(lang, s.Key, *v)
+			nv := RebrandValue(pack, lang, s.Key, *v)
 			*f = &nv
 		}
 	}
 	return r
 }
 
-// RebrandValue returns the text value of key in language lang with
-// "Telegram" replaced.
-func RebrandValue(lang, key, value string) string {
+// RebrandValue returns the text value of key of pack in language lang with
+// "Telegram" replaced and its links rewritten (linkRules).
+func RebrandValue(pack, lang, key, value string) string {
 	if isKept(key) {
 		return value
 	}
-	if clientLinkKeys[key] {
-		value = clientLinks.Replace(value)
+	if rule := linkRules[pack][key]; rule != nil {
+		value = rule(value)
 	}
 	value = sentenceRewrites.Replace(value)
 	if r := localNames[primaryLang(lang)]; r != nil {

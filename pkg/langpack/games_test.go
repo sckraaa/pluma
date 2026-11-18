@@ -20,10 +20,10 @@ import (
 	"testing"
 )
 
-// The game's button has its text in each of the 37 languages of own.json,
+// The game's button has its text in each of the 42 languages of the packs,
 // each with the game's title in it once.
 func TestGameTextsHaveEveryLanguage(t *testing.T) {
-	langs := ownLanguages()
+	langs := allLanguages()
 	if len(gameTexts) != 1 {
 		t.Errorf("games.json has %d keys, want 1", len(gameTexts))
 	}

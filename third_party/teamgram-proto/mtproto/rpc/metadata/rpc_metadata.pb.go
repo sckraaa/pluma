@@ -160,8 +160,11 @@ type RpcMetadata struct {
 	// (core.telegram.org/api/bots/connected-business-bots). Empty for a query
 	// without the wrapper.
 	BusinessConnectionId string `protobuf:"bytes,24,opt,name=business_connection_id,json=businessConnectionId,proto3" json:"business_connection_id,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// pluma: the system_lang_code of the session's initConnection, the
+	// language of the device's system (help.getConfig suggests it).
+	SystemLangCode string `protobuf:"bytes,25,opt,name=system_lang_code,json=systemLangCode,proto3" json:"system_lang_code,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RpcMetadata) Reset() {
@@ -306,6 +309,13 @@ func (x *RpcMetadata) GetBusinessConnectionId() string {
 	return ""
 }
 
+func (x *RpcMetadata) GetSystemLangCode() string {
+	if x != nil {
+		return x.SystemLangCode
+	}
+	return ""
+}
+
 var File_rpc_metadata_proto protoreflect.FileDescriptor
 
 const file_rpc_metadata_proto_rawDesc = "" +
@@ -316,7 +326,7 @@ const file_rpc_metadata_proto_rawDesc = "" +
 	"\x06max_id\x18\x02 \x01(\x05R\x05maxId\"N\n" +
 	"\aTakeout\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x123\n" +
-	"\x05range\x18\x02 \x01(\v2\x1d.metadata.TakeoutMessageRangeR\x05range\"\x88\x04\n" +
+	"\x05range\x18\x02 \x01(\v2\x1d.metadata.TakeoutMessageRangeR\x05range\"\xb2\x04\n" +
 	"\vRpcMetadata\x12\x1b\n" +
 	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12\x1f\n" +
 	"\vclient_addr\x18\x03 \x01(\tR\n" +
@@ -335,7 +345,8 @@ const file_rpc_metadata_proto_rawDesc = "" +
 	"\blangpack\x18\x15 \x01(\tR\blangpack\x12'\n" +
 	"\x10perm_auth_key_id\x18\x16 \x01(\x03R\rpermAuthKeyId\x12\x1b\n" +
 	"\tlang_code\x18\x17 \x01(\tR\blangCode\x124\n" +
-	"\x16business_connection_id\x18\x18 \x01(\tR\x14businessConnectionIdB0Z.github.com/teamgram/proto/mtproto/rpc/metadatab\x06proto3"
+	"\x16business_connection_id\x18\x18 \x01(\tR\x14businessConnectionId\x12(\n" +
+	"\x10system_lang_code\x18\x19 \x01(\tR\x0esystemLangCodeB0Z.github.com/teamgram/proto/mtproto/rpc/metadatab\x06proto3"
 
 var (
 	file_rpc_metadata_proto_rawDescOnce sync.Once

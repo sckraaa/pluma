@@ -266,8 +266,9 @@ func (s *Store) Read(ctx context.Context, pack, lang string, from int32) (*Langu
 }
 
 // ConfigVersions is what help.getConfig says of a session's language pack
-// (flags.2 of config): the client's language and the versions
-// langpack.getDifference answers with for it and for its base language.
+// (flags.2 of config): the language the app should offer and the versions
+// langpack.getDifference answers with for the client's language and for its
+// base language.
 type ConfigVersions struct {
 	SuggestedLangCode   string
 	LangPackVersion     int32
@@ -276,8 +277,13 @@ type ConfigVersions struct {
 
 // ConfigVersions returns the config fields of language lang of pack, or nil
 // when the language is not stored: then config leaves flags.2 out and the
-// clients keep their bundled strings.
-func (s *Store) ConfigVersions(ctx context.Context, pack, lang string) (*ConfigVersions, error) {
+// clients keep their bundled strings. The suggested language is the one of
+// the device's system, systemLang, when the pack has it (SystemLanguages),
+// otherwise lang: Telegram answered suggested_lang_code "ru" to Web K with
+// lang_code "en" and system_lang_code "ru" (task 114, 2026-11-19). iOS and
+// Web K offer the suggested language when it differs from theirs. The
+// versions stay those of lang, the pack the client holds.
+func (s *Store) ConfigVersions(ctx context.Context, pack, lang, systemLang string) (*ConfigVersions, error) {
 	if pack == "" || lang == "" {
 		return nil, nil
 	}
@@ -295,7 +301,71 @@ func (s *Store) ConfigVersions(ctx context.Context, pack, lang string) (*ConfigV
 			v.BaseLangPackVersion = base.Version
 		}
 	}
+	for _, code := range SystemLanguages(systemLang) {
+		if code == l.LangCode {
+			break
+		}
+		system, err := s.findLanguage(ctx, pack, code)
+		if err != nil {
+			return nil, err
+		}
+		if system != nil {
+			v.SuggestedLangCode = system.LangCode
+			break
+		}
+	}
 	return v, nil
+}
+
+// SystemLanguages returns the language codes of the packs a system language
+// may be, most specific first: the code itself ("pt-BR" -> "pt-br"), then
+// without its last subtags ("ru-RU" -> "ru"). Chinese is told by its script
+// or region: zh-hans, or zh-hant for Hant, Taiwan, Hong Kong and Macau
+// (iOS sends NSLocale.preferredLanguages[0], such as "zh-Hant-TW";
+// MTApiEnvironment.m:408).
+func SystemLanguages(code string) []string {
+	code = CanonicalLangCode(code)
+	if code == "" {
+		return nil
+	}
+	parts := strings.Split(code, "-")
+	var out []string
+	if parts[0] == "zh" {
+		chinese := "zh-hans"
+		for _, p := range parts[1:] {
+			if p == "hant" || p == "tw" || p == "hk" || p == "mo" {
+				chinese = "zh-hant"
+			}
+		}
+		out = append(out, chinese)
+	}
+	for n := len(parts); n > 0; n-- {
+		c := strings.Join(parts[:n], "-")
+		if !slices.Contains(out, c) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// Keys returns the keys of the live strings of pack in lang that have a
+// text, sorted: what a client finds on the server (coverage).
+func (s *Store) Keys(ctx context.Context, pack, lang string) ([]string, error) {
+	var rows []struct {
+		Key string `db:"str_key"`
+	}
+	if err := s.db.QueryRowsPartial(ctx, &rows,
+		"SELECT str_key FROM langpack_strings WHERE lang_pack = ? AND lang_code = ? AND deleted = 0 AND value <> ''",
+		pack, lang); err != nil {
+		return nil, err
+	}
+	keys := make([]string, len(rows))
+	for i, r := range rows {
+		keys[i] = r.Key
+	}
+	// In byte order: the collation of the column orders otherwise.
+	slices.Sort(keys)
+	return keys, nil
 }
 
 // StringsByKey returns the stored strings of keys (tombstones included) by
@@ -372,7 +442,7 @@ func (s *Store) Import(ctx context.Context, snap *Snapshot) (*ImportResult, erro
 	incoming := make([]pendingString, len(snap.Strings))
 	for i := range snap.Strings {
 		up := &snap.Strings[i]
-		rendered := Rebrand(lang, *up)
+		rendered := Rebrand(pack, lang, *up)
 		incoming[i] = pendingString{s: &rendered, upstream: up}
 		if words := leftoverWords(&rendered); len(words) > 0 {
 			res.Leftovers[up.Key] = words

@@ -37,13 +37,13 @@ import (
 // fakeLangpacks answers ConfigVersions with a fixed result and records what
 // it was asked.
 type fakeLangpacks struct {
-	v          *langpack.ConfigVersions
-	err        error
-	pack, lang string
+	v                  *langpack.ConfigVersions
+	err                error
+	pack, lang, system string
 }
 
-func (f *fakeLangpacks) ConfigVersions(_ context.Context, pack, lang string) (*langpack.ConfigVersions, error) {
-	f.pack, f.lang = pack, lang
+func (f *fakeLangpacks) ConfigVersions(_ context.Context, pack, lang, system string) (*langpack.ConfigVersions, error) {
+	f.pack, f.lang, f.system = pack, lang, system
 	return f.v, f.err
 }
 
@@ -84,6 +84,7 @@ func TestHelpGetConfigLangPack(t *testing.T) {
 		name       string
 		store      *fakeLangpacks
 		pack, lang string
+		system     string
 		wantSet    bool
 		wantCode   string
 		wantV      int32
@@ -103,9 +104,16 @@ func TestHelpGetConfigLangPack(t *testing.T) {
 			pack:  "ios", lang: "ru",
 			wantSet: true, wantCode: "ru", wantV: 7,
 		},
+		{
+			name:  "the system's language suggested",
+			store: &fakeLangpacks{v: &langpack.ConfigVersions{SuggestedLangCode: "ru", LangPackVersion: 9}},
+			pack:  "ios", lang: "en", system: "ru-RU",
+			wantSet: true, wantCode: "ru", wantV: 9,
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			core := newGetConfigCore(t, c.store, c.pack, c.lang)
+			core.MD.SystemLangCode = c.system
 			before := proto.Clone(core.svcCtx.ClientConfig)
 			got, err := core.HelpGetConfig(&mtproto.TLHelpGetConfig{})
 			if err != nil {
@@ -127,8 +135,8 @@ func TestHelpGetConfigLangPack(t *testing.T) {
 			}
 			// The store is asked for the session's pack and language as stored.
 			wantPack, wantLang := langpack.CanonicalPack(c.pack), langpack.CanonicalLangCode(c.lang)
-			if c.store.pack != wantPack || c.store.lang != wantLang {
-				t.Fatalf("asked for %s/%s, want %s/%s", c.store.pack, c.store.lang, wantPack, wantLang)
+			if c.store.pack != wantPack || c.store.lang != wantLang || c.store.system != c.system {
+				t.Fatalf("asked for %s/%s system %q, want %s/%s system %q", c.store.pack, c.store.lang, c.store.system, wantPack, wantLang, c.system)
 			}
 			// The answer is a copy: config.json stays without flags.2.
 			if !proto.Equal(before, core.svcCtx.ClientConfig) {
