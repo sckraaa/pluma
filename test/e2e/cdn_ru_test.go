@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -188,7 +189,7 @@ func TestHttpsCdnRussia(t *testing.T) {
 	client := ruFilesClient(t)
 	got, err := mtclient.NewHttpsDownload(bob.c, &mtclient.HttpsFetcher{HTTP: client}, r, int64(len(data))).All(ctx, 128<<10)
 	if err != nil {
-		t.Fatalf("through delivery 202: %v", err)
+		t.Fatalf("through delivery 202: %v (%v)", err, errors.Unwrap(err))
 	}
 	if !bytes.Equal(got, data) {
 		t.Fatalf("through delivery 202: %d bytes, not the file", len(got))
