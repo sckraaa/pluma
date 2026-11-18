@@ -1069,10 +1069,15 @@ func TestGroupCallSFURestart(t *testing.T) {
 	keys := [2][32]byte{ma.e2e().Call().PublicKey(), mb.e2e().Call().PublicKey()}
 
 	// The container goes away and a new one comes, at another address on
-	// the network of the services, as on a crash and a redeploy.
+	// the network of the services, as on a crash and a redeploy. Only the
+	// SFU is started again: the clients are out of the call once the SFU
+	// has not held them for AbsentTimeout, 30 s (ADR 0059 §10), and the
+	// wait for the whole stack (restore, with its checks of the Kafka
+	// consumer groups) can take that long by itself. The rest of the stack
+	// is checked when the test ends.
 	t.Cleanup(func() { restore(t) })
 	stack(t, "rm", "--stop", "--force", "sfu")
-	restore(t)
+	stack(t, "up", "--detach", "--wait", "sfu")
 
 	deadline := time.Now().Add(30 * time.Second)
 	for {
