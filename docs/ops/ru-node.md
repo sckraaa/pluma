@@ -60,6 +60,7 @@
 | `CDN_RU_TOKEN_KEY` | ключ подписи выдачи 202 (формула Secure Token Gcore), 6–32 символа `A-Z a-z 0-9 . _ ~ -` | `openssl rand -hex 16`; то же значение в `.env` дома |
 | `CDN_RU_ORIGIN_AUTH` | значение `X-Pluma-Origin-Auth` выдачи 202, 64 шестнадцатеричные цифры | `openssl rand -hex 32`; то же значение в `.env` дома |
 | `CALLS_TURN_SECRETS` | секрет TURN узла: `ru=<секрет>` (32–128 букв и цифр); **только метка `ru`** — секреты других TURN на узле запрещены, `deploy.sh` откажет | `openssl rand -hex 32`; та же запись в `.env` дома |
+| `PLUMA_GCORE_EDGE_DOMAIN` | необязательно: публичное имя края Gcore (`<префикс2>.gcorecdn.com`, `docs/ops/edge.md`) — Web K, открытый на нём, получает файлы с выдачи 202 (CORS) | имя второго ресурса Gcore |
 | `PLUMA_RU_ORIGIN_ADDR` | необязательно: адрес Caddy дома, по умолчанию `10.78.0.2:443` | — |
 | `PLUMA_RU_ACME_EMAIL` | необязательно: адрес для аккаунта ACME узла | — |
 
@@ -128,7 +129,7 @@ ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
 - Пути — только `/o/<64 hex>` и `/c/v1`; методы GET и HEAD, OPTIONS — ответ CORS 204, иные — 405; остальные пути — 404.
 - Кэш: куски `slice` по 1 МиБ, ключ — путь и диапазон куска без строки запроса (все токены делят объект), 15 ГБ, 36 ч без запросов; срок — `Cache-Control` источника (`immutable`, 30 дней). Любой одиночный `Range` nginx отдаёт из кусков с точным `Content-Range`; несколько диапазонов — весь объект (`max_ranges 1`).
 - Домой уходят только путь со строкой запроса (токен, источник его не читает), диапазон куска и `X-Pluma-Origin-Auth` выдачи 202 (`proxy_pass_request_headers off`): ни адреса, ни `User-Agent`, ни cookie клиента. TLS к источнику проверяется (`proxy_ssl_verify`, имя источника).
-- CORS: `Access-Control-Allow-Origin` только для `https://<PLUMA_WEB_DOMAIN>` и `https://<PLUMA_RU_EDGE_DOMAIN>`, `Access-Control-Expose-Headers: Content-Range, Content-Length`, `Vary: Origin` — на всех ответах, в том числе 403/410.
+- CORS: `Access-Control-Allow-Origin` только для `https://<PLUMA_WEB_DOMAIN>`, `https://<PLUMA_RU_EDGE_DOMAIN>` и, если задано, `https://<PLUMA_GCORE_EDGE_DOMAIN>`, `Access-Control-Expose-Headers: Content-Range, Content-Length`, `Vary: Origin` — на всех ответах, в том числе 403/410.
 - Предел — 64 соединения на адрес клиента (адрес из PROXY v1 nginx владельца); предела частоты запросов нет.
 - Заголовок `Server: nginx` остаётся (без версии): убрать его можно только модулем `headers-more`, а его пакет включил бы модуль и в nginx владельца.
 

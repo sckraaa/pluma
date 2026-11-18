@@ -61,7 +61,7 @@
    - **Cache → CDN caching:** Origin controlled, Default cache expiry — 1 день. Источник сам шлёт `Cache-Control`.
    - **Cache → Always online:** выключить. Включённая опция отдаёт устаревший кэш в ответ на 403/404 источника.
    - **Content → Large files delivery optimization:** включить (куски по 10 МБ). Gzip, Brotli и Fetch compressed — выключены: с этой опцией они несовместимы, а шифр не сжимается.
-   - **HTTP headers → Access-Control-Allow-Origin:** адрес веб-клиента Pluma (`https://<PLUMA_WEB_DOMAIN>`), отметить «Always add … regardless of response code».
+   - **HTTP headers → Access-Control-Allow-Origin:** режим для указанных доменов (заголовок со значением `$http_origin` только для перечисленных, до 20 имён, [документация Gcore](https://gcore.com/docs/cdn/cdn-resource-options/http-headers/add-the-access-control-allow-origin-header-to-the-browser-response)): адрес веб-клиента Pluma (`https://<PLUMA_WEB_DOMAIN>`) и сайты краёв задачи 109, на которых тоже открывается Web K — `https://<PLUMA_RU_EDGE_DOMAIN>` и `https://<префикс2>.gcorecdn.com` (`docs/ops/edge.md`); отметить «Always add … regardless of response code». Без сайтов краёв Web K, открытый на крае, качает файлы мимо CDN, а `pluma_cdn_fallback_total` растёт.
    - **HTTP headers → Response headers (add):** `Access-Control-Expose-Headers: Content-Range, Content-Length`, тот же флажок. Без него веб-клиент не прочитает `Content-Range` и откатится домой.
    - **Enable Network Error Logging** — выключить. Иначе браузеры шлют Gcore отчёты о сетевых ошибках веб-клиента.
    - Logs uploader, Raw Logs, Origin Shielding — не включать.

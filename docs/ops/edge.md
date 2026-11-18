@@ -61,6 +61,7 @@ EDGE_ROUTES=RU,BY:edge,direct:ru,gcore;*:direct,edge:gcore,ru
 2. `.env`: `PLUMA_EDGE_ORIGIN_DOMAIN`, `PLUMA_EDGE_ORIGIN_AUTH`, `EDGE_WS_URLS` (сначала только `gcore=…`), при желании `EDGE_ROUTES`, `EDGE_STICKY_S`. Деплой обычный.
 3. Ресурс Gcore (выше), проверки 1 и 2 брифа.
 4. Узел amf — по `docs/ops/ru-node.md`; затем `PLUMA_RU_EDGE_DOMAIN=ru.pluma.chat`, `ru=…` в `EDGE_WS_URLS`, `EDGE_ROUTES` со странами, деплой с `docker-compose.ru.yaml`.
+5. Файлы для Web K на краях: имя `<префикс2>.gcorecdn.com` — в `PLUMA_GCORE_EDGE_DOMAIN` узла amf, а оба сайта краёв — в списке Access-Control-Allow-Origin ресурса файлов Gcore (`docs/ops/cdn.md`, шаг 3). Иначе Web K на крае качает файлы мимо CDN.
 
 Сертификат `ru.pluma.chat` выпускает домашний Caddy: HTTP-01 приходит на порт 80 узла и проксируется на `10.78.0.2:80`. Отвечает ли Caddy на TLS-ALPN-01 на сервере `:8443` за PROXY — НЕ ПРОВЕРЕНО; HTTP-01 от этого не зависит.
 
