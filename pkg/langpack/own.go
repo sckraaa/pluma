@@ -49,6 +49,42 @@ var overrideJSON []byte
 
 var ownStrings, overrideStrings = mustLoadOwn(ownJSON, overrideJSON)
 
+// The languages of Telegram's packs (languages.json: {pack: [lang_code]}, as
+// langpack.getLanguages listed them on 2026-11-18). Every own string and
+// every string of override.json has a text in each language of every pack:
+// one table for all clients, so that a language a pack gains later has its
+// texts already (task 114).
+//
+//go:embed languages.json
+var languagesJSON []byte
+
+// The keys the client patches add to their apps' built-in English
+// (patchkeys.json: {pack: [key]}): the own strings of each pack are exactly
+// these. The list follows the patches (Android ci/patch.py LOGIN_STRINGS and
+// E2E_FAILED_KEY, iOS Pluma.*, tdesktop lng_pluma_*, Web K Pluma*), and
+// "pluma-admin langpack coverage" checks a built client against the server.
+//
+//go:embed patchkeys.json
+var patchKeysJSON []byte
+
+// PackLanguages returns the language codes of Telegram's packs by pack.
+func PackLanguages() map[string][]string {
+	return mustLoadLists(languagesJSON, "languages.json")
+}
+
+// PatchKeys returns the keys the client patches add, by pack.
+func PatchKeys() map[string][]string {
+	return mustLoadLists(patchKeysJSON, "patchkeys.json")
+}
+
+func mustLoadLists(data []byte, name string) map[string][]string {
+	var lists map[string][]string
+	if err := json.Unmarshal(data, &lists); err != nil {
+		panic(fmt.Errorf("langpack: %s: %w", name, err))
+	}
+	return lists
+}
+
 func mustLoadOwn(own, override []byte) (o, r map[string]map[string]map[string]string) {
 	o, err := loadOwn(own)
 	if err != nil {

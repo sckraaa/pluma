@@ -1,6 +1,8 @@
 {
   "PlumaGamePlay": {
+    "af": "Speel {title}",
     "ar": "العب {title}",
+    "az": "{title} oyna",
     "be": "Гуляць у {title}",
     "bg": "Играй {title}",
     "ca": "Juga a {title}",
@@ -9,6 +11,7 @@
     "el": "Παίξε {title}",
     "en": "Play {title}",
     "es": "Jugar a {title}",
+    "et": "Mängi: {title}",
     "fa": "بازی {title}",
     "fi": "Pelaa: {title}",
     "fr": "Jouer à {title}",
@@ -20,6 +23,7 @@
     "kk": "Ойнау: {title}",
     "ko": "{title} 플레이",
     "lt": "Žaisti: {title}",
+    "lv": "Spēlēt {title}",
     "ms": "Main {title}",
     "nb": "Spill {title}",
     "nl": "{title} spelen",
@@ -29,6 +33,7 @@
     "ru": "Играть в {title}",
     "sk": "Hrať: {title}",
     "sl": "Igraj: {title}",
+    "sq": "Luaj {title}",
     "sr": "Играј: {title}",
     "sv": "Spela {title}",
     "tr": "Oyna: {title}",

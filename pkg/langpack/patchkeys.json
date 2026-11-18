@@ -1,0 +1,61 @@
+{
+  "android": [
+    "PlumaCallEncryptionFailed",
+    "PlumaLoginAdminText",
+    "PlumaLoginAdminTitle",
+    "PlumaLoginDidNotGetCode",
+    "PlumaLoginFallbackText",
+    "PlumaLoginFallbackTitle",
+    "PlumaLoginOpenTelegram",
+    "PlumaLoginOpenTelegramSettings",
+    "PlumaLoginSendAgain",
+    "PlumaLoginSendAgainIn",
+    "PlumaLoginSending",
+    "PlumaLoginTelegramText",
+    "PlumaLoginTelegramTitle"
+  ],
+  "ios": [
+    "Pluma.GroupCall.EncryptionFailed",
+    "Pluma.Login.AskAdministratorText",
+    "Pluma.Login.AskAdministratorTitle",
+    "Pluma.Login.CheckTelegramText",
+    "Pluma.Login.CheckTelegramTitle",
+    "Pluma.Login.DidNotGetCode",
+    "Pluma.Login.NotDeliveredText",
+    "Pluma.Login.NotDeliveredTitle",
+    "Pluma.Login.OpenTelegram",
+    "Pluma.Login.OpenTelegramSettings",
+    "Pluma.Login.SendAgain",
+    "Pluma.Login.SendAgainIn"
+  ],
+  "tdesktop": [
+    "lng_pluma_code_admin_text",
+    "lng_pluma_code_admin_title",
+    "lng_pluma_code_failed_about",
+    "lng_pluma_code_failed_button",
+    "lng_pluma_code_failed_title",
+    "lng_pluma_code_no_code",
+    "lng_pluma_code_resend",
+    "lng_pluma_code_resend_in",
+    "lng_pluma_code_sending",
+    "lng_pluma_code_telegram_about",
+    "lng_pluma_code_telegram_button",
+    "lng_pluma_code_telegram_title",
+    "lng_pluma_group_call_e2e_failed"
+  ],
+  "webk": [
+    "Pluma.Code.AskAdministrator",
+    "Pluma.Code.AskAdministratorText",
+    "Pluma.Code.NotDelivered",
+    "Pluma.Code.NotReceived",
+    "Pluma.Code.OpenTelegram",
+    "Pluma.Code.OpenTelegramSettings",
+    "Pluma.Code.SendAgain",
+    "Pluma.Code.SendAgainIn",
+    "Pluma.Code.Sending",
+    "Pluma.Code.SentTelegram",
+    "Pluma.Update.Required.Subtitle",
+    "Pluma.Update.Required.Title",
+    "PlumaCall.EncryptionFailed"
+  ]
+}

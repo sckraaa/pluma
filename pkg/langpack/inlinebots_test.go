@@ -23,13 +23,13 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 )
 
-// Every bot of the registry has its description in each of the 37 languages
-// of own.json, within the limit of a bot's description, with the bot's
+// Every bot of the registry has its description in each of the 42 languages
+// of the packs, within the limit of a bot's description, with the bot's
 // username.
 func TestInlineBotTextsHaveEveryLanguage(t *testing.T) {
-	langs := ownLanguages()
-	if len(langs) != 37 {
-		t.Fatalf("own.json has %d languages, want the 37 of ADR 0046", len(langs))
+	langs := allLanguages()
+	if len(langs) != 42 {
+		t.Fatalf("%d languages, want the 42 of the packs", len(langs))
 	}
 	if len(inlineBotTexts) != len(inlinebots.All()) {
 		t.Errorf("inlinebots.json has %d keys, the registry %d bots", len(inlineBotTexts), len(inlinebots.All()))
