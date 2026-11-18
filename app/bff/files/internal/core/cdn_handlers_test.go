@@ -71,6 +71,16 @@ func (c capsOf) PlumaCdn(_ context.Context, key int64) (int, error) { return c[k
 // document id of size bytes is prepared, and the secrets of that file.
 func readyCdn(t *testing.T, id, size int64) (*cdn.Home, cdn.Secrets) {
 	t.Helper()
+	return readyCdnOf(t, id, size, cdn.Config{
+		Deliveries: []cdn.DeliveryConfig{{Id: cdnTestDc, Name: "gcore", BaseURL: "https://cdn.example.com", Key: randomHex(t, 16)}},
+		Origin:     cdn.OriginConfig{AuthValue: randomHex(t, 32)},
+	}, nil)
+}
+
+// readyCdnOf is readyCdn of the CDN of config, every delivery of it
+// healthy, with countries telling the country of a client.
+func readyCdnOf(t *testing.T, id, size int64, config cdn.Config, countries cdn.Locator) (*cdn.Home, cdn.Secrets) {
+	t.Helper()
 	ctx := context.Background()
 	store := cdn.NewMemStore()
 	now := time.Now().UnixMilli()
@@ -101,17 +111,16 @@ func readyCdn(t *testing.T, id, size int64) (*cdn.Home, cdn.Secrets) {
 	if ok, err := store.MarkReady(ctx, c, h.Sum(), now); !ok || err != nil {
 		t.Fatalf("ready: %v, %v", ok, err)
 	}
-	if err = store.PutDeliveryHealth(ctx, &cdn.DeliveryHealth{DcId: cdnTestDc, HealthyUntil: now + time.Minute.Milliseconds(), UpdatedAt: now}); err != nil {
-		t.Fatal(err)
-	}
-	set, err := cdn.Config{
-		Deliveries: []cdn.DeliveryConfig{{Id: cdnTestDc, Name: "gcore", BaseURL: "https://cdn.example.com", Key: randomHex(t, 16)}},
-		Origin:     cdn.OriginConfig{AuthValue: randomHex(t, 32)},
-	}.Parse()
+	set, err := config.Parse()
 	if err != nil {
 		t.Fatal(err)
 	}
-	home, err := cdn.NewHome(store, set, noSizes{}, capsOf{cdnTestKey: 1})
+	for _, dl := range set.Deliveries {
+		if err = store.PutDeliveryHealth(ctx, &cdn.DeliveryHealth{DcId: dl.ID, HealthyUntil: now + time.Minute.Milliseconds(), UpdatedAt: now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	home, err := cdn.NewHome(store, set, noSizes{}, capsOf{cdnTestKey: 1}, countries)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,5 +305,35 @@ func TestGetFileExportIsNoFallback(t *testing.T) {
 	}
 	if got := get(true, 0); got != mtproto.Predicate_upload_fileCdnRedirect {
 		t.Fatalf("after the export: %s, want the delivery still", got)
+	}
+}
+
+// countriesOf is a cdn.Locator of fixed countries by address.
+type countriesOf map[string]string
+
+func (c countriesOf) Country(_ context.Context, ip string) string { return c[ip] }
+
+// TestGetFileRedirectByCountry: the address of the client (MD.ClientAddr)
+// picks the record of CDN_ROUTES (task 109): a client from Russia is
+// redirected to delivery 202 of the Russian node, any other to 201.
+func TestGetFileRedirectByCountry(t *testing.T) {
+	home, _ := readyCdnOf(t, 11, 3<<20, cdn.Config{
+		Deliveries: []cdn.DeliveryConfig{
+			{Id: cdnTestDc, Name: "gcore", BaseURL: "https://cdn.example.com", Key: randomHex(t, 16)},
+			{Id: 202, Name: "ru", BaseURL: "https://r1.example.com", Key: randomHex(t, 16), OriginAuth: randomHex(t, 32), HealthAddr: "10.78.0.1:443"},
+		},
+		Routes: "RU,BY:202,201;*:201",
+		Origin: cdn.OriginConfig{AuthValue: randomHex(t, 32)},
+	}, countriesOf{"5.8.16.10": "RU", "198.51.100.4": "DE"})
+	for addr, want := range map[string]int32{"5.8.16.10": 202, "198.51.100.4": cdnTestDc, "": cdnTestDc} {
+		c := cdnCore(home, &fakeDfs{})
+		c.MD.ClientAddr = addr
+		res, err := c.UploadGetFile(&mtproto.TLUploadGetFile{CdnSupported: true, Location: docLocation(11), Offset_INT64: 0, Limit: 1 << 20})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.GetPredicateName() != mtproto.Predicate_upload_fileCdnRedirect || res.GetDcId() != want {
+			t.Errorf("from %q: %s to %d, want a redirect to %d", addr, res.GetPredicateName(), res.GetDcId(), want)
+		}
 	}
 }

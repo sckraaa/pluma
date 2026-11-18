@@ -17,7 +17,7 @@ package cdn
 
 import (
 	"encoding/base64"
-	"errors"
+	"encoding/hex"
 	"fmt"
 	"slices"
 	"strings"
@@ -110,8 +110,10 @@ func TestConfigValues(t *testing.T) {
 // TestConfigRejects: a wrong value stops the start.
 func TestConfigRejects(t *testing.T) {
 	for name, change := range map[string]func(*Config){
-		"country route":    func(c *Config) { c.Routes = "RU,BY:201;*:201" },
-		"route to unknown": func(c *Config) { c.Routes = "*:202" },
+		"country route without *":  func(c *Config) { c.Routes = "RU,BY:201" },
+		"a country twice":          func(c *Config) { c.Routes = "RU:201;RU,BY:201;*:201" },
+		"country route to unknown": func(c *Config) { c.Routes = "RU:202;*:201" },
+		"route to unknown":         func(c *Config) { c.Routes = "*:202" },
 		"route to a delivery off": func(c *Config) {
 			c.Deliveries = append(c.Deliveries, DeliveryConfig{Id: 202, Name: "off"})
 			c.Routes = "*:201,202"
@@ -142,6 +144,11 @@ func TestConfigRejects(t *testing.T) {
 		"no origin auth":           func(c *Config) { c.Origin.AuthValue = "" },
 		"origin auth not hex":      func(c *Config) { c.Origin.AuthValue = strings.Repeat("g", 64) },
 		"origin auth short":        func(c *Config) { c.Origin.AuthValue = strings.Repeat("a", 62) },
+		"own origin auth not hex":  func(c *Config) { c.Deliveries[0].OriginAuth = strings.Repeat("g", 64) },
+		"own origin auth short":    func(c *Config) { c.Deliveries[0].OriginAuth = strings.Repeat("a", 63) },
+		"health addr no port":      func(c *Config) { c.Deliveries[0].HealthAddr = "10.78.0.1" },
+		"health addr port 0":       func(c *Config) { c.Deliveries[0].HealthAddr = "10.78.0.1:0" },
+		"health addr no host":      func(c *Config) { c.Deliveries[0].HealthAddr = ":443" },
 		"origin listen":            func(c *Config) { c.Origin.Listen = "20480" },
 		"origin max 0":             func(c *Config) { c.Origin.MaxConcurrent = "0" },
 		"URL TTL over a day":       func(c *Config) { c.UrlTTL = "25h" },
@@ -160,22 +167,90 @@ func TestConfigRejects(t *testing.T) {
 			t.Errorf("%s: accepted, %+v", name, s)
 		}
 	}
-	c := testConfig(t)
-	c.Routes = "RU:201;*:201"
-	if _, err := c.Parse(); !errors.Is(err, ErrCountryRoutes) || err.Error() != "cdn: country routes need a country source" {
-		t.Errorf("country route: %v", err)
+}
+
+// ruDelivery is delivery 202 of the Russian node as bff.yaml writes it:
+// gcore-md5 with its own key, origin value and address of its checks.
+func ruDelivery(t *testing.T) DeliveryConfig {
+	t.Helper()
+	return DeliveryConfig{
+		Id: 202, Name: "ru", BaseURL: "https://r1.example.com", Key: hex.EncodeToString(randomBytes(t, 16)),
+		MonthlyGB: "2000", OriginAuth: hex.EncodeToString(randomBytes(t, 32)), HealthAddr: "10.78.0.1:443",
 	}
 }
 
-// TestConfigSecrets: the keys and the value of the origin never print.
+// TestConfigCountryRoutes: records of countries are taken, each delivery
+// that pulls /o/ from the origin has its own value of the header, and the
+// address of its checks.
+func TestConfigCountryRoutes(t *testing.T) {
+	c := testConfig(t)
+	c.Deliveries = append(c.Deliveries, ruDelivery(t))
+	c.Routes = " RU , BY : 202 , 201 ; * : 201 "
+	s, err := c.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Routes) != 2 || !slices.Equal(s.Routes[0].Countries, []string{"RU", "BY"}) || !slices.Equal(s.Routes[0].Deliveries, []int32{202, 201}) ||
+		s.Routes[1].Countries != nil || !slices.Equal(s.Routes[1].Deliveries, []int32{201}) {
+		t.Fatalf("routes %+v", s.Routes)
+	}
+	gcore, _ := s.Delivery(201)
+	ru, _ := s.Delivery(202)
+	if string(gcore.OriginAuth) != c.Origin.AuthValue || string(ru.OriginAuth) != c.Deliveries[1].OriginAuth {
+		t.Error("the deliveries do not have their values of X-Pluma-Origin-Auth")
+	}
+	if gcore.HealthAddr != "" || ru.HealthAddr != "10.78.0.1:443" || ru.MonthlyBytes != 2000_000_000_000 || ru.Signer.Name() != SignerGcoreMD5 {
+		t.Fatalf("delivery 202 %+v", ru)
+	}
+
+	// Every delivery with its own value: CDN_ORIGIN_AUTH is not needed.
+	c.Deliveries[0].OriginAuth = hex.EncodeToString(randomBytes(t, 32))
+	c.Origin.AuthValue = ""
+	if s, err = c.Parse(); err != nil {
+		t.Fatalf("no CDN_ORIGIN_AUTH, each delivery its own: %v", err)
+	}
+	if s.Origin.AuthValue != "" {
+		t.Error("an origin value from nowhere")
+	}
+}
+
+// TestConfigOriginAuthShared: two gcore-md5 deliveries the origin cannot
+// tell apart stop the start: 202 without its own value takes
+// CDN_ORIGIN_AUTH, as 201 does, or has the same one written. A path-hmac
+// delivery is told apart by its signature and may share the value.
+func TestConfigOriginAuthShared(t *testing.T) {
+	for name, change := range map[string]func(c *Config){
+		"202 without its own value": func(c *Config) { c.Deliveries[1].OriginAuth = "" },
+		"202 with CDN_ORIGIN_AUTH":  func(c *Config) { c.Deliveries[1].OriginAuth = c.Origin.AuthValue },
+		"both with one own value":   func(c *Config) { c.Deliveries[0].OriginAuth = c.Deliveries[1].OriginAuth },
+	} {
+		c := testConfig(t)
+		c.Deliveries = append(c.Deliveries, ruDelivery(t))
+		change(&c)
+		if _, err := c.Parse(); err == nil || !strings.Contains(err.Error(), "deliveries 201 and 202 both pull /o/") {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	c := testConfig(t)
+	c.Deliveries = append(c.Deliveries, DeliveryConfig{
+		Id: 202, Name: "spare", Signer: SignerPathHMAC, BaseURL: "https://spare.example.com",
+		Key: base64.StdEncoding.EncodeToString(randomBytes(t, 32)),
+	})
+	if _, err := c.Parse(); err != nil {
+		t.Errorf("a path-hmac delivery with CDN_ORIGIN_AUTH: %v", err)
+	}
+}
+
+// TestConfigSecrets: the keys and the values of the origin never print.
 func TestConfigSecrets(t *testing.T) {
 	c := testConfig(t)
+	c.Deliveries = append(c.Deliveries, ruDelivery(t))
 	s, err := c.Parse()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, out := range []string{fmt.Sprintf("%v", s), fmt.Sprintf("%+v", s), fmt.Sprintf("%#v", s.Origin), fmt.Sprintf("%+v", s.Deliveries)} {
-		if strings.Contains(out, c.Origin.AuthValue) || strings.Contains(out, c.Deliveries[0].Key) {
+		if strings.Contains(out, c.Origin.AuthValue) || strings.Contains(out, c.Deliveries[0].Key) || strings.Contains(out, c.Deliveries[1].OriginAuth) {
 			t.Fatalf("a secret of the config is printed: %s", out)
 		}
 	}
@@ -186,7 +261,13 @@ func TestParseRoutes(t *testing.T) {
 	if err != nil || len(r) != 1 || r[0].Countries != nil || !slices.Equal(r[0].Deliveries, []int32{201, 202}) {
 		t.Fatalf("%+v, %v", r, err)
 	}
-	for _, bad := range []string{"", "*", "*:", "*:abc", "*:201,201", "*:200", "*:1000", "*:201;", "ru:201", "RUS:201", "RU,:201", "RU:201", "RU,BY:202;*:201"} {
+	r, err = ParseRoutes("RU,BY:202,201;*:201;KZ:201")
+	if err != nil || len(r) != 3 || !slices.Equal(r[0].Countries, []string{"RU", "BY"}) || !slices.Equal(r[0].Deliveries, []int32{202, 201}) ||
+		r[1].Countries != nil || !slices.Equal(r[2].Countries, []string{"KZ"}) {
+		t.Fatalf("countries: %+v, %v", r, err)
+	}
+	for _, bad := range []string{"", "*", "*:", "*:abc", "*:201,201", "*:200", "*:1000", "*:201;", "ru:201;*:201", "RUS:201;*:201", "RU,:201;*:201",
+		"RU:201", "RU,BY:202", "RU:202;RU:201;*:201", "RU,RU:202;*:201", "RU:202;*:201;*:202", ":202;*:201"} {
 		if r, err := ParseRoutes(bad); err == nil {
 			t.Errorf("%q: %+v", bad, r)
 		}

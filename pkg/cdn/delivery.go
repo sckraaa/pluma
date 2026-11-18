@@ -49,6 +49,21 @@ type Delivery struct {
 	// InsecureHTTP marks an http:// BaseURL, which only the stand of the
 	// e2e tests may have (CDN_DEV_ALLOW_HTTP).
 	InsecureHTTP bool
+	// OriginAuth is the value of OriginAuthHeader the CDN of a
+	// SourceHomeOrigin delivery sends the origin: the delivery's own
+	// (CDN_RU_ORIGIN_AUTH of delivery 202) or CDN_ORIGIN_AUTH. The origin
+	// counts the bytes it serves for the delivery whose value came (task
+	// 109, "Выдача 202"), so two deliveries whose paths are the same
+	// (gcore-md5) never share a value.
+	OriginAuth Secret
+	// HealthAddr is host:port the checks of the delivery dial instead of
+	// the host of BaseURL, whose name stays the SNI, the Host and the name
+	// the certificate is checked for; empty: the host of BaseURL. Delivery
+	// 202 is checked through the tunnel to its node (10.78.0.1:443),
+	// because the way out of the home goes through the VPS, from which the
+	// node may be as closed as the VPS is from Russia (task 109,
+	// "Здоровье 202").
+	HealthAddr string
 }
 
 // The ids of the deliveries.
@@ -74,26 +89,31 @@ func (d *Delivery) Target() int32 {
 }
 
 // Route is a record of CDN_ROUTES: the deliveries, in order of preference,
-// of the clients of some countries, or of every client.
+// of the clients of some countries, or of every other client.
 type Route struct {
-	// Countries are ISO 3166-1 alpha-2 codes; nil for every country ("*").
+	// Countries are ISO 3166-1 alpha-2 codes in upper case; nil for the
+	// record "*", the clients of every country no other record names and
+	// those whose country is not known.
 	Countries []string
 	// Deliveries are the ids of the deliveries, the preferred first.
 	Deliveries []int32
 }
 
-// ErrCountryRoutes refuses a route with countries: the home does not know
-// the country of a client yet (ADR 0071, "Что не делается").
-var ErrCountryRoutes = errors.New("cdn: country routes need a country source")
+// RoutesAll is the countries of the record of every other client.
+const RoutesAll = "*"
 
 // ParseRoutes parses CDN_ROUTES, records "<countries or *>:<id,id,...>"
-// separated by ";", e.g. "*:201" or, once the country of a client is known,
-// "RU,BY:202;*:201". Only the record "*" is accepted today: one with
-// countries is ErrCountryRoutes. Whether the ids name enabled deliveries is
-// the config's check.
+// separated by ";", e.g. "*:201" or "RU,BY:202,201;*:201" (ADR 0071 §1,
+// ADR 0072 §8 p. 5): a client is routed by the record that names the
+// country of its address (authsession.getIpCountry), and by the record "*"
+// when none does or the country is not known. There is exactly one record
+// "*", and no country is in two records; the grammar of the countries is
+// that of EDGE_ROUTES (app/bff/configuration/internal/appconfig/edge.go).
+// Whether the ids name enabled deliveries is the config's check.
 func ParseRoutes(s string) ([]Route, error) {
 	var routes []Route
 	all := false
+	seen := map[string]bool{}
 	for rec := range strings.SplitSeq(s, ";") {
 		rec = strings.TrimSpace(rec)
 		who, ids, ok := strings.Cut(rec, ":")
@@ -102,7 +122,7 @@ func ParseRoutes(s string) ([]Route, error) {
 		}
 		var r Route
 		who = strings.TrimSpace(who)
-		if who == "*" {
+		if who == RoutesAll {
 			if all {
 				return nil, errors.New("cdn: CDN_ROUTES has two records for *")
 			}
@@ -113,6 +133,10 @@ func ParseRoutes(s string) ([]Route, error) {
 				if len(c) != 2 || c[0] < 'A' || c[0] > 'Z' || c[1] < 'A' || c[1] > 'Z' {
 					return nil, fmt.Errorf("cdn: CDN_ROUTES record %q: %q is not a country code", rec, c)
 				}
+				if seen[c] {
+					return nil, fmt.Errorf("cdn: CDN_ROUTES names country %s twice", c)
+				}
+				seen[c] = true
 				r.Countries = append(r.Countries, c)
 			}
 		}
@@ -126,10 +150,12 @@ func ParseRoutes(s string) ([]Route, error) {
 			}
 			r.Deliveries = append(r.Deliveries, int32(n))
 		}
-		if r.Countries != nil {
-			return nil, ErrCountryRoutes
-		}
 		routes = append(routes, r)
+	}
+	if !all {
+		// A client whose country is not known (no GeoIP answer, a private
+		// address) must have a record too.
+		return nil, errors.New("cdn: CDN_ROUTES has no record for *, the clients of every other country")
 	}
 	return routes, nil
 }

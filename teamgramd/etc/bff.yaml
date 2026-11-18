@@ -236,8 +236,10 @@ GroupCalls:
 # delivery without BaseURL is off; with none on, the CDN is off and the
 # origin does not listen. The keys come from .env only and are never logged.
 # Empty values take their defaults: CDN_GCORE_SIGNER gcore-md5 (path-hmac
-# when the Secure Token is unavailable), CDN_GCORE_MONTHLY_GB 800,
-# CDN_ROUTES *:201, CDN_ORIGIN_LISTEN 0.0.0.0:20480 (the Docker network
+# when the Secure Token is unavailable), CDN_GCORE_MONTHLY_GB 800 (and
+# CDN_RU_MONTHLY_GB 2000 by docker-compose.yaml; 800 when empty here),
+# CDN_ROUTES *:201, CDN_RU_HEALTH_ADDR the host of CDN_RU_BASE_URL,
+# CDN_ORIGIN_LISTEN 0.0.0.0:20480 (the Docker network
 # only, published by Caddy), CDN_URL_TTL 6h, CDN_PREPARE_RATE_MBIT 800,
 # CDN_KINDS document,photo, CDN_HEALTH_EVERY 1m, CDN_AVOID_TTL 1h.
 # CDN_DEV_ALLOW_HTTP=1 (an http:// BaseURL) is for the e2e stand only.
@@ -250,6 +252,21 @@ Cdn:
       Key: "${CDN_GCORE_TOKEN_KEY}"
       Source: home-origin
       MonthlyGB: "${CDN_GCORE_MONTHLY_GB}"
+    # Delivery 202 of the Russian node amf (task 109, ADR 0072 §8,
+    # docs/ops/cdn.md, docs/ops/ru-node.md): its nginx checks the Secure
+    # Token of Gcore, so it is signed as 201 is, with its own key; it pulls
+    # from the origin with its own X-Pluma-Origin-Auth, and is checked
+    # through the tunnel. Off without CDN_RU_BASE_URL; CDN_ROUTES sends the
+    # clients of its countries to it (RU,BY:202,201;*:201).
+    - Id: 202
+      Name: ru
+      Signer: gcore-md5
+      BaseURL: "${CDN_RU_BASE_URL}"
+      Key: "${CDN_RU_TOKEN_KEY}"
+      Source: home-origin
+      MonthlyGB: "${CDN_RU_MONTHLY_GB}"
+      OriginAuth: "${CDN_RU_ORIGIN_AUTH}"
+      HealthAddr: "${CDN_RU_HEALTH_ADDR}"
   Routes: "${CDN_ROUTES}"
   Origin:
     Listen: "${CDN_ORIGIN_LISTEN}"

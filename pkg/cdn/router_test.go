@@ -17,7 +17,9 @@ package cdn
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -53,6 +55,7 @@ func twoDeliveries(t *testing.T) *Settings {
 	c := testConfig(t)
 	second := c.Deliveries[0]
 	second.Id, second.Name, second.BaseURL = 202, "second", "https://cdn2.example.com"
+	second.OriginAuth = hex.EncodeToString(randomBytes(t, 32))
 	c.Deliveries = append(c.Deliveries, second)
 	c.Routes = "*:201,202"
 	set, err := c.Parse()
@@ -64,7 +67,7 @@ func twoDeliveries(t *testing.T) *Settings {
 
 func pick(t *testing.T, r *Router, key int64, now time.Time) (int32, string) {
 	t.Helper()
-	d, result, err := r.Pick(context.Background(), key, now)
+	d, result, err := r.Pick(context.Background(), key, "", now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +98,7 @@ func TestRouterPick(t *testing.T) {
 		t.Fatalf("both out: %d, %q", dc, result)
 	}
 	gate.err = errors.New("mysql is down")
-	if d, result, err := r.Pick(context.Background(), 4, now); d != nil || result != ResultError || err == nil {
+	if d, result, err := r.Pick(context.Background(), 4, "", now); d != nil || result != ResultError || err == nil {
 		t.Fatalf("gate failed: %v, %q, %v", d, result, err)
 	}
 }
@@ -185,6 +188,183 @@ func TestRouterFallback(t *testing.T) {
 	c.add(fallbackWindow)
 	if _, ok = r.FellBack(1, file, c.now()); ok {
 		t.Fatal("a fallback after the window")
+	}
+}
+
+// countryDeliveries are twoDeliveries routed by country: Russia and
+// Belarus to 202, then 201; every other client to 201.
+func countryDeliveries(t *testing.T) *Settings {
+	t.Helper()
+	set := twoDeliveries(t)
+	routes, err := ParseRoutes("RU,BY:202,201;*:201")
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.Routes = routes
+	return set
+}
+
+func pickIn(t *testing.T, r *Router, key int64, country string, now time.Time) (int32, string) {
+	t.Helper()
+	d, result, err := r.Pick(context.Background(), key, country, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d == nil {
+		return 0, result
+	}
+	return d.ID, result
+}
+
+// TestRouterCountry: a client is routed by the record of its country, an
+// unknown country or one no record names by the record "*".
+func TestRouterCountry(t *testing.T) {
+	gate := &fakeGate{out: map[int32]string{}}
+	r, err := NewRouter(countryDeliveries(t), gate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.ByCountry() || r.First().ID != 201 || r.FirstOf("RU").ID != 202 || r.FirstOf("DE").ID != 201 || r.FirstOf("").ID != 201 {
+		t.Fatalf("ByCountry %v, first %d", r.ByCountry(), r.First().ID)
+	}
+	now := newClock().now()
+	for i, c := range []struct {
+		country string
+		want    int32
+	}{{"RU", 202}, {"BY", 202}, {"DE", 201}, {"", 201}, {"ru", 201}} {
+		if dc, _ := pickIn(t, r, int64(i+1), c.country, now); dc != c.want {
+			t.Errorf("%q: picked %d, want %d", c.country, dc, c.want)
+		}
+	}
+	// 202 out: Russia takes the next of its record, the others never 202.
+	gate.set(202, ResultUnhealthy)
+	if dc, _ := pickIn(t, r, 10, "RU", now); dc != 201 {
+		t.Errorf("RU with 202 out: %d, want 201", dc)
+	}
+	gate.set(201, ResultBudget)
+	if dc, result := pickIn(t, r, 11, "RU", now); dc != 0 || result != ResultUnhealthy {
+		t.Errorf("RU with both out: %d, %q, want the reason of 202", dc, result)
+	}
+	if dc, result := pickIn(t, r, 12, "DE", now); dc != 0 || result != ResultBudget {
+		t.Errorf("DE with 201 out: %d, %q", dc, result)
+	}
+	if ts := r.Targets(); !slices.Equal(ts, []int32{TargetHomeOrigin}) {
+		t.Errorf("targets %v", ts)
+	}
+}
+
+// TestRouterCountryHold: the hold of a key belongs to the record it was
+// picked by: a client whose country changes (a VPN on or off) is routed by
+// its new record at once; one whose new country is in the same record
+// keeps its delivery.
+func TestRouterCountryHold(t *testing.T) {
+	gate := &fakeGate{out: map[int32]string{202: ResultUnhealthy}}
+	r, err := NewRouter(countryDeliveries(t), gate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := newClock()
+	if dc, _ := pickIn(t, r, 1, "RU", c.now()); dc != 201 {
+		t.Fatalf("RU with 202 out: %d, want 201", dc)
+	}
+	gate.set(202, "")
+	c.add(time.Minute)
+	if dc, _ := pickIn(t, r, 1, "BY", c.now()); dc != 201 {
+		t.Fatalf("within the hold, a country of the same record: %d, want 201", dc)
+	}
+	if dc, _ := pickIn(t, r, 2, "RU", c.now()); dc != 202 {
+		t.Fatalf("another key: %d, want 202", dc)
+	}
+
+	// Key 2 holds 202 by the record of Russia; from Germany it is routed by
+	// "*" at once, and back in Russia by its record again, which the hold
+	// of "*" does not keep from 202.
+	if dc, _ := pickIn(t, r, 2, "DE", c.now()); dc != 201 {
+		t.Fatalf("the country changed: %d, want 201", dc)
+	}
+	if dc, _ := pickIn(t, r, 2, "RU", c.now()); dc != 202 {
+		t.Fatalf("back in Russia: %d, want 202", dc)
+	}
+	// An unknown country is the record "*".
+	if dc, _ := pickIn(t, r, 2, "", c.now()); dc != 201 {
+		t.Fatalf("the country not known: %d, want 201", dc)
+	}
+}
+
+// TestNewRouterRoutes: every record names deliveries that are on, and
+// exactly one is "*".
+func TestNewRouterRoutes(t *testing.T) {
+	gate := &fakeGate{out: map[int32]string{}}
+	for name, routes := range map[string][]Route{
+		"no record *":       {{Countries: []string{"RU"}, Deliveries: []int32{202}}},
+		"two records *":     {{Deliveries: []int32{201}}, {Deliveries: []int32{202}}},
+		"a country twice":   {{Countries: []string{"RU"}, Deliveries: []int32{202}}, {Countries: []string{"RU"}, Deliveries: []int32{201}}, {Deliveries: []int32{201}}},
+		"no deliveries":     {{Countries: []string{"RU"}}, {Deliveries: []int32{201}}},
+		"a delivery not on": {{Countries: []string{"RU"}, Deliveries: []int32{203}}, {Deliveries: []int32{201}}},
+		"no record at all":  nil,
+	} {
+		set := twoDeliveries(t)
+		set.Routes = routes
+		if _, err := NewRouter(set, gate); err == nil {
+			t.Errorf("%s: a router", name)
+		}
+	}
+	r, err := NewRouter(twoDeliveries(t), gate)
+	if err != nil || r.ByCountry() {
+		t.Fatalf("one record *: %v, ByCountry %v", err, r != nil && r.ByCountry())
+	}
+}
+
+// fakeLocator tells the countries of addresses from a map and counts the
+// lookups.
+type fakeLocator struct {
+	mu      sync.Mutex
+	country map[string]string
+	lookups int
+}
+
+func (l *fakeLocator) Country(_ context.Context, ip string) string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.lookups++
+	return l.country[ip]
+}
+
+// TestRedirectByCountry: a client from Russia is redirected to 202, any
+// other to 201; the country is looked up only for a client that may be
+// redirected, and an address of no known country takes the record "*".
+func TestRedirectByCountry(t *testing.T) {
+	set := countryDeliveries(t)
+	countries := &fakeLocator{country: map[string]string{"5.8.16.10": "RU", "198.51.100.4": "DE"}}
+	e := &homeEnv{
+		t: t, ctx: context.Background(), set: set, store: NewMemStore(), files: newFakeFiles(),
+		caps: &fakeCaps{versions: map[int64]int{testKey: 1}}, clock: newClock(),
+	}
+	var err error
+	if e.home, err = NewHome(e.store, e.set, e.files, e.caps, countries); err != nil {
+		t.Fatal(err)
+	}
+	e.home.now = e.clock.now
+	e.healthyDc(201, true)
+	e.healthyDc(202, true)
+	e.files.add(FileKey{Kind: KindDocument, Id: 50}, randomBytes(t, 2<<20))
+	e.home.Redirect(e.ctx, testKey, "5.8.16.10", docLoc(50), 0)
+	e.prepareAll()
+
+	for addr, want := range map[string]int32{"5.8.16.10": 202, "198.51.100.4": 201, testAddr: 201, "": 201} {
+		res, result := e.home.Redirect(e.ctx, testKey, addr, docLoc(50), 0)
+		if result != ResultRedirect || res.GetDcId() != want {
+			t.Errorf("from %q: %q to %d, want %d", addr, result, res.GetDcId(), want)
+		}
+	}
+
+	// A client without pluma_cdn is never looked up.
+	before := countries.lookups
+	if res, result := e.home.Redirect(e.ctx, testKey+1, "5.8.16.10", docLoc(50), 0); res != nil || result != ResultNoCaps {
+		t.Fatalf("no pluma_cdn: %v, %q", res, result)
+	}
+	if countries.lookups != before {
+		t.Errorf("the country of a client without pluma_cdn was looked up")
 	}
 }
 

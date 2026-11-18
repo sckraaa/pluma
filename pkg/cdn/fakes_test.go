@@ -28,6 +28,10 @@ import (
 
 const testDc = 201
 
+// testAddr is the address of the clients of the tests, of no country
+// they are routed by.
+const testAddr = "203.0.113.7"
+
 // testConfig is the config of an enabled CDN for the tests: one Gcore
 // delivery with throwaway secrets.
 func testConfig(t *testing.T) Config {
