@@ -65,6 +65,15 @@ TelegramBot:
 # everyone; a wrong value stops bff.
 ReleasesURL: "${PLUMA_RELEASES_URL}"
 ReleasesRoutes: "${PLUMA_RELEASES_ROUTES}"
+# The caches the clients download the files of /dl/ from (task 115): the
+# update prefix of the desktop app is on them. PLUMA_RELEASES_FILES_URL is
+# the CDN for a client of any country, https://<host> (the Gcore resource
+# of the edge, docs/ops/edge.md); PLUMA_RELEASES_FILES_ROUTES the caches by
+# country, records as above: RU,BY=https://r1.sckra.dev, the Russian node
+# (docs/ops/ru-node.md). A country only PLUMA_RELEASES_ROUTES names keeps
+# its mirror. Empty: the site and its mirrors; a wrong value stops bff.
+ReleasesFilesURL: "${PLUMA_RELEASES_FILES_URL}"
+ReleasesFilesRoutes: "${PLUMA_RELEASES_FILES_ROUTES}"
 
 # The update of the iPhone app from the app itself (task 085,
 # docs/ops/ios-install.md): the secret of the update tickets, the same the

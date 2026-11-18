@@ -24,7 +24,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -76,8 +78,11 @@ type Documents interface {
 
 type Handler struct {
 	PublicURL string
-	DataDir   string
-	Token     string
+	// FilesURL is the CDN in front of the site's /dl/, https://<host>
+	// without a "/" at the end, or "" for none (task 115).
+	FilesURL string
+	DataDir  string
+	Token    string
 	// AdminToken guards the panel's routes (/internal/releases); empty
 	// turns them off (503).
 	AdminToken string
@@ -564,10 +569,15 @@ func (h *Handler) desktopCurrent(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(out)
 }
 
-// latest redirects to the current installer of the platform (for arch),
-// by its path on the same site: the browser stays on the name it asked,
-// the site's or its mirror's through the Russian node (task 113), whose
-// /dl/ is this service as well.
+// latest redirects to the current installer of the platform (for arch).
+// Asked on the site's own name, the link is the file on the CDN in front
+// of /dl/ when there is one (task 115): the buttons of the site keep
+// https://<site>/dl/<platform>/latest and the download goes through the
+// CDN. Asked on any other name, the link is the file's path on the same
+// name: the browser stays on the name it asked, the mirror of the site
+// through the Russian node (task 113) or a cache of /dl/ (the CDN, the
+// node's), whose /dl/ is this service as well. The answer is never
+// cached, so a new release is seen at once.
 func (h *Handler) latest(w http.ResponseWriter, r *http.Request) {
 	platform, arch := r.PathValue("platform"), r.PathValue("arch")
 	if !appreleases.Known(platform) || platform == appreleases.IOS {
@@ -588,7 +598,32 @@ func (h *Handler) latest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	http.Redirect(w, r, filePath(rel, f), http.StatusFound) //nolint:gosec // a path of the site with a stored file name, not the request's
+	// A path of the site with a stored file name, on FilesURL of the
+	// config or on the same name: nothing of the request goes into it.
+	http.Redirect(w, r, h.filesBase(r)+filePath(rel, f), http.StatusFound)
+}
+
+// filesBase is where the latest link of r sends the browser: FilesURL for
+// a request on the host of PublicURL, "" (the same name) otherwise. The
+// Host header is the name the browser asked: Caddy passes it on.
+func (h *Handler) filesBase(r *http.Request) string {
+	if h.FilesURL == "" {
+		return ""
+	}
+	site, err := url.Parse(h.PublicURL)
+	if err != nil || site.Host == "" || !strings.EqualFold(stripPort(r.Host), site.Hostname()) {
+		return ""
+	}
+	return h.FilesURL
+}
+
+// stripPort is host without its port, the brackets of an IPv6 address
+// kept off as url.URL.Hostname does.
+func stripPort(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		return h
+	}
+	return host
 }
 
 // file serves a file of a release; a released file never changes.

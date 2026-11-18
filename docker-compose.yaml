@@ -76,6 +76,9 @@ services:
       PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:-}
       # bff.yaml names its mirrors by country (task 113); empty: none.
       PLUMA_RELEASES_ROUTES: ${PLUMA_RELEASES_ROUTES:-}
+      # bff.yaml names the caches of its /dl/ (task 115); empty: none.
+      PLUMA_RELEASES_FILES_URL: ${PLUMA_RELEASES_FILES_URL:-}
+      PLUMA_RELEASES_FILES_ROUTES: ${PLUMA_RELEASES_FILES_ROUTES:-}
       # bff.yaml names the secret of the iPhone update tickets (task 085).
       PLUMA_IOS_UPDATE_SECRET: ${PLUMA_IOS_UPDATE_SECRET:-}
       # bff.yaml names the servers of one-to-one calls (task 068); empty: off.
@@ -370,6 +373,11 @@ services:
       # Its mirrors for the clients of some countries (task 113,
       # docs/ops/ru-node.md); empty: the site for everyone.
       PLUMA_RELEASES_ROUTES: ${PLUMA_RELEASES_ROUTES:-}
+      # The caches the clients download /dl/ from (task 115,
+      # docs/ops/releases.md): the CDN for everyone and the caches by
+      # country; empty: the site and its mirrors.
+      PLUMA_RELEASES_FILES_URL: ${PLUMA_RELEASES_FILES_URL:-}
+      PLUMA_RELEASES_FILES_ROUTES: ${PLUMA_RELEASES_FILES_ROUTES:-}
       # The secret of the update tickets of the iPhone app (task 085), shared
       # with iosinstall; empty: the update is the site's install page.
       PLUMA_IOS_UPDATE_SECRET: ${PLUMA_IOS_UPDATE_SECRET:-}
