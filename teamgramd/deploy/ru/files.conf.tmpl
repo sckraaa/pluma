@@ -1,7 +1,9 @@
 # Delivery 202 of large files on the Russian node (task 109, ADR 0072 §8,
-# docs/ops/ru-node.md). deploy.sh writes /etc/pluma-ru/files.conf from this
-# template; its placeholders (a name between two pairs of at signs) are
-# the checked values of /etc/pluma-ru/env.
+# docs/ops/ru-node.md), and the cache of the releases of the client apps
+# under the same name (task 115, docs/ops/releases.md). deploy.sh writes
+# /etc/pluma-ru/files.conf from this template; its placeholders (a name
+# between two pairs of at signs) are the checked values of
+# /etc/pluma-ru/env.
 #
 # The client comes through the owner's nginx stream on 443 (SNI
 # @@FILES_DOMAIN@@ → pluma_ru_files, stream-upstreams.conf) with its address
@@ -15,6 +17,15 @@
 # is cheap to pull through the tunnel (50 Mbit/s home → node).
 proxy_cache_path /var/cache/pluma-ru/files levels=1:2 keys_zone=pluma_files:20m
 	max_size=15g inactive=36h use_temp_path=off;
+
+# The releases (/dl/): installers and update packages of up to a few
+# hundred MB, a set of them per release, 6 GB for 30 days without a
+# request; the current and the previous release of every platform fit
+# many times over. Slices of 8 MiB: a download of a whole installer pulls
+# through the tunnel in few requests. It stays after the cache of the
+# cipher: wgstat.sh reports the first max_size of this file as that one's.
+proxy_cache_path /var/cache/pluma-ru/releases levels=1:2 keys_zone=pluma_releases:4m
+	max_size=6g inactive=30d use_temp_path=off;
 
 limit_conn_zone $binary_remote_addr zone=pluma_files_addr:2m;
 
@@ -138,6 +149,72 @@ server {
 		proxy_set_header Connection "";
 		proxy_set_header Range $slice_range;
 		proxy_set_header X-Pluma-Origin-Auth $pluma_origin_auth;
+		proxy_ssl_server_name on;
+		proxy_ssl_name @@ORIGIN_DOMAIN@@;
+		proxy_ssl_verify on;
+		proxy_ssl_verify_depth 3;
+		proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+		proxy_connect_timeout 5s;
+		proxy_send_timeout 30s;
+		proxy_read_timeout 30s;
+	}
+
+	# The releases of the client apps (task 115): /dl/ of home's releases
+	# service under the name of the origin (cdn-origin.caddy), whose /dl/
+	# answers GET and HEAD without an access value: the files are public.
+	# The update prefix of the desktop app points here for the countries of
+	# PLUMA_RELEASES_FILES_ROUTES (bff), and a latest link asked here stays
+	# here. The service says how long each answer keeps (Cache-Control),
+	# and nginx follows it: a file of a version is immutable for a year,
+	# the lists are no-cache, the latest links no-store; nginx caches
+	# neither of the last two. Nothing of the client's request goes home
+	# but the path and the range.
+	#
+	# A file of a version: /dl/[desktop/]<platform>/<version>/<name>, the
+	# version starting with a digit, which "latest" of a latest link of an
+	# arch (/dl/<platform>/latest/<arch>) does not.
+	location ~ "^/dl/(?:desktop/)?(?:android|macos|windows|linux)/[0-9][0-9.]*/[A-Za-z0-9][A-Za-z0-9._-]*$" {
+		limit_except GET {
+			deny all;
+		}
+		@@CACHE_STATUS_HEADER@@
+		max_ranges 1;
+		slice 8m;
+		proxy_cache pluma_releases;
+		proxy_cache_key $uri$slice_range;
+		proxy_cache_valid 200 206 30d;
+		proxy_cache_lock on;
+		proxy_cache_lock_timeout 60s;
+		proxy_cache_lock_age 60s;
+		proxy_pass https://pluma_origin;
+		proxy_http_version 1.1;
+		proxy_pass_request_headers off;
+		proxy_set_header Host @@ORIGIN_DOMAIN@@;
+		proxy_set_header Connection "";
+		proxy_set_header Range $slice_range;
+		proxy_ssl_server_name on;
+		proxy_ssl_name @@ORIGIN_DOMAIN@@;
+		proxy_ssl_verify on;
+		proxy_ssl_verify_depth 3;
+		proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+		proxy_connect_timeout 5s;
+		proxy_send_timeout 30s;
+		proxy_read_timeout 60s;
+	}
+
+	# The rest of /dl/: releases.json, desktop/current4, the latest links
+	# and health, passed through uncached (the service's Cache-Control
+	# forbids it anyway); the upload of CI goes to the site, never here.
+	location /dl/ {
+		limit_except GET {
+			deny all;
+		}
+		@@CACHE_STATUS_HEADER@@
+		proxy_pass https://pluma_origin;
+		proxy_http_version 1.1;
+		proxy_pass_request_headers off;
+		proxy_set_header Host @@ORIGIN_DOMAIN@@;
+		proxy_set_header Connection "";
 		proxy_ssl_server_name on;
 		proxy_ssl_name @@ORIGIN_DOMAIN@@;
 		proxy_ssl_verify on;

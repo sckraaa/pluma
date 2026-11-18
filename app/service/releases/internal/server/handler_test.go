@@ -16,6 +16,7 @@
 package server
 
 import (
+	"net/http/httptest"
 	"testing"
 
 	"github.com/teamgram/teamgram-server/pkg/appreleases"
@@ -44,6 +45,52 @@ func TestCanNotSkip(t *testing.T) {
 		got, err := canNotSkip(c.platform, c.value)
 		if got != c.want || (err == nil) != c.ok {
 			t.Errorf("canNotSkip(%q, %q) = %v, %v", c.platform, c.value, got, err)
+		}
+	}
+}
+
+// TestFilesBase: the latest link asked on the site's own name sends the
+// browser to the CDN in front of /dl/ (task 115); asked on any other name
+// (the mirror, the CDN, the Russian node's cache) it stays on that name,
+// and so does every link without a CDN.
+func TestFilesBase(t *testing.T) {
+	h := &Handler{PublicURL: "https://pluma.example", FilesURL: "https://cdn.example"}
+	for host, want := range map[string]string{
+		"pluma.example":        "https://cdn.example",
+		"Pluma.Example:443":    "https://cdn.example",
+		"www.pluma.example":    "",
+		"pluma.mirror.example": "",
+		"cdn.example":          "",
+		"origin.example":       "",
+		"":                     "",
+	} {
+		r := httptest.NewRequest("GET", "/dl/linux/latest", nil)
+		r.Host = host
+		if got := h.filesBase(r); got != want {
+			t.Errorf("%q: %q, want %q", host, got, want)
+		}
+	}
+	h.FilesURL = ""
+	r := httptest.NewRequest("GET", "/dl/linux/latest", nil)
+	r.Host = "pluma.example"
+	if got := h.filesBase(r); got != "" {
+		t.Errorf("no CDN: %q", got)
+	}
+}
+
+func TestCheckFilesURL(t *testing.T) {
+	for in, want := range map[string]string{
+		"":                            "",
+		" https://Gk8.GcoreCDN.com/ ": "https://gk8.gcorecdn.com",
+		"https://cdn.example:8443":    "https://cdn.example:8443",
+	} {
+		if got, err := checkFilesURL(in); err != nil || got != want {
+			t.Errorf("%q: %q, %v", in, got, err)
+		}
+	}
+	for _, in := range []string{"http://cdn.example", "https://cdn.example/dl", "https://cdn.example?x=1", "cdn.example", "https://"} {
+		if got, err := checkFilesURL(in); err == nil {
+			t.Errorf("%q taken as %q", in, got)
 		}
 	}
 }

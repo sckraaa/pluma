@@ -189,7 +189,7 @@ Web K раздаёт с адреса Pluma контейнер `web` (`docker-com
 Карточки ссылок (ADR 0027) строят сервисы `bff` и `msg`. Им нужен исходящий доступ в интернет по HTTP и HTTPS: на сервере с `PLUMA_PUBLIC_IPV4` сайты видят этот адрес и User-Agent `PlumaBot`. Во внутренние сети сборщик не ходит. Карточки хранятся в таблице `webpages`, её создаёт миграция `migrate-20261102-webpages.sql` при запуске сервиса `migrate`. Настраивать ничего не нужно. Таблицу можно очистить в любой момент (`TRUNCATE webpages`): карточки соберутся заново при следующем запросе.
 
 ## Выпуски клиентов
-Сборки клиентов после одобрения в `release` выкладываются на сайт по адресам `/dl/…` и предлагаются приложениям (`help.getAppUpdate`). Сервис `releases` запускается из `docker-compose.releases.yaml`, ему нужны токен загрузки и `PLUMA_RELEASES_URL` в `.env`: см. `releases.md`. Таблицу `app_releases` создаёт миграция `migrate-20261105-app-releases.sql`.
+Сборки клиентов после одобрения в `release` выкладываются на сайт по адресам `/dl/…` и предлагаются приложениям (`help.getAppUpdate`). Сервис `releases` запускается из `docker-compose.releases.yaml`, ему нужны токен загрузки и `PLUMA_RELEASES_URL` в `.env`: см. `releases.md`. Таблицу `app_releases` создаёт миграция `migrate-20261105-app-releases.sql`. Скачивание идёт через CDN (Gcore — мир, узел amf — Россия) при заданных `PLUMA_RELEASES_FILES_URL` и `PLUMA_RELEASES_FILES_ROUTES` — `releases.md`, «Раздача через CDN» (задача 115): порядок включения там.
 
 ## Прогресс на сайте
 Блок «Насколько Pluma уже Telegram» на pluma.chat берёт данные из `/progress.json`. Caddy отдаёт по этому адресу `docs/project/api-coverage.json` выкатанной версии: каталог `docs/project` смонтирован в контейнер `web` (`docker-compose.web.yaml`). Файл генерирует `go run ./tools/apicoverage` вместе с `api-coverage.md`, CI проверяет, что он актуален. После каждой выкатки цифры на сайте обновляются сами.
@@ -258,7 +258,14 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker
 1. Владелец: A-записи `pluma.sckra.dev` и `oauth.sckra.dev` → 194.87.226.185.
 2. Узел: `PLUMA_RU_MIRROR_DOMAINS=pluma.sckra.dev,oauth.sckra.dev` в `/etc/pluma-ru/env`, `deploy.sh`, `owner-nginx.sh check` и `install` (карта SNI и порт 80 владельца изменились).
 3. `.env` дома: `PLUMA_RU_SITE_DOMAIN=pluma.sckra.dev`, `PLUMA_RU_OAUTH_DOMAIN=oauth.sckra.dev`, `PLUMA_RELEASES_ROUTES=RU,BY=https://pluma.sckra.dev`. Пересоздать `web` с `docker-compose.ru.yaml` (новые сайты Caddy, монтирования `ru-site.caddy`, `ru-oauth.caddy`, tmpfs `ru-mirror.d`), выкатить `bff`, `releases` и `iosinstall` (у последнего новая переменная `MIRROR_HOSTS`, образ этой версии).
-4. Проверка — `ru-node.md`, «Зеркала», шаг 4; в `help.getConfig` клиента из России `autoupdate_url_prefix` = `https://pluma.sckra.dev/dl/desktop`.
+4. Проверка — `ru-node.md`, «Зеркала», шаг 4; в `help.getConfig` клиента из России `autoupdate_url_prefix` = `https://pluma.sckra.dev/dl/desktop` (после задачи 115 с `PLUMA_RELEASES_FILES_ROUTES` — `https://r1.sckra.dev/dl/desktop`).
+
+**Сертификаты новых имён через узел: сначала узел, потом `web`.** Caddy дома получает сертификат имени зеркала (и края `ru`) по HTTP-01 через порт 80 узла или TLS-ALPN-01 через его 443, то есть только когда узел уже передаёт это имя домой. Порядок:
+1. DNS имени → узел;
+2. узел: имя в `PLUMA_RU_MIRROR_DOMAINS` (или `PLUMA_RU_EDGE_DOMAIN`), `deploy.sh`, `owner-nginx.sh install` — карта SNI и порт 80 владельца знают имя; проверка `curl -sSI http://<имя>/x` — 301;
+3. только потом `.env` дома и пересоздание `web`.
+
+Если `web` пересоздан раньше (так случилось при первой выкатке зеркал задачи 113): первая попытка у Let's Encrypt проваливается (узел ещё не знает имя), Caddy переходит на запасные попытки у тестового CA Let's Encrypt (staging), а его CAA `sckra.dev` не разрешает (в записи — только аккаунт домашнего сервера у боевого CA, `home-server.md`, «Сертификаты и CAA»), и Caddy застревает в долгих паузах между повторами. Лечение — после шага 2 перезапустить `web` (`docker compose … restart web` со всеми наложениями хоста): новая попытка идёт сразу к боевому CA и проходит. Проверка: `docker compose … logs --since 10m web | grep -i 'certificate obtained'` с именем зеркала; `curl -sSI https://<имя>/` — 200.
 
 **Шаг 3 — сборки клиентов.** Переменная репозитория `PLUMA_EDGE_WS_URLS` в четырёх репозиториях клиентов (`pluma-android`, `pluma-ios`, `pluma-desktop`, `pluma-web`), рядом с адресом сервера: рекомендованное значение — `wss://<префикс2>.gcorecdn.com/apiws,wss://ru.sckra.dev/apiws` (решение владельца 10; имя узла — решение 8 брифа 113). Задаётся, когда края сервера уже отвечают: встроенный край, который не отвечает, клиенту не мешает (прямой путь первым), но и не помогает. Правки клиентов — A-128, I-133, D-106, W-086 (`clients/patches/`).
 

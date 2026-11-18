@@ -19,25 +19,31 @@ package e2e
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 )
 
-// The site of the releases by the country of the client (task 113):
-// help.getConfig names the mirror of the site for Russia. The stand's
-// PLUMA_RELEASES_URL and PLUMA_RELEASES_ROUTES (run.sh, gen_edge_env).
-const (
-	stackReleasesURL   = "https://site.localhost"
-	stackReleasesRuURL = "https://rusite.localhost"
+// The caches of the releases' /dl/ by the country of the client (tasks
+// 113, 115): help.getConfig names the Russian node's for Russia and the
+// CDN's for the others. The stand's PLUMA_RELEASES_FILES_URL and
+// PLUMA_RELEASES_FILES_ROUTES (run.sh, gen_edge_env).
+var (
+	stackReleasesCdnURL = os.Getenv("PLUMA_E2E_RELEASES_CDN_URL")
+	stackReleasesRuURL  = "https://" + ruFilesDomain
 )
 
 // TestReleaseSiteByCountry: help.getConfig gives a desktop app in Russia
-// the update prefix on the mirror of the releases' site, and the others,
-// one of an unknown country among them, on the site itself.
+// the update prefix on the cache of the Russian node, and the others, one
+// of an unknown country among them, on the CDN in front of the site.
 func TestReleaseSiteByCountry(t *testing.T) {
 	needEdges(t)
+	needRuFiles(t)
+	if stackReleasesCdnURL == "" {
+		t.Skip("PLUMA_E2E_RELEASES_CDN_URL is not set (run.sh test sets it)")
+	}
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
@@ -47,8 +53,8 @@ func TestReleaseSiteByCountry(t *testing.T) {
 		u    *user
 		want string
 	}{
-		"unknown": {direct, stackReleasesURL + "/dl/desktop"},
-		"Germany": {germany, stackReleasesURL + "/dl/desktop"},
+		"unknown": {direct, stackReleasesCdnURL + "/dl/desktop"},
+		"Germany": {germany, stackReleasesCdnURL + "/dl/desktop"},
 		"Russia":  {russia, stackReleasesRuURL + "/dl/desktop"},
 	} {
 		o, err := c.u.c.Invoke(ctx, &mtproto.TLHelpGetConfig{Constructor: c.u.c.Constructor(mtproto.Predicate_help_getConfig)})

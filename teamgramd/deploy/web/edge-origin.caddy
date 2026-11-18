@@ -22,9 +22,21 @@
 #   X-Forwarded-For, the address of Gcore, is not used: it trusts no proxy.
 #   X-Pluma-Edge-Via labels the gateway's metrics; neither header nor the
 #   secret passes on as the client sent it.
-# - The pages and files say no-cache: the resource caches what the origin
-#   allows, and Gcore revalidates them by their ETag, so a new version of the
-#   web client is seen at once.
+# - The releases of the client apps (task 115, docs/ops/releases.md): /dl/
+#   is the releases service, as on the site, for GET and HEAD only, so that
+#   the clients outside the countries of the Russian node download the
+#   installers and the updates of the desktop app from Gcore's cache
+#   (PLUMA_RELEASES_FILES_URL). The service says how long each answer
+#   keeps: a file of a version a year (immutable: it never changes), the
+#   lists of releases (releases.json, desktop/current4) no-cache, which
+#   Gcore revalidates, the latest links no-store.
+# - The pages and files of the web client say no-cache: the resource caches
+#   what the origin allows, and Gcore revalidates them by their ETag, so a
+#   new version of the web client is seen at once.
+# - Nothing else is cached: /apiws, the 403 of a request without the
+#   secret, every redirect (a 308 that Caddy's file server answers for a
+#   directory once stuck in Gcore's cache) and every error say no-store.
+#   304 is not a redirect here: it renews what Gcore holds.
 # - No log directive, so no access log; neither Server nor Via in the
 #   answers, Caddy's own errors (502 while the gateway is down) included.
 {$PLUMA_EDGE_ORIGIN_DOMAIN} {
@@ -35,6 +47,14 @@
 			reverse_proxy gnetway:11445 {
 				header_up X-Pluma-Client-Addr {http.request.header.X-Forwarded-For}
 				header_up X-Pluma-Edge-Via gcore
+				header_up -X-Pluma-Edge-Auth
+			}
+			header Cache-Control "no-store"
+		}
+		handle /dl/* {
+			@write not method GET HEAD
+			respond @write 405
+			reverse_proxy releases:9097 {
 				header_up -X-Pluma-Edge-Auth
 			}
 		}
@@ -51,7 +71,13 @@
 		-Server
 		-Via
 	}
+	# After every handler above, the 403 of respond included.
+	header {
+		Cache-Control "no-store"
+		match status 301 302 303 307 308 4xx 5xx
+	}
 	handle_errors {
 		header -Server
+		header Cache-Control "no-store"
 	}
 }

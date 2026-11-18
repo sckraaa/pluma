@@ -61,8 +61,13 @@ func TestCdnOriginSite(t *testing.T) {
 	if !strings.HasPrefix(body, "{$PLUMA_CDN_ORIGIN_DOMAIN} {") {
 		t.Error("cdn-origin.caddy: not the site of {$PLUMA_CDN_ORIGIN_DOMAIN}")
 	}
-	if !strings.Contains(body, "reverse_proxy bff:20480") {
-		t.Error("cdn-origin.caddy: does not proxy bff:20480")
+	if !strings.Contains(body, "handle {\nreverse_proxy bff:20480 {\nheader_up -Accept-Encoding\n}\n}") {
+		t.Error("cdn-origin.caddy: does not proxy the rest to bff:20480 without Accept-Encoding")
+	}
+	// /dl/ of the releases (task 115), which the Russian node caches: for
+	// reading only, and without the access value of the origin.
+	if !strings.Contains(body, "handle /dl/* {\n@write not method GET HEAD\nrespond @write 405\nreverse_proxy releases:9097 {\nheader_up -X-Pluma-Origin-Auth\n}\n}") {
+		t.Error("cdn-origin.caddy: /dl/ is not the releases service for GET and HEAD without X-Pluma-Origin-Auth")
 	}
 	for _, d := range []string{"encode", "log"} {
 		if regexp.MustCompile(`(?m)^` + d + `\b`).MatchString(body) {

@@ -44,6 +44,15 @@ func mustReleaseSites(main, routes string) *releasesite.Sites {
 	return s
 }
 
+// mustReleaseFiles is the sites of the files of /dl/ over site (task 115).
+func mustReleaseFiles(site *releasesite.Sites, files, routes string) *releasesite.Sites {
+	s, err := releasesite.ParseFiles(site, files, routes)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
 // TestIOSUpdateURL: an Ad Hoc build is sent to the itms-services link of
 // the build only when the update from the app is set up and the install
 // service gives exactly that build; to the site's install page otherwise.
@@ -148,6 +157,9 @@ func TestIOSUpdateURLByCountry(t *testing.T) {
 			ReleaseSites: mustReleaseSites("https://pluma.example", "RU=https://pluma.mirror.example"),
 			Countries:    ipcountry.New(countries),
 		}
+		// The caches of /dl/ (task 115) serve no install page and no
+		// manifest: the iPhone app stays on the site and its mirrors.
+		s.ReleaseFiles = mustReleaseFiles(s.ReleaseSites, "https://cdn.example", "RU=https://r1.example")
 		if withSecret {
 			s.Config.IOSUpdate = iosupdate.Settings{Secret: secret, StatusURL: install.URL}
 			s.IOSUpdate = iosupdate.NewChecker(install.URL)

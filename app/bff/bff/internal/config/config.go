@@ -76,6 +76,11 @@ type Config struct {
 	// client (task 113, docs/ops/releases.md); empty: the site for
 	// everyone.
 	ReleasesRoutes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// ReleasesFilesURL and ReleasesFilesRoutes are the caches the clients
+	// download the files of /dl/ from, for every country and by country
+	// (task 115, docs/ops/releases.md); empty: the site and its mirrors.
+	ReleasesFilesURL    string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	ReleasesFilesRoutes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// IOSUpdate lets an Ad Hoc build of the iPhone app update from the app
 	// itself (task 085): the secret of its tickets and the status address
 	// of the install service. Without the secret such a build is offered

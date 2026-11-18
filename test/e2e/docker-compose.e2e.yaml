@@ -321,6 +321,14 @@ services:
         condition: service_started
     restart: "no"
 
+  # The releases of the client apps (docker-compose.releases.yaml, task
+  # 115): the site's /dl/, which the edge's origin and rufiles pull as at
+  # home. The panel's port is not published: stands of several branches
+  # run at once on one machine.
+  releases:
+    ports: !reset []
+    restart: "no"
+
   bff:
     # The config with the limits of transcription and the waits of
     # translation, the mail provider of the tests and the hosts of

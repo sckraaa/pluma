@@ -29,6 +29,11 @@ type Config struct {
 	// PublicURL is the site, https://pluma.chat: the files are at
 	// PublicURL/dl/..., the iPhone install page at PublicURL/iphone/install.
 	PublicURL string
+	// FilesURL is the CDN in front of the site's /dl/ (task 115,
+	// docs/ops/releases.md), https://<host>: the latest links asked on the
+	// site's own name send the browser there. Empty: they stay on the
+	// name they were asked on.
+	FilesURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// DataDir holds the files of the releases (a volume of its own).
 	DataDir string
 	// UploadTokenFile holds the token CI uploads with (Bearer), never

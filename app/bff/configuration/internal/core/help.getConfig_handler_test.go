@@ -159,6 +159,7 @@ func TestHelpGetConfigAutoupdatePrefix(t *testing.T) {
 		t.Errorf("without a site: %v", got.GetAutoupdateUrlPrefix())
 	}
 	c.svcCtx.ReleaseSites = mustReleaseSites("https://pluma.example", "")
+	c.svcCtx.ReleaseFiles = mustReleaseFiles(c.svcCtx.ReleaseSites, "", "")
 	if got, err = c.HelpGetConfig(&mtproto.TLHelpGetConfig{}); err != nil {
 		t.Fatal(err)
 	}
@@ -167,20 +168,24 @@ func TestHelpGetConfigAutoupdatePrefix(t *testing.T) {
 	}
 }
 
-// TestHelpGetConfigAutoupdatePrefixByCountry: with a mirror of the site
-// for Russia (task 113), a desktop app there looks for its updates on the
-// mirror; the others, and one whose country authsession could not tell,
-// on the main site. Without mirrors the country is never looked up.
+// TestHelpGetConfigAutoupdatePrefixByCountry: the desktop app looks for
+// its updates on the cache of /dl/ of its country (task 115): the Russian
+// node's for Russia, the mirror of the site for a country only the site's
+// routes name (task 113), the CDN for the others and for one whose country
+// authsession could not tell. Without records of countries the country is
+// never looked up.
 func TestHelpGetConfigAutoupdatePrefixByCountry(t *testing.T) {
-	countries := &fakeCountries{country: map[string]string{"5.8.16.10": "RU", "203.0.113.5": "DE"}}
+	countries := &fakeCountries{country: map[string]string{"5.8.16.10": "RU", "37.17.0.1": "BY", "203.0.113.5": "DE"}}
 	for addr, want := range map[string]string{
-		"5.8.16.10":    "https://pluma.mirror.example/dl/desktop",
-		"203.0.113.5":  "https://pluma.example/dl/desktop",
-		"198.51.100.1": "https://pluma.example/dl/desktop",
-		"":             "https://pluma.example/dl/desktop",
+		"5.8.16.10":    "https://r1.example/dl/desktop",
+		"37.17.0.1":    "https://pluma.mirror.example/dl/desktop",
+		"203.0.113.5":  "https://cdn.example/dl/desktop",
+		"198.51.100.1": "https://cdn.example/dl/desktop",
+		"":             "https://cdn.example/dl/desktop",
 	} {
 		c := newGetConfigCore(t, &fakeLangpacks{}, "tdesktop", "en")
 		c.svcCtx.ReleaseSites = mustReleaseSites("https://pluma.example", "RU,BY=https://pluma.mirror.example")
+		c.svcCtx.ReleaseFiles = mustReleaseFiles(c.svcCtx.ReleaseSites, "https://cdn.example", "RU=https://r1.example")
 		c.svcCtx.Countries = ipcountry.New(countries)
 		c.MD.ClientAddr = addr
 		got, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{})
@@ -195,13 +200,18 @@ func TestHelpGetConfigAutoupdatePrefixByCountry(t *testing.T) {
 	none := &fakeCountries{}
 	c := newGetConfigCore(t, &fakeLangpacks{}, "tdesktop", "en")
 	c.svcCtx.ReleaseSites = mustReleaseSites("https://pluma.example", "")
+	c.svcCtx.ReleaseFiles = mustReleaseFiles(c.svcCtx.ReleaseSites, "https://cdn.example", "")
 	c.svcCtx.Countries = ipcountry.New(none)
 	c.MD.ClientAddr = "5.8.16.10"
-	if _, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{}); err != nil {
+	got, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{})
+	if err != nil {
 		t.Fatal(err)
 	}
+	if v := got.GetAutoupdateUrlPrefix().GetValue(); v != "https://cdn.example/dl/desktop" {
+		t.Errorf("without records of countries: autoupdate_url_prefix %q", v)
+	}
 	if len(none.asked) != 0 {
-		t.Errorf("looked up %v without mirrors", none.asked)
+		t.Errorf("looked up %v without records of countries", none.asked)
 	}
 }
 

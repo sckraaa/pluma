@@ -29,6 +29,8 @@ services:
     environment:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:?set PLUMA_RELEASES_URL in .env, the site, https://pluma.chat}
+      # The CDN in front of /dl/ (task 115); empty: none.
+      PLUMA_RELEASES_FILES_URL: ${PLUMA_RELEASES_FILES_URL:-}
       RELEASES_ADMIN_TOKEN: ${RELEASES_ADMIN_TOKEN:-}
     volumes:
       # upload-token: one line, at least 32 characters, mode 0400.

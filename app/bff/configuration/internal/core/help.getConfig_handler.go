@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/releasesite"
 	"github.com/teamgram/teamgram-server/pkg/langpack"
 
 	"google.golang.org/protobuf/proto"
@@ -52,9 +53,14 @@ func (c *ConfigurationCore) HelpGetConfig(in *mtproto.TLHelpGetConfig) (*mtproto
 	// Where the desktop app looks for its updates (task 054): tdesktop
 	// keeps it as its prefix and asks <prefix>/current
 	// (mtp_instance.cpp:935-937, update_checker.cpp:717-721 at a1e89e1f).
-	// The site is the one of the client's country (task 113): a mirror
-	// where the main name is blocked.
-	if site := c.releaseSite(); site != "" {
+	// The prefix is on the cache of /dl/ of the client's country (task
+	// 115): any host will do, since the updater takes a package only
+	// after checking its signature against the key built into the app
+	// (Updates::VerifyUpdate, update_checker.cpp:475-488 at v7.4.1,
+	// 157f5cfc), and it takes the prefix as it comes
+	// (Local::writeAutoupdatePrefix, mtp_instance.cpp:945-947,
+	// localstorage.cpp:561-579).
+	if site := c.siteFor(c.svcCtx.ReleaseFiles); site != "" {
 		rValue.SetAutoupdateUrlPrefix(mtproto.MakeFlagsString(site + "/dl/desktop"))
 	}
 
@@ -63,11 +69,15 @@ func (c *ConfigurationCore) HelpGetConfig(in *mtproto.TLHelpGetConfig) (*mtproto
 
 // releaseSite is the site of the releases of the client apps for this
 // client (PLUMA_RELEASES_URL, or its mirror for the country of the
-// client's address, PLUMA_RELEASES_ROUTES), "" without one. The country is
-// looked up only when there are mirrors; an unknown one gets the main
-// site.
+// client's address, PLUMA_RELEASES_ROUTES), "" without one.
 func (c *ConfigurationCore) releaseSite() string {
-	sites := c.svcCtx.ReleaseSites
+	return c.siteFor(c.svcCtx.ReleaseSites)
+}
+
+// siteFor is the site of sites for the country of the client's address,
+// "" for nil sites. The country is looked up only when sites has records
+// of countries; an unknown one gets the main site.
+func (c *ConfigurationCore) siteFor(sites *releasesite.Sites) string {
 	country := ""
 	if sites.ByCountry() {
 		country = c.svcCtx.Countries.Country(c.ctx, c.MD.GetClientAddr())
