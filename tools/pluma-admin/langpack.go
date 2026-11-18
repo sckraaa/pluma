@@ -45,6 +45,7 @@ type langpackStore interface {
 	Import(ctx context.Context, snap *langpack.Snapshot) (*langpack.ImportResult, error)
 	Languages(ctx context.Context, pack string) ([]langpack.Language, error)
 	Readers(ctx context.Context, pack, lang string) ([]langpack.Reader, error)
+	Keys(ctx context.Context, pack, lang string) ([]string, error)
 }
 
 // telegramConn is a connection to Telegram (langpack.TelegramClient).
@@ -79,8 +80,8 @@ var (
 	}
 )
 
-// langpackCommand runs langpack fetch, import and list (task 021, ADR 0025;
-// docs/ops/langpacks.md).
+// langpackCommand runs langpack fetch, import, list and coverage (tasks 021
+// and 114, ADR 0025; docs/ops/langpacks.md).
 func langpackCommand(args []string, configFile string, stdout io.Writer) error {
 	if len(args) < 2 {
 		return errUsage
@@ -92,6 +93,8 @@ func langpackCommand(args []string, configFile string, stdout io.Writer) error {
 		return langpackImport(args[2:], configFile, stdout)
 	case "list":
 		return langpackList(args[2:], configFile, stdout)
+	case "coverage":
+		return langpackCoverage(args[2:], configFile, stdout)
 	}
 	return errUsage
 }

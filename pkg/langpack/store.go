@@ -348,6 +348,26 @@ func SystemLanguages(code string) []string {
 	return out
 }
 
+// Keys returns the keys of the live strings of pack in lang that have a
+// text, sorted: what a client finds on the server (coverage).
+func (s *Store) Keys(ctx context.Context, pack, lang string) ([]string, error) {
+	var rows []struct {
+		Key string `db:"str_key"`
+	}
+	if err := s.db.QueryRowsPartial(ctx, &rows,
+		"SELECT str_key FROM langpack_strings WHERE lang_pack = ? AND lang_code = ? AND deleted = 0 AND value <> ''",
+		pack, lang); err != nil {
+		return nil, err
+	}
+	keys := make([]string, len(rows))
+	for i, r := range rows {
+		keys[i] = r.Key
+	}
+	// In byte order: the collation of the column orders otherwise.
+	slices.Sort(keys)
+	return keys, nil
+}
+
 // StringsByKey returns the stored strings of keys (tombstones included) by
 // key.
 func (s *Store) StringsByKey(ctx context.Context, pack, lang string, keys []string) (map[string]*String, error) {

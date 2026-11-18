@@ -135,6 +135,16 @@ func loadOwn(data []byte) (map[string]map[string]map[string]string, error) {
 	return own, nil
 }
 
+// OwnMissing returns the own strings of pack and the ones that replace
+// Telegram's that have no text in lang and fall back to English, sorted.
+func OwnMissing(pack, lang string) []string {
+	_, own := ownFor(pack, lang)
+	_, override := overridesFor(pack, lang)
+	missing := append(own, override...)
+	sort.Strings(missing)
+	return missing
+}
+
 // ownFor returns Pluma's own strings of pack in lang, sorted by key, and the
 // keys that fell back to English.
 func ownFor(pack, lang string) (strs []String, missing []string) {

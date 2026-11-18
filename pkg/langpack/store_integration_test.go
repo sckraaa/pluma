@@ -559,3 +559,19 @@ func TestReaders(t *testing.T) {
 		}
 	}
 }
+
+// Keys lists the live strings with a text, in byte order.
+func TestKeys(t *testing.T) {
+	ctx := context.Background()
+	mustImport(t, snapshotOf("android", "keys", 2, String{Key: "b", Value: "b"}, String{Key: "B", Value: "B"},
+		String{Key: "a_gone", Value: "x"}, String{Key: "empty", Value: ""}))
+	mustImport(t, snapshotOf("android", "keys", 3, String{Key: "b", Value: "b"}, String{Key: "B", Value: "B"},
+		String{Key: "empty", Value: ""}))
+	keys, err := itStore.Keys(ctx, "android", "keys")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(keys) != "[B b]" {
+		t.Fatalf("Keys = %v", keys)
+	}
+}
