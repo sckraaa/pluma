@@ -446,7 +446,7 @@ func probeRequest(nonce [16]byte, down, up int) []byte {
 	b := make([]byte, 0, 4+16+4+4+up+3)
 	b = binary.LittleEndian.AppendUint32(b, crc32PlumaProbe)
 	b = append(b, nonce[:]...)
-	b = binary.LittleEndian.AppendUint32(b, uint32(int32(down))) //nolint:gosec // down is a probe size, far below 2^31
+	b = binary.LittleEndian.AppendUint32(b, uint32(int32(down)))
 	pad := make([]byte, up)
 	_, _ = rand.Read(pad) // crypto/rand.Read never fails (Go 1.24)
 	return appendTLBytes(b, pad)
