@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -181,27 +182,35 @@ func ProbeTCP(ctx context.Context, addr string, opts ProbeOptions) *ProbeResult 
 // ProbeWebSocket probes the WebSocket transport of the gateway at url
 // (ws:// or wss://, as DialWebSocket) with the extra header.
 func ProbeWebSocket(ctx context.Context, url string, header http.Header, opts ProbeOptions) *ProbeResult {
+	return ProbeWebSocketVia(ctx, url, header, nil, nil, opts)
+}
+
+// ProbeWebSocketVia is ProbeWebSocket with the TCP dialer and the TLS
+// config of DialWebSocketVia (nil: the defaults).
+func ProbeWebSocketVia(ctx context.Context, url string, header http.Header, dial func(ctx context.Context, network, addr string) (net.Conn, error), tlsConfig *tls.Config, opts ProbeOptions) *ProbeResult {
 	opts.defaults()
 	start := time.Now()
 	dctx, cancel := context.WithTimeout(ctx, opts.Deadline)
 	defer cancel()
-	var pc *probeConn
-	dial := func(ctx context.Context, network, addr string) (net.Conn, error) {
+	if dial == nil {
 		var d net.Dialer
-		conn, err := d.DialContext(ctx, network, addr)
+		dial = d.DialContext
+	}
+	var pc *probeConn
+	counted := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, err := dial(ctx, network, addr)
 		if err != nil {
 			return nil, err
 		}
 		pc = newProbeConn(conn)
 		return pc, nil
 	}
-	t, err := DialWebSocketVia(dctx, url, header, dial, nil)
+	t, err := DialWebSocketVia(dctx, url, header, counted, tlsConfig)
 	if err != nil {
-		res := &ProbeResult{Outcome: ProbeFailed, Down: opts.Down, Err: err}
 		if pc != nil {
 			_ = pc.Close()
 		}
-		return res
+		return &ProbeResult{Outcome: ProbeFailed, Down: opts.Down, Err: err}
 	}
 	defer t.Close()
 	return runProbe(ctx, t, pc, time.Since(start), opts)

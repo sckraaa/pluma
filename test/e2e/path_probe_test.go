@@ -19,6 +19,7 @@ package e2e
 
 import (
 	"context"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -132,5 +133,74 @@ func TestPathProbeFrozen(t *testing.T) {
 		if res.Outcome != mtclient.ProbeOK {
 			t.Errorf("%s: the clean path is %s, want ok", path.name, res)
 		}
+	}
+}
+
+// TestPathProbeThroughEdges: through Caddy of the Gcore edge's origin (TLS,
+// the resource's secret) and of the Russian node's edge (TLS behind the
+// node's PROXY header) the probe reaches the Edge entry and is answered in
+// full, counted under the edge it came through; a path to the Gcore origin
+// that freezes after 16 KB, TLS handshake included, is found frozen.
+func TestPathProbeThroughEdges(t *testing.T) {
+	needEdges(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	served := func(via string) float64 {
+		return gatewayMetric(t, "gnetway_probe_total", `entry="edge"`, `via="`+via+`"`, `result="served"`)
+	}
+	beforeGcore, beforeRu := served("gcore"), served("ru")
+
+	gcoreTLS := caddyTLS(t, gcoreEdgeHost)
+	origin, err := stackPort("web", "443")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gcore := func(addr, clientAddr string) *mtclient.ProbeResult {
+		return mtclient.ProbeWebSocketVia(ctx, "wss://"+gcoreEdgeHost+"/apiws", gcoreEdgeHeader(edgeAuth, clientAddr), dialTo(addr), gcoreTLS, mtclient.ProbeOptions{ResPQ: true})
+	}
+	res := gcore(origin, "5.8.16.82")
+	t.Logf("gcore: %s", res)
+	if res.Outcome != mtclient.ProbeOK || res.Received != mtclient.DefaultProbeDown {
+		t.Errorf("through the Gcore origin: %s, want ok", res)
+	}
+
+	ruAddr, err := stackPort("web", "8443")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ruDial := func(ctx context.Context, network, _ string) (net.Conn, error) {
+		conn, err := dialTo(ruAddr)(ctx, network, "")
+		if err != nil {
+			return nil, err
+		}
+		if _, err := conn.Write([]byte(proxyV1("5.8.16.83"))); err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
+		return conn, nil
+	}
+	res = mtclient.ProbeWebSocketVia(ctx, "wss://"+ruEdgeHost+"/apiws", nil, ruDial, caddyTLS(t, ruEdgeHost), mtclient.ProbeOptions{ResPQ: true, Down: 192 << 10})
+	t.Logf("ru: %s", res)
+	if res.Outcome != mtclient.ProbeOK || res.Received != 192<<10 {
+		t.Errorf("through the Russian node's edge: %s, want ok", res)
+	}
+
+	if got := served("gcore") - beforeGcore; got < 1 {
+		t.Errorf("gnetway_probe_total{entry=edge,via=gcore,result=served} grew by %v", got)
+	}
+	if got := served("ru") - beforeRu; got < 1 {
+		t.Errorf("gnetway_probe_total{entry=edge,via=ru,result=served} grew by %v", got)
+	}
+
+	frozen, err := freezeproxy.Listen("127.0.0.1:0", freezeproxy.Options{Target: origin, Down: 16 << 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer frozen.Close()
+	res = gcore(frozen.Addr(), "5.8.16.84")
+	t.Logf("gcore, frozen after 16 KB: %s", res)
+	if res.Outcome != mtclient.ProbeFrozen || res.Elapsed > 2*time.Second {
+		t.Errorf("through the Gcore origin frozen after 16 KB: %s, want frozen within 2 s", res)
 	}
 }
