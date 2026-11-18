@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/langpack"
 )
@@ -38,10 +39,12 @@ import (
 // repository.
 const apiIDEnv = "TELEGRAM_API_ID"
 
-// langpackStore is what import and list need of pkg/langpack.Store.
+// langpackStore is what import, list and coverage need of
+// pkg/langpack.Store.
 type langpackStore interface {
 	Import(ctx context.Context, snap *langpack.Snapshot) (*langpack.ImportResult, error)
 	Languages(ctx context.Context, pack string) ([]langpack.Language, error)
+	Readers(ctx context.Context, pack, lang string) ([]langpack.Reader, error)
 }
 
 // telegramConn is a connection to Telegram (langpack.TelegramClient).
@@ -61,6 +64,18 @@ var (
 	}
 	dialTelegram = func(ctx context.Context, cfg langpack.TelegramConfig) (telegramConn, error) {
 		return langpack.DialTelegram(ctx, cfg)
+	}
+	// openLangpackPush returns the client of the sync pushes: rows of
+	// mq_outbox for the topic of the config's SyncClient (ADR 0012).
+	openLangpackPush = func(configFile string) (langpack.UpdatesMe, error) {
+		var c struct {
+			Mysql      sqlx.Config
+			SyncClient struct{ Topic string }
+		}
+		if err := conf.Load(configFile, &c); err != nil {
+			return nil, fmt.Errorf("config %s: %w", configFile, err)
+		}
+		return sync_client.NewSyncOutboxClient(sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic})
 	}
 )
 
@@ -172,6 +187,7 @@ func langpackImport(args []string, configFile string, stdout io.Writer) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	changed := 0
+	var raised []*langpack.ImportResult
 	for _, path := range files {
 		snap, err := langpack.ReadSnapshot(path)
 		if err != nil {
@@ -184,9 +200,35 @@ func langpackImport(args []string, configFile string, stdout io.Writer) error {
 		if r.Changes() > 0 {
 			changed++
 		}
+		if r.Raised() {
+			raised = append(raised, r)
+		}
 		printImport(stdout, r, *keys)
 	}
 	fmt.Fprintf(stdout, "%d of %d language(s) changed.\n", changed, len(files))
+	if len(raised) == 0 {
+		return nil
+	}
+	// The imports are in: telling the clients comes after them, and its
+	// failure leaves them as they are (the clients find the versions in
+	// help.getConfig).
+	push, err := openLangpackPush(configFile)
+	if err != nil {
+		return fmt.Errorf("the strings are imported, the clients were not told: %w", err)
+	}
+	told, failed := 0, 0
+	for _, r := range raised {
+		n, err := langpack.NotifyChanged(ctx, store, push, r.LangPack, r.LangCode)
+		told += n
+		if err != nil {
+			failed++
+			fmt.Fprintf(os.Stderr, "pluma-admin: %v\n", err)
+		}
+	}
+	fmt.Fprintf(stdout, "%d authorization(s) told of the new versions of %d language(s).\n", told, len(raised))
+	if failed > 0 {
+		return fmt.Errorf("the strings are imported, the clients of %d language(s) were not told", failed)
+	}
 	return nil
 }
 

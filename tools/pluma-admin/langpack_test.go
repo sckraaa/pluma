@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/langpack"
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
@@ -128,19 +129,52 @@ func TestLangpackFetch(t *testing.T) {
 	}
 }
 
-// memLangpackStore records imports.
+// memLangpackStore records imports. A language listed in old was stored at
+// version 4 before, so its import raises it.
 type memLangpackStore struct {
 	imported []string
 	langs    []langpack.Language
+	old      map[string]bool
+	readers  map[string][]langpack.Reader
 }
 
 func (m *memLangpackStore) Import(_ context.Context, s *langpack.Snapshot) (*langpack.ImportResult, error) {
 	m.imported = append(m.imported, s.LangPack+"/"+s.LangCode)
 	r := &langpack.ImportResult{LangPack: s.LangPack, LangCode: s.LangCode, Version: 5, Added: len(s.Strings)}
+	if m.old[s.LangPack+"/"+s.LangCode] {
+		r.OldVersion = 4
+	}
 	if s.LangCode == "cs" {
 		r.Leftovers = map[string][]string{"Welcome": {"Telegramu"}, "Intro": {"Telegramu", "Telegramem"}}
 	}
 	return r, nil
+}
+
+func (m *memLangpackStore) Readers(_ context.Context, pack, lang string) ([]langpack.Reader, error) {
+	return m.readers[pack+"/"+lang], nil
+}
+
+// memPush records the pushes of sync.updatesMe.
+type memPush struct {
+	pushed []string
+	err    error
+}
+
+func (p *memPush) SyncUpdatesMe(_ context.Context, in *sync.TLSyncUpdatesMe) (*mtproto.Void, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	u := in.GetUpdates().GetUpdates()
+	p.pushed = append(p.pushed, fmt.Sprintf("%d/%d %s %s", in.GetUserId(), in.GetPermAuthKeyId(), u[0].GetPredicateName(), u[0].GetLangCode()))
+	return mtproto.EmptyVoid, nil
+}
+
+func withMemPush(t *testing.T) *memPush {
+	p := &memPush{}
+	old := openLangpackPush
+	openLangpackPush = func(string) (langpack.UpdatesMe, error) { return p, nil }
+	t.Cleanup(func() { openLangpackPush = old })
+	return p
 }
 
 func (m *memLangpackStore) Languages(_ context.Context, pack string) ([]langpack.Language, error) {
@@ -192,6 +226,48 @@ func TestLangpackImport(t *testing.T) {
 	}
 	if code, _, errOut = runAdmin("langpack", "import", "-lang", "de", dir); code != 1 || !strings.Contains(errOut, "no snapshot files") {
 		t.Fatalf("no matching files: exit %d %q", code, errOut)
+	}
+}
+
+// After the imports, the authorizations that hold a language whose version
+// went up hear of it; a new language tells nobody, and a failed push leaves
+// the imports in and fails the command.
+func TestLangpackImportTellsClients(t *testing.T) {
+	store := withMemStore(t)
+	store.old = map[string]bool{"android/ru": true, "ios/ru": true}
+	store.readers = map[string][]langpack.Reader{
+		"android/ru": {{UserId: 7, PermAuthKeyId: 70}, {UserId: 8, PermAuthKeyId: 80}},
+		"android/cs": {{UserId: 9, PermAuthKeyId: 90}},
+	}
+	push := withMemPush(t)
+	dir := t.TempDir()
+	for _, pl := range [][2]string{{"android", "cs"}, {"android", "ru"}, {"ios", "ru"}} {
+		s := &langpack.Snapshot{LangPack: pl[0], LangCode: pl[1], Version: 1,
+			Language: langpack.Language{LangCode: pl[1], PluralCode: pl[1]},
+			Strings:  []langpack.String{{Key: "AppName", Value: "Telegram"}}}
+		if _, err := langpack.WriteSnapshot(dir, s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, out, errOut := runAdmin("langpack", "import", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if fmt.Sprint(push.pushed) != "[7/70 updateLangPackTooLong ru 8/80 updateLangPackTooLong ru]" {
+		t.Fatalf("pushed %v", push.pushed)
+	}
+	if !strings.Contains(out, "2 authorization(s) told of the new versions of 2 language(s).\n") {
+		t.Fatalf("output:\n%s", out)
+	}
+
+	push.pushed, push.err = nil, errors.New("mysql is down")
+	store.imported = nil
+	code, _, errOut = runAdmin("langpack", "import", dir)
+	if code != 1 || !strings.Contains(errOut, "the strings are imported, the clients of 1 language(s) were not told") {
+		t.Fatalf("failed push: exit %d %q", code, errOut)
+	}
+	if len(store.imported) != 3 {
+		t.Fatalf("imported %v", store.imported)
 	}
 }
 
