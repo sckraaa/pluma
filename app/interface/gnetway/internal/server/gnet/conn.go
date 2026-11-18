@@ -64,6 +64,9 @@ type connContext struct {
 	// MTProto transport bytes it wrote (without WebSocket or HTTP framing).
 	bytesIn  int64
 	bytesOut int64
+	// probes is the number of path probes the connection asked
+	// (maxConnProbes).
+	probes int
 	// closeReason is why the gateway closes the connection, when it knows
 	// better than "server" (closeReason* in metrics.go).
 	closeReason string

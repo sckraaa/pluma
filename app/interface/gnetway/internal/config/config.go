@@ -55,6 +55,12 @@ type GnetwayConfig struct {
 	// sends a minute (task 008). 0 takes the defaults, 512 and 300.
 	MaxConnsPerIP           int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	KeyExchangesPerIPMinute int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// ProbesPerIPMinute bounds the path probes (pluma.probe, task 113) one
+	// client address may ask a minute, and ProbeConcurrency the probes whose
+	// answer the gateway is sending at once, so that probes do not take the
+	// whole outgoing link. 0 takes the defaults, 30 and 32.
+	ProbesPerIPMinute int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	ProbeConcurrency  int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// EdgePingInterval is how often the Edge entry pings an upgraded
 	// connection: Gcore closes a WebSocket after 30 s without data from the
 	// origin (ADR 0072, "Gcore"), so it must stay below that. 5s..25s.

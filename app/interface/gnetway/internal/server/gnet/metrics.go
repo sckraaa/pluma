@@ -85,8 +85,8 @@ var (
 		Namespace: namespace,
 		Subsystem: "limit",
 		Name:      "refused_total",
-		Help:      "Connections and key exchanges refused by the limits of one address (task 008).",
-		Labels:    []string{"what"}, // conn, key_exchange
+		Help:      "Connections, key exchanges and path probes refused by the limits of one address (tasks 008, 113).",
+		Labels:    []string{"what"}, // conn, key_exchange, probe
 	})
 
 	metricCodecDecodeError = metric.NewCounterVec(&metric.CounterVecOpts{
@@ -134,6 +134,27 @@ var (
 		Name:      "no_client_addr_total",
 		Help:      "Edge upgrade requests refused without a client address in X-Pluma-Client-Addr.",
 		Labels:    []string{"via"},
+	})
+
+	// The path probes (pluma.probe, task 113): what became of each
+	// request (probeResult*) and the bytes of the requests (in) and their
+	// answers (out, MTProto transport bytes), by entry and edge. That the
+	// answer was written does not mean it arrived: what a path carries only
+	// the client knows.
+	metricProbe = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: namespace,
+		Subsystem: "probe",
+		Name:      "total",
+		Help:      "Path probes by entry and result.",
+		Labels:    []string{"entry", "via", "result"},
+	})
+
+	metricProbeBytes = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: namespace,
+		Subsystem: "probe",
+		Name:      "bytes_total",
+		Help:      "Bytes of path probes: in, the requests; out, the answers (MTProto transport bytes).",
+		Labels:    []string{"entry", "via", "direction"},
 	})
 
 	metricEdgePing = metric.NewCounterVec(&metric.CounterVecOpts{
