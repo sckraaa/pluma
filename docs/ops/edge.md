@@ -102,6 +102,7 @@ EDGE_ROUTES=RU,BY:edge,direct:ru,gcore;*:direct,edge:gcore,ru
   - `gnetway_edge_pings_total{via=…}` — ping шлюза;
   - `gnetway_edge_no_client_addr_total{via=…}` — отказы без адреса клиента. Рост — тревога: Gcore перестал слать `X-Forwarded-For`, или кто-то ходит на вход мимо Caddy.
 - `pluma_ipcountry_errors_total` — authsession не ответил о стране: такие клиенты получают запись `*`.
+- Пробы пути (задача 113, контракт — бриф 113, «Контракт пробы»): `gnetway_probe_total{entry,via,result}` — `served` растёт при запусках клиентов новых сборок; `refused_rate` (больше 30 проб в минуту или 8 одновременно с одного адреса), `refused_busy` (32 пробы на шлюз), `refused_conn`, `bad` — единицы в день, рост — смотреть, не упёрлись ли клиенты за одним адресом в предел. `gnetway_probe_bytes_total{direction="out"}` — исходящий трафик проб (оценка брифа ≈ 9 ГБ в месяц на всех). Пределы — `ProbesPerIPMinute` (30) и `ProbeConcurrency` (32) в `gnetway.yaml`, необязательные; отказ клиенты понимают как «пробы не поддерживаются» и не пробуют `failed_ttl_s` (5 мин).
 
 ## Смена секрета
 Новое значение — в Gcore и в `.env`, деплой. Около минуты край отвечает 403; клиенты остаются на прямом пути или на другом крае.
