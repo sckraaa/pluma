@@ -20,7 +20,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -296,5 +298,81 @@ func TestConfigUpdateSecret(t *testing.T) {
 	env["RELEASES_JSON_URL"] = "http://127.0.0.1:9097/dl/releases.json"
 	if c, err := configFromEnv(get); err != nil || c.updateSecret != testUpdateSecret {
 		t.Fatalf("with a secret: %v", err)
+	}
+}
+
+// TestMirror: on a mirror of the site (task 113, MIRROR_HOSTS) the profile
+// sends the device's answer back to the mirror, the enrolment returns to
+// the mirror's install page, and the install link, the manifest and the
+// IPA of a token or of an update ticket are the mirror's; a host that is
+// no mirror is answered with the main site's addresses.
+func TestMirror(t *testing.T) {
+	h, token, _, _ := updateHarness(t)
+	h.srv.cfg.mirrors = []string{"pluma.mirror.example"}
+	const mirror = "https://pluma.mirror.example"
+	ticket := iosupdate.Mint([]byte(testUpdateSecret), 21, 7001, h.now)
+
+	w := h.do("GET", mirror+"/ios/adhoc/profile", nil, nil)
+	if !strings.Contains(w.Body.String(), "<string>"+mirror+"/ios/adhoc/enroll?c=") {
+		t.Fatalf("the profile on the mirror: %d %s", w.Code, w.Body)
+	}
+	c := challengeOf.FindStringSubmatch(w.Body.String())[1]
+	rec := h.do("POST", mirror+"/ios/adhoc/enroll?c="+url.QueryEscape(c), strings.NewReader(enrolmentPlist(c, "00008130-0099AABBCCDDEEFF", "iPhone16,1")), nil)
+	if loc := rec.Header().Get("Location"); rec.Code != http.StatusMovedPermanently || !strings.HasPrefix(loc, mirror+"/iphone/install#t=") {
+		t.Fatalf("the enrolment on the mirror: %d %q %s", rec.Code, loc, rec.Body)
+	}
+
+	var st map[string]string
+	if w := h.do("GET", mirror+"/ios/adhoc/status?t="+url.QueryEscape(token), nil, nil); w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &st) != nil {
+		t.Fatalf("status on the mirror: %d %s", w.Code, w.Body)
+	}
+	if want := "itms-services://?action=download-manifest&url=" + url.QueryEscape(mirror+"/ios/adhoc/manifest?t="+token); st["install"] != want {
+		t.Errorf("the install link on the mirror: %q", st["install"])
+	}
+	for q, ipa := range map[string]string{"t=" + token: "t=" + token, "u=" + ticket: "u=" + ticket} {
+		m := h.do("GET", mirror+"/ios/adhoc/manifest?"+q, nil, nil).Body.String()
+		if !strings.Contains(m, "<string>"+mirror+"/ios/adhoc/app.ipa?"+ipa+"</string>") {
+			t.Errorf("the manifest of %s on the mirror: %s", q[:1], m)
+		}
+		m = h.do("GET", "https://other.example/ios/adhoc/manifest?"+q, nil, nil).Body.String()
+		if !strings.Contains(m, "<string>https://pluma.example/ios/adhoc/app.ipa?"+ipa+"</string>") {
+			t.Errorf("the manifest of %s on another host: %s", q[:1], m)
+		}
+	}
+	// The status for bff names the main site: bff moves it to the mirror
+	// of the client's country itself.
+	if st := h.updateStatus(); st.Manifest != "https://pluma.example/ios/adhoc/manifest" {
+		t.Errorf("the update status: %+v", st)
+	}
+}
+
+// TestConfigMirrorHosts: MIRROR_HOSTS is lower-case host names, none that
+// of PUBLIC_URL.
+func TestConfigMirrorHosts(t *testing.T) {
+	dir := t.TempDir()
+	tokenFile := dir + "/upload-token"
+	if err := os.WriteFile(tokenFile, []byte(testToken), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	env := map[string]string{
+		"PUBLIC_URL": "https://pluma.example", "ASC_KEY_ID": "K", "ASC_ISSUER": "I", "ASC_KEY_FILE": "/k",
+		"SIGN_CERTIFICATE_ID": "C", "SIGN_P12_FILE": "/p", "SIGN_P12_PASSWORD_FILE": "/pw", "UPLOAD_TOKEN_FILE": tokenFile,
+	}
+	get := func(k string) string { return env[k] }
+	for v, want := range map[string][]string{
+		"":                               nil,
+		"pluma.sckra.dev":                {"pluma.sckra.dev"},
+		" pluma.sckra.dev , m2.example ": {"pluma.sckra.dev", "m2.example"},
+	} {
+		env["MIRROR_HOSTS"] = v
+		if c, err := configFromEnv(get); err != nil || !slices.Equal(c.mirrors, want) {
+			t.Errorf("%q: %q, %v", v, c.mirrors, err)
+		}
+	}
+	for _, v := range []string{"Pluma.sckra.dev", "pluma.example", "https://pluma.sckra.dev", "mirror", "pluma.sckra.dev:443"} {
+		env["MIRROR_HOSTS"] = v
+		if _, err := configFromEnv(get); err == nil || !strings.Contains(err.Error(), "MIRROR_HOSTS") {
+			t.Errorf("%q: %v", v, err)
+		}
 	}
 }

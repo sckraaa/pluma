@@ -256,12 +256,16 @@ func (h *harness) enroll(udid, product string) *httptest.ResponseRecorder {
 }
 
 func (h *harness) answer(query, signed, udid, product string) *httptest.ResponseRecorder {
-	plist := `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>` +
-		`<key>CHALLENGE</key><string>` + signed + `</string>` +
+	return h.do("POST", "/ios/adhoc/enroll?c="+url.QueryEscape(query), strings.NewReader(enrolmentPlist(signed, udid, product)), nil)
+}
+
+// enrolmentPlist is the device's answer with the attributes asked for.
+func enrolmentPlist(challenge, udid, product string) string {
+	return `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>` +
+		`<key>CHALLENGE</key><string>` + challenge + `</string>` +
 		`<key>PRODUCT</key><string>` + product + `</string>` +
 		`<key>UDID</key><string>` + udid + `</string>` +
 		`<key>VERSION</key><string>23B85</string></dict></plist>`
-	return h.do("POST", "/ios/adhoc/enroll?c="+url.QueryEscape(query), strings.NewReader(plist), nil)
 }
 
 func tokenOf(t *testing.T, w *httptest.ResponseRecorder) string {
