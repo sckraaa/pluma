@@ -1,0 +1,28 @@
+# The mirror of the site through the Russian node amf (task 113,
+# docs/ops/ru-node.md), for the countries where the names of
+# PLUMA_SITE_DOMAINS are blocked: the same pages, the app installers and
+# their updates under /dl/ (the update prefix of the desktop app and the
+# update link of the iPhone app point here for those countries,
+# PLUMA_RELEASES_ROUTES of bff), the iPhone app from the site and the
+# links. The name points at the node, whose nginx passes the client's TLS
+# as it came, behind PROXY v1, through the plumaru tunnel to port 8443 here,
+# as for the edge (ru-edge.caddy): TLS ends here with home's certificate.
+#
+# The Caddyfile imports this file only when PLUMA_RU_SITE_DOMAIN is set
+# (docker-compose.web.yaml): a site with an empty address would stop the
+# whole Caddyfile. Its content is the snippets of the site in the
+# Caddyfile; its server, :8443, takes PROXY v1 from the node's address in
+# the tunnel only (the servers option there). A request of the node without
+# the header, which would come from the node's own address, is aborted
+# first, as on the edge: the services behind never see the node in place
+# of a visitor.
+{$PLUMA_RU_SITE_DOMAIN}:8443 {
+	@unwrapped remote_ip {$PLUMA_RU_EDGE_PROXY_FROM}
+	route {
+		abort @unwrapped
+		handle {
+			import pluma_site
+		}
+	}
+	import pluma_site_errors
+}

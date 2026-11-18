@@ -245,7 +245,8 @@ func (n *node) fetch(args ...string) answer {
 	n.t.Helper()
 	out := n.sh(`curl -sS -o /tmp/body -D /tmp/head --cacert /test/ca.pem \
 		--resolve r1.pluma.test:443:127.0.0.1 --resolve site.test:443:127.0.0.1 \
-		--resolve r1.pluma.test:80:127.0.0.1 --resolve ru.pluma.test:80:127.0.0.1 --resolve site.test:80:127.0.0.1 "$@"
+		--resolve r1.pluma.test:80:127.0.0.1 --resolve ru.pluma.test:80:127.0.0.1 --resolve site.test:80:127.0.0.1 \
+		--resolve pluma.mirror.test:80:127.0.0.1 --resolve oauth.mirror.test:80:127.0.0.1 "$@"
 cat /tmp/head
 echo "SHA $(sha256sum /tmp/body | cut -d' ' -f1) $(stat -c %s /tmp/body)"`, args...)
 	a := answer{headers: map[string]string{}}
@@ -506,8 +507,16 @@ bash /src/teamgramd/deploy/ru/deploy.sh render /etc/pluma-ru/env /etc/pluma-ru -
 		if a.status != 200 || a.sha != sum([]byte("token1.thumb")) {
 			t.Errorf("the challenge of delivery 202: %v", a)
 		}
-		if a = n.fetch("http://ru.pluma.test/x?y=1"); a.status != 301 || a.headers["location"] != "https://ru.pluma.test/x?y=1" {
-			t.Errorf("port 80 of the edge: %v", a)
+		// The edge and the mirrors: a redirect to https, and the challenges
+		// passed to Caddy at home, which the test has not (no 301, no 404:
+		// the gateway's error of an upstream that does not answer).
+		for _, host := range []string{"ru.pluma.test", "pluma.mirror.test", "oauth.mirror.test"} {
+			if a = n.fetch("http://" + host + "/x?y=1"); a.status != 301 || a.headers["location"] != "https://"+host+"/x?y=1" {
+				t.Errorf("port 80 of %s: %v", host, a)
+			}
+			if a = n.fetch("http://" + host + "/.well-known/acme-challenge/token2"); a.status != 502 && a.status != 504 {
+				t.Errorf("the challenge of %s is not passed home: %v", host, a)
+			}
 		}
 		if a = n.fetch("http://site.test/"); a.status != 301 || a.headers["location"] != "https://site.test/" {
 			t.Errorf("port 80 of the owner's site: %v", a)

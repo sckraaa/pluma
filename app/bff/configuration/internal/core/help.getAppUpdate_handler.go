@@ -20,6 +20,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -63,7 +64,7 @@ const (
 // client, which asks again later.
 func (c *ConfigurationCore) HelpGetAppUpdate(in *mtproto.TLHelpGetAppUpdate) (*mtproto.Help_AppUpdate, error) {
 	none := mtproto.MakeTLHelpNoAppUpdate(nil).To_Help_AppUpdate()
-	if c.svcCtx.Config.ReleasesURL == "" {
+	if c.svcCtx.ReleaseSites == nil {
 		return none, nil
 	}
 	auth, err := c.svcCtx.Dao.AuthsessionGetAuthorization(c.ctx, &authsession.TLAuthsessionGetAuthorization{AuthKeyId: c.MD.PermAuthKeyId})
@@ -122,14 +123,18 @@ func (c *ConfigurationCore) HelpGetAppUpdate(in *mtproto.TLHelpGetAppUpdate) (*m
 // iosUpdateURL is where an Ad Hoc build of the iPhone app gets build: the
 // itms-services link of its manifest with an update ticket of the session
 // (pkg/iosupdate) when the install service gives that build for tickets,
-// the install page of the site otherwise.
+// the install page of the site otherwise. The site is the one of the
+// client's country (task 113): on a mirror of the site the manifest is the
+// mirror's too, and the install service names the IPA on the host it was
+// asked on (docs/ops/ios-install.md).
 //
-// The link is the same for a session, a build and a UTC day: the app shows
-// its update screen again when the answer differs from the one it has
-// (ApplicationContext.swift:589-599 at release-13.2, 24638bc69b), so a
-// link that changed on every request would undo "Skip".
+// The link is the same for a session, a build, a site and a UTC day: the
+// app shows its update screen again when the answer differs from the one
+// it has (ApplicationContext.swift:589-599 at release-13.2, 24638bc69b),
+// so a link that changed on every request would undo "Skip".
 func (c *ConfigurationCore) iosUpdateURL(build int32) string {
-	page := c.svcCtx.Config.ReleasesURL + "/iphone/install"
+	site := c.releaseSite()
+	page := site + "/iphone/install"
 	if c.svcCtx.IOSUpdate == nil {
 		return page
 	}
@@ -141,8 +146,17 @@ func (c *ConfigurationCore) iosUpdateURL(build int32) string {
 	if st.Build != build {
 		return page
 	}
+	manifest := st.Manifest
+	// The install service names the manifest on the main site; a client
+	// of a mirror's country gets it on the mirror. A manifest elsewhere
+	// (PLUMA_IOSINSTALL_URL is not the releases' site) is left as it is.
+	if main := c.svcCtx.ReleaseSites.Main(); site != main {
+		if rest, ok := strings.CutPrefix(manifest, main+"/"); ok {
+			manifest = site + "/" + rest
+		}
+	}
 	secret := []byte(c.svcCtx.Config.IOSUpdate.Secret)
-	return iosupdate.InstallURL(st.Manifest, iosupdate.Mint(secret, build, c.MD.PermAuthKeyId, time.Now()))
+	return iosupdate.InstallURL(manifest, iosupdate.Mint(secret, build, c.MD.PermAuthKeyId, time.Now()))
 }
 
 // currentRelease is the platform's current release, nil for none or on a

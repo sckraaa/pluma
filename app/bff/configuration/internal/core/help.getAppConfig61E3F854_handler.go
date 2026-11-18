@@ -30,16 +30,17 @@ func (c *ConfigurationCore) HelpGetAppConfig61E3F854(in *mtproto.TLHelpGetAppCon
 }
 
 // appConfig is the app config of this client: the live config with
-// pluma_edge of the country of the client's address (task 109, ADR 0072).
-// The country is looked up only when a record of EDGE_ROUTES names
-// countries; an unknown one (no address, no GeoIP answer) gets the record
-// "*".
+// pluma_edge of the country of the client's address (task 109, ADR 0072)
+// and pluma_probe of that country (task 113, ADR 0073 §7). The country is
+// looked up only when one of them depends on it; an unknown one (no
+// address, no GeoIP answer) gets the record "*" of EDGE_ROUTES and an
+// empty country in pluma_probe.
 func (c *ConfigurationCore) appConfig() *appconfig.AppConfig {
 	cfg := c.svcCtx.AppConfig.Current(c.ctx)
-	edges := c.svcCtx.Edges
+	edges, probe := c.svcCtx.Edges, c.svcCtx.Probe
 	country := ""
-	if edges.ByCountry() {
+	if edges.ByCountry() || probe != nil {
 		country = c.svcCtx.Countries.Country(c.ctx, c.MD.GetClientAddr())
 	}
-	return edges.Config(cfg, country)
+	return probe.Config(edges.Config(cfg, country), country)
 }

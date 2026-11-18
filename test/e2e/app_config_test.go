@@ -96,6 +96,12 @@ func TestAppConfig(t *testing.T) {
 		}
 		delete(got.(map[string]any), "pluma_edge")
 	}
+	// pluma_probe is set over the file for every client, with its country
+	// (task 113, path_probe_test.go): none for the stand's own network.
+	if m, _ := got.(map[string]any); !reflect.DeepEqual(m["pluma_probe"], any(wantStackProbe(""))) {
+		t.Errorf("pluma_probe %v, want %v", m["pluma_probe"], wantStackProbe(""))
+	}
+	delete(got.(map[string]any), "pluma_probe")
 	if !reflect.DeepEqual(got, any(want)) {
 		t.Errorf("help.getAppConfig: %v, want app_config.json %v", got, want)
 	}
@@ -138,6 +144,7 @@ func TestAppConfig(t *testing.T) {
 	if edgeWSURLs != "" {
 		delete(oldGot.(map[string]any), "pluma_edge")
 	}
+	delete(oldGot.(map[string]any), "pluma_probe")
 	if got := oldGot; !reflect.DeepEqual(got, any(want)) {
 		t.Errorf("help.getAppConfig (JSONValue): %v, want app_config.json %v", got, want)
 	}

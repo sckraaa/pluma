@@ -106,8 +106,9 @@ services:
       - "127.0.0.1::11445"
 
   # Caddy of docker-compose.web.yaml with the sites of the edges (task 109,
-  # edge_origin_test.go): the tests reach the origin of the Gcore edge on
-  # 443 and the Russian node's edge on 8443, on ephemeral loopback ports, by
+  # edge_origin_test.go) and the mirrors of task 113: the tests reach the
+  # origin of the Gcore edge and the site on 443 and the Russian node's
+  # edge and the mirrors on 8443, on ephemeral loopback ports, by
   # *.localhost names, which Caddy certifies with its own CA. run.sh sets
   # the names and the plain Caddy image of the web client's (no site of
   # Web K in it). The tests stand in for the node: its PROXY v1 comes from
@@ -124,6 +125,12 @@ services:
       - ./teamgramd/deploy/web/maps-public.caddy:/etc/caddy/maps-public.caddy:ro
       - ./teamgramd/deploy/web/edge-origin.caddy:/etc/caddy/edge-origin.caddy:ro
       - ./teamgramd/deploy/web/ru-edge.caddy:/etc/caddy/ru-edge.caddy:ro
+      # The mirrors through the node (task 113, path_probe_test.go), and
+      # the site's progress, which the tests read on the site and on its
+      # mirror.
+      - ./teamgramd/deploy/web/ru-site.caddy:/etc/caddy/ru-site.caddy:ro
+      - ./teamgramd/deploy/web/ru-oauth.caddy:/etc/caddy/ru-oauth.caddy:ro
+      - ./docs/project:/pluma-progress:ro
       - caddy_data:/data
     ports: !override
       - "127.0.0.1::443"
@@ -133,6 +140,10 @@ services:
   # The pages of pluma.chat links (task 026): the tests read a page on an
   # ephemeral loopback port (PLUMA_E2E_LINKS).
   links:
+    # The provider's name, the same Caddy's site of the login has (web
+    # above): the mirror of the login hands links that name (task 113).
+    environment:
+      PLUMA_OAUTH_DOMAIN: oauth.localhost
     ports:
       - "127.0.0.1::9096"
 

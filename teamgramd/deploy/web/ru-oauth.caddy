@@ -1,0 +1,24 @@
+# The mirror of the login on sites through the Russian node amf (task 113,
+# docs/ops/ru-node.md), for the countries where the name of
+# PLUMA_OAUTH_DOMAIN is blocked: the pages of the provider in links, as
+# that site serves them. links tells the provider by the Host header, so
+# the snippet hands it PLUMA_OAUTH_DOMAIN: the provider is the same one,
+# with the same issuer in its tokens. Its cookies are the browser's for the
+# mirror's own name. The name points at the node, whose nginx passes the
+# client's TLS as it came, behind PROXY v1, through the plumaru tunnel to
+# port 8443 here, as for the edge (ru-edge.caddy): TLS ends here with
+# home's certificate, and X-Forwarded-For names the address of the PROXY
+# header, the visitor's.
+#
+# The Caddyfile imports this file only when PLUMA_RU_OAUTH_DOMAIN is set
+# (docker-compose.web.yaml), for the reason of ru-site.caddy. A request of
+# the node without the PROXY header is aborted first, as there.
+{$PLUMA_RU_OAUTH_DOMAIN}:8443 {
+	@unwrapped remote_ip {$PLUMA_RU_EDGE_PROXY_FROM}
+	route {
+		abort @unwrapped
+		handle {
+			import pluma_oauth
+		}
+	}
+}

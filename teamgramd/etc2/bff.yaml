@@ -58,8 +58,13 @@ TelegramBot:
 
 # The site the releases of the client apps are on (task 054, ADR 0035):
 # /dl/ of it serves them; help.getAppUpdate and help.getConfig name it.
-# Empty: no update is offered.
+# Empty: no update is offered. PLUMA_RELEASES_ROUTES (task 113) names a
+# mirror of the site for the clients of some countries, records
+# "<countries>=<site>" separated by ";": RU,BY=https://pluma.sckra.dev, the
+# site through the Russian node (docs/ops/ru-node.md). Empty: the site for
+# everyone; a wrong value stops bff.
 ReleasesURL: "${PLUMA_RELEASES_URL}"
+ReleasesRoutes: "${PLUMA_RELEASES_ROUTES}"
 
 # The update of the iPhone app from the app itself (task 085,
 # docs/ops/ios-install.md): the secret of the update tickets, the same the
@@ -116,7 +121,7 @@ Maps:
 # the clients try when the direct address fails. bff hands them pluma_edge
 # in help.getAppConfig, picked by the country of the client's address
 # (authsession.getIpCountry). EDGE_WS_URLS names the edges,
-# "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.pluma.chat/apiws";
+# "gcore=wss://<prefix>.gcorecdn.com/apiws,ru=wss://ru.sckra.dev/apiws";
 # empty: no pluma_edge, and the clients keep the list built into them.
 # EDGE_ROUTES, records "<countries or *>:<order>:<edges>" separated by ";",
 # e.g. "RU:edge,direct:ru,gcore;*:direct,edge:gcore,ru"; empty: every edge
@@ -126,6 +131,30 @@ Edge:
   WSURLs: "${EDGE_WS_URLS}"
   Routes: "${EDGE_ROUTES}"
   StickyS: "${EDGE_STICKY_S}"
+
+# The path probes of the patched clients (task 113, ADR 0073,
+# docs/ops/edge.md): bff hands them pluma_probe in help.getAppConfig, the
+# sizes, timers and ratios of their probes and of the choice of path, with
+# the country of the client's address, by which the clients remember the
+# best path. Each empty PATH_PROBE_* takes the default of the brief; a value
+# out of its range stops bff.
+Probe:
+  GateDown: "${PATH_PROBE_GATE_DOWN}"
+  RankDown: "${PATH_PROBE_RANK_DOWN}"
+  Up: "${PATH_PROBE_UP}"
+  StallMs: "${PATH_PROBE_STALL_MS}"
+  DeadlineMs: "${PATH_PROBE_DEADLINE_MS}"
+  SuspectMs: "${PATH_PROBE_SUSPECT_MS}"
+  ReprobeS: "${PATH_PROBE_REPROBE_S}"
+  RankMinIntervalS: "${PATH_PROBE_RANK_MIN_INTERVAL_S}"
+  MinDwellS: "${PATH_PROBE_MIN_DWELL_S}"
+  SwitchRatio: "${PATH_PROBE_SWITCH_RATIO}"
+  SwitchRatioNow: "${PATH_PROBE_SWITCH_RATIO_NOW}"
+  EdgeProbeIfDirectMs: "${PATH_PROBE_EDGE_PROBE_IF_DIRECT_MS}"
+  BadTTLS: "${PATH_PROBE_BAD_TTL_S}"
+  FailedTTLS: "${PATH_PROBE_FAILED_TTL_S}"
+  RaceStaggerMs: "${PATH_PROBE_RACE_STAGGER_MS}"
+  ConfirmS: "${PATH_PROBE_CONFIRM_S}"
 
 # The built-in inline bots @gif and @pic (task 099, ADR 0062,
 # docs/ops/inline-bots.md). @pic searches pictures with the SearXNG of

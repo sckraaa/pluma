@@ -165,12 +165,12 @@ func (s *server) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	c := s.newChallenge()
 	s.signer.logf("iosinstall: a profile for %s", clientAddress(r))
-	enroll := s.cfg.publicURL + "/ios/adhoc/enroll?c=" + url.QueryEscape(c)
+	enroll := s.cfg.site(r) + "/ios/adhoc/enroll?c=" + url.QueryEscape(c)
 	ru := strings.HasPrefix(strings.ToLower(r.Header.Get("Accept-Language")), "ru")
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
 	w.Header().Set("Content-Disposition", `attachment; filename="pluma.mobileconfig"`)
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = io.WriteString(w, profileServicePlist(enroll, c, newUUID(), ru))
+	_, _ = io.WriteString(w, profileServicePlist(enroll, c, newUUID(), ru)) //nolint:gosec // G705: the host is PUBLIC_URL's or a name of MIRROR_HOSTS (config.site), the plist escapes the rest
 }
 
 // profileServicePlist is the profile of phase 1 of "Over-the-Air Profile
@@ -289,7 +289,7 @@ func (s *server) enroll(w http.ResponseWriter, r *http.Request) {
 	s.signer.logf("iosinstall: an enrolment from %s: %s, iOS %s", addr, product, truncate(attrs["VERSION"], 20))
 	s.signer.kick()
 	// Apple: answer phase 2 with a redirect; Safari opens it.
-	http.Redirect(w, r, s.cfg.pageURL+"#t="+token, http.StatusMovedPermanently)
+	http.Redirect(w, r, s.cfg.page(r)+"#t="+token, http.StatusMovedPermanently) //nolint:gosec // G710: the site is PUBLIC_URL or a name of MIRROR_HOSTS (config.site), never the request's own
 }
 
 var errDailyLimit = errors.New("daily limit of new devices")
@@ -364,7 +364,7 @@ func (s *server) status(w http.ResponseWriter, r *http.Request) {
 		// page names the build too (ADR 0037).
 		out["number"] = st.Build.Number
 		out["install"] = "itms-services://?action=download-manifest&url=" +
-			url.QueryEscape(s.cfg.publicURL+"/ios/adhoc/manifest?t="+d.Token)
+			url.QueryEscape(s.cfg.site(r)+"/ios/adhoc/manifest?t="+d.Token)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
@@ -403,7 +403,7 @@ func (s *server) manifest(w http.ResponseWriter, r *http.Request) {
 					<key>kind</key>
 					<string>software-package</string>
 					<key>url</key>
-					<string>`+xmlEscape(s.cfg.publicURL+"/ios/adhoc/app.ipa?"+credential.query.Encode())+`</string>
+					<string>`+xmlEscape(s.cfg.site(r)+"/ios/adhoc/app.ipa?"+credential.query.Encode())+`</string>
 				</dict>
 			</array>
 			<key>metadata</key>

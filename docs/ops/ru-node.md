@@ -1,16 +1,18 @@
 # Российский узел amf
 
-Задача 109, ADR 0072 §8. VPS **amf** (194.87.226.185, Timeweb, Москва, Ubuntu 26.04) несёт для пользователей из России три роли, все — только шифр:
+Задачи 109 и 113, ADR 0072 §8. VPS **amf** (194.87.226.185, Timeweb, Москва, Ubuntu 26.04) несёт для пользователей из России четыре роли, все — только шифр. Имена `*.pluma.chat` в России заблокированы, поэтому у узла свои имена — пока на личном домене владельца `sckra.dev` (решение 8 задачи 113; другой домен — только смена переменных, без пересборки):
 
-1. **Выдача файлов 202** — `https://r1.pluma.chat`, nginx Pluma с кэшем на узле (TLS на узле, как у Gcore).
-2. **Край мессенджера** — `wss://ru.pluma.chat/apiws`, чистая TCP-труба: TLS заканчивается дома в Caddy.
-3. **TURN звонков** — coturn на 3478 и 49160–49659/udp со своим секретом.
+1. **Выдача файлов 202** — `https://r1.sckra.dev`, nginx Pluma с кэшем на узле (TLS на узле, как у Gcore).
+2. **Край мессенджера и Web K** — `wss://ru.sckra.dev/apiws` и сайт Web K на том же имени, чистая TCP-труба: TLS заканчивается дома в Caddy.
+3. **Зеркала сайта и входа на сайты** (задача 113) — `https://pluma.sckra.dev` (сайт целиком: страницы, установщики и обновления приложений в `/dl/`, установка iPhone, ссылки) и `https://oauth.sckra.dev` (вход на сайты через Pluma). Та же труба, что у края: TLS заканчивается дома в Caddy.
+4. **TURN звонков** — coturn на 3478 и 49160–49659/udp со своим секретом.
 
 Ядра, базы, ключей авторизации и секретов дома на узле нет. Docker на узле нет: службы из пакетов Ubuntu, свой экземпляр nginx. Узел общий: на нём сайт владельца `form.amf25.ru` (nginx владельца на 80 и 443); его не ломать.
 
 ```
-клиент ──443, SNI ru.pluma.chat──► nginx stream владельца ──PROXY v1, TLS как есть──► туннель ──► дом 10.78.0.2:8443 Caddy ──► gnetway Edge
-клиент ──443, SNI r1.pluma.chat──► nginx stream владельца ──PROXY v1──► nginx Pluma 127.0.0.1:9443 (TLS, подпись, кэш) ──► туннель ──► дом 10.78.0.2:443 Caddy, источник CDN
+клиент ──443, SNI ru.sckra.dev──► nginx stream владельца ──PROXY v1, TLS как есть──► туннель ──► дом 10.78.0.2:8443 Caddy ──► gnetway Edge, статика Web K
+клиент ──443, SNI pluma.sckra.dev, oauth.sckra.dev──► так же ──► дом 10.78.0.2:8443 Caddy ──► сайт (releases, iosinstall, links), links (вход)
+клиент ──443, SNI r1.sckra.dev──► nginx stream владельца ──PROXY v1──► nginx Pluma 127.0.0.1:9443 (TLS, подпись, кэш) ──► туннель ──► дом 10.78.0.2:443 Caddy, источник CDN
 клиент ──UDP 3478, 49160–49659──► coturn Pluma
 дом ──WireGuard plumaru, MTU 1280──► amf 51820/udp;   Prometheus дома ──► 10.78.0.1:9100
 ```
@@ -37,9 +39,9 @@
 Только через `owner-nginx.sh install`, один раз и по слову владельца (решение 14 брифа 109). Выкладка (`deploy.sh`) nginx владельца не трогает и не перезагружает.
 
 - `/etc/nginx/stream.d/pluma-upstreams.conf` — направления `pluma_ru_edge` (`10.78.0.2:8443`) и `pluma_ru_files` (`127.0.0.1:9443`);
-- `/etc/nginx/stream.d/pluma-sni.map` — имена → эти направления (имя не на `.conf`: `stream.d/*.conf` включается на уровне `stream {}`);
+- `/etc/nginx/stream.d/pluma-sni.map` — имена → эти направления: имя края и имена зеркал (`PLUMA_RU_MIRROR_DOMAINS`) → `pluma_ru_edge`, имя выдачи 202 → `pluma_ru_files` (имя файла не на `.conf`: `stream.d/*.conf` включается на уровне `stream {}`);
 - строка `include /etc/nginx/stream.d/pluma-sni.map;` в `map $ssl_preread_server_name` файла `sni.conf` (сразу после заголовка карты);
-- `/etc/nginx/conf.d/pluma-acme-http.conf` — порт 80: вызовы HTTP-01 для `r1` из `/var/lib/pluma-ru/acme`, для `ru` — домой на `http://10.78.0.2:80`; остальное — 301 на `https://`.
+- `/etc/nginx/conf.d/pluma-acme-http.conf` — порт 80: вызовы HTTP-01 для `r1` из `/var/lib/pluma-ru/acme`, для `ru` и зеркал — домой на `http://10.78.0.2:80`; остальное — 301 на `https://`.
 
 `owner-nginx.sh check` читает `nginx -T` и `nginx -V` и ничего не меняет. Проверяет: модули `secure_link`, `slice`, `realip`, `v2`, `ssl` в сборке (в пакете Ubuntu 26.04, 1.28.3, они есть — `nginx -V` на amf 2026-11-17); одна карта `$ssl_preread_server_name` в `stream {}`; её сервер `stream` слушает 443 на всех IPv4 (дом проверяет выдачу на `10.78.0.1:443`), шлёт PROXY (`proxy_protocol on`) и ведёт по карте; `stream.d/*.conf` включается в `stream {}`, `conf.d/*.conf` — в `http {}`; имена Pluma не заняты ни в карте, ни в `server_name` сайтов владельца. Печатает `state installed` или `state not installed`.
 
@@ -53,8 +55,9 @@
 | Переменная | Что | Как получить |
 |---|---|---|
 | `PLUMA_RU_PUBLIC_IPV4` | публичный адрес узла (TURN: `listening-ip`, `relay-ip`, `external-ip`) | `194.87.226.185` |
-| `PLUMA_RU_FILES_DOMAIN` | имя выдачи 202 | `r1.pluma.chat` |
-| `PLUMA_RU_EDGE_DOMAIN` | имя края | `ru.pluma.chat` |
+| `PLUMA_RU_FILES_DOMAIN` | имя выдачи 202 | `r1.sckra.dev` |
+| `PLUMA_RU_EDGE_DOMAIN` | имя края и Web K | `ru.sckra.dev` |
+| `PLUMA_RU_MIRROR_DOMAINS` | необязательно (задача 113): другие имена, TLS которых идёт домой, как у края, — зеркала сайта и входа на сайты, через запятую без пробелов, до 8, не совпадают с именами края и выдачи 202 | `pluma.sckra.dev,oauth.sckra.dev`; дома те же имена — `PLUMA_RU_SITE_DOMAIN` и `PLUMA_RU_OAUTH_DOMAIN` |
 | `PLUMA_CDN_ORIGIN_DOMAIN` | имя источника CDN дома (SNI и `Host` запросов домой) | то же, что в `.env` дома |
 | `PLUMA_WEB_DOMAIN` | сайт Web K (CORS) | то же, что в `.env` дома |
 | `CDN_RU_TOKEN_KEY` | ключ подписи выдачи 202 (формула Secure Token Gcore), 6–32 символа `A-Z a-z 0-9 . _ ~ -` | `openssl rand -hex 16`; то же значение в `.env` дома |
@@ -74,7 +77,7 @@ grep -E '^CALLS_TURN_SECRETS=' .env | sed -nE 's/^CALLS_TURN_SECRETS=(.*,)?(ru=[
 ```
 
 ## Первое включение
-Порядок всего включения — бриф 109, «Эксплуатация», «Российский узел amf». Здесь — шаги на узле. Перед началом: туннель поднят (`tunnel.sh --link ru`, часть 9; `wg show plumaru` на обеих сторонах, `ping -M do -s 1252 10.78.0.1` из дома), A-записи `ru` и `r1` → 194.87.226.185 без проксирования Cloudflare.
+Порядок всего включения — бриф 109, «Эксплуатация», «Российский узел amf». Здесь — шаги на узле. Перед началом: туннель поднят (`tunnel.sh --link ru`, часть 9; `wg show plumaru` на обеих сторонах, `ping -M do -s 1252 10.78.0.1` из дома), A-записи `ru`, `r1` и зеркал → 194.87.226.185 без проксирования Cloudflare.
 
 1. **Переменные.** На amf: `install -d -m 0755 /etc/pluma-ru`, файл `/etc/pluma-ru/env` (0600) по таблице выше.
 2. **Выкладка.** С Mac:
@@ -92,7 +95,7 @@ grep -E '^CALLS_TURN_SECRETS=' .env | sed -nE 's/^CALLS_TURN_SECRETS=(.*,)?(ru=[
    ```bash
    /opt/pluma-ru/src/teamgramd/deploy/ru/deploy.sh cert-register   # печатает строку CAA с accounturi аккаунта узла
    ```
-   Владелец добавляет эту запись CAA на имя `r1.pluma.chat` (проверка владельца 7 брифа): записи CAA `pluma.chat` разрешают только аккаунт дома, а на имени с собственными CAA записи родителя не действуют (RFC 8659 — по памяти, НЕ ПРОВЕРЕНО; проверка 7 это и проверяет: `dig CAA r1.pluma.chat` — только новая запись). Затем:
+   Владелец добавляет эту запись CAA на имя выдачи 202 (`r1.sckra.dev`; проверка владельца 7 брифа 109): записи CAA зоны разрешают только аккаунт дома, а на имени с собственными CAA записи родителя не действуют (RFC 8659 — по памяти, НЕ ПРОВЕРЕНО; проверка 7 это и проверяет: `dig CAA r1.sckra.dev` — только новая запись). Затем:
    ```bash
    /opt/pluma-ru/src/teamgramd/deploy/ru/deploy.sh cert-issue      # HTTP-01 через порт 80 владельца, ключ ECDSA P-256, затем nginx Pluma
    ```
@@ -102,6 +105,20 @@ grep -E '^CALLS_TURN_SECRETS=' .env | sed -nE 's/^CALLS_TURN_SECRETS=(.*,)?(ru=[
    echo '[{"targets":["10.78.0.1:9100"],"labels":{"node":"amf"}}]' | sudo tee /opt/pluma/prometheus-targets/node-ru.json
    ```
 6. **Проверки** — раздел «Проверка».
+
+## Зеркала сайта и входа на сайты (задача 113)
+Сайт `pluma.chat` и вход на сайты `oauth.pluma.chat` в России заблокированы. Зеркала отдают то же самое под именами узла: Caddy дома собирает сайты зеркал из тех же сниппетов Caddyfile, что и основные (`teamgramd/deploy/web/ru-site.caddy`, `ru-oauth.caddy`), так что зеркало не расходится с оригиналом. Узел ничего не расшифровывает: TLS зеркал, как у края, идёт домой на `:8443` с PROXY v1, сертификаты выпускает Caddy дома (HTTP-01 через порт 80 узла).
+
+- **Сайт** (`pluma.sckra.dev`): страницы, `/dl/` (установщики и обновления приложений), установка iPhone (`/ios/adhoc/`), ссылки. Обновления: bff по стране клиента (`PLUMA_RELEASES_ROUTES`, `docs/ops/releases.md`) отдаёт Desktop префикс обновлений, а iPhone — ссылку обновления на зеркале; служба установки iPhone (`MIRROR_HOSTS` = `PLUMA_RU_SITE_DOMAIN`) называет манифест и IPA на том имени, на которое пришёл запрос. `/dl/<платформа>/latest` отвечает переходом по пути того же сайта, так что прямая ссылка на установщик работает и на зеркале. Android обновляется документом через MTProto — через край, правок не нужно.
+- **Вход на сайты** (`oauth.sckra.dev`): страницы провайдера в links. links узнаёт провайдера по `Host`, поэтому Caddy передаёт ему имя `PLUMA_OAUTH_DOMAIN`: провайдер тот же, `iss` токенов прежний. Сайт, который пускает пользователей из России, направляет их на `https://oauth.sckra.dev/auth?...` (обмен кода на токен — сервер к серверу, по-прежнему `oauth.pluma.chat`).
+
+**Включение** (оператор; DNS — владелец):
+1. DNS: A-записи `pluma.sckra.dev` и `oauth.sckra.dev` → `194.87.226.185`, без проксирования. CAA зоны должны разрешать аккаунт ACME дома (как для `ru.sckra.dev`, который уже работает).
+2. amf: в `/etc/pluma-ru/env` строка `PLUMA_RU_MIRROR_DOMAINS=pluma.sckra.dev,oauth.sckra.dev`; выкладка (`deploy.sh`), затем `owner-nginx.sh check` и `owner-nginx.sh install` — изменились карта SNI и порт 80 владельца.
+3. Дом, `.env`: `PLUMA_RU_SITE_DOMAIN=pluma.sckra.dev`, `PLUMA_RU_OAUTH_DOMAIN=oauth.sckra.dev`, `PLUMA_RELEASES_ROUTES=RU,BY=https://pluma.sckra.dev` (страны — те же, что у края в `EDGE_ROUTES`); деплой с `docker-compose.ru.yaml`, образ службы установки iPhone — с этой версии (переменная `MIRROR_HOSTS`).
+4. Проверка: `curl -sSI https://pluma.sckra.dev/` и `https://pluma.sckra.dev/dl/releases.json` — 200; `curl -sS https://oauth.sckra.dev/.well-known/openid-configuration` — документ с `"issuer":"https://oauth.pluma.chat"`; `curl -sSI http://pluma.sckra.dev/x` — 301. Из России — проверка владельца 6 брифа 113.
+
+Ограничения: страницы сайта и провайдера сами ссылаются на `pluma.chat` там, где адрес задан в их коде (кнопки установки берут адрес из `releases.json`, сборка сайта принимает только адреса `https://pluma.chat/dl/…`; аватары и ссылка в приложение на странице входа) — это правки `pluma-site` и links, вне этой части задачи 113 (открытый вопрос).
 
 ## Выкладка (обновление)
 ```bash
@@ -115,11 +132,11 @@ ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
 - Службы: `systemctl status pluma-ru-nginx pluma-ru-turn pluma-ru-node-exporter pluma-ru-wgstat.timer pluma-ru-certbot.timer`.
 - Выдача 202 из дома (через туннель; URL канарейки — `pluma-admin cdn canary-url 202`, как в `docs/ops/cdn.md`, «Проверки владельца»):
   ```bash
-  curl -sS -D - -o /dev/null --resolve r1.pluma.chat:443:10.78.0.1 -H 'Range: bytes=0-99' '<URL канарейки>'   # 206, Content-Range: bytes 0-99/262144
-  curl -sS -D - -o /dev/null --resolve r1.pluma.chat:443:10.78.0.1 '<URL из canary-url -expired>'          # 410
+  curl -sS -D - -o /dev/null --resolve r1.sckra.dev:443:10.78.0.1 -H 'Range: bytes=0-99' '<URL канарейки>'   # 206, Content-Range: bytes 0-99/262144
+  curl -sS -D - -o /dev/null --resolve r1.sckra.dev:443:10.78.0.1 '<URL из canary-url -expired>'          # 410
   ```
   Снаружи то же без `--resolve`.
-- Порт 80: `curl -sSI http://r1.pluma.chat/x` и `http://ru.pluma.chat/x` — 301 на `https://`.
+- Порт 80: `curl -sSI http://r1.sckra.dev/x`, `http://ru.sckra.dev/x` и зеркал — 301 на `https://`.
 - Метрики: `curl -s http://10.78.0.1:9100/metrics | grep '^pluma_'` из дома.
 - TURN: `turnutils_uclient` с учётными данными записи `@ru` (как в `docs/ops/calls.md`) или проверка владельца 11.
 - Сертификат: `certbot certificates --config-dir /etc/pluma-ru/letsencrypt`; продление: `certbot renew --dry-run --config-dir /etc/pluma-ru/letsencrypt --work-dir /var/lib/pluma-ru/certbot --logs-dir /var/log/pluma-ru/certbot`.
@@ -166,7 +183,7 @@ ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
 - TURN узла из списка звонков: убрать запись `@ru` из `CALLS_ICE_SERVERS` дома, деплой.
 
 ## Что видит узел и его хостер
-Адреса пользователей, которые ходят через узел, время и объёмы; имена `ru`/`r1` в SNI; шифр файлов в кэше (до 36 ч без запросов) и диапазоны; пакеты SRTP звонков через TURN; внешний адрес домашнего роутера (источник WireGuard). Не видит: содержимое MTProto (TLS края заканчивается дома), ключи и хэши файлов, голос и видео звонков. Секреты на узле — только его собственные: ключ подписи и значение доступа выдачи 202, секрет TURN узла.
+Адреса пользователей, которые ходят через узел, время и объёмы; имена `ru`, `r1` и зеркал в SNI; шифр файлов в кэше (до 36 ч без запросов) и диапазоны; пакеты SRTP звонков через TURN; внешний адрес домашнего роутера (источник WireGuard). Не видит: содержимое MTProto (TLS края заканчивается дома), ключи и хэши файлов, голос и видео звонков. Секреты на узле — только его собственные: ключ подписи и значение доступа выдачи 202, секрет TURN узла.
 
 ## Не проверено
 - Отвечает ли Caddy на TLS-ALPN-01 за PROXY на `:8443`; HTTP-01 через порт 80 (`pluma-acme-http.conf`) работает независимо.

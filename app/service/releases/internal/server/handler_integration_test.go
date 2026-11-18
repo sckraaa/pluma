@@ -170,7 +170,7 @@ func TestRelease(t *testing.T) {
 	}
 
 	a := get(t, srv, "/dl/android/latest")
-	if a.code != http.StatusFound || a.header.Get("Location") != "https://pluma.example/dl/android/12.9.1.1/Pluma-12.9.1.1.apk" {
+	if a.code != http.StatusFound || a.header.Get("Location") != "/dl/android/12.9.1.1/Pluma-12.9.1.1.apk" {
 		t.Errorf("latest: %d %s", a.code, a.header.Get("Location"))
 	}
 	a = get(t, srv, "/dl/android/12.9.1.1/Pluma-12.9.1.1.apk")

@@ -20,6 +20,8 @@ type (
 	Config = config.Config
 	// EdgeConfig is the Edge block of bff.yaml (task 109).
 	EdgeConfig = config.EdgeConfig
+	// ProbeConfig is the Probe block of bff.yaml (task 113).
+	ProbeConfig = config.ProbeConfig
 )
 
 func New(c Config) *service.Service {

@@ -18,14 +18,14 @@
 - Выдача выходит из маршрута до конца месяца (UTC), когда её трафик за месяц (байты источника + оценка отдачи Gcore) достиг `CDN_GCORE_MONTHLY_GB`.
 
 ## Выдача 202 и маршрут по стране (задача 109)
-- **Выдача 202** — nginx Pluma на российском узле amf (`https://r1.pluma.chat`, `docs/ops/ru-node.md`). Подпись — та же формула Secure Token, что у Gcore (`gcore-md5`), со своим ключом `CDN_RU_TOKEN_KEY`; nginx узла проверяет её модулем `secure_link`. Кэш — на узле, куски по 1 МиБ.
+- **Выдача 202** — nginx Pluma на российском узле amf (`https://r1.sckra.dev`, `docs/ops/ru-node.md`). Подпись — та же формула Secure Token, что у Gcore (`gcore-md5`), со своим ключом `CDN_RU_TOKEN_KEY`; nginx узла проверяет её модулем `secure_link`. Кэш — на узле, куски по 1 МиБ.
 - **Маршрут по стране** — `CDN_ROUTES`, записи `<страны через запятую или *>:<выдачи по порядку>` через `;`, ровно одна запись `*`, страна — не больше чем в одной записи. Рекомендуемое значение: `RU,BY:202,201;*:201`.
   - Страну адреса клиента (`MD.ClientAddr`) называет `authsession.getIpCountry` по базе GeoIP дома, ответы кэшируются в bff (`pkg/ipcountry`, 10 000 адресов на час). Спрашивается только у клиента с `pluma_cdn`, которому может уйти редирект, и только если в маршруте есть записи со странами.
   - Неизвестная страна (нет базы, частный адрес, authsession не ответил — `pluma_ipcountry_errors_total`) — запись `*`.
   - Внутри записи — как раньше: первая здоровая выдача в бюджете, которую ключ не избегает; выбор держится за ключом 10 минут. Удержание помнит запись: клиент, сменивший страну (включил или выключил VPN), сразу получает выдачу своей новой записи.
   - Клиент из России при нездоровой 202 уходит на 201 (следующую в записи), при отказе обеих — качает из дома.
 - **Источник различает выдачи по `X-Pluma-Origin-Auth`.** У каждой выдачи своё значение: у 201 — `CDN_ORIGIN_AUTH`, у 202 — `CDN_RU_ORIGIN_AUTH`. Источник сравнивает заголовок со всеми значениями за постоянное время и считает байты той выдаче, чьё значение пришло (бюджет `cdn_delivery_usage`, метрики по `dc`). Две выдачи `gcore-md5` с одним значением (например, пустой `CDN_RU_ORIGIN_AUTH` — тогда 202 взяла бы общий `CDN_ORIGIN_AUTH`) — bff не стартует: их байты не различить.
-- **Проверка 202** — та же канарейка раз в минуту, но соединение идёт на `CDN_RU_HEALTH_ADDR` (`10.78.0.1:443`, nginx `stream` узла через туннель); SNI, `Host` и имя в сертификате — `r1.pluma.chat`, сертификат проверяется. Исходящий трафик дома идёт через Hetzner, а путь Hetzner → amf может быть закрыт так же, как обратный (не проверено). Так проверяются nginx узла, его кэш, подпись и туннель, но не доступность amf из российских сетей: её показывают откаты клиентов (`pluma_cdn_fallback_total{dc="202"}`, `CdnFallbackHigh`).
+- **Проверка 202** — та же канарейка раз в минуту, но соединение идёт на `CDN_RU_HEALTH_ADDR` (`10.78.0.1:443`, nginx `stream` узла через туннель); SNI, `Host` и имя в сертификате — `r1.sckra.dev`, сертификат проверяется. Исходящий трафик дома идёт через Hetzner, а путь Hetzner → amf может быть закрыт так же, как обратный (не проверено). Так проверяются nginx узла, его кэш, подпись и туннель, но не доступность amf из российских сетей: её показывают откаты клиентов (`pluma_cdn_fallback_total{dc="202"}`, `CdnFallbackHigh`).
 - **Бюджет 202** — `CDN_RU_MONTHLY_GB` [2000 в `docker-compose.yaml`]: предел от разгона, не тариф провайдера (тариф трафика Timeweb не проверен, проверка владельца 8 брифа 109). 80 % — `CdnBudget{dc="202"}`.
 
 ## Порядок включения
@@ -92,7 +92,7 @@ URL тогда `https://<префикс>.gcorecdn.com/t/<срок>/<подпис
 | `CDN_ORIGIN_AUTH` | секрет. Значение `X-Pluma-Origin-Auth`, 64 hex (`openssl rand -hex 32`); то же — в настройках ресурса |
 | `PLUMA_CDN_ORIGIN_DOMAIN` | имя источника для Caddy. Пустое — Caddy его не обслуживает |
 | `CDN_ROUTES` | маршрут по стране [`*:201`]; с выдачей 202 — `RU,BY:202,201;*:201` (раздел «Выдача 202 и маршрут по стране») |
-| `CDN_RU_BASE_URL` | `https://r1.pluma.chat`. Пустая — выдача 202 выключена |
+| `CDN_RU_BASE_URL` | `https://r1.sckra.dev`. Пустая — выдача 202 выключена |
 | `CDN_RU_TOKEN_KEY` | секрет. Ключ подписи выдачи 202, 6–32 символа (`openssl rand -hex 16`); то же значение — в `/etc/pluma-ru/env` узла |
 | `CDN_RU_ORIGIN_AUTH` | секрет. `X-Pluma-Origin-Auth` выдачи 202, 64 hex (`openssl rand -hex 32`), **не равен** `CDN_ORIGIN_AUTH`; то же значение — в `/etc/pluma-ru/env` узла |
 | `CDN_RU_HEALTH_ADDR` | куда идёт проверка 202: `10.78.0.1:443` [хост `CDN_RU_BASE_URL`] |
@@ -119,7 +119,7 @@ URL тогда `https://<префикс>.gcorecdn.com/t/<срок>/<подпис
   - Caddy (сервис `web`) читает `PLUMA_CDN_ORIGIN_DOMAIN` только при создании контейнера.
   - Обычный `pluma-deploy.sh` (`up -d`) пересоздаёт оба, когда их окружение изменилось.
 - **Исходящий адрес дома** (через него идут проверки здоровья): `docker run --rm --network pluma_teamgram_net alpine wget -qO- https://ifconfig.me` → 195.201.252.126.
-- **Выдача 202** (после туннеля и узла, `docs/ops/ru-node.md`, порядок первого включения): в `.env` — `CDN_RU_BASE_URL`, `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH`, `CDN_RU_HEALTH_ADDR=10.78.0.1:443`, при желании `CDN_RU_MONTHLY_GB`, и `CDN_ROUTES=RU,BY:202,201;*:201`; деплой. Те же `CDN_RU_TOKEN_KEY` и `CDN_RU_ORIGIN_AUTH` — в `/etc/pluma-ru/env` узла (создать `openssl rand` на одной машине, перенести по SSH без печати). В логе bff — `cdn: delivery 202 (r1.pluma.chat) is healthy`, в Grafana — `pluma_cdn_delivery_healthy{dc="202"}` = 1.
+- **Выдача 202** (после туннеля и узла, `docs/ops/ru-node.md`, порядок первого включения): в `.env` — `CDN_RU_BASE_URL`, `CDN_RU_TOKEN_KEY`, `CDN_RU_ORIGIN_AUTH`, `CDN_RU_HEALTH_ADDR=10.78.0.1:443`, при желании `CDN_RU_MONTHLY_GB`, и `CDN_ROUTES=RU,BY:202,201;*:201`; деплой. Те же `CDN_RU_TOKEN_KEY` и `CDN_RU_ORIGIN_AUTH` — в `/etc/pluma-ru/env` узла (создать `openssl rand` на одной машине, перенести по SSH без печати). В логе bff — `cdn: delivery 202 (r1.sckra.dev) is healthy`, в Grafana — `pluma_cdn_delivery_healthy{dc="202"}` = 1.
 - **После деплоя:**
   - в логе bff — `cdn: delivery 201 (<префикс>.gcorecdn.com) is healthy`;
   - в Grafana — `pluma_cdn_delivery_healthy{dc="201"}` = 1;

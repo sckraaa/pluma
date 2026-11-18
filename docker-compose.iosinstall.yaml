@@ -30,6 +30,10 @@ services:
       # read from the releases service (docker-compose.releases.yaml).
       UPDATE_TICKET_SECRET: ${PLUMA_IOS_UPDATE_SECRET:-}
       RELEASES_JSON_URL: http://releases:9097/dl/releases.json
+      # The mirror of the site through the Russian node (task 113,
+      # docs/ops/ru-node.md): an install or an update that came to that name
+      # stays on it. Empty: none.
+      MIRROR_HOSTS: ${PLUMA_RU_SITE_DOMAIN:-}
     volumes:
       # Files of uid 65532 (the image's nonroot), mode 0400.
       - ${PLUMA_IOSINSTALL_SECRETS:-/opt/pluma/iosinstall}:/run/secrets/iosinstall:ro

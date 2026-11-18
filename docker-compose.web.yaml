@@ -44,6 +44,11 @@ services:
       # :8443, which docker-compose.ru.yaml publishes on the tunnel. Empty:
       # no such site.
       PLUMA_RU_EDGE_DOMAIN: ${PLUMA_RU_EDGE_DOMAIN:-}
+      # The mirrors of the site and of the login on sites through the Russian
+      # node (task 113, docs/ops/ru-node.md), on :8443 as the edge. Empty:
+      # no such site.
+      PLUMA_RU_SITE_DOMAIN: ${PLUMA_RU_SITE_DOMAIN:-}
+      PLUMA_RU_OAUTH_DOMAIN: ${PLUMA_RU_OAUTH_DOMAIN:-}
       # The only address :8443 takes PROXY v1 from: the node in the plumaru
       # tunnel (teamgramd/deploy/edge/tunnel.sh --link ru). Not a setting of
       # the operator; the e2e stand sets its own.
@@ -59,13 +64,17 @@ services:
     # in /etc/caddy/edge-origin.d with PLUMA_EDGE_ORIGIN_DOMAIN, whose
     # PLUMA_EDGE_ORIGIN_AUTH must be 64 hex digits, or Caddy does not start
     # (an empty value would let every request through), and ru-edge.caddy
-    # in /etc/caddy/ru-edge.d with PLUMA_RU_EDGE_DOMAIN. Then Caddy runs as
-    # the image's own command runs it.
+    # in /etc/caddy/ru-edge.d with PLUMA_RU_EDGE_DOMAIN; so are the mirrors
+    # through the Russian node (task 113): ru-site.caddy with
+    # PLUMA_RU_SITE_DOMAIN and ru-oauth.caddy with PLUMA_RU_OAUTH_DOMAIN, in
+    # /etc/caddy/ru-mirror.d. Then Caddy runs as the image's own command
+    # runs it.
     tmpfs:
       - /etc/caddy/cdn-origin.d
       - /etc/caddy/maps-public.d
       - /etc/caddy/edge-origin.d
       - /etc/caddy/ru-edge.d
+      - /etc/caddy/ru-mirror.d
     command:
       - /bin/sh
       - -ec
@@ -98,6 +107,12 @@ services:
         if [ -n "$$PLUMA_RU_EDGE_DOMAIN" ]; then
           ln -s /etc/caddy/ru-edge.caddy /etc/caddy/ru-edge.d/ru-edge.caddy
         fi
+        if [ -n "$$PLUMA_RU_SITE_DOMAIN" ]; then
+          ln -s /etc/caddy/ru-site.caddy /etc/caddy/ru-mirror.d/ru-site.caddy
+        fi
+        if [ -n "$$PLUMA_RU_OAUTH_DOMAIN" ]; then
+          ln -s /etc/caddy/ru-oauth.caddy /etc/caddy/ru-mirror.d/ru-oauth.caddy
+        fi
         exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
     volumes:
       - ./teamgramd/deploy/web/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -105,6 +120,8 @@ services:
       - ./teamgramd/deploy/web/maps-public.caddy:/etc/caddy/maps-public.caddy:ro
       - ./teamgramd/deploy/web/edge-origin.caddy:/etc/caddy/edge-origin.caddy:ro
       - ./teamgramd/deploy/web/ru-edge.caddy:/etc/caddy/ru-edge.caddy:ro
+      - ./teamgramd/deploy/web/ru-site.caddy:/etc/caddy/ru-site.caddy:ro
+      - ./teamgramd/deploy/web/ru-oauth.caddy:/etc/caddy/ru-oauth.caddy:ro
       # The landing page of PLUMA_SITE_DOMAINS: the dist/ of pluma-site,
       # copied to the host (docs/ops/deployment.md).
       - ${PLUMA_SITE_DIR:-/srv/pluma-site}:/pluma-site:ro

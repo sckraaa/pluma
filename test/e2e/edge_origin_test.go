@@ -322,9 +322,10 @@ func TestEdgeOriginRu(t *testing.T) {
 // TestEdgeAppConfigByCountry: pluma_edge of help.getAppConfig follows the
 // country of the client's address. A client from Germany and one whose
 // address has no country (the stand's own network) get the record *, the
-// same config; a client from Russia the record RU with a hash of its own,
-// so a client that comes to Russia with the other config takes the new
-// one, and one with the config of Russia is told it has not changed.
+// same config but for the country of pluma_probe (task 113); a client from
+// Russia the record RU with a hash of its own, so a client that comes to
+// Russia with the other config takes the new one, and one with the config
+// of Russia is told it has not changed.
 func TestEdgeAppConfigByCountry(t *testing.T) {
 	needEdges(t)
 	t.Parallel()
@@ -349,8 +350,10 @@ func TestEdgeAppConfigByCountry(t *testing.T) {
 			t.Errorf("pluma_edge of the client %s: %v, want %v", name, got, want)
 		}
 	}
-	if !reflect.DeepEqual(directCfg, germanyCfg) || directHash != germanyHash {
-		t.Errorf("the direct client and the one from Germany got different configs (hashes %d, %d)", directHash, germanyHash)
+	delete(directCfg, "pluma_probe")
+	delete(germanyCfg, "pluma_probe")
+	if !reflect.DeepEqual(directCfg, germanyCfg) {
+		t.Errorf("the direct client and the one from Germany got different configs but for pluma_probe (hashes %d, %d)", directHash, germanyHash)
 	}
 	if got, want := russiaCfg["pluma_edge"], any(wantStackEdge(t, true)); !reflect.DeepEqual(got, want) {
 		t.Errorf("pluma_edge of the client from Russia: %v, want %v", got, want)

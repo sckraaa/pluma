@@ -459,7 +459,12 @@ func (h *Handler) internal(w http.ResponseWriter, err error) {
 
 // fileURL is the address of a file of a release.
 func (h *Handler) fileURL(rel *appreleases.Release, f *appreleases.File) string {
-	return h.PublicURL + "/dl/" + rel.Platform + "/" + rel.Version + "/" + f.Name
+	return h.PublicURL + filePath(rel, f)
+}
+
+// filePath is the path of a file of a release on the site.
+func filePath(rel *appreleases.Release, f *appreleases.File) string {
+	return "/dl/" + rel.Platform + "/" + rel.Version + "/" + f.Name
 }
 
 // releaseView is a release as releases.json and the upload answer show it.
@@ -559,7 +564,10 @@ func (h *Handler) desktopCurrent(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(out)
 }
 
-// latest redirects to the current installer of the platform (for arch).
+// latest redirects to the current installer of the platform (for arch),
+// by its path on the same site: the browser stays on the name it asked,
+// the site's or its mirror's through the Russian node (task 113), whose
+// /dl/ is this service as well.
 func (h *Handler) latest(w http.ResponseWriter, r *http.Request) {
 	platform, arch := r.PathValue("platform"), r.PathValue("arch")
 	if !appreleases.Known(platform) || platform == appreleases.IOS {
@@ -580,7 +588,7 @@ func (h *Handler) latest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	http.Redirect(w, r, h.fileURL(rel, f), http.StatusFound) //nolint:gosec // the site's own address and a stored file name, not the request's
+	http.Redirect(w, r, filePath(rel, f), http.StatusFound) //nolint:gosec // a path of the site with a stored file name, not the request's
 }
 
 // file serves a file of a release; a released file never changes.
