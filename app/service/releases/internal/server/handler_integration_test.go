@@ -173,6 +173,16 @@ func TestRelease(t *testing.T) {
 	if a.code != http.StatusFound || a.header.Get("Location") != "/dl/android/12.9.1.1/Pluma-12.9.1.1.apk" {
 		t.Errorf("latest: %d %s", a.code, a.header.Get("Location"))
 	}
+	// Asked on the site's own name with a CDN in front of /dl/ (task 115),
+	// the link is the file on the CDN, and never cached.
+	cdn := &Handler{PublicURL: h.PublicURL, FilesURL: "https://cdn.example", DataDir: h.DataDir, DB: h.DB, Now: h.Now}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "https://pluma.example/dl/android/latest", nil)
+	cdn.Routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "https://cdn.example/dl/android/12.9.1.1/Pluma-12.9.1.1.apk" ||
+		rec.Header().Get("Cache-Control") != "no-store" {
+		t.Errorf("latest on the site with a CDN: %d %s %s", rec.Code, rec.Header().Get("Location"), rec.Header().Get("Cache-Control"))
+	}
 	a = get(t, srv, "/dl/android/12.9.1.1/Pluma-12.9.1.1.apk")
 	if a.code != http.StatusOK || a.body != apk || a.header.Get("Content-Type") != androidMime {
 		t.Errorf("the file: %d %q %s", a.code, a.body, a.header.Get("Content-Type"))

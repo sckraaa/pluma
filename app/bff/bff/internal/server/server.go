@@ -246,19 +246,21 @@ func (s *Server) Initialize() error {
 		// configuration_helper: also the promo data, the suggestions of the
 		// account.
 		configuration := configuration_helper.New(configuration_helper.Config{
-			RpcServerConf:     c.RpcServerConf,
-			Mysql:             c.Mysql,
-			UserClient:        c.BizServiceClient,
-			AuthsessionClient: c.AuthSessionClient,
-			MediaClient:       c.MediaClient,
-			ReleasesURL:       c.ReleasesURL,
-			ReleasesRoutes:    c.ReleasesRoutes,
-			IOSUpdate:         c.IOSUpdate,
-			Translate:         c.Translate,
-			GifSearch:         c.InlineBots.GifSearch(),
-			Maps:              c.Maps,
-			Edge:              c.Edge,
-			Probe:             c.Probe,
+			RpcServerConf:       c.RpcServerConf,
+			Mysql:               c.Mysql,
+			UserClient:          c.BizServiceClient,
+			AuthsessionClient:   c.AuthSessionClient,
+			MediaClient:         c.MediaClient,
+			ReleasesURL:         c.ReleasesURL,
+			ReleasesRoutes:      c.ReleasesRoutes,
+			ReleasesFilesURL:    c.ReleasesFilesURL,
+			ReleasesFilesRoutes: c.ReleasesFilesRoutes,
+			IOSUpdate:           c.IOSUpdate,
+			Translate:           c.Translate,
+			GifSearch:           c.InlineBots.GifSearch(),
+			Maps:                c.Maps,
+			Edge:                c.Edge,
+			Probe:               c.Probe,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)

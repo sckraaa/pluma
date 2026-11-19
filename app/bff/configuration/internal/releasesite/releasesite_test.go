@@ -91,3 +91,78 @@ func TestParseRefuses(t *testing.T) {
 		})
 	}
 }
+
+// TestParseFiles: the files of /dl/ come from PLUMA_RELEASES_FILES_URL,
+// or the site without it, from the caches of the records for their
+// countries, and from the mirror of the site for a country only
+// PLUMA_RELEASES_ROUTES names (task 115).
+func TestParseFiles(t *testing.T) {
+	s, err := ParseFiles(nil, "", "")
+	if err != nil || s != nil {
+		t.Fatalf("no site: %v, %v", s, err)
+	}
+	site := mustParse(t, "https://pluma.chat/", "")
+	if s, err = ParseFiles(site, "", ""); err != nil || s.ByCountry() || s.URL("RU") != "https://pluma.chat" {
+		t.Fatalf("site only: %v, %v", s, err)
+	}
+	site = mustParse(t, "https://pluma.chat", "RU,BY=https://pluma.sckra.dev;KZ=https://kz.example")
+	s, err = ParseFiles(site, " HTTPS://Gk8.GcoreCDN.com/ ", "RU,BY=https://r1.sckra.dev;AM=https://am.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.ByCountry() || s.Main() != "https://gk8.gcorecdn.com" {
+		t.Fatalf("by country %v, main %q", s.ByCountry(), s.Main())
+	}
+	for c, want := range map[string]string{
+		"RU": "https://r1.sckra.dev",
+		"BY": "https://r1.sckra.dev",
+		"AM": "https://am.example",
+		"KZ": "https://kz.example",
+		"DE": "https://gk8.gcorecdn.com",
+		"":   "https://gk8.gcorecdn.com",
+	} {
+		if got := s.URL(c); got != want {
+			t.Errorf("%q: %q, want %q", c, got, want)
+		}
+	}
+	if site.URL("RU") != "https://pluma.sckra.dev" || site.Main() != "https://pluma.chat" {
+		t.Error("ParseFiles changed the sites it was given")
+	}
+	// Without settings of their own the files follow the site and its
+	// mirrors, as before task 115.
+	if s, err = ParseFiles(site, "", ""); err != nil || s.URL("RU") != "https://pluma.sckra.dev" || s.URL("DE") != "https://pluma.chat" {
+		t.Errorf("no files settings: %v, %v", s, err)
+	}
+}
+
+func mustParse(t *testing.T, main, routes string) *Sites {
+	t.Helper()
+	s, err := Parse(main, routes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+func TestParseFilesRefuses(t *testing.T) {
+	site := mustParse(t, "https://pluma.chat", "")
+	for name, c := range map[string]struct {
+		site          *Sites
+		files, routes string
+		want          string
+	}{
+		"files without a site":  {nil, "https://cdn.example", "", "without PLUMA_RELEASES_URL"},
+		"routes without a site": {nil, "", "RU=https://r1.example", "without PLUMA_RELEASES_URL"},
+		"http files":            {site, "http://cdn.example", "", `PLUMA_RELEASES_FILES_URL: "http://cdn.example" is not an https:// URL`},
+		"files with a path":     {site, "https://cdn.example/dl", "", "a path"},
+		"a bad record":          {site, "", "RU:https://r1.example", "PLUMA_RELEASES_FILES_ROUTES record"},
+		"country twice":         {site, "", "RU=https://a.example;RU=https://b.example", "PLUMA_RELEASES_FILES_ROUTES names country RU twice"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := ParseFiles(c.site, c.files, c.routes)
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Errorf("err %v, want one with %q", err, c.want)
+			}
+		})
+	}
+}

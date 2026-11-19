@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,9 +59,14 @@ func (s *Server) Initialize() error {
 	if err != nil {
 		return fmt.Errorf("releases: the upload token: %w", err)
 	}
+	filesURL, err := checkFilesURL(c.FilesURL)
+	if err != nil {
+		return err
+	}
 	h := &Handler{
 		AdminToken: strings.TrimSpace(c.AdminToken),
 		PublicURL:  strings.TrimRight(c.PublicURL, "/"),
+		FilesURL:   filesURL,
 		DataDir:    c.DataDir,
 		Token:      strings.TrimSpace(string(token)),
 		DB:         sqlx.NewMySQL(&c.Mysql),
@@ -100,6 +106,22 @@ func (s *Server) Initialize() error {
 		}
 	}()
 	return nil
+}
+
+// checkFilesURL returns FilesURL in one form, https://<host> without a "/"
+// at the end, or "" for none; anything else (another scheme, a path, a
+// query) is an error, which stops the start.
+func checkFilesURL(s string) (string, error) {
+	s = strings.TrimRight(strings.TrimSpace(s), "/")
+	if s == "" {
+		return "", nil
+	}
+	u, err := url.Parse(s)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Path != "" ||
+		u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" {
+		return "", fmt.Errorf("releases: PLUMA_RELEASES_FILES_URL %q is not https://<host>", s)
+	}
+	return "https://" + strings.ToLower(u.Host), nil
 }
 
 func (s *Server) RunLoop() {}

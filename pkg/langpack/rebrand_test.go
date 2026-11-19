@@ -16,7 +16,11 @@
 package langpack
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -39,7 +43,7 @@ func TestRebrandValue(t *testing.T) {
 		{"en", "k", "MyTelegram", "MyTelegram"},
 		{"en", "k", "Telegram2", "Telegram2"},
 		{"en", "k", "telegram", "telegram"},
-		{"ru", "k", "Добро пожаловать в Telegram, — Telegram Desktop", "Добро пожаловать в Pluma, — Pluma"},
+		{"ru", "k", "Добро пожаловать в Telegram, \u2014 Telegram Desktop", "Добро пожаловать в Pluma, \u2014 Pluma"},
 		{"en", "k", "Telegram Desktop2", "Pluma Desktop2"},
 		{"en", "k", "Telegram Desktop.", "Pluma."},
 		{"en", "lng_about_text_1", `based on [a href="https://core.telegram.org/api"]Telegram API[/a]`,
@@ -63,7 +67,7 @@ func TestRebrandValue(t *testing.T) {
 		{"en", "k", "텔레그램", "텔레그램"},
 		{"nl", "k", "Telegramberichten en Telegram", "Pluma-berichten en Pluma"},
 		{"nl-raw", "k", "Telegramberichten", "Pluma-berichten"},
-		// The QR login's links, only in their keys.
+		// The QR login's links, only in their keys of their pack.
 		{"en", "AuthAnotherClientDownloadClientUrl", "https://getdesktop.telegram.org/", "https://pluma.chat/"},
 		{"ar", "AuthAnotherClientDownloadClientUrl", "https://desktop.telegram.org", "https://pluma.chat/"},
 		{"de", "AuthAnotherClientDownloadClientUrl", "https://desktop.telegram.org/", "https://pluma.chat/"},
@@ -76,8 +80,8 @@ func TestRebrandValue(t *testing.T) {
 		{"en", "k", "Some videos can't be streamed – e.g., all videos that were sent from Android using Telegram 4.7 and earlier versions.",
 			"Some videos can't be streamed – e.g., videos that were sent from very old versions of the app."},
 	} {
-		if got := RebrandValue(c.lang, c.key, c.in); got != c.want {
-			t.Errorf("RebrandValue(%s, %s, %q) = %q, want %q", c.lang, c.key, c.in, got, c.want)
+		if got := RebrandValue("android", c.lang, c.key, c.in); got != c.want {
+			t.Errorf("RebrandValue(android, %s, %s, %q) = %q, want %q", c.lang, c.key, c.in, got, c.want)
 		}
 	}
 }
@@ -85,7 +89,7 @@ func TestRebrandValue(t *testing.T) {
 func TestRebrandPluralized(t *testing.T) {
 	one, few := "1 Telegram chat", "%d Telegram chats"
 	s := String{Key: "k", Pluralized: true, Value: "%d Telegram chats", One: &one, Few: &few}
-	got := Rebrand("ru", s)
+	got := Rebrand("android", "ru", s)
 	if got.Key != "k" || got.Value != "%d Pluma chats" || *got.One != "1 Pluma chat" || *got.Few != "%d Pluma chats" || got.Zero != nil {
 		t.Fatalf("Rebrand = %+v", got)
 	}
@@ -112,7 +116,7 @@ func TestLeftoverWords(t *testing.T) {
 		}
 	}
 	// What an import reports for a kept key: its value unchanged, no words.
-	kept := Rebrand("en", String{Key: "lng_about_text1_api", Value: "Telegram API"})
+	kept := Rebrand("tdesktop", "en", String{Key: "lng_about_text1_api", Value: "Telegram API"})
 	if kept.Value != "Telegram API" || leftoverWords(&kept) != nil {
 		t.Errorf("kept key: %q, %v", kept.Value, leftoverWords(&kept))
 	}
@@ -134,6 +138,74 @@ func TestLeftovers(t *testing.T) {
 	} {
 		if got := fmt.Sprint(Leftovers(c.in)); got != c.want {
 			t.Errorf("Leftovers(%q) = %s, want %s", c.in, got, c.want)
+		}
+	}
+}
+
+// The links of each pack, as the patch of its client writes them.
+func TestLinkRules(t *testing.T) {
+	for _, c := range []struct {
+		pack, key, in, want string
+	}{
+		{"android", "GroupDescription3", "Public links such as t.me/title", "Public links such as pluma.chat/title"},
+		{"ios", "GroupDescription3", "Public links such as t.me/title", "Public links such as t.me/title"},
+		{"webk", "GroupDescription3", "Public links such as t.me/title", "Public links such as pluma.chat/title"},
+		{"webk", "PublicLinksLimitSubtitle", "Reserve up to %d t.me/username links", "Reserve up to %d pluma.chat/username links"},
+		{"android", "PublicLinksLimitSubtitle", "Reserve up to %d t.me/username links", "Reserve up to %d t.me/username links"},
+		{"ios", "AuthSessions.AddDevice.ScanInstallInfo",
+			"Go to [getdesktop.telegram.org](desktop) or [web.telegram.org](web) to get the QR code",
+			"Go to [pluma.chat](desktop) or [web.pluma.chat](web) to get the QR code"},
+		{"ios", "Username.LinkHint", "This link opens a chat with you:[\nhttps://t.me/%@]", "This link opens a chat with you:[\nhttps://pluma.chat/%@]"},
+		{"ios", "Business.Links.SimpleLinkInfoUsernamePhone",
+			"You can also use a simple link for a chat with you \u2014 [t.me/%1$@](username) or [t.me/\u2060+\u2060%2$@](phone).",
+			"You can also use a simple link for a chat with you \u2014 [pluma.chat/%1$@](username) or [pluma.chat/\u2060+\u2060%2$@](phone)."},
+		{"ios", "SocksProxySetup.QrCode.TMeLink", "t.me link", "pluma.chat link"},
+		{"ios", "Username.LinkHint", "at.me and t.mee and x.t.me", "at.me and t.mee and x.t.me"},
+		{"webk", "ChatList.Main.EmptyPlaceholder.SubtitleNoContacts",
+			"Use Telegram app on your [Android](https://telegram.org/android) or [iOS](https://telegram.org/dl/ios) device to sync your contacts",
+			"Use Pluma app on your Android or iOS device to sync your contacts"},
+		{"webk", "ChatAutomation.HeroDescription",
+			"Add a bot to your account to help you automatically process and respond to the messages you receive. [Learn More >]()",
+			"Add a bot to your account to help you automatically process and respond to the messages you receive."},
+		{"tdesktop", "lng_settings_section_privacy", "t.me/x telegram.org", "t.me/x telegram.org"},
+	} {
+		if got := RebrandValue(c.pack, "en", c.key, c.in); got != c.want {
+			t.Errorf("%s/%s: %q, want %q", c.pack, c.key, got, c.want)
+		}
+	}
+}
+
+// In every language of Telegram's packs (testdata/links.json: the strings of
+// linkRules on 2026-11-18), no string of the table keeps a link to Telegram's
+// sites, a t.me link or an empty link after the replacement.
+func TestLinkRulesInEveryLanguage(t *testing.T) {
+	data, err := os.ReadFile("testdata/links.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snap map[string]map[string]map[string][]string
+	if err := json.Unmarshal(data, &snap); err != nil {
+		t.Fatal(err)
+	}
+	telegramLink := regexp.MustCompile(`(?:^|[^\w.])t\.me(?:$|[^\w])|telegram\.org`)
+	for pack, keys := range linkRules {
+		for key := range keys {
+			texts := snap[pack][key]
+			if len(texts) < 20 {
+				t.Errorf("%s/%s: %d languages in testdata", pack, key, len(texts))
+			}
+			for lang, values := range texts {
+				for _, v := range values {
+					got := RebrandValue(pack, lang, key, v)
+					if telegramLink.MatchString(got) || key == "ChatAutomation.HeroDescription" && strings.Contains(got, "]()") ||
+						key == "ChatList.Main.EmptyPlaceholder.SubtitleNoContacts" && strings.ContainsAny(got, "[]") {
+						t.Errorf("%s/%s in %s: %q", pack, key, lang, got)
+					}
+					if strings.Contains(v, "t.me") && !strings.Contains(got, "pluma.chat") {
+						t.Errorf("%s/%s in %s: no pluma.chat in %q", pack, key, lang, got)
+					}
+				}
+			}
 		}
 	}
 }

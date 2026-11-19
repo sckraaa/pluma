@@ -321,6 +321,10 @@ var optionalVars = map[string]bool{
 	// Its mirrors for the clients of some countries (task 113): the site
 	// for everyone when empty.
 	"PLUMA_RELEASES_ROUTES": true,
+	// The caches of its /dl/ (task 115): the site and its mirrors when
+	// empty.
+	"PLUMA_RELEASES_FILES_URL":    true,
+	"PLUMA_RELEASES_FILES_ROUTES": true,
 	// The update of the iPhone app from the app (task 085): bff offers the
 	// site's install page when empty.
 	"PLUMA_IOS_UPDATE_SECRET": true,

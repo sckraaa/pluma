@@ -17,9 +17,13 @@
 // taken from by a client of a country (task 113, docs/ops/releases.md): the
 // site of PLUMA_RELEASES_URL, or a mirror of it for the countries where
 // that name is blocked, the mirror on the Russian node for Russia. Both
-// serve the same /dl/ and /iphone/install, so the update prefix of the
-// desktop app and the update link of the iPhone app (help.getConfig,
-// help.getAppUpdate) differ only in the site.
+// serve the same /dl/ and /iphone/install, so the update link of the
+// iPhone app (help.getAppUpdate) differs only in the site.
+//
+// The files of /dl/ alone may come from elsewhere (task 115, ParseFiles):
+// a CDN that caches the site's /dl/, by country as well, so that the
+// update prefix of the desktop app (help.getConfig) points at the cache
+// nearest to the client.
 package releasesite
 
 import (
@@ -58,31 +62,82 @@ func Parse(main, routes string) (*Sites, error) {
 	// The site of PLUMA_RELEASES_URL is taken as it is, as before the
 	// mirrors: only its "/" at the end goes.
 	s := &Sites{main: strings.TrimRight(main, "/"), byCountry: map[string]string{}}
+	if err := s.addRoutes("PLUMA_RELEASES_ROUTES", routes); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// ParseFiles parses the sites the clients download the files of /dl/ from
+// (task 115): the caches of the site's /dl/, which serve the same paths,
+// over the sites of site (Parse), whose /dl/ serve them where no cache is
+// named.
+//
+//   - site is the result of Parse; nil: no releases, nil (files and
+//     routes must then be empty too).
+//   - files is PLUMA_RELEASES_FILES_URL, the CDN in front of the site's
+//     /dl/ for a client of any country no record names, https://<host>;
+//     empty: the main site.
+//   - routes is PLUMA_RELEASES_FILES_ROUTES, records as in
+//     PLUMA_RELEASES_ROUTES: "RU,BY=https://r1.sckra.dev", the cache of
+//     the Russian node. A country of PLUMA_RELEASES_ROUTES that it does not
+//     name keeps its mirror of the site: the CDN of files may be no more
+//     reachable there than the main site is.
+func ParseFiles(site *Sites, files, routes string) (*Sites, error) {
+	files, routes = strings.TrimSpace(files), strings.TrimSpace(routes)
+	if site == nil {
+		if files != "" || routes != "" {
+			return nil, errors.New("releases: PLUMA_RELEASES_FILES_URL or PLUMA_RELEASES_FILES_ROUTES without PLUMA_RELEASES_URL")
+		}
+		return nil, nil
+	}
+	s := &Sites{main: site.main, byCountry: map[string]string{}}
+	if files != "" {
+		main, err := checkSite(files)
+		if err != nil {
+			return nil, fmt.Errorf("releases: PLUMA_RELEASES_FILES_URL: %w", err)
+		}
+		s.main = main
+	}
+	if err := s.addRoutes("PLUMA_RELEASES_FILES_ROUTES", routes); err != nil {
+		return nil, err
+	}
+	for c, mirror := range site.byCountry {
+		if _, ok := s.byCountry[c]; !ok {
+			s.byCountry[c] = mirror
+		}
+	}
+	return s, nil
+}
+
+// addRoutes adds the records of routes, the value of the variable name:
+// "<countries>=<site>" separated by ";".
+func (s *Sites) addRoutes(name, routes string) error {
 	if routes == "" {
-		return s, nil
+		return nil
 	}
 	for rec := range strings.SplitSeq(routes, ";") {
 		rec = strings.TrimSpace(rec)
 		who, site, ok := strings.Cut(rec, "=")
 		if !ok {
-			return nil, fmt.Errorf("releases: PLUMA_RELEASES_ROUTES record %q: want <countries>=<site>", rec)
+			return fmt.Errorf("releases: %s record %q: want <countries>=<site>", name, rec)
 		}
 		site, err := checkSite(strings.TrimSpace(site))
 		if err != nil {
-			return nil, fmt.Errorf("releases: PLUMA_RELEASES_ROUTES record %q: %w", rec, err)
+			return fmt.Errorf("releases: %s record %q: %w", name, rec, err)
 		}
 		for c := range strings.SplitSeq(who, ",") {
 			c = strings.TrimSpace(c)
 			if !validCountry(c) {
-				return nil, fmt.Errorf("releases: PLUMA_RELEASES_ROUTES record %q: %q is not a country code", rec, c)
+				return fmt.Errorf("releases: %s record %q: %q is not a country code", name, rec, c)
 			}
 			if _, ok := s.byCountry[c]; ok {
-				return nil, fmt.Errorf("releases: PLUMA_RELEASES_ROUTES names country %s twice", c)
+				return fmt.Errorf("releases: %s names country %s twice", name, c)
 			}
 			s.byCountry[c] = site
 		}
 	}
-	return s, nil
+	return nil
 }
 
 // ByCountry is whether the site depends on the country of the client: with
@@ -103,7 +158,9 @@ func (s *Sites) URL(country string) string {
 	return s.main
 }
 
-// Main is the site of PLUMA_RELEASES_URL; "" for nil Sites.
+// Main is the site of the clients of the countries no record names:
+// PLUMA_RELEASES_URL for Parse, the files' own site for ParseFiles; "" for
+// nil Sites.
 func (s *Sites) Main() string {
 	if s == nil {
 		return ""

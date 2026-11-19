@@ -463,7 +463,7 @@
 | `help.getAppConfig98914110` | ok |  | app/bff/configuration/internal/core/help.getAppConfig98914110_handler.go:28 |
 | `help.getAppUpdate` | ok |  | app/bff/configuration/internal/core/help.getAppUpdate_handler.go:65 |
 | `help.getCdnConfig` | ok |  | app/bff/files/internal/core/help.getCdnConfig_handler.go:33 |
-| `help.getConfig` | ok | yes | app/bff/configuration/internal/core/help.getConfig_handler.go:43 |
+| `help.getConfig` | ok | yes | app/bff/configuration/internal/core/help.getConfig_handler.go:44 |
 | `help.getCountriesList` | ok |  | app/bff/configuration/internal/core/help.getCountriesList_handler.go:28 |
 | `help.getDeepLinkInfo` | missing |  |  |
 | `help.getInviteText` | ok |  | app/bff/configuration/internal/core/help.getInviteText_handler.go:37 |

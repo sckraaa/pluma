@@ -76,7 +76,7 @@ func TestInflect(t *testing.T) {
 		{"en", "Telegramu", "Telegramu"},
 		{"pt-br", "Telegrams", "Telegrams"},
 	} {
-		if got := RebrandValue(c.lang, "k", c.in); got != c.want {
+		if got := RebrandValue("tdesktop", c.lang, "k", c.in); got != c.want {
 			t.Errorf("%s: %q\n got %q\nwant %q", c.lang, c.in, got, c.want)
 		}
 	}

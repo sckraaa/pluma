@@ -69,9 +69,14 @@ type ServiceContext struct {
 	// mirrors by the country of the client (tasks 054, 113); nil without
 	// PLUMA_RELEASES_URL.
 	ReleaseSites *releasesite.Sites
+	// ReleaseFiles is where the clients download the files of /dl/ from,
+	// the caches of the site by the country of the client (task 115); nil
+	// without PLUMA_RELEASES_URL.
+	ReleaseFiles *releasesite.Sites
 	// Countries tells the country of a client's address
 	// (authsession.getIpCountry, cached); used only when Edges has
-	// records of countries, for Probe, and when ReleaseSites has mirrors.
+	// records of countries, for Probe, and when ReleaseSites or
+	// ReleaseFiles has records of countries.
 	Countries *ipcountry.Locator
 	// IOSUpdate asks the install service what an Ad Hoc build of the iPhone
 	// app can update to from the app (task 085); nil when that is off.
@@ -111,6 +116,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	logx.Must(err)
 	releaseSites, err := releasesite.Parse(c.ReleasesURL, c.ReleasesRoutes)
 	logx.Must(err)
+	releaseFiles, err := releasesite.ParseFiles(releaseSites, c.ReleasesFilesURL, c.ReleasesFilesRoutes)
+	logx.Must(err)
 	logx.Must(c.IOSUpdate.Check())
 	var iosUpdate *iosupdate.Checker
 	if c.IOSUpdate.Enabled() {
@@ -124,6 +131,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Edges:        edges,
 		Probe:        probe,
 		ReleaseSites: releaseSites,
+		ReleaseFiles: releaseFiles,
 		Countries:    ipcountry.New(d.AuthsessionClient),
 		IOSUpdate:    iosUpdate,
 		Dao:          d,

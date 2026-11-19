@@ -45,7 +45,11 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	db, err := testinfra.StartMySQL(ctx, testinfra.WithSchemaFiles([]string{filepath.Join(root, testinfra.SchemaDir, migration)}))
+	// The base schema has auths and auth_users, which Readers reads.
+	db, err := testinfra.StartMySQL(ctx, testinfra.WithSchemaFiles([]string{
+		filepath.Join(root, testinfra.SchemaDir, "1_teamgram.sql"),
+		filepath.Join(root, testinfra.SchemaDir, migration),
+	}))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -328,7 +332,8 @@ func TestImportRejects(t *testing.T) {
 }
 
 // help.getConfig reports the versions of the session's language and of its
-// base language; nothing for a language the server lacks.
+// base language, and suggests the system's language when the pack has it;
+// nothing for a language the server lacks.
 func TestConfigVersions(t *testing.T) {
 	ctx := context.Background()
 	base := snapshotOf("macos", "pt", 30, String{Key: "A", Value: "a"})
@@ -341,23 +346,31 @@ func TestConfigVersions(t *testing.T) {
 	mustImport(t, orphan)
 
 	for _, c := range []struct {
-		pack, lang string
-		want       string
+		pack, lang, system string
+		want               string
 	}{
-		{"macos", "pt-br", "&{pt-br 40 30}"},
-		{"macos", "pt", "&{pt 30 0}"},
-		{"macos", "pt-pt", "&{pt-pt 50 0}"},
-		{"macos", "xx", "<nil>"},
-		{"nope", "pt", "<nil>"},
-		{"", "pt", "<nil>"},
-		{"macos", "", "<nil>"},
+		{"macos", "pt-br", "", "&{pt-br 40 30}"},
+		{"macos", "pt", "", "&{pt 30 0}"},
+		{"macos", "pt-pt", "", "&{pt-pt 50 0}"},
+		{"macos", "xx", "", "<nil>"},
+		{"nope", "pt", "", "<nil>"},
+		{"", "pt", "", "<nil>"},
+		{"macos", "", "", "<nil>"},
+		// The system's language, when the pack has it; the versions stay
+		// those of the client's language.
+		{"macos", "pt", "pt-BR", "&{pt-br 30 0}"},
+		{"macos", "pt", "pt_PT", "&{pt-pt 30 0}"},
+		{"macos", "pt-br", "pt-AO", "&{pt 40 30}"},
+		{"macos", "pt-br", "pt-BR", "&{pt-br 40 30}"},
+		{"macos", "pt", "de-DE", "&{pt 30 0}"},
+		{"macos", "xx", "pt-BR", "<nil>"},
 	} {
-		v, err := itStore.ConfigVersions(ctx, c.pack, c.lang)
+		v, err := itStore.ConfigVersions(ctx, c.pack, c.lang, c.system)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if got := fmt.Sprint(v); got != c.want {
-			t.Errorf("ConfigVersions(%q, %q) = %s, want %s", c.pack, c.lang, got, c.want)
+			t.Errorf("ConfigVersions(%q, %q, %q) = %s, want %s", c.pack, c.lang, c.system, got, c.want)
 		}
 	}
 
@@ -468,5 +481,97 @@ func TestImportOverrides(t *testing.T) {
 	back := mustImport(t, ru(5))
 	if back.Changed != 1 || back.Version <= r.Version {
 		t.Fatalf("changed %d, version %d -> %d", back.Changed, r.Version, back.Version)
+	}
+}
+
+// A changed own string raises the version of its language, the import says
+// so (Raised), the difference from the old version has the string, and the
+// next import changes nothing (task 114).
+func TestImportChangedOwnString(t *testing.T) {
+	ctx := context.Background()
+	withOwn(t, `{"webk": {"PlumaCall.Test": {"en": "Join it again.", "ru": "Подключитесь снова."}}}`)
+	first := mustImport(t, snapshotOf("webk", "ru", 3, String{Key: "Chat", Value: "Чат"}))
+	withOwn(t, `{"webk": {"PlumaCall.Test": {"en": "Join it again.", "ru": "Войдите снова."}}}`)
+	second := mustImport(t, snapshotOf("webk", "ru", 3, String{Key: "Chat", Value: "Чат"}))
+	if !second.Raised() || second.Changed != 1 || second.Version <= first.Version {
+		t.Fatalf("import %d -> %d, changed %d, raised %v", first.Version, second.Version, second.Changed, second.Raised())
+	}
+	l, strs, err := itStore.Read(ctx, "webk", "ru", first.Version)
+	if err != nil || l.Version != second.Version || len(strs) != 1 || strs[0].Key != "PlumaCall.Test" || strs[0].Value != "Войдите снова." {
+		t.Fatalf("difference: %+v %+v %v", l, strs, err)
+	}
+	v, err := itStore.ConfigVersions(ctx, "webk", "ru", "")
+	if err != nil || v.LangPackVersion != second.Version {
+		t.Fatalf("config: %+v %v", v, err)
+	}
+	if third := mustImport(t, snapshotOf("webk", "ru", 3, String{Key: "Chat", Value: "Чат"})); third.Raised() || third.Changes() != 0 {
+		t.Fatalf("a third import changed %d strings", third.Changes())
+	}
+}
+
+// The readers of a language are the live authorizations of users whose
+// client named that pack and language, in any case and with '_', with
+// Web K's two names of its pack, and those of a language based on it.
+func TestReaders(t *testing.T) {
+	ctx := context.Background()
+	exec := func(q string, args ...any) {
+		t.Helper()
+		if _, err := itStore.db.Exec(ctx, q, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	child := snapshotOf("android", "ru-x", 3, String{Key: "A", Value: "a"})
+	child.Language.BaseLangCode = "ru-base"
+	mustImport(t, child)
+	for _, a := range []struct {
+		key, user     int64
+		pack, lang    string
+		deleted, gone bool
+	}{
+		{901, 1, "android", "ru-base", false, false},
+		{902, 1, "Android", "RU_BASE", false, false},
+		{903, 2, "android", "ru-x", false, false},
+		{904, 3, "android", "ru-base", true, false},  // the authorization is deleted
+		{905, 4, "android", "ru-base", false, true},  // logged out
+		{906, 0, "android", "ru-base", false, false}, // not logged in
+		{907, 5, "ios", "ru-base", false, false},
+		{908, 6, "web", "pt-br", false, false},
+		{909, 7, "webk", "pt-br", false, false},
+	} {
+		exec("INSERT INTO auths (auth_key_id, api_id, params, lang_pack, lang_code, deleted) VALUES (?, 1, '{}', ?, ?, ?)", a.key, a.pack, a.lang, a.deleted)
+		if a.user != 0 {
+			exec("INSERT INTO auth_users (auth_key_id, user_id, deleted) VALUES (?, ?, ?)", a.key, a.user, a.gone)
+		}
+	}
+	for _, c := range []struct{ pack, lang, want string }{
+		{"android", "ru-base", "[{1 901} {1 902} {2 903}]"},
+		{"android", "ru-x", "[{2 903}]"},
+		{"ios", "ru-base", "[{5 907}]"},
+		{"webk", "pt-br", "[{6 908} {7 909}]"},
+		{"tdesktop", "ru-base", "[]"},
+	} {
+		got, err := itStore.Readers(ctx, c.pack, c.lang)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fmt.Sprint(got) != c.want {
+			t.Errorf("Readers(%s, %s) = %v, want %s", c.pack, c.lang, got, c.want)
+		}
+	}
+}
+
+// Keys lists the live strings with a text, in byte order.
+func TestKeys(t *testing.T) {
+	ctx := context.Background()
+	mustImport(t, snapshotOf("android", "keys", 2, String{Key: "b", Value: "b"}, String{Key: "B", Value: "B"},
+		String{Key: "a_gone", Value: "x"}, String{Key: "empty", Value: ""}))
+	mustImport(t, snapshotOf("android", "keys", 3, String{Key: "b", Value: "b"}, String{Key: "B", Value: "B"},
+		String{Key: "empty", Value: ""}))
+	keys, err := itStore.Keys(ctx, "android", "keys")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(keys) != "[B b]" {
+		t.Fatalf("Keys = %v", keys)
 	}
 }

@@ -122,13 +122,13 @@ func TestRuMirrorSites(t *testing.T) {
 	if code, got := getBody(t, mirror, "https://"+ruSiteHost+"/progress.json", nil); code != http.StatusOK || string(got) != string(want) {
 		t.Errorf("the mirror's progress.json: %d, the same as the site's: %v", code, string(got) == string(want))
 	}
-	// /dl/ is the releases service on both (none on the stand: Caddy's 502).
+	// /dl/ is the releases service on both (task 115 put it on the stand).
 	for name, c := range map[string]struct {
 		client *http.Client
 		host   string
 	}{"site": {site, siteHost}, "mirror": {mirror, ruSiteHost}} {
-		if code, _ := getBody(t, c.client, "https://"+c.host+"/dl/releases.json", nil); code != http.StatusBadGateway {
-			t.Errorf("%s: /dl/releases.json %d, want the 502 of the absent releases service", name, code)
+		if code, body := getBody(t, c.client, "https://"+c.host+"/dl/releases.json", nil); code != http.StatusOK || !json.Valid(body) {
+			t.Errorf("%s: /dl/releases.json %d %.100s", name, code, body)
 		}
 	}
 

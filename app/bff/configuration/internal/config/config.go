@@ -34,14 +34,23 @@ type Config struct {
 	// MediaClient gives the APK of an Android release (help.getAppUpdate).
 	MediaClient zrpc.RpcClientConf
 	// ReleasesURL is where the releases are, the site's /dl/ (task 054):
-	// the update prefix of the desktop app (help.getConfig) and the install
-	// page of the iPhone app.
+	// the install page of the iPhone app, and the update prefix of the
+	// desktop app (help.getConfig) unless ReleasesFilesURL names another.
 	ReleasesURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// ReleasesRoutes is PLUMA_RELEASES_ROUTES, the mirrors of that site for
 	// the clients of some countries (task 113, docs/ops/releases.md):
 	// "RU,BY=https://pluma.sckra.dev"; the clients of every other country
 	// get ReleasesURL.
 	ReleasesRoutes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// ReleasesFilesURL is PLUMA_RELEASES_FILES_URL, the CDN the clients
+	// download the files of the site's /dl/ from (task 115,
+	// docs/ops/releases.md): the update prefix of the desktop app; empty:
+	// the site itself.
+	ReleasesFilesURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// ReleasesFilesRoutes is PLUMA_RELEASES_FILES_ROUTES, the caches of
+	// /dl/ for the clients of some countries: "RU,BY=https://r1.sckra.dev";
+	// the clients of every other country get ReleasesFilesURL.
+	ReleasesFilesRoutes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// IOSUpdate lets an Ad Hoc build of the iPhone app update from the app
 	// (task 085); off without its secret.
 	IOSUpdate iosupdate.Settings `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's

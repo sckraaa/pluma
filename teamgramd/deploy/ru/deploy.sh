@@ -303,7 +303,8 @@ make_layout() {
 	install -d -m 0755 "$ETC" /opt/pluma-ru/bin /var/lib/pluma-ru /var/lib/pluma-ru/acme \
 		/var/lib/pluma-ru/textfile /var/log/pluma-ru
 	install -d -m 0700 /var/lib/pluma-ru/certbot /var/log/pluma-ru/certbot /var/lib/pluma-ru/owner-nginx-backup
-	install -d -m 0700 -o pluma-ru -g pluma-ru /var/cache/pluma-ru /var/cache/pluma-ru/files /var/lib/pluma-ru/nginx
+	install -d -m 0700 -o pluma-ru -g pluma-ru /var/cache/pluma-ru /var/cache/pluma-ru/files /var/cache/pluma-ru/releases \
+		/var/lib/pluma-ru/nginx
 }
 
 CHANGED=()

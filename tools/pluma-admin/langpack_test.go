@@ -20,11 +20,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/langpack"
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
@@ -128,19 +132,57 @@ func TestLangpackFetch(t *testing.T) {
 	}
 }
 
-// memLangpackStore records imports.
+// memLangpackStore records imports. A language listed in old was stored at
+// version 4 before, so its import raises it.
 type memLangpackStore struct {
 	imported []string
 	langs    []langpack.Language
+	old      map[string]bool
+	readers  map[string][]langpack.Reader
+	keys     map[string][]string
+}
+
+func (m *memLangpackStore) Keys(_ context.Context, pack, lang string) ([]string, error) {
+	return m.keys[pack+"/"+lang], nil
 }
 
 func (m *memLangpackStore) Import(_ context.Context, s *langpack.Snapshot) (*langpack.ImportResult, error) {
 	m.imported = append(m.imported, s.LangPack+"/"+s.LangCode)
 	r := &langpack.ImportResult{LangPack: s.LangPack, LangCode: s.LangCode, Version: 5, Added: len(s.Strings)}
+	if m.old[s.LangPack+"/"+s.LangCode] {
+		r.OldVersion = 4
+	}
 	if s.LangCode == "cs" {
 		r.Leftovers = map[string][]string{"Welcome": {"Telegramu"}, "Intro": {"Telegramu", "Telegramem"}}
 	}
 	return r, nil
+}
+
+func (m *memLangpackStore) Readers(_ context.Context, pack, lang string) ([]langpack.Reader, error) {
+	return m.readers[pack+"/"+lang], nil
+}
+
+// memPush records the pushes of sync.updatesMe.
+type memPush struct {
+	pushed []string
+	err    error
+}
+
+func (p *memPush) SyncUpdatesMe(_ context.Context, in *sync.TLSyncUpdatesMe) (*mtproto.Void, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	u := in.GetUpdates().GetUpdates()
+	p.pushed = append(p.pushed, fmt.Sprintf("%d/%d %s %s", in.GetUserId(), in.GetPermAuthKeyId(), u[0].GetPredicateName(), u[0].GetLangCode()))
+	return mtproto.EmptyVoid, nil
+}
+
+func withMemPush(t *testing.T) *memPush {
+	p := &memPush{}
+	old := openLangpackPush
+	openLangpackPush = func(string) (langpack.UpdatesMe, error) { return p, nil }
+	t.Cleanup(func() { openLangpackPush = old })
+	return p
 }
 
 func (m *memLangpackStore) Languages(_ context.Context, pack string) ([]langpack.Language, error) {
@@ -192,6 +234,99 @@ func TestLangpackImport(t *testing.T) {
 	}
 	if code, _, errOut = runAdmin("langpack", "import", "-lang", "de", dir); code != 1 || !strings.Contains(errOut, "no snapshot files") {
 		t.Fatalf("no matching files: exit %d %q", code, errOut)
+	}
+}
+
+// After the imports, the authorizations that hold a language whose version
+// went up hear of it; a new language tells nobody, and a failed push leaves
+// the imports in and fails the command.
+func TestLangpackImportTellsClients(t *testing.T) {
+	store := withMemStore(t)
+	store.old = map[string]bool{"android/ru": true, "ios/ru": true}
+	store.readers = map[string][]langpack.Reader{
+		"android/ru": {{UserId: 7, PermAuthKeyId: 70}, {UserId: 8, PermAuthKeyId: 80}},
+		"android/cs": {{UserId: 9, PermAuthKeyId: 90}},
+	}
+	push := withMemPush(t)
+	dir := t.TempDir()
+	for _, pl := range [][2]string{{"android", "cs"}, {"android", "ru"}, {"ios", "ru"}} {
+		s := &langpack.Snapshot{LangPack: pl[0], LangCode: pl[1], Version: 1,
+			Language: langpack.Language{LangCode: pl[1], PluralCode: pl[1]},
+			Strings:  []langpack.String{{Key: "AppName", Value: "Telegram"}}}
+		if _, err := langpack.WriteSnapshot(dir, s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, out, errOut := runAdmin("langpack", "import", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if fmt.Sprint(push.pushed) != "[7/70 updateLangPackTooLong ru 8/80 updateLangPackTooLong ru]" {
+		t.Fatalf("pushed %v", push.pushed)
+	}
+	if !strings.Contains(out, "2 authorization(s) told of the new versions of 2 language(s).\n") {
+		t.Fatalf("output:\n%s", out)
+	}
+
+	push.pushed, push.err = nil, errors.New("mysql is down")
+	store.imported = nil
+	code, _, errOut = runAdmin("langpack", "import", dir)
+	if code != 1 || !strings.Contains(errOut, "the strings are imported, the clients of 1 language(s) were not told") {
+		t.Fatalf("failed push: exit %d %q", code, errOut)
+	}
+	if len(store.imported) != 3 {
+		t.Fatalf("imported %v", store.imported)
+	}
+}
+
+// coverage counts the client's keys the server lacks in each language, tells
+// Telegram's gaps from the server's by Telegram's snapshot, checks Pluma's
+// keys and fails on what is the server's fault.
+func TestLangpackCoverage(t *testing.T) {
+	store := withMemStore(t)
+	patch := langpack.PatchKeys()["webk"]
+	store.langs = []langpack.Language{{LangPack: "webk", LangCode: "ru"}, {LangPack: "webk", LangCode: "de"}}
+	full := append([]string{"A", "B", "C"}, patch...)
+	slices.Sort(full)
+	store.keys = map[string][]string{"webk/ru": full, "webk/de": {"A"}}
+	dir := t.TempDir()
+	keys := filepath.Join(dir, "keys.txt")
+	if err := os.WriteFile(keys, []byte("# web k\nA\nB\n\nC\nB\n"+strings.Join(patch, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	snaps := filepath.Join(dir, "snap")
+	for lang, ks := range map[string][]string{"ru": {"A", "B", "C"}, "de": {"A", "C"}} {
+		s := &langpack.Snapshot{LangPack: "webk", LangCode: lang, Version: 1, Language: langpack.Language{LangCode: lang, PluralCode: lang}}
+		for _, k := range ks {
+			s.Strings = append(s.Strings, langpack.String{Key: k, Value: "x"})
+		}
+		if _, err := langpack.WriteSnapshot(snaps, s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, out, errOut := runAdmin("langpack", "coverage", "-pack", "web", "-keys", keys, "-lang", "ru", "-snapshots", snaps)
+	if code != 0 {
+		t.Fatalf("ru: exit %d %s\n%s", code, errOut, out)
+	}
+	if !strings.Contains(out, fmt.Sprintf("webk: %d keys of the client.", 3+len(patch))) || !regexp.MustCompile(`(?m)^ru +\d+ +0 +0 +0 +0$`).MatchString(out) {
+		t.Fatalf("ru:\n%s", out)
+	}
+	// de: B is Telegram's gap, C and Pluma's keys the server's fault.
+	code, out, errOut = runAdmin("langpack", "coverage", "-pack", "webk", "-keys", keys, "-snapshots", snaps, "-list")
+	if code != 1 || !strings.Contains(errOut, fmt.Sprintf("%d key(s) missing by the server's fault", 1+len(patch))) {
+		t.Fatalf("de: exit %d %q\n%s", code, errOut, out)
+	}
+	if !regexp.MustCompile(fmt.Sprintf(`(?m)^de +1 +%d +1 +1 +%d$`, 2+len(patch), len(patch))).MatchString(out) ||
+		!strings.Contains(out, "de: the server's: C. Pluma's without a text of their own: "+strings.Join(patch, ", ")+".") {
+		t.Fatalf("de:\n%s", out)
+	}
+	// Without the snapshots the gaps are not told apart.
+	if code, out, _ = runAdmin("langpack", "coverage", "-pack", "webk", "-keys", keys, "-lang", "de"); code != 1 ||
+		!regexp.MustCompile(fmt.Sprintf(`(?m)^de +1 +%d +- +- +%d$`, 2+len(patch), len(patch))).MatchString(out) {
+		t.Fatalf("de without snapshots: exit %d\n%s", code, out)
+	}
+	if code, _, _ = runAdmin("langpack", "coverage", "-keys", keys); code != 2 {
+		t.Fatalf("no pack: exit %d", code)
 	}
 }
 

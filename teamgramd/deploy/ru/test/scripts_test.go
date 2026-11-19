@@ -230,6 +230,14 @@ func TestRender(t *testing.T) {
 	if strings.Contains(conf, "X-Cache-Status") {
 		t.Error("files.conf of production has X-Cache-Status")
 	}
+	// The releases (task 115): cached on their own, and the access value
+	// of delivery 202 goes home with the cipher only.
+	if !strings.Contains(conf, "proxy_cache pluma_releases;") || !strings.Contains(conf, "location /dl/ {") {
+		t.Error("files.conf has no cache of the releases' /dl/")
+	}
+	if c := strings.Count(conf, "$pluma_origin_auth"); c != 1 {
+		t.Errorf("files.conf sends the origin's access value from %d places, want the cipher's alone", c)
+	}
 	for _, s := range e.secrets() {
 		if strings.Contains(conf, s) {
 			t.Error("files.conf has a secret: secrets go to secrets.conf only")
