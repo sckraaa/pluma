@@ -37,14 +37,21 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-// Limits of a set fetched on demand.
+// Limits of a set fetched on demand. The clients ask for some of
+// Telegram's own sets by name, and these hold every emoji: Android draws the
+// key of a call from StaticEmoji (VoIPFragment.java:3073, GroupCallActivity
+// .java:9814 in 13.2.1), the business and premium screens from
+// RestrictedEmoji, each about 1900 small files. So the count of a set is
+// bounded loosely; what bounds a set is its bytes.
 const (
-	MaxDocuments = 200      // stickers or emoji in a set
+	MaxDocuments = 4096     // stickers or emoji in a set
 	MaxFile      = 10 << 20 // one file
 	MaxSet       = 64 << 20 // all files of a set
-	parallel     = 8
+	parallel     = 16
 	invalidFor   = time.Hour
-	fetchFor     = 90 * time.Second
+	// fetchFor bounds a whole fetch: the set, then every file (about 4000
+	// files of a set of every emoji, parallel).
+	fetchFor = 5 * time.Minute
 )
 
 // A short name of a set: letters, digits and underscores (Telegram's
@@ -126,8 +133,13 @@ func (f *Fetcher) fetch(ctx context.Context, name string) (*catalog.Set, error) 
 		return nil, err
 	}
 	docs := set.GetDocuments()
-	if len(docs) == 0 || len(docs) > MaxDocuments {
-		return nil, fmt.Errorf("demand: a set of %d documents", len(docs))
+	if err := fits(docs); err != nil {
+		// Not one Pluma serves: the clients get STICKERSET_INVALID, as for
+		// a name Telegram has no set for, and the name is not asked again
+		// for invalidFor. Answered as a server error, the client asked
+		// again at once, every time.
+		logx.WithContext(ctx).Errorf("demand: set %q not served: %v", name, err)
+		return nil, ErrNoSet
 	}
 	// Every file first, at once: then the import takes them from here.
 	files, err := f.files(ctx, docs)
@@ -149,6 +161,26 @@ func (f *Fetcher) fetch(ctx context.Context, name string) (*catalog.Set, error) 
 	logx.WithContext(ctx).Infof("demand: set %q, %d documents and %d files: from Telegram in %s, stored in %s",
 		name, len(docs), len(files), fetched.Sub(start).Round(time.Millisecond), f.now().Sub(fetched).Round(time.Millisecond))
 	return stored, nil
+}
+
+// fits says whether a set's documents are within the limits, by the sizes
+// Telegram states, before any file is fetched.
+func fits(docs []*mtproto.Document) error {
+	if len(docs) == 0 || len(docs) > MaxDocuments {
+		return fmt.Errorf("%d documents", len(docs))
+	}
+	var total int64
+	for _, d := range docs {
+		size := d.GetSize2_INT64()
+		if size > MaxFile {
+			return fmt.Errorf("a file of %d bytes", size)
+		}
+		total += size
+	}
+	if total > MaxSet {
+		return fmt.Errorf("%d bytes of files", total)
+	}
+	return nil
 }
 
 type fileKey struct {
