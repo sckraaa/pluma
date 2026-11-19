@@ -362,7 +362,11 @@ install_files() {
 		die "the reload of the owner's nginx failed: the owner's configuration is as it was"
 	fi
 	sleep 1
-	nginx -T 2>/dev/null | grep -qF "# configuration file $SNI_MAP:" || die "nginx -T does not read $SNI_MAP after the reload"
+	# Read whole, then searched: with pipefail, grep -q leaving at the first
+	# match would kill nginx -T with SIGPIPE while it still writes, and the
+	# check would fail although the line is there.
+	dump=$(nginx -T 2>/dev/null) || die "nginx -T failed after the reload"
+	grep -qF "# configuration file $SNI_MAP:" <<<"$dump" || die "nginx -T does not read $SNI_MAP after the reload"
 	echo "owner-nginx: installed; the backup of $MAP_FILE is $backup"
 }
 
