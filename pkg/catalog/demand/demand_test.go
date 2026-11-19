@@ -40,7 +40,24 @@ func (f *fakeTelegram) StickerSet(_ context.Context, in *mtproto.InputStickerSet
 	if f.gate != nil {
 		<-f.gate
 	}
-	if in.GetShortName() != "Free420" {
+	switch in.GetShortName() {
+	case "Free420":
+	case "StaticEmoji", "HugeEmoji":
+		// A set of every emoji, as Telegram's: 1857 small files; HugeEmoji
+		// states more bytes than a set may have.
+		size := int64(4 << 10)
+		if in.GetShortName() == "HugeEmoji" {
+			size = MaxSet/1857 + 1
+		}
+		docs := make([]*mtproto.Document, 1857)
+		for i := range docs {
+			docs[i] = mtproto.MakeTLDocument(&mtproto.Document{Id: int64(i + 1), Size2_INT64: size}).To_Document()
+		}
+		return mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
+			Set:       mtproto.MakeTLStickerSet(&mtproto.StickerSet{Id: 6, ShortName: in.GetShortName(), Emojis: true}).To_StickerSet(),
+			Documents: docs,
+		}).To_Messages_StickerSet(), nil
+	default:
 		return nil, mtproto.ErrStickersetInvalid
 	}
 	doc := func(id int64) *mtproto.Document {
@@ -136,4 +153,43 @@ func TestNoSet(t *testing.T) {
 	if tg.asks.Load() != 2 {
 		t.Fatal("a bad name was asked")
 	}
+}
+
+// A set of every emoji, as the clients ask for by name (StaticEmoji), is
+// fetched whole; one whose files are over the bytes of a set is not
+// served: STICKERSET_INVALID, and not asked again for an hour.
+func TestLargeSets(t *testing.T) {
+	tg := &fakeTelegram{}
+	f := New(tg, &countingImporter{})
+	s, err := f.ByShortName(context.Background(), "StaticEmoji")
+	if err != nil || s == nil {
+		t.Fatalf("StaticEmoji: %v, %v", s, err)
+	}
+	if n := tg.files.Load(); n != 1857 {
+		t.Fatalf("%d files fetched, want 1857", n)
+	}
+	before := tg.files.Load()
+	for range 2 {
+		if _, err := f.ByShortName(context.Background(), "HugeEmoji"); !errors.Is(err, ErrNoSet) {
+			t.Fatalf("HugeEmoji: %v, want ErrNoSet", err)
+		}
+	}
+	if tg.files.Load() != before {
+		t.Fatal("files of a set over the limit were fetched")
+	}
+	if tg.asks.Load() != 2 {
+		t.Fatalf("asked %d times, want 2 (HugeEmoji once)", tg.asks.Load())
+	}
+}
+
+// countingImporter imports every document with its file.
+type countingImporter struct{}
+
+func (countingImporter) ImportSet(ctx context.Context, set *mtproto.Messages_StickerSet, fetch func(context.Context, *mtproto.Document, string) ([]byte, error)) (*catalog.Set, error) {
+	for _, d := range set.GetDocuments() {
+		if _, err := fetch(ctx, d, ""); err != nil {
+			return nil, err
+		}
+	}
+	return &catalog.Set{ID: 101, ShortName: set.GetSet().GetShortName()}, nil
 }
