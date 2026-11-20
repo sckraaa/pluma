@@ -1,6 +1,6 @@
 # 116. Групповые звонки из России без VPN: медиа через узел amf
 
-- Статус: проект (2026-11-20). Реализация — после подтверждения решений владельцем.
+- Статус: реализовано (2026-11-20), не выкачено. Решения 1–6 ждут подтверждения владельца; замер части 1 и выкладка части 7 — шаги оператора.
 - Поставлена владельцем 2026-11-20: групповые звонки из России без VPN не работают; «через amf и через CDN, как и обычные звонки».
 - Зависит от: 093/094 (SFU, сквозные групповые звонки; ADR 0059, 0060), 109 (узел amf, его nginx, `deploy.sh`, TURN `@ru`; ADR 0072 §8), 113 (страна клиента по адресу за краями, `countryClients` в e2e).
 - ADR: решение записывается в ADR 0074 первой частью работы (см. «Части»). Оно дополняет ADR 0059 §3 «Публичные адреса» (там уже разрешён адрес-«труба» перед SFU) и ADR 0072 §8 (роли узла amf).
@@ -146,4 +146,25 @@
 - Белые списки мобильных сетей.
 
 ## Результат
-(заполняется по завершении)
+Сервер, узел и стенд готовы, ничего не выкачено. SFU знает трубы перед собой (`SFU_RELAYS`) и строит ответ входа из наборов адресов, которые называет `JoinRequest.routes`; bff выбирает наборы по стране адреса клиента (`GROUPCALLS_ROUTES`, по умолчанию — как раньше, всем `direct`); на amf nginx Pluma получает блок `stream` (`stream.conf.tmpl`) — UDP 20600 с `reuseport` и TCP 20601 на адрес SFU, только если задан `PLUMA_RU_SFU_ADDR`. Решение записано в ADR 0074. Сквозной тест на стенде: клиент «из России» (через край Gcore, адрес 5.8.16.41) получает только кандидаты трубы (узел — `rufiles` стенда с тем же `deploy.sh render`), слышит и слышен, показывает экран; клиенты без страны и из Германии получают прямые адреса. Замер пути amf → Hetzner (часть 1) и нагрузочный замер nginx (часть 6) не делались: прод только для чтения.
+
+Что сделано по частям:
+- **SFU** (часть 2): `Media.Relays` и разбор `SFU_RELAYS` (`config.go`, имена — `app/service/sfu/sfu/route.go`, общие с bff); `JoinRequest.routes = 7`; `Manager.Join` берёт адреса наборов по порядку, у следующего набора `localPref` ниже, повтор адреса — один кандидат, больше 64 — ошибка (запуск проверяет заранее); неизвестный набор пропускается, `sfu_route_unknown_total{route}` и запись в журнал, без известных — `direct`. Метка `route` у `sfu_connections`, `sfu_connect_failures_total`, `sfu_ice_pairs_total`. Управление отклоняет плохие имена и больше 8 наборов (`InvalidArgument`).
+- **ICE через трубу** (часть 3): `room/relay_test.go` — пересыльщик UDP и TCP в процессе, как nginx (своя сессия и порт на клиента): соединение и звук, два клиента за одним адресом, только TCP, новая сессия посреди звонка (SFU сам переходит на новую пару за секунды), труба мертва → `no_check` с `route="ru"`.
+- **bff** (часть 4): `GroupCalls.Routes` (`config/routes.go`, грамматика стран `CDN_ROUTES`), `ipcountry.Locator` в `svc` только при записях со странами, `routes` в `phone.joinGroupCall` (до транзакции входа) и `phone.joinGroupCallPresentation`. Конфиги `teamgramd/etc{,2}/bff.yaml`, `docker-compose.yaml` (bff и migrate), `.env.example`.
+- **Узел** (часть 5): `nginx.conf` грузит модуль stream и включает `stream.conf`; `deploy.sh` — `PLUMA_RU_SFU_ADDR` (IPv4, не адрес узла), `stream.conf` в рендер, `nginx -t` и `apply`; `wgstat.sh` — `pluma_ru_sfu_upstream_up` (TCP до SFU) и `pluma_ru_unit_active{unit="pluma-ru-nginx"}`.
+- **Наблюдение и документы** (часть 6): алерты `GroupCallsRelayNoCheck`, `GroupCallsRouteUnknown` (`groupcalls.yml`), `RuSfuRelayDown` (`ru-node.yml`) с тестами promtool; `docs/ops/group-calls.md` («Звонки из России»), `ru-node.md` («Труба групповых звонков», переменная, метрики, неполадки, откат), `deployment.md` (шаги оператора по порядку), `TESTING-BACKLOG.md`. `api-coverage.md` не изменился (новых обработчиков нет).
+
+Проверка (CachyOS):
+- `go build ./...`; `go vet -tags integration,e2e -unreachable=false` затронутых пакетов; `gofmt -l` пусто.
+- `go test` и `-race`: `app/service/sfu/...`, `app/bff/groupcalls/...`, `pkg/tgcallsjson` — зелёные; `go test` `app/bff/bff/...`, `pkg/conf`, `pkg/ipcountry`, `tools/...` (с журнальным аудитом), `teamgramd/deploy/ru/test`.
+- Интеграционные: `app/bff/groupcalls/...` (MySQL); `teamgramd/deploy/ru/test` — `TestNodeRelay` (nginx Ubuntu 26.04, больше одного рабочего процесса: каждый UDP-клиент виден SFU с одного своего порта, все 120 ответов на 60 датаграмм дошли, TCP насквозь), `TestNodeNginx`, `TestDeployApply`, `TestAlertRulesFire`, `TestRelayAlertRulesFire`.
+- Тест падает без изменения: `TestNodeRelay` без `reuseport` — клиент приходит к SFU с 8–12 разных портов.
+- e2e (стенд `pluma-116`, после — `run.sh down`): `TestGroupCallThroughRelay`, `TestGroupCallThroughRelayTCPOnly` и все прочие `TestGroupCall*`, `TestHttpsCdnRussia`, `TestRuMirrorSites`, `TestPathProbe*` — 18 тестов зелёные. Страна за краем Gcore для `phone.joinGroupCall` определяется верно (вопрос 8 закрыт тестом).
+
+Решения, принятые в реализации (к подтверждению вместе с 1–6):
+- Метка `route` добавлена и к `sfu_ice_pairs_total`: по ней `GroupCallsRelayNoCheck` видит, что по маршруту никто не соединился.
+- `limit_conn` — 32 сессии на адрес клиента.
+- Перезагрузка nginx узла (любой `deploy.sh apply` с изменением его файлов) даёт клиентам трубы новые сессии; SFU переходит на новую пару сам (тест в процессе), на живом nginx пауза звука не замерена.
+
+Не проверено: длинный поток amf → Hetzner (часть 1), производительность nginx на 2 vCPU (часть 6), экран и тариф Timeweb, Web K через ICE-TCP трубы, белые списки мобильных сетей, реальные клиенты (проверки владельца, `TESTING-BACKLOG.md`).

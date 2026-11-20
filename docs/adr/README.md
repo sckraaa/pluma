@@ -78,3 +78,4 @@
 | [0071](0071-https-cdn.md) | HTTPS-CDN: Gcore тянет шифр из дома, ключи и хэши дома | accepted (2026-11-16): Gcore, без карты, Россия позже |
 | [0072](0072-edge-websocket-through-cdn.md) | Доступ через CDN: MTProto в WebSocket через второй ресурс Gcore, прямой путь первым | accepted (2026-11-17): узел в России — amf, имена `ru.pluma.chat` и `r1.pluma.chat` |
 | [0073](0073-smart-path-selection.md) | Выбор пути к серверу по надёжной пробе: проба в шлюзе больше порога «замерзания», гонка по пропуску, память по сети, фоновый замер с гистерезисом | proposed |
+| [0074](0074-group-calls-relay.md) | Групповые звонки из России: труба медиа на узле amf (nginx stream), адреса SFU по стране клиента (`SFU_RELAYS`, `GROUPCALLS_ROUTES`) | proposed |
