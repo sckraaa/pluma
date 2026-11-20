@@ -514,7 +514,7 @@ func (s *Server) connHandshakeIO(c gnet.Conn, ctx *connContext) *handshakeIO {
 		ctx.handshakes = s.bindHandshakeIO(&handshakeIO{
 			connId:   c.ConnId(),
 			clientIp: ctx.clientIp,
-			states:   handshake.NewStore(maxConnHandshakes, 0),
+			states:   s.connHandshakes,
 			reply: func(c gnet.Conn, answer mtproto.TLObject) {
 				metricHandshake.Inc("ok")
 				_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: handshake.Payload(answer)})

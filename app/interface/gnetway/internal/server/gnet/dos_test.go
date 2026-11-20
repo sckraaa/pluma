@@ -98,6 +98,35 @@ func TestHandshakeCompletes(t *testing.T) {
 	}
 }
 
+// TestHandshakeAcrossConnections: a key exchange begun on one connection
+// goes on on others, as when an app moves to another path to the server in
+// the middle of it (the iOS app's path choice did; the step used to close
+// the new connection with "does not match the handshake state").
+func TestHandshakeAcrossConnections(t *testing.T) {
+	h := newTestHarness(t)
+	tc := newTestClient(t, &h.key.PublicKey)
+	step := func(id int64, frame []byte) mtproto.TLObject {
+		t.Helper()
+		c := h.newConn(id, nil)
+		if a := h.sendFrame(c, frame); a != gnet.None {
+			t.Fatalf("connection %d: action %v", id, a)
+		}
+		h.waitWrites(c, 1)
+		return h.lastUnencrypted(c)
+	}
+	tc.onResPQ(step(1, tc.reqPqMulti()))
+	tc.onServerDHParams(step(2, tc.reqDHParams(false)))
+	id := tc.onDHGen(step(3, tc.setClientDHParams()))
+	h.do(func() {
+		if len(h.saved) != 1 || h.saved[0].AuthKeyId != id {
+			t.Fatal("key not saved")
+		}
+		if n := h.s.connHandshakes.Len(); n != 0 {
+			t.Fatalf("%d handshakes left", n)
+		}
+	})
+}
+
 // TestHandshakeOutOfOrder sends handshake messages in every wrong order: the
 // connection is closed, nothing panics, and no key is created.
 func TestHandshakeOutOfOrder(t *testing.T) {

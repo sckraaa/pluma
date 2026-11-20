@@ -55,6 +55,9 @@ type Server struct {
 	// httpHandshakes keeps handshakes over the HTTP transport, apart from
 	// the auth key cache so that unauthenticated requests cannot evict keys.
 	httpHandshakes *handshake.Store
+	// connHandshakes keeps the handshakes over the TCP and WebSocket
+	// entries, shared by their connections (maxConnHandshakes).
+	connHandshakes *handshake.Store
 	// saveAuthKey stores a key created by a handshake (saveAuthKeyInfo);
 	// errAuthKeyIdTaken when another key has its auth_key_id.
 	saveAuthKey func(ctx context.Context, key *handshake.AuthKey, expiresIn int32) error
@@ -116,6 +119,7 @@ func New(svcCtx *svc.ServiceContext, c config.Config, keys []*serverkey.Key) (*S
 		s.edgeVias[via] = true
 	}
 	s.httpHandshakes = handshake.NewStore(maxHttpHandshakes, httpHandshakeTTL)
+	s.connHandshakes = handshake.NewStore(maxConnHandshakes, connHandshakeTTL)
 	s.saveAuthKey = s.saveAuthKeyInfo
 	s.queryKey = s.fetchAuthKey
 	s.limits = newIPLimits(c.Gnetway.MaxConnsPerIP, c.Gnetway.KeyExchangesPerIPMinute, c.Gnetway.ProbesPerIPMinute)
