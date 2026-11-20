@@ -78,6 +78,9 @@ func due(call *groupcalls.Call) []int {
 // post sends the service messages of a call that are due. A failed send is
 // logged and left to the collector.
 func (c *GroupCallsCore) post(call *groupcalls.Call) {
+	if call.Conference {
+		return // no chat to post to
+	}
 	for _, bit := range due(call) {
 		if !c.sendService(call.CreatorId, 0, call.PeerType, call.PeerId, messageRandomId(call.Id, bit), actionOf(call, bit)) {
 			return

@@ -46,8 +46,11 @@ const (
 // who may no longer see the chat (removed or banned) leaves it, the SFU's
 // mute of each participant is brought back to his word when a SetMuted was
 // lost, a room empty for as long is closed, the rooms of ended calls are
-// closed, the service messages that were lost are sent again, and the
-// blocks of the encryption of calls over for ChainKeep are deleted. It
+// closed, the service messages that were lost are sent again, the
+// blocks of the encryption of calls over for ChainKeep are deleted, the
+// invitations to conferences that rang out are missed (and the edits of
+// their messages that failed are made again), and the conferences no one
+// is in for long enough end. It
 // holds no state that matters: a restart or a second instance changes
 // nothing.
 type Collector struct {
@@ -134,6 +137,8 @@ func (s *Collector) pass(ctx context.Context) {
 	if _, err := s.svcCtx.Dao.Store.ClearChains(ctx, time.Now().Add(-s.svcCtx.ChainKeep), collectBatch); err != nil {
 		c.Logger.Errorf("groupcalls: blocks of ended calls: %v", err)
 	}
+	c.sweepInvites()
+	c.sweepConferences()
 	unposted, err := s.svcCtx.Dao.Store.Unposted(ctx, time.Now().Add(-postKeep), collectBatch)
 	if err != nil {
 		c.Logger.Errorf("groupcalls: unposted calls: %v", err)
@@ -242,6 +247,10 @@ func (s *Collector) repairMute(c *GroupCallsCore, call *groupcalls.Call, p *grou
 // removed this way is not verified; keeping him in would let him hear and
 // see a chat he is out of.
 func (s *Collector) strangers(c *GroupCallsCore, call *groupcalls.Call, in []*groupcalls.Participant, out map[int64]bool) []*groupcalls.Participant {
+	if call.Conference {
+		// No chat to be removed from; a kick takes one out with its block.
+		return nil
+	}
 	var ids []int64
 	for _, p := range in {
 		if !out[p.UserId] {
@@ -251,7 +260,7 @@ func (s *Collector) strangers(c *GroupCallsCore, call *groupcalls.Call, in []*gr
 	if len(ids) == 0 {
 		return nil
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, ids...)
+	a, err := c.accessOf(call, ids...)
 	if err != nil {
 		c.Logger.Errorf("groupcalls: the chat of call %d: %v", call.Id, err)
 		return nil

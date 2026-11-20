@@ -45,18 +45,27 @@ func newInviteHashes() (listener, speaker string, err error) {
 // the chat with voicechat=<hash>, as the clients read it (Android
 // LaunchActivity.java:2277-2278, tdesktop local_url_handlers.cpp:853-858);
 // Android offers it for public chats only (GroupCallActivity.java:
-// 6632-6634), and a private chat has none: PUBLIC_CHANNEL_MISSING.
+// 6632-6634), and a private chat has none: PUBLIC_CHANNEL_MISSING. A
+// conference has one link, https://<t.me>/call/<slug>, for anyone who may
+// see it and whatever can_self_unmute says: iOS asks with it, Android
+// without (GroupCalls.swift:3365-3373, CallLogActivity.java:1810-1838), and
+// both take the slug as the last part of the path.
 func (c *GroupCallsCore) PhoneExportGroupCallInvite(in *mtproto.TLPhoneExportGroupCallInvite) (*mtproto.Phone_ExportedGroupCallInvite, error) {
 	call, err := c.loadLive(in.GetCall())
 	if err != nil {
 		return nil, err
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId)
+	a, err := c.accessOf(call, c.MD.UserId)
 	if err != nil {
 		return nil, err
 	}
 	if !a.canView(c.MD.UserId) {
 		return nil, mtproto.ErrGroupcallForbidden
+	}
+	if call.Conference {
+		return mtproto.MakeTLPhoneExportedGroupCallInvite(&mtproto.Phone_ExportedGroupCallInvite{
+			Link: inviteLink(call),
+		}).To_Phone_ExportedGroupCallInvite(), nil
 	}
 	if in.GetCanSelfUnmute() && !a.canManage(c.MD.UserId) {
 		return nil, mtproto.ErrChatAdminRequired

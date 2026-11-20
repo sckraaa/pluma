@@ -26,25 +26,47 @@ import (
 // Ends the call, by one who manages it: everyone in it leaves with it,
 // its room closes, messageActionGroupCall with the duration goes into the
 // chat and the members get groupCallDiscarded with the chat without
-// call_active. An empty call is not ended by itself (ADR 0059 §10).
+// call_active. An empty call of a chat is not ended by itself (ADR 0059
+// §10). A conference is ended by its creator alone (Android
+// GroupCallActivity.java:1767), for another GROUPCALL_FORBIDDEN (decision
+// 11 of task 117); its ringing invitations are missed, those of the
+// invitees who joined get its duration, and it posts no message. One that
+// is over already answers as ended: Web K discards a conference whose
+// creation it could not finish (appGroupCallsManager.ts).
 func (c *GroupCallsCore) PhoneDiscardGroupCall(in *mtproto.TLPhoneDiscardGroupCall) (*mtproto.Updates, error) {
-	call, err := c.loadLive(in.GetCall())
+	call, err := c.load(in.GetCall())
 	if err != nil {
 		return nil, err
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId)
+	if call.Discarded && !call.Conference {
+		return nil, mtproto.ErrGroupcallAlreadyDiscarded
+	}
+	a, err := c.accessOf(call, c.MD.UserId)
 	if err != nil {
 		return nil, err
 	}
 	if !a.canManage(c.MD.UserId) {
+		if call.Conference {
+			return nil, mtproto.ErrGroupcallForbidden
+		}
 		return nil, mtproto.ErrChatAdminRequired
+	}
+	if call.Discarded {
+		return c.answer(a, call, nil, nil, true), nil
 	}
 	after, left, won, err := c.svcCtx.Dao.Store.Discard(c.ctx, call.Id)
 	if err != nil {
 		return nil, storeError(err)
 	}
 	if !won {
+		if call.Conference {
+			return c.answer(a, after, nil, nil, true), nil
+		}
 		return nil, mtproto.ErrGroupcallAlreadyDiscarded
+	}
+	if call.Conference {
+		a = c.endConference(a, after, left, "discard")
+		return c.answer(a, after, nil, nil, true), nil
 	}
 	metricCalls.Inc("discarded")
 	c.svcCtx.Members.Forget(call.Id)

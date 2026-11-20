@@ -81,6 +81,8 @@ type Config struct {
 	ChannelClient zrpc.RpcClientConf
 	MsgClient     zrpc.RpcClientConf
 	SyncClient    sync_client.OutboxConf
+	// MessageClient reads the invitations to conferences (task 117).
+	MessageClient zrpc.RpcClientConf
 	// AuthsessionClient tells the country of a client's address
 	// (GroupCalls.Routes).
 	AuthsessionClient zrpc.RpcClientConf

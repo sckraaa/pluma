@@ -38,6 +38,9 @@ func (c *GroupCallsCore) PhoneInviteToGroupCall(in *mtproto.TLPhoneInviteToGroup
 	if err != nil {
 		return nil, err
 	}
+	if err = conferenceOnly(call); err != nil {
+		return nil, err
+	}
 	var ids []int64
 	for _, u := range in.GetUsers() {
 		p := mtproto.FromInputUser(c.MD.UserId, u)
@@ -50,7 +53,7 @@ func (c *GroupCallsCore) PhoneInviteToGroupCall(in *mtproto.TLPhoneInviteToGroup
 	if len(ids) == 0 {
 		return nil, mtproto.ErrUserIdInvalid
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, append([]int64{c.MD.UserId}, ids...)...)
+	a, err := c.accessOf(call, append([]int64{c.MD.UserId}, ids...)...)
 	if err != nil {
 		return nil, err
 	}

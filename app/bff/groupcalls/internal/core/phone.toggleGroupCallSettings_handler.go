@@ -17,6 +17,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/groupcalls"
 )
 
 // PhoneToggleGroupCallSettings
@@ -27,7 +28,11 @@ import (
 // whether Telegram also takes the word from those in the call is not
 // verified. Messages in a call and their price come in a later stage
 // (ADR 0059, stage 5): GROUPCALL_NOT_MODIFIED. How the clients show it is
-// not verified.
+// not verified. Of a conference only the link is reset, by its creator
+// (Android CallLogActivity.java:1613-1625, iOS GroupCalls.swift:3399-3415,
+// tdesktop calls_group_common.cpp:308-330): a new slug, and the old one
+// finds nothing from then on; join_muted is GROUPCALL_FORBIDDEN (decision
+// 11 of task 117).
 func (c *GroupCallsCore) PhoneToggleGroupCallSettings(in *mtproto.TLPhoneToggleGroupCallSettings) (*mtproto.Updates, error) {
 	if in.GetMessagesEnabled() != nil || in.GetSendPaidMessagesStars() != nil {
 		return nil, mtproto.ErrGroupcallNotModified
@@ -36,9 +41,12 @@ func (c *GroupCallsCore) PhoneToggleGroupCallSettings(in *mtproto.TLPhoneToggleG
 	if err != nil {
 		return nil, err
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId)
+	a, err := c.accessOf(call, c.MD.UserId)
 	if err != nil {
 		return nil, err
+	}
+	if call.Conference {
+		return c.resetConferenceLink(a, call, in)
 	}
 	if !a.canManage(c.MD.UserId) {
 		return nil, mtproto.ErrChatAdminRequired
@@ -63,6 +71,26 @@ func (c *GroupCallsCore) PhoneToggleGroupCallSettings(in *mtproto.TLPhoneToggleG
 	}
 	if !changed {
 		return nil, mtproto.ErrGroupcallNotModified
+	}
+	c.deliver(a, after, fanOut{call: true})
+	return c.answer(a, after, nil, nil, true), nil
+}
+
+// resetConferenceLink is phone.toggleGroupCallSettings of a conference.
+func (c *GroupCallsCore) resetConferenceLink(a *access, call *groupcalls.Call, in *mtproto.TLPhoneToggleGroupCallSettings) (*mtproto.Updates, error) {
+	if !a.canManage(c.MD.UserId) || in.GetJoinMuted() != nil {
+		return nil, mtproto.ErrGroupcallForbidden
+	}
+	if !in.GetResetInviteHash() {
+		return nil, mtproto.ErrGroupcallNotModified
+	}
+	slug, err := groupcalls.NewSlug()
+	if err != nil {
+		return nil, err
+	}
+	after, err := c.svcCtx.Dao.Store.ResetSlug(c.ctx, call.Id, slug)
+	if err != nil {
+		return nil, storeError(err)
 	}
 	c.deliver(a, after, fanOut{call: true})
 	return c.answer(a, after, nil, nil, true), nil

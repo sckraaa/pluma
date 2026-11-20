@@ -23,6 +23,7 @@ import (
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
+	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	"github.com/teamgram/teamgram-server/pkg/groupcalls"
 )
@@ -35,6 +36,8 @@ type Dao struct {
 	channel_client.ChannelClient
 	msg_client.MsgClient
 	sync_client.SyncClient
+	// MessageClient reads the invitations to conferences in the boxes.
+	message_client.MessageClient
 }
 
 func New(c config.Config) *Dao {
@@ -46,5 +49,6 @@ func New(c config.Config) *Dao {
 		ChannelClient: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 		MsgClient:     msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 		SyncClient:    sync_client.MustNewSyncOutboxClient(c.SyncClient),
+		MessageClient: message_client.NewMessageClient(rpcx.GetCachedRpcClient(c.MessageClient)),
 	}
 }

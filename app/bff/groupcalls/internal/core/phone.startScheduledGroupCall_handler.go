@@ -30,7 +30,10 @@ func (c *GroupCallsCore) PhoneStartScheduledGroupCall(in *mtproto.TLPhoneStartSc
 	if err != nil {
 		return nil, err
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId)
+	if err = conferenceOnly(call); err != nil {
+		return nil, err
+	}
+	a, err := c.accessOf(call, c.MD.UserId)
 	if err != nil {
 		return nil, err
 	}

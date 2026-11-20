@@ -44,7 +44,10 @@ import (
 // the count of broadcasts. iOS takes a join without either for a failure
 // (GroupCalls.swift:922-944); tdesktop applies them as the first blocks
 // (calls_group_call.cpp:1806-1816). The link of a speaker (invite_hash)
-// gives the word.
+// gives the word. A conference may be named by the slug of its link or by
+// an invitation (load) and is joined by whoever its policy lets see it
+// (conferenceAccess); the join of an invitee answers his invitation
+// (conferenceJoined).
 func (c *GroupCallsCore) PhoneJoinGroupCall(in *mtproto.TLPhoneJoinGroupCall) (*mtproto.Updates, error) {
 	if in.GetKeyFingerprint() != nil {
 		return nil, mtproto.ErrGroupcallInvalid
@@ -56,7 +59,7 @@ func (c *GroupCallsCore) PhoneJoinGroupCall(in *mtproto.TLPhoneJoinGroupCall) (*
 	if err = c.joinAs(in.GetJoinAs()); err != nil {
 		return nil, err
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId)
+	a, err := c.accessOf(call, c.MD.UserId)
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +82,9 @@ func (c *GroupCallsCore) PhoneJoinGroupCall(in *mtproto.TLPhoneJoinGroupCall) (*
 		return nil, errNotConfigured
 	}
 	params := []byte(in.GetParams().GetData())
-	req, err := tgcallsjson.ParseJoinRequest(params)
+	req, err := tgcallsJoin(params)
 	if err != nil {
-		return nil, mtproto.ErrDataJsonInvalid
+		return nil, err
 	}
 	endpoint, err := newEndpoint()
 	if err != nil {
@@ -113,7 +116,33 @@ func (c *GroupCallsCore) PhoneJoinGroupCall(in *mtproto.TLPhoneJoinGroupCall) (*
 	if err != nil {
 		return nil, chainError(err)
 	}
-	c.svcCtx.E2E.Joined(call.Id, c.MD.UserId, wasMember)
+	return c.finishJoin(a, call, res, joined{params: params, source: req.SSRC, endpoint: endpoint, routes: routes, wasMember: wasMember})
+}
+
+// tgcallsJoin parses the join params of a client.
+func tgcallsJoin(params []byte) (*tgcallsjson.JoinRequest, error) {
+	req, err := tgcallsjson.ParseJoinRequest(params)
+	if err != nil {
+		return nil, mtproto.ErrDataJsonInvalid
+	}
+	return req, nil
+}
+
+// joined is what the state of a join leaves to its connection.
+type joined struct {
+	params   []byte
+	source   uint32
+	endpoint string
+	routes   []string
+	// wasMember: the account was in the group state of the chain before
+	// the join (a join again, ADR 0060 §5).
+	wasMember bool
+}
+
+// finishJoin connects a join the state took (res, on call as it was
+// before), tells everyone and answers it.
+func (c *GroupCallsCore) finishJoin(a *access, call *groupcalls.Call, res *groupcalls.JoinResult, j joined) (*mtproto.Updates, error) {
+	c.svcCtx.E2E.Joined(call.Id, c.MD.UserId, j.wasMember)
 	c.svcCtx.E2E.Chain(call.Id, res.Call.ChainHeight, res.Call.ChainHash, res.Chain.Members)
 	block0, err := writeUpdate(call.Input(), groupcalls.SubChainMain, res.Chain)
 	if err != nil {
@@ -121,17 +150,20 @@ func (c *GroupCallsCore) PhoneJoinGroupCall(in *mtproto.TLPhoneJoinGroupCall) (*
 	}
 	resp, err := c.connectJoined(res.Call, &pb.JoinRequest{
 		CallId: call.Id, Participant: c.MD.UserId, Kind: pb.ConnectionKind_CONNECTION_KIND_MAIN,
-		Params: params, Muted: !res.Self.CanSelfUnmute, Endpoint: endpoint, Routes: routes,
+		Params: j.params, Muted: !res.Self.CanSelfUnmute, Endpoint: j.endpoint, Routes: j.routes,
 	})
 	if err != nil {
 		// The block stands: the others apply it and, as the joiner is not
 		// in the media, remove him with only_left (ADR 0060 §2). He leaves
 		// before the block goes out, so that their removal is taken.
-		c.unjoin(a, res.Call, req.SSRC)
+		c.unjoin(a, res.Call, j.source)
 		c.deliverChain(block0, res.Chain.Members)
 		return nil, err
 	}
 	metricJoins.Inc("main")
+	if call.Conference {
+		c.conferenceJoined(res.Call)
+	}
 	// The joiner's row goes out before his block. tdesktop takes every
 	// member of the chain who is not among the participants it holds for
 	// one who left, as soon as a block changes the chain, and removes him

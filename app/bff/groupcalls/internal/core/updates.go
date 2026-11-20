@@ -37,8 +37,13 @@ import (
 // close by reading the call (data_group_call.cpp:600-680).
 
 // callUpdate is updateGroupCall of call with its peer; chat_id is the
-// form of the older layers.
+// form of the older layers. A conference has no peer: the clients find it
+// by its id (tdesktop data_session.cpp:1472-1500, Web K
+// groupCallUpdates.ts).
 func callUpdate(call *groupcalls.Call, v groupcalls.CallView) *mtproto.Update {
+	if call.Conference {
+		return mtproto.MakeTLUpdateGroupCall(&mtproto.Update{Call_GROUPCALL: call.TL(v)}).To_Update()
+	}
 	return mtproto.MakeTLUpdateGroupCall(&mtproto.Update{
 		Peer_PEER:        call.Peer(),
 		ChatId_FLAGINT64: wrapperspb.Int64(call.PeerId),
@@ -141,7 +146,9 @@ func (c *GroupCallsCore) envelope(viewer int64, updates []*mtproto.Update, n *na
 	}
 	chats := []*mtproto.Chat{}
 	if a != nil {
-		chats = append(chats, a.chatFor(viewer))
+		if chat := a.chatFor(viewer); chat != nil {
+			chats = append(chats, chat)
+		}
 	}
 	if n != nil && len(n.channels) > 0 {
 		var ids []int64
@@ -211,7 +218,7 @@ func (c *GroupCallsCore) deliver(a *access, call *groupcalls.Call, f fanOut) *ac
 		}
 		recipients = uniq(append(recipients, members...))
 	}
-	if f.chats || (f.call && a.channel != nil && len(recipients) > 0) {
+	if a.conf == nil && (f.chats || (f.call && a.channel != nil && len(recipients) > 0)) {
 		// The rows of the recipients, for what each may do and see, and
 		// of the account that made the step, for its answer.
 		fresh, err := c.loadPeer(a.peerType, a.peerId, uniq(append(slices.Clone(recipients), c.MD.UserId))...)
@@ -233,7 +240,7 @@ func (c *GroupCallsCore) deliver(a *access, call *groupcalls.Call, f fanOut) *ac
 	users, channels := peersOf(changed)
 	n := c.namesOf(recipients, users, channels)
 	var chatOf *access
-	if f.chats {
+	if f.chats && a.conf == nil {
 		chatOf = a
 	}
 	for _, r := range recipients {
@@ -242,7 +249,7 @@ func (c *GroupCallsCore) deliver(a *access, call *groupcalls.Call, f fanOut) *ac
 			ups = append(ups, changeUpdates(call, f.changes, r, nil, true)...)
 		}
 		if f.call {
-			v := groupcalls.CallView{VideoLimit: c.svcCtx.VideoLimit, CanManage: a.canManage(r), Subscribed: slices.Contains(subscribers, r)}
+			v := groupcalls.CallView{VideoLimit: c.svcCtx.VideoLimit, CanManage: a.canManage(r), Subscribed: slices.Contains(subscribers, r), InviteLink: inviteLink(call)}
 			ups = append(ups, callUpdate(call, v))
 		}
 		if len(ups) == 0 {

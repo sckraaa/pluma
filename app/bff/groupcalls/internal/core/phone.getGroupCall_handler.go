@@ -30,7 +30,10 @@ const listMax = 100
 // after a gap in the versions (data_group_call.cpp:600-680), iOS 4
 // (GroupCalls.swift:215); participants_next_offset continues the list in
 // phone.getGroupParticipants. The rows are the viewer's own, with what he
-// set for each.
+// set for each. A conference may be named by its slug or an invitation;
+// one that is over is groupCallDiscarded, not an error: iOS then offers to
+// call the same people (GroupCalls.swift:168-169), Web K says the invite
+// expired (appImManager.ts:2618).
 func (c *GroupCallsCore) PhoneGetGroupCall(in *mtproto.TLPhoneGetGroupCall) (*mtproto.Phone_GroupCall, error) {
 	call, err := c.load(in.GetCall())
 	if err != nil {
@@ -67,12 +70,13 @@ func clampLimit(limit int32) int {
 	return int(limit)
 }
 
-// viewable loads the chat of a call for an account that may see the call:
-// a member, or a reader of the public channel. Being in the call is not
-// enough: one removed from the chat is out of its call too (the collector
-// takes him out).
+// viewable loads the policy of a call for an account that may see the
+// call: a member, or a reader of the public channel; of a conference, one
+// its policy lets see it (conferenceAccess). Being in the call of a chat is
+// not enough: one removed from the chat is out of its call too (the
+// collector takes him out).
 func (c *GroupCallsCore) viewable(call *groupcalls.Call) (*access, error) {
-	a, err := c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId)
+	a, err := c.accessOf(call, c.MD.UserId)
 	if err != nil {
 		return nil, err
 	}

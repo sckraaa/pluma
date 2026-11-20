@@ -55,7 +55,7 @@ func (c *GroupCallsCore) PhoneJoinGroupCallPresentation(in *mtproto.TLPhoneJoinG
 		// 2030-2036); Store.SetPresentation checks it again.
 		return nil, mtproto.ErrChatAdminRequired
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId)
+	a, err := c.accessOf(call, c.MD.UserId)
 	if err != nil {
 		return nil, err
 	}

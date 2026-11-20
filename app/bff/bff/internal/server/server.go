@@ -166,6 +166,7 @@ func (s *Server) Initialize() error {
 			ChannelClient: c.BizServiceClient,
 			MsgClient:     c.MsgClient,
 			SyncClient:    syncClient,
+			MessageClient: c.BizServiceClient,
 			// GroupCalls.Routes by the country of the address.
 			AuthsessionClient: c.AuthSessionClient,
 		})

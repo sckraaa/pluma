@@ -37,7 +37,7 @@ func (c *GroupCallsCore) PhoneLeaveGroupCall(in *mtproto.TLPhoneLeaveGroupCall) 
 	if err != nil {
 		return nil, err
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId)
+	a, err := c.accessOf(call, c.MD.UserId)
 	if err != nil {
 		return nil, err
 	}
