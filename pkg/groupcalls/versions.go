@@ -53,12 +53,13 @@ type participantRow struct {
 	Video              string        `db:"video"`
 	Presentation       string        `db:"presentation"`
 	PresentationPaused bool          `db:"presentation_paused"`
+	Kicked             bool          `db:"kicked"`
 	Date               int32         `db:"date"`
 	ActiveDate         int32         `db:"active_date"`
 	SeenAt             int64         `db:"seen_at"`
 }
 
-const participantColumns = "call_id, peer_type, peer_id, user_id, auth_key_id, in_call, source, presentation_source, muted, can_self_unmute, volume, raise_hand_rating, video_joined, video_stopped, video_paused, video, presentation, presentation_paused, `date`, active_date, seen_at"
+const participantColumns = "call_id, peer_type, peer_id, user_id, auth_key_id, in_call, source, presentation_source, muted, can_self_unmute, volume, raise_hand_rating, video_joined, video_stopped, video_paused, video, presentation, presentation_paused, kicked, `date`, active_date, seen_at"
 
 func (r *participantRow) participant() (*Participant, error) {
 	p := &Participant{
@@ -66,7 +67,7 @@ func (r *participantRow) participant() (*Participant, error) {
 		InCall: r.InCall, Source: uint32(r.Source.Int64), PresentationSource: uint32(r.PresentationSource.Int64),
 		Muted: r.Muted, CanSelfUnmute: r.CanSelfUnmute, Volume: r.Volume, RaiseHandRating: r.RaiseHandRating,
 		VideoJoined: r.VideoJoined, VideoStopped: r.VideoStopped, VideoPaused: r.VideoPaused,
-		PresentationPaused: r.PresentationPaused, Date: r.Date, ActiveDate: r.ActiveDate, SeenAt: r.SeenAt,
+		PresentationPaused: r.PresentationPaused, Kicked: r.Kicked, Date: r.Date, ActiveDate: r.ActiveDate, SeenAt: r.SeenAt,
 	}
 	var err error
 	if p.Video, err = unmarshalMedia(r.Video); err != nil {
@@ -145,121 +146,129 @@ type JoinResult struct {
 func (s *Store) Join(ctx context.Context, j JoinParams) (*JoinResult, error) {
 	var res *JoinResult
 	err := s.db.Transact(ctx, func(tx *sqlx.Tx) error {
-		res = nil
-		call, err := oneCall(ctx, txq{tx}, "where c.id = ? for update", j.CallId)
-		if err != nil {
-			return err
-		}
-		switch {
-		case call.Discarded:
-			return ErrDiscarded
-		case call.Scheduled():
-			return ErrScheduled
-		}
-		switch {
-		case j.Node == "" || call.SfuNode == j.Node:
-		case call.SfuNode == "":
-			// The collector forgot the node of a room it found empty
-			// while this join opened the room again: the room is there.
-			if _, err = tx.Exec("update group_calls set sfu_node = ? where id = ?", j.Node, j.CallId); err != nil {
-				return err
-			}
-		default:
-			return ErrMoved
-		}
-		if j.Chain == nil {
-			return ErrNoChainBlock
-		}
-		// The block first: a block on a height another join took is
-		// stale, whatever else the join brings.
-		now := s.now()
-		chain, err := joinChain(ctx, tx, call, j.UserId, j.Chain, now)
-		if err != nil {
-			return err
-		}
-		mine, err := participants(ctx, txq{tx}, "where call_id = ? and peer_type = ? and peer_id = ? for update", j.CallId, mtproto.PEER_USER, j.UserId)
-		if err != nil {
-			return err
-		}
-		var prev *Participant
-		if len(mine) > 0 {
-			prev = mine[0]
-		}
-		already := prev != nil && prev.InCall
-		if !already && call.ParticipantsCount >= MaxParticipants {
-			return ErrFull
-		}
-		p := prev
-		if p == nil {
-			p = &Participant{CallId: j.CallId, PeerType: mtproto.PEER_USER, PeerId: j.UserId}
-		}
-		p.UserId, p.AuthKeyId, p.Source, p.Video, p.VideoStopped = j.UserId, j.AuthKeyId, j.Source, j.Video, j.VideoStopped
-		p.Muted, p.CanSelfUnmute = j.State(call, prev)
-		if !p.CanSelfUnmute {
-			// No camera without the word; the SFU does not forward it.
-			p.VideoStopped = true
-		}
-		if !already {
-			// A camera may go on while the call has room for one more
-			// (Android ChatObject.java:420 takes can_start_video for it).
-			limit := j.VideoLimit
-			if limit <= 0 {
-				limit = DefaultVideoLimit
-			}
-			p.VideoJoined = call.VideoCount < limit
-			p.Date, p.RaiseHandRating, p.VideoPaused = int32(now.Unix()), 0, false
-			p.PresentationSource, p.Presentation, p.PresentationPaused = 0, nil, false
-		}
-		p.InCall, p.SeenAt = true, now.UnixMilli()
-		video, err := marshalMedia(p.Video)
-		if err != nil {
-			return err
-		}
-		presentation, err := marshalMedia(p.Presentation)
-		if err != nil {
-			return err
-		}
-		// The source must be free: an upsert would change the row of the
-		// participant that holds it.
-		var holders []int64
-		if err = tx.QueryRowsPartial(&holders, "select peer_id from group_call_participants where call_id = ? and source = ? and not (peer_type = ? and peer_id = ?)",
-			p.CallId, int64(p.Source), p.PeerType, p.PeerId); err != nil && !errors.Is(err, sqlx.ErrNotFound) {
-			return err
-		}
-		if len(holders) > 0 {
-			return ErrSourceInUse
-		}
-		if prev == nil {
-			_, err = tx.Exec("insert into group_call_participants (call_id, peer_type, peer_id, user_id, auth_key_id, in_call, source, presentation_source, muted, can_self_unmute, volume, raise_hand_rating, video_joined, video_stopped, video_paused, video, presentation, presentation_paused, `date`, active_date, seen_at)"+
-				" values (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				p.CallId, p.PeerType, p.PeerId, p.UserId, p.AuthKeyId, int64(p.Source), nullSource(p.PresentationSource), p.Muted, p.CanSelfUnmute,
-				p.Volume, p.RaiseHandRating, p.VideoJoined, p.VideoStopped, p.VideoPaused, video, presentation, p.PresentationPaused,
-				p.Date, p.ActiveDate, p.SeenAt)
-		} else {
-			_, err = tx.Exec("update group_call_participants set user_id = ?, auth_key_id = ?, in_call = 1, source = ?, presentation_source = ?, muted = ?, can_self_unmute = ?,"+
-				" raise_hand_rating = ?, video_joined = ?, video_stopped = ?, video_paused = ?, video = ?, presentation = ?, presentation_paused = ?, `date` = ?, seen_at = ?"+
-				" where call_id = ? and peer_type = ? and peer_id = ?",
-				p.UserId, p.AuthKeyId, int64(p.Source), nullSource(p.PresentationSource), p.Muted, p.CanSelfUnmute,
-				p.RaiseHandRating, p.VideoJoined, p.VideoStopped, p.VideoPaused, video, presentation, p.PresentationPaused, p.Date, p.SeenAt,
-				p.CallId, p.PeerType, p.PeerId)
-		}
-		if isDuplicate(err) {
-			return ErrSourceInUse
-		}
-		if err != nil {
-			return err
-		}
-		if _, err = tx.Exec("update group_calls set version = version + 1 where id = ?", j.CallId); err != nil {
-			return err
-		}
-		res = &JoinResult{Self: p, Changes: []Change{{Participant: p, JustJoined: !already, Versioned: true}}, Chain: chain}
-		res.Call, err = oneCall(ctx, txq{tx}, "where c.id = ?", j.CallId)
-		chain.Call = res.Call
+		var err error
+		res, err = s.joinTx(ctx, tx, j)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
+	return res, nil
+}
+
+// joinTx is a join in the transaction tx: it locks the row of the call.
+func (s *Store) joinTx(ctx context.Context, tx *sqlx.Tx, j JoinParams) (*JoinResult, error) {
+	call, err := oneCall(ctx, txq{tx}, "where c.id = ? for update", j.CallId)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case call.Discarded:
+		return nil, ErrDiscarded
+	case call.Scheduled():
+		return nil, ErrScheduled
+	}
+	switch {
+	case j.Node == "" || call.SfuNode == j.Node:
+	case call.SfuNode == "":
+		// The collector forgot the node of a room it found empty
+		// while this join opened the room again: the room is there.
+		if _, err = tx.Exec("update group_calls set sfu_node = ? where id = ?", j.Node, j.CallId); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, ErrMoved
+	}
+	if j.Chain == nil {
+		return nil, ErrNoChainBlock
+	}
+	// The block first: a block on a height another join took is
+	// stale, whatever else the join brings.
+	now := s.now()
+	chain, err := joinChain(ctx, tx, call, j.UserId, j.Chain, now)
+	if err != nil {
+		return nil, err
+	}
+	mine, err := participants(ctx, txq{tx}, "where call_id = ? and peer_type = ? and peer_id = ? for update", j.CallId, mtproto.PEER_USER, j.UserId)
+	if err != nil {
+		return nil, err
+	}
+	var prev *Participant
+	if len(mine) > 0 {
+		prev = mine[0]
+	}
+	already := prev != nil && prev.InCall
+	if !already && call.ParticipantsCount >= MaxParticipants {
+		return nil, ErrFull
+	}
+	p := prev
+	if p == nil {
+		p = &Participant{CallId: j.CallId, PeerType: mtproto.PEER_USER, PeerId: j.UserId}
+	}
+	p.UserId, p.AuthKeyId, p.Source, p.Video, p.VideoStopped = j.UserId, j.AuthKeyId, j.Source, j.Video, j.VideoStopped
+	p.Muted, p.CanSelfUnmute = j.State(call, prev)
+	if !p.CanSelfUnmute {
+		// No camera without the word; the SFU does not forward it.
+		p.VideoStopped = true
+	}
+	if !already {
+		// A camera may go on while the call has room for one more
+		// (Android ChatObject.java:420 takes can_start_video for it).
+		limit := j.VideoLimit
+		if limit <= 0 {
+			limit = DefaultVideoLimit
+		}
+		p.VideoJoined = call.VideoCount < limit
+		p.Date, p.RaiseHandRating, p.VideoPaused = int32(now.Unix()), 0, false
+		p.PresentationSource, p.Presentation, p.PresentationPaused = 0, nil, false
+	}
+	p.InCall, p.SeenAt = true, now.UnixMilli()
+	video, err := marshalMedia(p.Video)
+	if err != nil {
+		return nil, err
+	}
+	presentation, err := marshalMedia(p.Presentation)
+	if err != nil {
+		return nil, err
+	}
+	// The source must be free: an upsert would change the row of the
+	// participant that holds it.
+	var holders []int64
+	if err = tx.QueryRowsPartial(&holders, "select peer_id from group_call_participants where call_id = ? and source = ? and not (peer_type = ? and peer_id = ?)",
+		p.CallId, int64(p.Source), p.PeerType, p.PeerId); err != nil && !errors.Is(err, sqlx.ErrNotFound) {
+		return nil, err
+	}
+	if len(holders) > 0 {
+		return nil, ErrSourceInUse
+	}
+	if prev == nil {
+		_, err = tx.Exec("insert into group_call_participants (call_id, peer_type, peer_id, user_id, auth_key_id, in_call, source, presentation_source, muted, can_self_unmute, volume, raise_hand_rating, video_joined, video_stopped, video_paused, video, presentation, presentation_paused, `date`, active_date, seen_at)"+
+			" values (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			p.CallId, p.PeerType, p.PeerId, p.UserId, p.AuthKeyId, int64(p.Source), nullSource(p.PresentationSource), p.Muted, p.CanSelfUnmute,
+			p.Volume, p.RaiseHandRating, p.VideoJoined, p.VideoStopped, p.VideoPaused, video, presentation, p.PresentationPaused,
+			p.Date, p.ActiveDate, p.SeenAt)
+	} else {
+		_, err = tx.Exec("update group_call_participants set user_id = ?, auth_key_id = ?, in_call = 1, source = ?, presentation_source = ?, muted = ?, can_self_unmute = ?,"+
+			" raise_hand_rating = ?, video_joined = ?, video_stopped = ?, video_paused = ?, video = ?, presentation = ?, presentation_paused = ?, `date` = ?, seen_at = ?"+
+			" where call_id = ? and peer_type = ? and peer_id = ?",
+			p.UserId, p.AuthKeyId, int64(p.Source), nullSource(p.PresentationSource), p.Muted, p.CanSelfUnmute,
+			p.RaiseHandRating, p.VideoJoined, p.VideoStopped, p.VideoPaused, video, presentation, p.PresentationPaused, p.Date, p.SeenAt,
+			p.CallId, p.PeerType, p.PeerId)
+	}
+	if isDuplicate(err) {
+		return nil, ErrSourceInUse
+	}
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.Exec("update group_calls set version = version + 1 where id = ?", j.CallId); err != nil {
+		return nil, err
+	}
+	res := &JoinResult{Self: p, Changes: []Change{{Participant: p, JustJoined: !already, Versioned: true}}, Chain: chain}
+	if res.Call, err = oneCall(ctx, txq{tx}, "where c.id = ?", j.CallId); err != nil {
+		return nil, err
+	}
+	chain.Call = res.Call
 	return res, nil
 }
 

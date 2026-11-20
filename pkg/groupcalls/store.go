@@ -89,6 +89,8 @@ type callRow struct {
 	ChainHeight       int32        `db:"chain_height"`
 	ChainHash         []byte       `db:"chain_hash"`
 	BroadcastCount    int32        `db:"broadcast_count"`
+	Conference        bool         `db:"conference"`
+	Slug              string       `db:"slug"`
 	ParticipantsCount int32        `db:"participants_count"`
 	VideoCount        int32        `db:"video_count"`
 }
@@ -96,7 +98,8 @@ type callRow struct {
 // callColumns reads a call with the number of its participants and of
 // their cameras: at most MaxParticipants rows each, counted in the same
 // statement, so that the numbers never drift from the rows.
-const callColumns = "c.id, c.access_hash, c.peer_type, c.peer_id, c.creator_id, c.random_id, c.title, c.join_muted, c.version, c.schedule_date, c.`date`, c.start_date, c.end_date, c.duration, c.live, c.listener_hash, c.speaker_hash, c.sfu_node, c.posted, c.chain_height, c.chain_hash, c.broadcast_count," +
+const callColumns = "c.id, c.access_hash, c.peer_type, c.peer_id, c.creator_id, c.random_id, c.title, c.join_muted, c.version, c.schedule_date, c.`date`, c.start_date, c.end_date, c.duration, c.live, c.listener_hash, c.speaker_hash, c.sfu_node, c.posted, c.chain_height, c.chain_hash, c.broadcast_count, c.conference," +
+	" ifnull((select f.slug from group_call_conferences f where f.call_id = c.id), '') as slug," +
 	" (select count(*) from group_call_participants p where p.call_id = c.id and p.in_call = 1) as participants_count," +
 	" (select count(*) from group_call_participants p where p.call_id = c.id and p.in_call = 1 and p.video_joined = 1 and p.video_stopped = 0 and p.video <> '') as video_count"
 
@@ -108,6 +111,7 @@ func (r *callRow) call() *Call {
 		Date: r.Date, StartDate: r.StartDate, EndDate: r.EndDate, Duration: r.Duration,
 		Discarded: !r.Live.Valid, ListenerHash: r.ListenerHash, SpeakerHash: r.SpeakerHash,
 		SfuNode: r.SfuNode, Posted: r.Posted, ChainHeight: r.ChainHeight, BroadcastCount: r.BroadcastCount,
+		Conference: r.Conference, Slug: r.Slug,
 	}
 	copy(c.ChainHash[:], r.ChainHash)
 	return c
@@ -238,12 +242,17 @@ func (s *Store) Start(ctx context.Context, id int64) (*Call, bool, error) {
 // Discard ends a call: its participants leave with it. won is false when
 // it was over already. left are those who were in it.
 func (s *Store) Discard(ctx context.Context, id int64) (call *Call, left []*Participant, won bool, err error) {
+	return s.discardIf(ctx, id, false)
+}
+
+// discardIf is Discard; onlyEmpty leaves a call someone is in as it is.
+func (s *Store) discardIf(ctx context.Context, id int64, onlyEmpty bool) (call *Call, left []*Participant, won bool, err error) {
 	err = s.db.Transact(ctx, func(tx *sqlx.Tx) error {
 		c, err := oneCall(ctx, txq{tx}, "where c.id = ? for update", id)
 		if err != nil {
 			return err
 		}
-		if c.Discarded {
+		if c.Discarded || (onlyEmpty && c.ParticipantsCount > 0) {
 			call = c
 			return nil
 		}
@@ -328,13 +337,13 @@ func (s *Store) MarkPosted(ctx context.Context, id int64, bit int8) error {
 	return err
 }
 
-// Unposted returns the calls created after since with a service message
-// that is not in the history yet, at most limit: the schedule of a
+// Unposted returns the calls of chats created after since with a service
+// message that is not in the history yet, at most limit: the schedule of a
 // scheduled call, the start of a started one, the end of one that started
-// and is over.
+// and is over. A conference has no chat to post to.
 func (s *Store) Unposted(ctx context.Context, since time.Time, limit int) ([]*Call, error) {
 	return manyCalls(ctx, dbq{s.db},
-		"where c.`date` > ? and (c.schedule_date <> 0 and (c.posted & ?) = 0 or c.start_date <> 0 and (c.posted & ?) = 0 or c.start_date <> 0 and c.live is null and (c.posted & ?) = 0) order by c.id limit ?",
+		"where c.`date` > ? and c.conference = 0 and (c.schedule_date <> 0 and (c.posted & ?) = 0 or c.start_date <> 0 and (c.posted & ?) = 0 or c.start_date <> 0 and c.live is null and (c.posted & ?) = 0) order by c.id limit ?",
 		int32(since.Unix()), PostedScheduled, PostedStart, PostedEnd, limit)
 }
 
