@@ -120,8 +120,9 @@ func validEndpointID(s string) bool {
 }
 
 // join connects a participant's connection. endpointID is the id the
-// signalling side stored for it; "" makes one.
-func (r *Room) join(participant int64, kind Kind, req *tgcallsjson.JoinRequest, muted bool, endpointID string) (*JoinResult, error) {
+// signalling side stored for it; "" makes one. addrs are the candidates of
+// the answer, route the route the connection is counted under.
+func (r *Room) join(participant int64, kind Kind, req *tgcallsjson.JoinRequest, muted bool, endpointID string, addrs []tgcallsjson.Address, route string) (*JoinResult, error) {
 	layers, err := req.VideoLayers()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrBadParams, err)
@@ -166,6 +167,7 @@ func (r *Room) join(participant int64, kind Kind, req *tgcallsjson.JoinRequest, 
 		}
 	}
 	m := newMember(r, participant, kind, endpointID, req.SSRC, layers, muted)
+	m.route = route
 	r.nextJoinSeq++
 	m.joinSeq = r.nextJoinSeq
 	epCfg := r.cfg.Transport
@@ -182,12 +184,12 @@ func (r *Room) join(participant int64, kind Kind, req *tgcallsjson.JoinRequest, 
 	m.ep = ep
 	// Paired with the decrement in OnClosed, which runs for every
 	// endpoint made.
-	metrics.Connections.WithLabelValues(kind.String(), "connecting").Inc()
+	metrics.Connections.WithLabelValues(kind.String(), "connecting", route).Inc()
 	resp, err := tgcallsjson.BuildResponse(tgcallsjson.ResponseParams{
 		Ufrag:             ep.LocalUfrag(),
 		Pwd:               ep.LocalPwd(),
 		FingerprintSHA256: r.mgr.cert.SHA256,
-		Addresses:         r.cfg.Addresses,
+		Addresses:         addrs,
 		Endpoint:          endpointID,
 	})
 	if err == nil {
@@ -333,7 +335,7 @@ func (r *Room) onConnected(m *Member) {
 	network := m.ep.PairNetwork()
 	role := m.ep.Role().String()
 	connectTime := time.Since(m.joinedAt)
-	metrics.ICEPairs.WithLabelValues(network, role).Inc()
+	metrics.ICEPairs.WithLabelValues(network, role, m.route).Inc()
 	metrics.ConnectSeconds.Observe(connectTime.Seconds())
 	r.mgr.publish(Event{
 		Type: EventConnected, CallID: r.id, Participant: m.participant, Kind: m.kind, Time: time.Now(),
@@ -360,7 +362,7 @@ func (r *Room) onClosed(m *Member, reason error) {
 	case errors.Is(reason, transport.ErrDTLSFailed):
 		cause = "dtls"
 	}
-	metrics.ConnectFailures.WithLabelValues(cause).Inc()
+	metrics.ConnectFailures.WithLabelValues(cause, m.route).Inc()
 	r.mgr.publish(Event{
 		Type: EventDisconnected, CallID: r.id, Participant: m.participant, Kind: m.kind, Time: time.Now(),
 		Reason: cause, Source: m.audioSSRC,

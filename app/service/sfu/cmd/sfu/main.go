@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 
@@ -80,6 +81,10 @@ func run(c config.Config) error {
 	if err != nil {
 		return err
 	}
+	relays, err := c.RelayAddresses()
+	if err != nil {
+		return err
+	}
 	cert, err := transport.NewCertificate()
 	if err != nil {
 		return err
@@ -88,6 +93,7 @@ func run(c config.Config) error {
 	bus := control.NewBus()
 	rooms, err := room.NewManager(room.Config{
 		Addresses:       addresses,
+		Relays:          relays,
 		MaxParticipants: c.Limits.MaxParticipants,
 		MaxVideos:       c.Limits.MaxVideos,
 		LastN:           c.Limits.LastN,
@@ -127,7 +133,12 @@ func run(c config.Config) error {
 			}
 		}()
 	}
-	logx.Infof("sfu: control on %s, media udp %s tcp %q", c.Control.ListenOn, c.Media.UDPListen, c.Media.TCPListen)
+	names := make([]string, 0, len(relays))
+	for name := range relays {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	logx.Infof("sfu: control on %s, media udp %s tcp %q, relays %v", c.Control.ListenOn, c.Media.UDPListen, c.Media.TCPListen, names)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)

@@ -20,12 +20,16 @@ package room
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/zeromicro/go-zero/core/logx"
+
 	"github.com/teamgram/teamgram-server/app/service/sfu/internal/metrics"
 	"github.com/teamgram/teamgram-server/app/service/sfu/internal/transport"
+	pb "github.com/teamgram/teamgram-server/app/service/sfu/sfu"
 	"github.com/teamgram/teamgram-server/pkg/tgcallsjson"
 )
 
@@ -58,8 +62,12 @@ var (
 
 // Config is the behaviour of the rooms.
 type Config struct {
-	// Addresses are the public addresses clients reach the SFU at.
+	// Addresses are the public addresses clients reach the SFU at: the
+	// route "direct".
 	Addresses []tgcallsjson.Address
+	// Relays are the addresses of the relays in front of the node, by
+	// the name of their route (Media.Relays, task 116).
+	Relays map[string][]tgcallsjson.Address
 
 	MaxParticipants int
 	// MaxVideos is how many senders' videos are forwarded at once; the
@@ -201,8 +209,9 @@ type JoinResult struct {
 // Join connects a participant's connection of the kind to a room with the
 // client's join params. A participant already connected with the kind is
 // replaced: clients join again with new params after a network change or
-// an SFU restart (tdesktop calls_group_call.cpp:3746-3776).
-func (m *Manager) Join(callID, participant int64, kind Kind, params []byte, muted bool, endpoint string) (*JoinResult, error) {
+// an SFU restart (tdesktop calls_group_call.cpp:3746-3776). routes name
+// the sets of addresses the answer carries (JoinRequest.routes).
+func (m *Manager) Join(callID, participant int64, kind Kind, params []byte, muted bool, endpoint string, routes []string) (*JoinResult, error) {
 	req, err := tgcallsjson.ParseJoinRequest(params)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrBadParams, err)
@@ -211,7 +220,46 @@ func (m *Manager) Join(callID, participant int64, kind Kind, params []byte, mute
 	if err != nil {
 		return nil, err
 	}
-	return r.join(participant, kind, req, muted, endpoint)
+	addrs, route := m.addresses(routes)
+	return r.join(participant, kind, req, muted, endpoint, addrs, route)
+}
+
+// addresses are the public addresses of the sets routes name, in their
+// order, and the route of the first set, under which the connection is
+// counted. A name the node does not know is left out, counted and
+// logged: bff may name a relay before the node has it (task 116,
+// ADR 0074), and a client with a route it does not need still connects
+// by another. With no known name left, the direct addresses.
+func (m *Manager) addresses(routes []string) ([]tgcallsjson.Address, string) {
+	var out []tgcallsjson.Address
+	first := ""
+	set := 0
+	for i, name := range routes {
+		if slices.Contains(routes[:i], name) {
+			continue
+		}
+		addrs := m.cfg.Relays[name]
+		if name == pb.RouteDirect {
+			addrs = m.cfg.Addresses
+		}
+		if len(addrs) == 0 {
+			metrics.RouteUnknown.WithLabelValues(name).Inc()
+			logx.Errorf("room: a join names the route %q, which this node does not have (SFU_RELAYS)", name)
+			continue
+		}
+		if first == "" {
+			first = name
+		}
+		for _, a := range addrs {
+			a.Set = set
+			out = append(out, a)
+		}
+		set++
+	}
+	if first == "" {
+		return m.cfg.Addresses, pb.RouteDirect
+	}
+	return out, first
 }
 
 // Leave disconnects a participant's connection of the kind.

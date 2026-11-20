@@ -126,7 +126,18 @@ type Address struct {
 	IP   netip.Addr
 	Port uint16
 	TCP  bool
+	// Set is the place of the address's set (its route, task 116) in the
+	// order of preference of the join, 0 the first: a later set gets a
+	// lower priority on the same transport.
+	Set int
 }
+
+// MaxCandidates is the most candidates an answer has: Web drops an answer
+// with more (tweb helpers/sdpSafety.ts:87, MAX_CANDIDATES 64).
+const MaxCandidates = 64
+
+// maxSet bounds Address.Set, so that the local preference stays positive.
+const maxSet = 1000
 
 // ResponseParams is what an answer is built from.
 type ResponseParams struct {
@@ -204,9 +215,24 @@ func BuildResponse(p ResponseParams) (*JoinResponse, error) {
 			},
 		},
 	}
+	type key struct {
+		ip   netip.Addr
+		port uint16
+		tcp  bool
+	}
+	seen := make(map[key]bool, len(p.Addresses))
 	for i, a := range p.Addresses {
-		if !a.IP.IsValid() || a.Port == 0 {
+		if !a.IP.IsValid() || a.Port == 0 || a.Set < 0 || a.Set > maxSet {
 			return nil, fmt.Errorf("tgcallsjson: bad address %d", i)
+		}
+		// The same address in two sets is one candidate, of the first.
+		k := key{a.IP.Unmap(), a.Port, a.TCP}
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		if len(resp.Transport.Candidates) == MaxCandidates {
+			return nil, fmt.Errorf("tgcallsjson: more than %d candidates", MaxCandidates)
 		}
 		c := Candidate{
 			Generation: "0",
@@ -231,15 +257,16 @@ func BuildResponse(p ResponseParams) (*JoinResponse, error) {
 
 // candidatePriority follows RFC 8445 §5.1.2.1 for component 1: host UDP
 // first, ICE-TCP after it (RFC 6544 §4.2), IPv4 before IPv6 on the same
-// transport since more clients have it.
+// transport since more clients have it, and an earlier set before a later
+// one (the local preference).
 func candidatePriority(a Address) uint32 {
 	typePref := uint32(126)
 	if a.TCP {
 		typePref = 90
 	}
-	localPref := uint32(65535)
+	localPref := uint32(65535 - 2*a.Set)
 	if a.IP.Unmap().Is6() {
-		localPref = 65534
+		localPref--
 	}
 	return typePref<<24 | localPref<<8 | (256 - 1)
 }

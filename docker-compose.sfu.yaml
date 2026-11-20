@@ -33,6 +33,8 @@ services:
       SFU_PUBLIC_IPV4: ${SFU_PUBLIC_IPV4:?set SFU_PUBLIC_IPV4 in .env, the address clients reach the SFU at}
       SFU_UDP_PORT: ${SFU_UDP_PORT:-20600}
       SFU_TCP_PORT: ${SFU_TCP_PORT:-20601}
+      # Relays in front of the node (task 116); empty: none.
+      SFU_RELAYS: ${SFU_RELAYS:-}
     volumes:
       - ./teamgramd/deploy/sfu/sfu.yaml:/etc/sfu/sfu.yaml:ro
       # Files of uid 65532 (the image's nonroot), mode 0400.

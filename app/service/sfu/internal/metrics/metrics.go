@@ -35,8 +35,8 @@ var (
 	})
 	Connections = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "sfu_connections",
-		Help: "Client connections of the SFU, by kind (main, presentation) and state (connecting, connected).",
-	}, []string{"kind", "state"})
+		Help: "Client connections of the SFU, by kind (main, presentation), state (connecting, connected) and route (direct, or a relay of SFU_RELAYS).",
+	}, []string{"kind", "state", "route"})
 	PacketsIn = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "sfu_packets_received_total",
 		Help: "RTP packets received from senders, by media kind.",
@@ -97,12 +97,16 @@ var (
 	})
 	ICEPairs = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "sfu_ice_pairs_total",
-		Help: "Connections up, by transport of the selected pair (udp4, udp6, tcp4, tcp6) and ICE role of the SFU.",
-	}, []string{"network", "role"})
+		Help: "Connections up, by transport of the selected pair (udp4, udp6, tcp4, tcp6), ICE role of the SFU and route.",
+	}, []string{"network", "role", "route"})
 	ConnectFailures = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "sfu_connect_failures_total",
-		Help: "Connections lost or never made, by reason (no_check, ice, dtls).",
-	}, []string{"reason"})
+		Help: "Connections lost or never made, by reason (no_check, ice, dtls) and route.",
+	}, []string{"reason", "route"})
+	RouteUnknown = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "sfu_route_unknown_total",
+		Help: "Routes joins named that the node does not have (SFU_RELAYS): left out of the answer.",
+	}, []string{"route"})
 	ConnectSeconds = promauto.NewHistogram(prometheus.HistogramOpts{
 		Name:    "sfu_connect_seconds",
 		Help:    "Time from a join to the connection being up.",

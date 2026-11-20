@@ -252,6 +252,14 @@ func TestControlAPI(t *testing.T) {
 	if _, err := c.Join(ctx, &pb.JoinRequest{CallId: 5, Participant: 101, Kind: 7, Params: params}); code(err) != codes.InvalidArgument {
 		t.Errorf("bad kind: %v", err)
 	}
+	// A route is a label of the metrics: only well-formed names, at most
+	// pb.MaxRoutes of them.
+	if _, err := c.Join(ctx, &pb.JoinRequest{CallId: 5, Participant: 101, Params: params, Routes: []string{"RU x"}}); code(err) != codes.InvalidArgument {
+		t.Errorf("bad route: %v", err)
+	}
+	if _, err := c.Join(ctx, &pb.JoinRequest{CallId: 5, Participant: 101, Params: params, Routes: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i"}}); code(err) != codes.InvalidArgument {
+		t.Errorf("too many routes: %v", err)
+	}
 	if _, err := c.SetMuted(ctx, &pb.SetMutedRequest{CallId: 5, Participant: 100, Muted: true}); err != nil {
 		t.Errorf("mute: %v", err)
 	}
