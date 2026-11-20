@@ -27,6 +27,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -669,25 +670,40 @@ bash /src/teamgramd/deploy/ru/deploy.sh render /etc/pluma-ru/env /etc/pluma-ru -
 // TestAlertRulesFire runs promtool of the Prometheus image at home on the
 // alert rules of the node and testdata/ru-node.test.yml.
 func TestAlertRulesFire(t *testing.T) {
+	promtoolTest(t, alertRulesFile, "ru-node.test.yml")
+}
+
+// TestRelayAlertRulesFire runs promtool on the alerts of group calls with
+// testdata/groupcalls-relay.test.yml: the relay of the node (task 116) seen
+// from the SFU.
+func TestRelayAlertRulesFire(t *testing.T) {
+	promtoolTest(t, "../../prometheus/server/rules/groupcalls.yml", "groupcalls-relay.test.yml")
+}
+
+// promtoolTest runs promtool test rules of the Prometheus image at home on
+// the rules file with the tests of testdata/<tests>, which name the rules
+// by the file's base name.
+func promtoolTest(t *testing.T, rulesFile, tests string) {
+	t.Helper()
 	ctx := context.Background()
 	image, err := testinfra.ComposeImage("prometheus")
 	if err != nil {
 		t.Fatal(err)
 	}
-	rules, err := os.ReadFile(alertRulesFile)
+	rules, err := os.ReadFile(rulesFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tests, err := os.ReadFile(filepath.Join("testdata", "ru-node.test.yml"))
+	testFile, err := os.ReadFile(filepath.Join("testdata", tests))
 	if err != nil {
 		t.Fatal(err)
 	}
 	c, err := testinfra.RunImage(ctx, image,
 		testcontainers.WithEntrypoint("promtool"),
-		testcontainers.WithCmd("test", "rules", "/rules/ru-node.test.yml"),
+		testcontainers.WithCmd("test", "rules", "/rules/"+tests),
 		testcontainers.WithFiles(
-			testcontainers.ContainerFile{Reader: strings.NewReader(string(rules)), ContainerFilePath: "/rules/ru-node.yml", FileMode: 0o644},
-			testcontainers.ContainerFile{Reader: strings.NewReader(string(tests)), ContainerFilePath: "/rules/ru-node.test.yml", FileMode: 0o644},
+			testcontainers.ContainerFile{Reader: strings.NewReader(string(rules)), ContainerFilePath: "/rules/" + filepath.Base(rulesFile), FileMode: 0o644},
+			testcontainers.ContainerFile{Reader: strings.NewReader(string(testFile)), ContainerFilePath: "/rules/" + tests, FileMode: 0o644},
 		),
 		testcontainers.WithWaitStrategy(wait.ForExit().WithExitTimeout(2*time.Minute)),
 	)
@@ -710,6 +726,137 @@ func TestAlertRulesFire(t *testing.T) {
 		t.Fatalf("promtool test rules: exit %d\n%s", st.ExitCode, out)
 	}
 	t.Logf("promtool: %s", strings.TrimSpace(string(out)))
+}
+
+// fakeSFU stands in for the SFU behind the relay of group calls: it
+// answers every datagram with the port it came from, many times, and
+// every TCP connection with its port and what it got, so that a client
+// sees which upstream port of the relay carries it.
+const fakeSFU = `import socket, sys, threading
+addr = sys.argv[1]
+udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+udp.bind((addr, 20600))
+tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+tcp.bind((addr, 20601))
+tcp.listen(16)
+def serve_tcp():
+    while True:
+        c, peer = tcp.accept()
+        data = c.recv(1024)
+        c.sendall(str(peer[1]).encode() + b":" + data)
+        c.close()
+threading.Thread(target=serve_tcp, daemon=True).start()
+while True:
+    data, peer = udp.recvfrom(2048)
+    # Two answers to one datagram, as the SFU answers a check and sends
+    # media: the relay must pass both.
+    for _ in range(2):
+        udp.sendto(str(peer[1]).encode(), peer)
+`
+
+// relayClients sends datagrams through the relay from two clients, of two
+// addresses and ports, and one TCP message; it prints per client the
+// upstream ports the fake SFU saw and the answers it got.
+const relayClients = `import socket, sys, json
+relay = sys.argv[1]
+out = {}
+for name, src in (("a", "127.0.0.3"), ("b", "127.0.0.4")):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind((src, 0))
+    s.settimeout(2)
+    ports, answers = set(), 0
+    for i in range(60):
+        s.sendto(b"x" * 1200, (relay, 20600))
+    try:
+        while answers < 120:
+            data, _ = s.recvfrom(2048)
+            ports.add(data.decode())
+            answers += 1
+    except socket.timeout:
+        pass
+    out[name] = {"ports": sorted(ports), "answers": answers}
+t = socket.create_connection((relay, 20601), timeout=5)
+t.sendall(b"hello over tcp")
+out["tcp"] = t.recv(1024).decode()
+print(json.dumps(out))
+`
+
+// TestNodeRelay runs the relay of group calls (task 116) rendered by
+// deploy.sh in the nginx of Ubuntu 26.04 with more than one worker: each
+// UDP client is passed to the SFU from one upstream port of its own, all
+// the answers come back, and ICE-TCP passes through.
+func TestNodeRelay(t *testing.T) {
+	needBash(t)
+	n := startNode(t)
+	n.sh("export DEBIAN_FRONTEND=noninteractive; apt-get install -y -qq --no-install-recommends python3-minimal >/dev/null")
+	p := newPKI(t)
+	e := newNodeEnv(t)
+	e.set("PLUMA_RU_PUBLIC_IPV4", "127.0.0.1")
+	e.set("PLUMA_RU_SFU_ADDR", "127.0.0.2")
+	n.putDir(ruDir, "/src/teamgramd/deploy/ru")
+	n.putDir(filepath.Join(ruDir, "..", "turn"), "/src/teamgramd/deploy/turn")
+	var envText strings.Builder
+	for _, name := range e.order {
+		fmt.Fprintf(&envText, "%s=%s\n", name, e.vars[name])
+	}
+	n.put("/etc/pluma-ru/env", []byte(envText.String()), 0o600)
+	n.sh(`useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin pluma-ru
+install -d -m 0755 /etc/pluma-ru /var/lib/pluma-ru /var/lib/pluma-ru/acme
+install -d -m 0700 -o pluma-ru -g pluma-ru /var/cache/pluma-ru /var/cache/pluma-ru/files /var/cache/pluma-ru/releases /var/lib/pluma-ru/nginx
+bash /src/teamgramd/deploy/ru/deploy.sh render /etc/pluma-ru/env /etc/pluma-ru`)
+	chain, key := p.leaf("r1.pluma.test", 4)
+	n.put("/etc/pluma-ru/letsencrypt/live/r1.pluma.test/fullchain.pem", chain, 0o644)
+	n.put("/etc/pluma-ru/letsencrypt/live/r1.pluma.test/privkey.pem", key, 0o600)
+	n.put("/test/fakesfu.py", []byte(fakeSFU), 0o644)
+	n.put("/test/clients.py", []byte(relayClients), 0o644)
+
+	n.sh("(python3 /test/fakesfu.py 127.0.0.2 >/test/fakesfu.log 2>&1 &) ; sleep 1")
+	n.sh("nginx -t -q -c /etc/pluma-ru/nginx.conf && nginx -c /etc/pluma-ru/nginx.conf")
+	workers := strings.TrimSpace(n.sh("pgrep -c -f 'nginx: worker process' || true"))
+	if w, _ := strconv.Atoi(workers); w < 2 {
+		t.Fatalf("%s workers: the test needs two or more to see reuseport at work", workers)
+	}
+
+	out := n.sh("python3 /test/clients.py 127.0.0.1")
+	t.Logf("relay: %s", strings.TrimSpace(out))
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	type client struct {
+		Ports   []string `json:"ports"`
+		Answers int      `json:"answers"`
+	}
+	var a, b client
+	if err := json.Unmarshal(got["a"], &a); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(got["b"], &b); err != nil {
+		t.Fatal(err)
+	}
+	for name, c := range map[string]client{"a": a, "b": b} {
+		if len(c.Ports) != 1 {
+			t.Errorf("client %s reached the SFU from upstream ports %v: want one session", name, c.Ports)
+		}
+		if c.Answers != 120 {
+			t.Errorf("client %s got %d answers of 120", name, c.Answers)
+		}
+	}
+	if len(a.Ports) == 1 && len(b.Ports) == 1 && a.Ports[0] == b.Ports[0] {
+		t.Errorf("two clients share upstream port %s", a.Ports[0])
+	}
+	var tcp string
+	if err := json.Unmarshal(got["tcp"], &tcp); err != nil {
+		t.Fatal(err)
+	}
+	if _, msg, ok := strings.Cut(tcp, ":"); !ok || msg != "hello over tcp" {
+		t.Errorf("TCP through the relay: %q", tcp)
+	}
+	// The fake SFU ran without an error.
+	if log := n.sh("cat /test/fakesfu.log"); strings.TrimSpace(log) != "" {
+		t.Errorf("fake SFU: %s", log)
+	}
 }
 
 // systemctlStandIn records the calls of deploy.sh apply in a container

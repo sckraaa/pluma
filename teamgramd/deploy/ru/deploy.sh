@@ -54,7 +54,7 @@ say() { echo "deploy: $*"; }
 
 KNOWN_VARS=(PLUMA_RU_PUBLIC_IPV4 PLUMA_RU_FILES_DOMAIN PLUMA_RU_EDGE_DOMAIN PLUMA_CDN_ORIGIN_DOMAIN
 	PLUMA_WEB_DOMAIN CDN_RU_TOKEN_KEY CDN_RU_ORIGIN_AUTH CALLS_TURN_SECRETS PLUMA_RU_ORIGIN_ADDR
-	PLUMA_RU_ACME_EMAIL PLUMA_GCORE_EDGE_DOMAIN PLUMA_RU_MIRROR_DOMAINS)
+	PLUMA_RU_ACME_EMAIL PLUMA_GCORE_EDGE_DOMAIN PLUMA_RU_MIRROR_DOMAINS PLUMA_RU_SFU_ADDR)
 declare -A ENV=()
 
 load_env() {
@@ -80,20 +80,32 @@ need() {
 	[ -n "${ENV[$1]:-}" ] || die "$1 is not set in the env file"
 }
 
+# ipv4 <name>: the value of the variable is a dotted IPv4 address.
+ipv4() {
+	local o
+	[[ ${ENV[$1]} =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] || die "$1 is not an IPv4 address"
+	for o in "${BASH_REMATCH[@]:1}"; do
+		((10#$o <= 255)) || die "$1 is not an IPv4 address"
+	done
+}
+
 # check_env: every value against its form; the values go into nginx and
 # coturn configuration lines, so the forms leave out quotes, $, ;, braces,
 # spaces and line breaks.
 check_env() {
-	local v ip o
+	local v
 	for v in PLUMA_RU_PUBLIC_IPV4 PLUMA_RU_FILES_DOMAIN PLUMA_RU_EDGE_DOMAIN PLUMA_CDN_ORIGIN_DOMAIN \
 		PLUMA_WEB_DOMAIN CDN_RU_TOKEN_KEY CDN_RU_ORIGIN_AUTH CALLS_TURN_SECRETS; do
 		need "$v"
 	done
-	ip=${ENV[PLUMA_RU_PUBLIC_IPV4]}
-	[[ $ip =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] || die "PLUMA_RU_PUBLIC_IPV4 is not an IPv4 address"
-	for o in "${BASH_REMATCH[@]:1}"; do
-		((10#$o <= 255)) || die "PLUMA_RU_PUBLIC_IPV4 is not an IPv4 address"
-	done
+	ipv4 PLUMA_RU_PUBLIC_IPV4
+	# The SFU of group calls behind the relay (task 116): its public
+	# address, which the relay passes the media to. Empty: no relay.
+	if [ -n "${ENV[PLUMA_RU_SFU_ADDR]:-}" ]; then
+		ipv4 PLUMA_RU_SFU_ADDR
+		[ "${ENV[PLUMA_RU_SFU_ADDR]}" != "${ENV[PLUMA_RU_PUBLIC_IPV4]}" ] ||
+			die "PLUMA_RU_SFU_ADDR is this node's own address: the relay would pass the media to itself"
+	fi
 	for v in PLUMA_RU_FILES_DOMAIN PLUMA_RU_EDGE_DOMAIN PLUMA_CDN_ORIGIN_DOMAIN PLUMA_WEB_DOMAIN; do
 		[[ ${ENV[$v]} =~ $DOMAIN_RE ]] || die "$v is not a lower-case domain name"
 	done
@@ -197,6 +209,8 @@ fill() {
 	s=${s//@@ORIGIN_DOMAIN@@/${ENV[PLUMA_CDN_ORIGIN_DOMAIN]}}
 	s=${s//@@WEB_DOMAIN@@/${ENV[PLUMA_WEB_DOMAIN]}}
 	s=${s//@@ORIGIN_ADDR@@/${ENV[PLUMA_RU_ORIGIN_ADDR]:-10.78.0.2:443}}
+	s=${s//@@RELAY_ADDR@@/${ENV[PLUMA_RU_PUBLIC_IPV4]}}
+	s=${s//@@SFU_ADDR@@/${ENV[PLUMA_RU_SFU_ADDR]:-}}
 	s=${s//@@CACHE_STATUS_HEADER@@/${3:-}}
 	if [[ $s =~ @@[A-Z_]+@@ ]]; then
 		die "$1: ${BASH_REMATCH[0]} has no value"
@@ -206,8 +220,8 @@ fill() {
 
 # render <env file> <directory> [--cache-status-header]: the files of
 # /etc/pluma-ru into the directory (which exists and is 0700): nginx.conf,
-# files.conf, secrets.conf (0600), turn.conf (0640), and owner/ for
-# owner-nginx.sh.
+# files.conf, stream.conf, secrets.conf (0600), turn.conf (0640), and
+# owner/ for owner-nginx.sh.
 render() {
 	local out=$2 status=
 	# shellcheck disable=SC2016 # an nginx variable, for nginx
@@ -222,6 +236,14 @@ render() {
 	install -m 0644 "$HERE/nginx.conf" "$out/nginx.conf"
 	fill "$HERE/files.conf.tmpl" "$out/files.conf" "$status"
 	chmod 0644 "$out/files.conf"
+	# The relay of group calls only with the SFU's address: a node without
+	# it listens on no port of the relay.
+	if [ -n "${ENV[PLUMA_RU_SFU_ADDR]:-}" ]; then
+		fill "$HERE/stream.conf.tmpl" "$out/stream.conf"
+	else
+		echo "# No relay of group calls: PLUMA_RU_SFU_ADDR is not set (docs/ops/ru-node.md)." >"$out/stream.conf"
+	fi
+	chmod 0644 "$out/stream.conf"
 
 	(
 		umask 077
@@ -349,7 +371,7 @@ check_nginx() {
 	mkdir -m 0700 "$chk" || return
 	openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -subj /CN=nginx-check -days 1 \
 		-keyout "$chk/key.pem" -out "$chk/cert.pem" 2>/dev/null || return
-	cp "$dir/nginx.conf" "$dir/secrets.conf" "$chk/" || return
+	cp "$dir/nginx.conf" "$dir/secrets.conf" "$dir/stream.conf" "$chk/" || return
 	sed -e "s#^\([[:space:]]*ssl_certificate\) .*#\1 $chk/cert.pem;#" \
 		-e "s#^\([[:space:]]*ssl_certificate_key\) .*#\1 $chk/key.pem;#" "$dir/files.conf" >"$chk/files.conf" || return
 	nginx -t -q -c "$chk/nginx.conf" -g 'daemon off;' || rc=$?
@@ -374,6 +396,7 @@ apply() {
 
 	put "$staging/nginx.conf" "$ETC/nginx.conf" 644 root:root nginx
 	put "$staging/files.conf" "$ETC/files.conf" 644 root:root nginx
+	put "$staging/stream.conf" "$ETC/stream.conf" 644 root:root nginx
 	put "$staging/secrets.conf" "$ETC/secrets.conf" 600 root:root nginx
 	put "$staging/turn.conf" "$ETC/turn.conf" 640 root:turnserver turn
 	install -d -m 0755 "$ETC/owner"

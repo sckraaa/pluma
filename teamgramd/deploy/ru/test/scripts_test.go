@@ -25,6 +25,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -196,6 +197,7 @@ func TestRender(t *testing.T) {
 	files := map[string]os.FileMode{
 		"nginx.conf":                 0o644,
 		"files.conf":                 0o644,
+		"stream.conf":                0o644,
 		"secrets.conf":               0o600,
 		"turn.conf":                  0o640,
 		"owner/pluma-upstreams.conf": 0o644,
@@ -210,6 +212,15 @@ func TestRender(t *testing.T) {
 		if m := placeholder.FindString(readFile(t, p)); m != "" {
 			t.Errorf("%s: %s is left", f, m)
 		}
+	}
+
+	// Without PLUMA_RU_SFU_ADDR no relay of group calls (task 116).
+	if stream := readFile(t, filepath.Join(dir, "stream.conf")); strings.Contains(stream, "stream {") || !strings.HasPrefix(stream, "# No relay") {
+		t.Errorf("stream.conf without PLUMA_RU_SFU_ADDR:\n%s", stream)
+	}
+	if nginx := readFile(t, filepath.Join(dir, "nginx.conf")); !strings.Contains(nginx, "\ninclude stream.conf;\n") ||
+		!strings.Contains(nginx, "\nload_module /usr/lib/nginx/modules/ngx_stream_module.so;\n") {
+		t.Error("nginx.conf does not load the stream module or include stream.conf")
 	}
 
 	conf := readFile(t, filepath.Join(dir, "files.conf"))
@@ -284,6 +295,39 @@ func TestRender(t *testing.T) {
 		if !strings.Contains(acme, want) {
 			t.Errorf("pluma-acme-http.conf has no %q", want)
 		}
+	}
+}
+
+// TestRenderRelay: with PLUMA_RU_SFU_ADDR the relay of group calls (task
+// 116) listens on the node's address at the SFU's ports, UDP with
+// reuseport, and passes to the SFU's address.
+func TestRenderRelay(t *testing.T) {
+	needBash(t)
+	e := newNodeEnv(t)
+	e.set("PLUMA_RU_SFU_ADDR", "195.201.252.126")
+	dir, text, code := render(t, e)
+	if code != 0 {
+		t.Fatalf("render: exit %d\n%s", code, text)
+	}
+	stream := readFile(t, filepath.Join(dir, "stream.conf"))
+	if m := placeholder.FindString(stream); m != "" {
+		t.Errorf("stream.conf: %s is left", m)
+	}
+	for _, want := range []string{
+		"\nstream {\n",
+		"\t\tserver 195.201.252.126:20600;\n",
+		"\t\tserver 195.201.252.126:20601;\n",
+		"\t\tlisten 192.0.2.10:20600 udp reuseport;\n",
+		"\t\tlisten 192.0.2.10:20601;\n",
+		"\t\tproxy_timeout 30s;\n",
+		"\taccess_log off;\n",
+	} {
+		if !strings.Contains(stream, want) {
+			t.Errorf("stream.conf has no %q:\n%s", strings.TrimSpace(want), stream)
+		}
+	}
+	if regexp.MustCompile(`(?m)^\s*proxy_responses\s`).MatchString(stream) {
+		t.Error("stream.conf limits the answers of a datagram")
 	}
 }
 
@@ -379,6 +423,10 @@ func TestRenderRefusesBadValues(t *testing.T) {
 		}, "more than 8 names"},
 		{"address out of range", func(e *nodeEnv) { e.set("PLUMA_RU_PUBLIC_IPV4", "256.1.1.1") }, "PLUMA_RU_PUBLIC_IPV4"},
 		{"origin address", func(e *nodeEnv) { e.set("PLUMA_RU_ORIGIN_ADDR", "home:443") }, "PLUMA_RU_ORIGIN_ADDR"},
+		{"SFU address by name", func(e *nodeEnv) { e.set("PLUMA_RU_SFU_ADDR", "edge.pluma.test") }, "PLUMA_RU_SFU_ADDR is not an IPv4"},
+		{"SFU address with a port", func(e *nodeEnv) { e.set("PLUMA_RU_SFU_ADDR", "195.201.252.126:20600") }, "PLUMA_RU_SFU_ADDR is not an IPv4"},
+		{"SFU address out of range", func(e *nodeEnv) { e.set("PLUMA_RU_SFU_ADDR", "195.201.252.256") }, "PLUMA_RU_SFU_ADDR is not an IPv4"},
+		{"SFU address is the node", func(e *nodeEnv) { e.set("PLUMA_RU_SFU_ADDR", "192.0.2.10") }, "this node's own address"},
 		{"missing", func(e *nodeEnv) { e.del("PLUMA_WEB_DOMAIN") }, "PLUMA_WEB_DOMAIN is not set"},
 		{"unknown", func(e *nodeEnv) { e.set("PLUMA_RU_TYPO", "x") }, "unknown variable PLUMA_RU_TYPO"},
 		{"twice", func(e *nodeEnv) { e.order = append(e.order, "PLUMA_WEB_DOMAIN") }, "PLUMA_WEB_DOMAIN is set twice"},
@@ -632,6 +680,79 @@ func TestWgstat(t *testing.T) {
 		if strings.HasSuffix(e.Name(), ".tmp") {
 			t.Errorf("%s is left", e.Name())
 		}
+	}
+	// Without the relay (the stream.conf of render), no upstream metric.
+	text, code = run(t, []string{
+		"PLUMA_RU_WG_IFACE=pluma-test-none",
+		"PLUMA_RU_CACHE_DIR=" + cache,
+		"PLUMA_RU_FILES_CONF=" + filepath.Join(rendered, "files.conf"),
+		"PLUMA_RU_STREAM_CONF=" + filepath.Join(rendered, "stream.conf"),
+	}, "wgstat.sh", out)
+	if code != 0 {
+		t.Fatalf("wgstat.sh: exit %d\n%s", code, text)
+	}
+	if prom := readFile(t, out); strings.Contains(prom, "pluma_ru_sfu_upstream_up") {
+		t.Errorf("an upstream metric without the relay:\n%s", prom)
+	}
+}
+
+// TestWgstatRelay: with the relay of group calls (task 116), wgstat.sh
+// connects to the SFU's TCP port of stream.conf: 1 while it takes the
+// connection, 0 when nothing listens.
+func TestWgstatRelay(t *testing.T) {
+	needBash(t)
+	if _, err := exec.LookPath("timeout"); err != nil {
+		t.Skip("no timeout")
+	}
+	e := newNodeEnv(t)
+	e.set("PLUMA_RU_SFU_ADDR", "127.0.0.1")
+	rendered, text, code := render(t, e)
+	if code != 0 {
+		t.Fatalf("render: exit %d\n%s", code, text)
+	}
+	sfu, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sfu.Close()
+	go func() {
+		for {
+			c, err := sfu.Accept()
+			if err != nil {
+				return
+			}
+			_ = c.Close()
+		}
+	}()
+	port := strconv.Itoa(sfu.Addr().(*net.TCPAddr).Port)
+	dir := t.TempDir()
+	stream := filepath.Join(dir, "stream.conf")
+	conf := strings.Replace(readFile(t, filepath.Join(rendered, "stream.conf")), "server 127.0.0.1:20601;", "server 127.0.0.1:"+port+";", 1)
+	if !strings.Contains(conf, "server 127.0.0.1:"+port+";") {
+		t.Fatalf("no upstream pluma_sfu_tcp in\n%s", conf)
+	}
+	if err := os.WriteFile(stream, []byte(conf), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "pluma_ru.prom")
+	env := []string{
+		"PLUMA_RU_WG_IFACE=pluma-test-none",
+		"PLUMA_RU_CACHE_DIR=" + filepath.Join(dir, "none"),
+		"PLUMA_RU_FILES_CONF=" + filepath.Join(rendered, "files.conf"),
+		"PLUMA_RU_STREAM_CONF=" + stream,
+	}
+	if text, code := run(t, env, "wgstat.sh", out); code != 0 {
+		t.Fatalf("wgstat.sh: exit %d\n%s", code, text)
+	}
+	if prom := readFile(t, out); !strings.Contains(prom, "\npluma_ru_sfu_upstream_up 1\n") {
+		t.Errorf("the SFU listens, but\n%s", prom)
+	}
+	_ = sfu.Close()
+	if text, code := run(t, env, "wgstat.sh", out); code != 0 {
+		t.Fatalf("wgstat.sh: exit %d\n%s", code, text)
+	}
+	if prom := readFile(t, out); !strings.Contains(prom, "\npluma_ru_sfu_upstream_up 0\n") {
+		t.Errorf("nothing listens, but\n%s", prom)
 	}
 }
 

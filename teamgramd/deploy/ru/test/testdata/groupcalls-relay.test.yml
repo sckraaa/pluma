@@ -1,0 +1,51 @@
+# promtool test rules of the relay alerts of
+# teamgramd/deploy/prometheus/server/rules/groupcalls.yml (task 116;
+# TestRelayAlertRulesFire, nginx_integration_test.go). Time starts at 0.
+rule_files:
+  - groupcalls.yml
+evaluation_interval: 1m
+tests:
+  # The relay "ru" passes nothing from minute 5: two joins by it fail for
+  # want of a check, none comes up; the direct joins work all along. At
+  # minute 30 the relay works again and a join by it comes up.
+  - interval: 1m
+    input_series:
+      - series: 'sfu_connect_failures_total{reason="no_check", route="ru", job="ops.sfu"}'
+        values: '0x5 1 1 2x22 2x10'
+      - series: 'sfu_ice_pairs_total{network="udp4", role="controlling", route="ru", job="ops.sfu"}'
+        values: '1x29 2x10'
+      - series: 'sfu_ice_pairs_total{network="udp4", role="controlling", route="direct", job="ops.sfu"}'
+        values: '0+1x40'
+      - series: 'sfu_connect_failures_total{reason="no_check", route="direct", job="ops.sfu"}'
+        values: '0+1x40'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: GroupCallsRelayNoCheck
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: GroupCallsRelayNoCheck
+        exp_alerts:
+          - exp_labels: {severity: warning, route: ru}
+            exp_annotations:
+              summary: "Nothing reaches the SFU through the relay ru"
+              description: "The users routed to ru by GROUPCALLS_ROUTES cannot join group calls. On the node: systemctl status pluma-ru-nginx, the alert RuSfuRelayDown, the hoster's firewall for 20600/udp and 20601/tcp. To send them direct again: GROUPCALLS_ROUTES without their countries. docs/ops/group-calls.md, «Неполадки»"
+      - eval_time: 31m
+        alertname: GroupCallsRelayNoCheck
+        exp_alerts: []
+
+  # bff names the route "kz", which the node does not have.
+  - interval: 1m
+    input_series:
+      - series: 'sfu_route_unknown_total{route="kz", job="ops.sfu"}'
+        values: '0 0 1 1x20'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: GroupCallsRouteUnknown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: GroupCallsRouteUnknown
+        exp_alerts:
+          - exp_labels: {severity: warning, route: kz}
+            exp_annotations:
+              summary: "bff asks the SFU for the route kz, which the node does not have"
+              description: "SFU_RELAYS of the node's .env and GROUPCALLS_ROUTES of the home's .env disagree; docker compose logs sfu | grep route. docs/ops/group-calls.md"
