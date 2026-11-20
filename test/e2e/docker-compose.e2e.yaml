@@ -296,7 +296,9 @@ services:
   # CDN_RU_ORIGIN_AUTH. Its certificate is the run's (run.sh, gen_rufiles),
   # under E2E_RU_FILES_DOMAIN; Caddy's CA, which signs the origin's, is read
   # from Caddy's data. bff checks it at rufiles:443 (CDN_RU_HEALTH_ADDR),
-  # the tests reach it on an ephemeral loopback port.
+  # the tests reach it on an ephemeral loopback port. It is also the relay
+  # of group calls (task 116): the stream.conf of deploy.sh with the SFU's
+  # address on the stand, at the port of the run that SFU_RELAYS names.
   rufiles:
     build:
       context: .
@@ -314,10 +316,15 @@ services:
       - caddy_data:/caddy-data:ro
     ports:
       - "127.0.0.1::443"
+      # The relay of group calls (task 116), at the port SFU_RELAYS names.
+      - "127.0.0.1:${SFU_RELAY_PORT:?run test/e2e/run.sh up}:20600/udp"
+      - "127.0.0.1:${SFU_RELAY_PORT:?run test/e2e/run.sh up}:20601/tcp"
     networks:
       - teamgram_net
     depends_on:
       web:
+        condition: service_started
+      sfu:
         condition: service_started
     restart: "no"
 

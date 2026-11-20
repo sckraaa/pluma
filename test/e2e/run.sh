@@ -176,8 +176,14 @@ gen_secrets() {
 		log "openssl made no OAuth signing key"
 		return 1
 	}
-	local sfu_port
+	local sfu_port relay_port
 	sfu_port=$(free_port) || return
+	# The relay of group calls on the node (rufiles, task 116), a port of
+	# its own for UDP and TCP, fixed for the run as the SFU's.
+	relay_port=$(free_port) || return
+	while [[ $relay_port == "$sfu_port" ]]; do
+		relay_port=$(free_port) || return
+	done
 	local fp keytool=(-out "$KEY_FILE")
 	if [[ -n ${E2E_SERVER_KEY:-} ]]; then
 		install -m 600 "$E2E_SERVER_KEY" "$KEY_FILE" || return
@@ -242,6 +248,9 @@ SERVER_RSA_KEY_FINGERPRINT=$fp
 SFU_PUBLIC_IPV4=127.0.0.1
 SFU_UDP_PORT=$sfu_port
 SFU_TCP_PORT=$sfu_port
+SFU_RELAY_PORT=$relay_port
+SFU_RELAYS=ru=127.0.0.1:$relay_port/$relay_port
+GROUPCALLS_ROUTES=RU:ru;*:direct
 PLUMA_SFU_CERTS=$SFU_CERTS
 PLUMA_GROUPCALLS_CERTS=$GROUPCALLS_CERTS
 EOF
@@ -571,6 +580,7 @@ cmd_test() {
 			PLUMA_E2E_EDGE_AUTH=$(env_value PLUMA_EDGE_ORIGIN_AUTH) \
 			PLUMA_E2E_EDGE_WS_URLS=$(env_value EDGE_WS_URLS) \
 			PLUMA_E2E_EDGE_STICKY_S=$(env_value EDGE_STICKY_S) \
+			PLUMA_E2E_SFU_RELAYS=$(env_value SFU_RELAYS) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 60m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...

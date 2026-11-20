@@ -22,10 +22,12 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zeromicro/go-zero/core/logx"
 
+	pb "github.com/teamgram/teamgram-server/app/service/sfu/sfu"
 	"github.com/teamgram/teamgram-server/pkg/tgcallsjson"
 )
 
@@ -61,6 +63,13 @@ type Config struct {
 		// the SFU at; 0 means the listening port.
 		PublicUDPPort int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json\'s
 		PublicTCPPort int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json\'s
+		// Relays are forwarding addresses in front of this node, each a
+		// route of its own (SFU_RELAYS, task 116, ADR 0074): entries
+		// "<name>=<IPv4 or [IPv6]>:<UDP port>/<TCP port>" separated by
+		// commas, e.g. "ru=194.87.226.185:20600/20601". The relay passes
+		// packets to the node's own ports as they are; ICE takes its
+		// address as the client's. Empty: none.
+		Relays string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json\'s
 	}
 
 	Limits struct {
@@ -122,6 +131,83 @@ func (c *Config) Addresses(udpPort, tcpPort int) ([]tgcallsjson.Address, error) 
 	return out, nil
 }
 
+// Relay is an entry of Media.Relays: a forwarding address in front of the
+// node, whose candidates a join of the route Name gets.
+type Relay struct {
+	Name    string
+	IP      netip.Addr
+	UDPPort uint16
+	TCPPort uint16
+}
+
+// ParseRelays parses Media.Relays. A name is a route (pb.ValidRoute),
+// never "direct", which is the node's own addresses, and not twice; the
+// address is a unicast IPv4 or an IPv6 in brackets with both ports.
+func ParseRelays(s string) ([]Relay, error) {
+	if strings.TrimSpace(s) == "" {
+		return nil, nil
+	}
+	var out []Relay
+	for entry := range strings.SplitSeq(s, ",") {
+		entry = strings.TrimSpace(entry)
+		name, addr, ok := strings.Cut(entry, "=")
+		if !ok {
+			return nil, fmt.Errorf("config: Media.Relays (SFU_RELAYS) entry %q: want <name>=<address>:<UDP port>/<TCP port>", entry)
+		}
+		if !pb.ValidRoute(name) {
+			return nil, fmt.Errorf("config: Media.Relays (SFU_RELAYS) entry %q: the name must be 1 to 16 of a-z, 0-9 and '-', starting with a letter", entry)
+		}
+		if name == pb.RouteDirect {
+			return nil, fmt.Errorf("config: Media.Relays (SFU_RELAYS): the name %q is the node's own addresses", name)
+		}
+		for _, r := range out {
+			if r.Name == name {
+				return nil, fmt.Errorf("config: Media.Relays (SFU_RELAYS) names %q twice", name)
+			}
+		}
+		hostPort, tcp, ok := strings.Cut(addr, "/")
+		if !ok {
+			return nil, fmt.Errorf("config: Media.Relays (SFU_RELAYS) entry %q: want <address>:<UDP port>/<TCP port>", entry)
+		}
+		ap, err := netip.ParseAddrPort(hostPort)
+		if err != nil || ap.Port() == 0 {
+			return nil, fmt.Errorf("config: Media.Relays (SFU_RELAYS) entry %q: %q is not <IPv4>:<port> or [<IPv6>]:<port>", entry, hostPort)
+		}
+		ip := ap.Addr().Unmap()
+		// Loopback is the e2e stand's relay.
+		if ip.Zone() != "" || !ip.IsGlobalUnicast() && !ip.IsLoopback() {
+			return nil, fmt.Errorf("config: Media.Relays (SFU_RELAYS) entry %q: %s is not a unicast address", entry, ip)
+		}
+		tp, err := strconv.ParseUint(tcp, 10, 16)
+		if err != nil || tp == 0 {
+			return nil, fmt.Errorf("config: Media.Relays (SFU_RELAYS) entry %q: TCP port %q", entry, tcp)
+		}
+		out = append(out, Relay{Name: name, IP: ip, UDPPort: ap.Port(), TCPPort: uint16(tp)})
+	}
+	if len(out) >= pb.MaxRoutes {
+		return nil, fmt.Errorf("config: Media.Relays (SFU_RELAYS) has %d entries, at most %d", len(out), pb.MaxRoutes-1)
+	}
+	return out, nil
+}
+
+// RelayAddresses returns the candidates of each relay of Media.Relays by
+// its name: the UDP address, and the TCP one when ICE-TCP is on.
+func (c *Config) RelayAddresses() (map[string][]tgcallsjson.Address, error) {
+	relays, err := ParseRelays(c.Media.Relays)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]tgcallsjson.Address, len(relays))
+	for _, r := range relays {
+		addrs := []tgcallsjson.Address{{IP: r.IP, Port: r.UDPPort}}
+		if c.Media.TCPListen != "" {
+			addrs = append(addrs, tgcallsjson.Address{IP: r.IP, Port: r.TCPPort, TCP: true})
+		}
+		out[r.Name] = addrs
+	}
+	return out, nil
+}
+
 // Validate checks what the service cannot start without.
 func (c *Config) Validate() error {
 	if c.Control.ListenOn == "" || c.Control.CertFile == "" || c.Control.KeyFile == "" || c.Control.ClientCAFile == "" {
@@ -137,6 +223,19 @@ func (c *Config) Validate() error {
 		if _, _, err := net.SplitHostPort(c.Media.TCPListen); err != nil {
 			return fmt.Errorf("config: Media.TCPListen: %w", err)
 		}
+	}
+	relays, err := ParseRelays(c.Media.Relays)
+	if err != nil {
+		return err
+	}
+	// A join may name every route: the answer must stay within what Web
+	// takes (tgcallsjson.MaxCandidates).
+	perAddress := 1
+	if c.Media.TCPListen != "" {
+		perAddress = 2
+	}
+	if n := (len(c.Media.PublicIPs) + len(relays)) * perAddress; n > tgcallsjson.MaxCandidates {
+		return fmt.Errorf("config: Media.PublicIPs and Media.Relays make %d candidates, at most %d", n, tgcallsjson.MaxCandidates)
 	}
 	return nil
 }

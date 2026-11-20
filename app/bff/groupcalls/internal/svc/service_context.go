@@ -19,11 +19,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/teamgram-server/app/bff/groupcalls/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/groupcalls/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/groupcalls/internal/e2emon"
 	"github.com/teamgram/teamgram-server/app/bff/groupcalls/internal/sfuclient"
+	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	"github.com/teamgram/teamgram-server/pkg/groupcalls"
+	"github.com/teamgram/teamgram-server/pkg/ipcountry"
 )
 
 type ServiceContext struct {
@@ -41,6 +44,10 @@ type ServiceContext struct {
 	E2E *e2emon.Monitor
 	// Members are the group states of the chains the reads check.
 	Members *ChainMembers
+	// Routes are GroupCalls.Routes; Countries tells a client's country
+	// for them, nil when no record names a country.
+	Routes    config.Routes
+	Countries *ipcountry.Locator
 }
 
 // NewServiceContext connects the nodes of c: a node's configuration that
@@ -62,9 +69,19 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if keep <= 0 {
 		keep = time.Hour
 	}
+	routes, err := config.ParseRoutes(c.GroupCalls.Routes)
+	if err != nil {
+		panic(err)
+	}
 	d := dao.New(c)
+	// Only routes by country need authsession: without them bff does not
+	// dial it for group calls.
+	var countries *ipcountry.Locator
+	if routes.Countries() {
+		countries = ipcountry.New(authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)))
+	}
 	return &ServiceContext{
 		Config: c, Dao: d, SFU: sfu, VideoLimit: limit, AbsentTimeout: absent, ChainKeep: keep,
-		E2E: e2emon.New(d.Store), Members: NewChainMembers(),
+		E2E: e2emon.New(d.Store), Members: NewChainMembers(), Routes: routes, Countries: countries,
 	}
 }

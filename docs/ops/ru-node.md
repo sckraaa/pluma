@@ -1,11 +1,12 @@
 # Российский узел amf
 
-Задачи 109 и 113, ADR 0072 §8. VPS **amf** (194.87.226.185, Timeweb, Москва, Ubuntu 26.04) несёт для пользователей из России четыре роли, все — только шифр. Имена `*.pluma.chat` в России заблокированы, поэтому у узла свои имена — пока на личном домене владельца `sckra.dev` (решение 8 задачи 113; другой домен — только смена переменных, без пересборки):
+Задачи 109 и 113, ADR 0072 §8. VPS **amf** (194.87.226.185, Timeweb, Москва, Ubuntu 26.04) несёт для пользователей из России пять ролей, все — только шифр. Имена `*.pluma.chat` в России заблокированы, поэтому у узла свои имена — пока на личном домене владельца `sckra.dev` (решение 8 задачи 113; другой домен — только смена переменных, без пересборки):
 
 1. **Выдача файлов 202** — `https://r1.sckra.dev`, nginx Pluma с кэшем на узле (TLS на узле, как у Gcore). На том же имени — кэш выпусков приложений `/dl/` (задача 115, раздел «Выпуски»).
 2. **Край мессенджера и Web K** — `wss://ru.sckra.dev/apiws` и сайт Web K на том же имени, чистая TCP-труба: TLS заканчивается дома в Caddy.
 3. **Зеркала сайта и входа на сайты** (задача 113) — `https://pluma.sckra.dev` (сайт целиком: страницы, установщики и обновления приложений в `/dl/`, установка iPhone, ссылки) и `https://oauth.sckra.dev` (вход на сайты через Pluma). Та же труба, что у края: TLS заканчивается дома в Caddy.
 4. **TURN звонков** — coturn на 3478 и 49160–49659/udp со своим секретом.
+5. **Труба групповых звонков** (задача 116, ADR 0074) — nginx Pluma на 20600/udp и 20601/tcp адреса узла передаёт медиа как есть SFU на краю Hetzner (раздел «Труба групповых звонков»).
 
 Ядра, базы, ключей авторизации и секретов дома на узле нет. Docker на узле нет: службы из пакетов Ubuntu, свой экземпляр nginx. Узел общий: на нём сайт владельца `form.amf25.ru` (nginx владельца на 80 и 443); его не ломать.
 
@@ -14,6 +15,7 @@
 клиент ──443, SNI pluma.sckra.dev, oauth.sckra.dev──► так же ──► дом 10.78.0.2:8443 Caddy ──► сайт (releases, iosinstall, links), links (вход)
 клиент ──443, SNI r1.sckra.dev──► nginx stream владельца ──PROXY v1──► nginx Pluma 127.0.0.1:9443 (TLS, подпись, кэш) ──► туннель ──► дом 10.78.0.2:443 Caddy, источник CDN (шифр — bff, /dl/ — releases)
 клиент ──UDP 3478, 49160–49659──► coturn Pluma
+клиент ──UDP 20600, TCP 20601──► nginx Pluma (stream, как есть) ──► SFU 195.201.252.126:20600/20601 на краю Hetzner
 дом ──WireGuard plumaru, MTU 1280──► amf 51820/udp;   Prometheus дома ──► 10.78.0.1:9100
 ```
 
@@ -23,7 +25,7 @@
 |---|---|---|
 | Исходники на коммит | `/opt/pluma-ru/src` | `deploy.sh` (git clone/checkout) |
 | Переменные и секреты | `/etc/pluma-ru/env` (0600 root) | оператор, раздел «Переменные» |
-| nginx Pluma | `/etc/pluma-ru/nginx.conf`, `files.conf`, `secrets.conf` (0600) | `teamgramd/deploy/ru/nginx.conf`, `files.conf.tmpl` |
+| nginx Pluma | `/etc/pluma-ru/nginx.conf`, `files.conf`, `stream.conf`, `secrets.conf` (0600) | `teamgramd/deploy/ru/nginx.conf`, `files.conf.tmpl`, `stream.conf.tmpl` |
 | coturn | `/etc/pluma-ru/turn.conf` (0640 root:turnserver) | `teamgramd/deploy/turn/turnserver.conf` + адрес и секрет узла |
 | Файлы для nginx владельца | `/etc/pluma-ru/owner/` | `stream-upstreams.conf`, `sni.map.tmpl`, `acme-http.conf.tmpl` |
 | Сертификат `r1` | `/etc/pluma-ru/letsencrypt/` | certbot узла, свой каталог настроек |
@@ -66,6 +68,7 @@
 | `PLUMA_GCORE_EDGE_DOMAIN` | необязательно: публичное имя края Gcore (`<префикс2>.gcorecdn.com`, `docs/ops/edge.md`) — Web K, открытый на нём, получает файлы с выдачи 202 (CORS) | имя второго ресурса Gcore |
 | `PLUMA_RU_ORIGIN_ADDR` | необязательно: адрес Caddy дома, по умолчанию `10.78.0.2:443` | — |
 | `PLUMA_RU_ACME_EMAIL` | необязательно: адрес для аккаунта ACME узла | — |
+| `PLUMA_RU_SFU_ADDR` | необязательно (задача 116): публичный IPv4 SFU групповых звонков, куда труба передаёт медиа; не адрес самого узла. Пусто — трубы нет, порты 20600/20601 не слушаются | `195.201.252.126` (адрес Pluma на краю Hetzner, `PLUMA_PUBLIC_IPV4` края) |
 
 Секреты создаются `openssl rand` на одной машине и переносятся по SSH без печати. Пример для дома (запись `CALLS_TURN_SECRETS` на узел — только `ru=…`; если в `.env` дома у переменной несколько меток, переносится одна она, а без метки `ru` не переносится ничего):
 
@@ -84,7 +87,7 @@ grep -E '^CALLS_TURN_SECRETS=' .env | sed -nE 's/^CALLS_TURN_SECRETS=(.*,)?(ru=[
    ```bash
    ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
    ```
-   Первый запуск ставит недостающие пакеты (`coturn`, `prometheus-node-exporter`, `certbot`, `wireguard-tools`, `nginx` — только те, которых нет: `apt-get install` установленного пакета обновил бы и nginx владельца), создаёт пользователя `pluma-ru` и каталоги, пишет файлы, запускает TURN, node-exporter и таймеры. nginx Pluma без сертификата не запускается (`no certificate for … yet`); конфигурация при этом всё равно проверяется `nginx -t` с временным самоподписанным сертификатом, который никогда не отдаётся.
+   Первый запуск ставит недостающие пакеты (`coturn`, `prometheus-node-exporter`, `certbot`, `wireguard-tools`, `nginx`, `libnginx-mod-stream` (модуль, который грузит `nginx.conf` для трубы групповых звонков; пакет nginx Ubuntu его не тянет) — только те, которых нет: `apt-get install` установленного пакета обновил бы и nginx владельца), создаёт пользователя `pluma-ru` и каталоги, пишет файлы, запускает TURN, node-exporter и таймеры. nginx Pluma без сертификата не запускается (`no certificate for … yet`); конфигурация при этом всё равно проверяется `nginx -t` с временным самоподписанным сертификатом, который никогда не отдаётся.
 3. **nginx владельца.** На amf:
    ```bash
    /opt/pluma-ru/src/teamgramd/deploy/ru/owner-nginx.sh check     # все строки ok, state not installed
@@ -132,6 +135,22 @@ Desktop из России обновляется с узла: bff даёт ем�
 
 Проверка: `curl -sSI https://r1.sckra.dev/dl/desktop/current4` — 200, `Cache-Control: no-cache`; файл версии из `current4` (`https://r1.sckra.dev/dl/desktop<link>`) — 200, `immutable`; `du -sh /var/cache/pluma-ru/releases` после первого скачивания растёт, после второго — нет. Метрика `pluma_ru_cache_bytes` и алерт `RuNodeCacheOverLimit` — только про кэш шифра; кэш выпусков покрывают общие алерты диска. Очистить: `systemctl stop pluma-ru-nginx; rm -rf /var/cache/pluma-ru/releases/*; systemctl start pluma-ru-nginx`.
 
+## Труба групповых звонков (задача 116)
+Групповые звонки клиентов не используют TURN, а адрес SFU на Hetzner из России закрыт. Поэтому ответ входа клиента из России называет адрес узла, и nginx Pluma передаёт его UDP и ICE-TCP на адрес SFU (`stream.conf.tmpl` → `/etc/pluma-ru/stream.conf`, включается из `nginx.conf`; модуль stream — `load_module` по пути пакета). Что делать дома и на краю — `docs/ops/group-calls.md`, «Звонки из России»; порядок: узел → край → дом.
+
+- Слушает `PLUMA_RU_PUBLIC_IPV4:20600` (UDP, `reuseport`) и `:20601` (TCP); апстрим — `PLUMA_RU_SFU_ADDR` на те же порты. Без `PLUMA_RU_SFU_ADDR` `stream.conf` — одна строка комментария.
+- Каждый клиент — своя сессия nginx и свой исходящий порт: SFU видит клиентов узла по отдельности. `reuseport` держит датаграммы клиента в одном рабочем процессе (без него один клиент приходил к SFU с 8–12 портов — `TestNodeRelay`).
+- UDP-сессия закрывается после 30 с тишины (SFU проверяет пару раз в 2 с); TCP — 5 с на соединение с SFU, 60 с простоя. Не больше 32 сессий на адрес клиента. Журнала доступа нет.
+- Узел ничего не расшифровывает: внутри DTLS-SRTP между клиентом и SFU, а в нём кадры сквозного шифрования (ADR 0060). SFU отвечает только тем, кто прошёл проверку ICE с учётными данными звонка, поэтому трубу нельзя использовать как усилитель.
+- Перезагрузка nginx Pluma (`deploy.sh apply` при смене любого его файла) открывает клиентам новые сессии: SFU переводит их на новую пару сам, звук может прерваться на несколько секунд (на живом nginx не замерено).
+- **Экран Timeweb**: 20600/udp и 20601/tcp должны быть открыты (ufw на amf выключен).
+
+Проверка после выкладки:
+- `ss -lunp 'sport = :20600'` и `ss -ltnp 'sport = :20601'` — слушает `nginx` на `194.87.226.185`.
+- `timeout 5 bash -c '</dev/tcp/195.201.252.126/20601' && echo ok` — SFU принимает соединение с узла.
+- Из дома: `curl -s http://10.78.0.1:9100/metrics | grep -E 'pluma_ru_(sfu_upstream_up|unit_active)'` — оба 1.
+- Звонок: проверки владельца брифа 116.
+
 ## Выкладка (обновление)
 ```bash
 ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
@@ -163,7 +182,7 @@ ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
 - Заголовок `Server: nginx` остаётся (без версии): убрать его можно только модулем `headers-more`, а его пакет включил бы модуль и в nginx владельца.
 
 ## Метрики и алерты
-Метрики textfile (`wgstat.sh`): `pluma_wg_up`, `pluma_wg_latest_handshake_seconds` (интерфейс `plumaru`), `pluma_ru_cache_bytes`, `pluma_ru_cache_max_bytes`, `pluma_ru_stats_timestamp_seconds`; остальное — стандартный node-exporter с меткой `node="amf"`.
+Метрики textfile (`wgstat.sh`): `pluma_wg_up`, `pluma_wg_latest_handshake_seconds` (интерфейс `plumaru`), `pluma_ru_cache_bytes`, `pluma_ru_cache_max_bytes`, `pluma_ru_unit_active{unit="pluma-ru-nginx"}`, `pluma_ru_sfu_upstream_up` (только с трубой групповых звонков: SFU принимает TCP-соединение на 20601; UDP так не проверить — SFU не отвечает без учётных данных звонка), `pluma_ru_stats_timestamp_seconds`; остальное — стандартный node-exporter с меткой `node="amf"`.
 
 Алерты — `teamgramd/deploy/prometheus/server/rules/ru-node.yml`:
 
@@ -173,6 +192,7 @@ ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
 | `RuTunnelHandshakeStale` | рукопожатия с домом нет больше 3 минут или нет интерфейса `plumaru` |
 | `RuNodeStatsStale` | файл textfile старше 5 минут (таймер `wgstat` встал) |
 | `RuNodeCacheOverLimit` | кэш больше 110 % своего `max_size` 30 минут |
+| `RuSfuRelayDown` | на узле с трубой групповых звонков 5 минут: SFU не принимает TCP-соединение с узла или `pluma-ru-nginx` не работает |
 
 Диск и память узла покрывают общие `DiskSpaceLow`, `DiskSpaceCritical`, `MemoryLow` (`general.yml`); выдачу 202 — `CdnDeliveryUnhealthy`, `CdnBudget`, `CdnFallbackHigh` по `dc="202"` (`cdn.yml`).
 
@@ -184,6 +204,8 @@ ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
 | `RuNodeStatsStale` | `systemctl status pluma-ru-wgstat.timer pluma-ru-wgstat.service`, `journalctl -u pluma-ru-wgstat --since -1h`. |
 | `RuNodeCacheOverLimit` | `journalctl -u pluma-ru-nginx --since -1h | grep -i cache`, `du -sh /var/cache/pluma-ru/files`. Кэш можно очистить: `systemctl stop pluma-ru-nginx; rm -rf /var/cache/pluma-ru/files/*; systemctl start pluma-ru-nginx`. |
 | Выдача 202 нездорова (`CdnDeliveryUnhealthy{dc="202"}`) | URL канарейки вручную (раздел «Проверка»). 403 на верный URL — `CDN_RU_TOKEN_KEY` дома и на узле разные. 502/504 — источник: туннель, Caddy дома (`docker compose logs --tail 100 web`), `CDN_RU_ORIGIN_AUTH` дома и на узле (источник отвечает 403). Ошибки TLS к источнику — `journalctl -u pluma-ru-nginx`. |
+| `RuSfuRelayDown` | `systemctl status pluma-ru-nginx`; `timeout 5 bash -c '</dev/tcp/<PLUMA_RU_SFU_ADDR>/20601'`; на краю `docker compose ps sfu` и экран Hetzner. Пока чинится — дома убрать `RU,BY` из `GROUPCALLS_ROUTES` (`docs/ops/group-calls.md`). |
+| Россияне не входят в групповые звонки, `GroupCallsRelayNoCheck` | До SFU через трубу ничего не доходит: `ss -lunp 'sport = :20600'`, экран Timeweb для 20600/udp и 20601/tcp, `journalctl -u pluma-ru-nginx --since -1h`. |
 | `deploy.sh`: `nginx -t failed on the new files` | Рабочие файлы не тронуты; ошибка выше в выводе. |
 | `owner-nginx.sh install`: `check failed` | Строки `FAIL` в выводе; ничего не менялось. Если карта владельца устроена иначе (заголовок не на одной строке, несколько карт) — строку `include` добавить руками после согласования с владельцем. |
 | Сайт владельца сломан после `install` | `owner-nginx.sh remove`; копии `sni.conf` — `/var/lib/pluma-ru/owner-nginx-backup/`. |
@@ -193,9 +215,10 @@ ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
 - nginx владельца: `owner-nginx.sh remove`.
 - Службы узла: `systemctl disable --now pluma-ru-nginx pluma-ru-turn pluma-ru-node-exporter pluma-ru-wgstat.timer pluma-ru-certbot.timer`.
 - TURN узла из списка звонков: убрать запись `@ru` из `CALLS_ICE_SERVERS` дома, деплой.
+- Труба групповых звонков: дома убрать `RU,BY` из `GROUPCALLS_ROUTES` и перезапустить bff; затем убрать `PLUMA_RU_SFU_ADDR` из `/etc/pluma-ru/env` и выложить узел.
 
 ## Что видит узел и его хостер
-Адреса пользователей, которые ходят через узел, время и объёмы; имена `ru`, `r1` и зеркал в SNI; шифр файлов в кэше (до 36 ч без запросов) и диапазоны; какие публичные установщики и обновления приложений скачивают через `r1` (файлы выпусков в кэше, задача 115); пакеты SRTP звонков через TURN; внешний адрес домашнего роутера (источник WireGuard). Не видит: содержимое MTProto (TLS края заканчивается дома), ключи и хэши файлов, голос и видео звонков. Секреты на узле — только его собственные: ключ подписи и значение доступа выдачи 202, секрет TURN узла.
+Адреса пользователей, которые ходят через узел, время и объёмы; имена `ru`, `r1` и зеркал в SNI; шифр файлов в кэше (до 36 ч без запросов) и диапазоны; какие публичные установщики и обновления приложений скачивают через `r1` (файлы выпусков в кэше, задача 115); пакеты SRTP звонков через TURN и групповых звонков через трубу; внешний адрес домашнего роутера (источник WireGuard). Не видит: содержимое MTProto (TLS края заканчивается дома), ключи и хэши файлов, голос и видео звонков. Секреты на узле — только его собственные: ключ подписи и значение доступа выдачи 202, секрет TURN узла.
 
 ## Не проверено
 - Отвечает ли Caddy на TLS-ALPN-01 за PROXY на `:8443`; HTTP-01 через порт 80 (`pluma-acme-http.conf`) работает независимо.
@@ -203,3 +226,4 @@ ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
 - Вывод `certbot show_account` (строка `Account URL:`), по которой `cert-register` печатает запись CAA, — по памяти. Если строки нет, `cert-register` печатает только заголовок: URL аккаунта тогда взять из `certbot show_account --config-dir /etc/pluma-ru/letsencrypt` глазами.
 - Работа юнитов под systemd на самом amf: в тесте юниты проверены `systemd-analyze verify`, запуск — только при установке.
 - Память nginx, coturn и node-exporter на узле — замерить после установки.
+- Труба групповых звонков (задача 116): длинный поток amf → Hetzner, нагрузка UDP на nginx 2 vCPU, полоса и тариф Timeweb, экран Timeweb для 20600/udp и 20601/tcp, белые списки мобильных сетей.

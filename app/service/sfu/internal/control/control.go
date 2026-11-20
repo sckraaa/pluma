@@ -145,7 +145,18 @@ func (s *Service) Join(_ context.Context, req *pb.JoinRequest) (*pb.JoinResponse
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.rooms.Join(req.GetCallId(), req.GetParticipant(), kind, req.GetParams(), req.GetMuted(), req.GetEndpoint())
+	routes := req.GetRoutes()
+	if len(routes) > pb.MaxRoutes {
+		return nil, status.Error(codes.InvalidArgument, "too many routes")
+	}
+	for _, r := range routes {
+		// A route is a label of the metrics: only the names bff can be
+		// configured with.
+		if !pb.ValidRoute(r) {
+			return nil, status.Error(codes.InvalidArgument, "bad route name")
+		}
+	}
+	res, err := s.rooms.Join(req.GetCallId(), req.GetParticipant(), kind, req.GetParams(), req.GetMuted(), req.GetEndpoint(), routes)
 	if err != nil {
 		return nil, toStatus(err)
 	}

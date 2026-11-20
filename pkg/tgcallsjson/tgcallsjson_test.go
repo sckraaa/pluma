@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -388,5 +389,66 @@ func TestColibri(t *testing.T) {
 	back, err := ParseReceiverVideoConstraints(MarshalReceiverVideoConstraints([]string{"e1"}, map[string]VideoConstraint{"e1": {MinHeight: 180, MaxHeight: 720}}))
 	if err != nil || back.Constraints["e1"].MaxHeight != 720 {
 		t.Fatalf("%+v %v", back, err)
+	}
+}
+
+// The sets of a join with routes (task 116): in order, a later set below
+// an earlier one on the same transport, UDP above TCP within a set, an
+// address in two sets once, and at most MaxCandidates (Web's bound).
+func TestBuildResponseSets(t *testing.T) {
+	relay, direct := netip.MustParseAddr("194.87.226.185"), netip.MustParseAddr("195.201.252.126")
+	p := ResponseParams{
+		Ufrag: "sfu4", Pwd: "abcdefghijklmnopqrstuv0123", FingerprintSHA256: make([]byte, 32), Endpoint: "e1",
+		Addresses: []Address{
+			{IP: relay, Port: 20600},
+			{IP: relay, Port: 20601, TCP: true},
+			{IP: direct, Port: 20600, Set: 1},
+			{IP: direct, Port: 20601, TCP: true, Set: 1},
+			{IP: relay, Port: 20600, Set: 1},
+		},
+	}
+	resp, err := BuildResponse(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cs := resp.Transport.Candidates
+	if len(cs) != 4 {
+		t.Fatalf("candidates %+v", cs)
+	}
+	prio := func(i int) uint64 {
+		v, err := strconv.ParseUint(cs[i].Priority, 10, 32)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	if cs[0].IP != "194.87.226.185" || cs[2].IP != "195.201.252.126" || cs[1].Protocol != "tcp" || cs[3].Protocol != "tcp" {
+		t.Fatalf("order %+v", cs)
+	}
+	if prio(0) <= prio(2) || prio(2) <= prio(1) || prio(1) <= prio(3) {
+		t.Fatalf("priorities %d %d %d %d", prio(0), prio(1), prio(2), prio(3))
+	}
+	ids := map[string]bool{}
+	for _, c := range cs {
+		if ids[c.ID] {
+			t.Fatalf("id %s twice", c.ID)
+		}
+		ids[c.ID] = true
+	}
+
+	p.Addresses = nil
+	for i := range MaxCandidates + 1 {
+		p.Addresses = append(p.Addresses, Address{IP: netip.AddrFrom4([4]byte{198, 51, 100, byte(i)}), Port: 20600})
+	}
+	if _, err := BuildResponse(p); err == nil {
+		t.Error("65 candidates accepted")
+	}
+	p.Addresses = p.Addresses[:MaxCandidates]
+	if _, err := BuildResponse(p); err != nil {
+		t.Errorf("64 candidates: %v", err)
+	}
+	p.Addresses = []Address{{IP: relay, Port: 1, Set: -1}}
+	if _, err := BuildResponse(p); err == nil {
+		t.Error("a negative set accepted")
 	}
 }

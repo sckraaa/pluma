@@ -27,6 +27,8 @@ services:
       SFU_PUBLIC_IPV4: ${PLUMA_PUBLIC_IPV4:?set PLUMA_PUBLIC_IPV4 in .env, the address of Pluma}
       SFU_UDP_PORT: ${SFU_UDP_PORT:-20600}
       SFU_TCP_PORT: ${SFU_TCP_PORT:-20601}
+      # Relays in front of the node (task 116); empty: none.
+      SFU_RELAYS: ${SFU_RELAYS:-}
     volumes:
       - ./teamgramd/deploy/sfu/sfu.yaml:/etc/sfu/sfu.yaml:ro
       - ${PLUMA_SFU_CERTS:-/opt/pluma/sfu}:/run/secrets/sfu:ro

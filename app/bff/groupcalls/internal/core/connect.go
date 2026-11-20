@@ -149,3 +149,14 @@ func held(ctx context.Context, sfu sfuclient.API, call *groupcalls.Call, partici
 	}
 	return out, nil
 }
+
+// routes are the SFU's routes of the client's address (GroupCalls.Routes,
+// task 116, ADR 0074): the record of its country, or "*" when no record
+// names it, it is not known or the lookup failed (counted in
+// pluma_ipcountry_errors_total). Nil: the node's own addresses.
+func (c *GroupCallsCore) routes() []string {
+	if c.svcCtx.Countries == nil {
+		return c.svcCtx.Routes.For("")
+	}
+	return c.svcCtx.Routes.For(c.svcCtx.Countries.Country(c.ctx, c.MD.GetClientAddr()))
+}

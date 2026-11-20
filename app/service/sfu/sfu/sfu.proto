@@ -66,6 +66,12 @@ message JoinRequest {
   // groupCallParticipantVideo.endpoint, which the signalling side stores
   // before it connects; the SFU makes one when it is empty.
   string endpoint = 6;
+  // The sets of public addresses whose candidates the answer carries, in
+  // order of preference (route.go): "direct" for the node's own, or the
+  // name of a relay in front of it (Media.Relays, task 116). Empty means
+  // "direct". A name the node does not know is left out; when none is
+  // left, the answer has the direct addresses.
+  repeated string routes = 7;
 }
 
 message JoinResponse {

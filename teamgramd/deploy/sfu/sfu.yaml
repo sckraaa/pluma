@@ -25,6 +25,10 @@ Media:
     - "${SFU_PUBLIC_IPV4}"
   PublicUDPPort: ${SFU_UDP_PORT}
   PublicTCPPort: ${SFU_TCP_PORT}
+  # Relays in front of the node, each a route bff names in
+  # GROUPCALLS_ROUTES (task 116): "ru=194.87.226.185:20600/20601"; empty:
+  # none.
+  Relays: "${SFU_RELAYS}"
 
 # Every group call is end-to-end encrypted (ADR 0060 §3): the node forwards
 # what it cannot read and may stand on any machine.

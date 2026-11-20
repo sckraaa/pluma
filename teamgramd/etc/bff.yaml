@@ -254,6 +254,11 @@ GroupCalls:
   CAFile: /opt/pluma/groupcalls/server-ca.pem
   # Cameras on at once in a call; the node's Limits.MaxVideos.
   VideoLimit: 30
+  # The SFU's addresses by the country of the client (task 116, ADR 0074):
+  # "<countries or *>:<routes>;..." with exactly one record "*", e.g.
+  # RU,BY:ru;*:direct for the relay "ru" of the node's SFU_RELAYS. Empty:
+  # everyone the node's own addresses.
+  Routes: "${GROUPCALLS_ROUTES}"
 
 # The HTTPS CDN of large files (task 107, ADR 0071, docs/ops/cdn.md): a file
 # of CDN_MIN_FILE_SIZE (1 MiB) and more, a document or a photo, is

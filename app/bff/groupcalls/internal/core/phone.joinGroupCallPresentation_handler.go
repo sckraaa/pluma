@@ -72,6 +72,7 @@ func (c *GroupCallsCore) PhoneJoinGroupCallPresentation(in *mtproto.TLPhoneJoinG
 	}
 	resp, err := c.svcCtx.SFU.Join(c.ctx, call.SfuNode, &pb.JoinRequest{
 		CallId: call.Id, Participant: c.MD.UserId, Kind: pb.ConnectionKind_CONNECTION_KIND_PRESENTATION, Params: params,
+		Routes: c.routes(),
 	})
 	if status.Code(err) == codes.NotFound {
 		return nil, mtproto.ErrGroupcallJoinMissing

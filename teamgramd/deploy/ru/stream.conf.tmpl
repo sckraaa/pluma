@@ -1,0 +1,56 @@
+# The relay of group calls on the Russian node (task 116, ADR 0074,
+# docs/ops/ru-node.md): the media of the clients in Russia, UDP and ICE-TCP,
+# passed as they are to the SFU on the Hetzner edge, whose own address is
+# blocked from Russia. Rendered by deploy.sh as /etc/pluma-ru/stream.conf
+# when PLUMA_RU_SFU_ADDR is set; nginx.conf includes it.
+#
+# The relay decrypts nothing: the packets are DTLS-SRTP between the client
+# and the SFU, with frames end-to-end encrypted inside (ADR 0060). The SFU
+# drops whatever does not come with a check of the call's ICE credentials,
+# and answers nobody else, so the relay amplifies nothing. The SFU's
+# answers to joins name this address for the clients that bff routes here
+# (GROUPCALLS_ROUTES at home, SFU_RELAYS on the edge).
+stream {
+	# No access log, as in http; errors go to the journal of the unit.
+	access_log off;
+
+	# Sessions of one client address: a user has two connections (his own
+	# and his screen), with room for a change of network and a family
+	# behind one address.
+	limit_conn_zone $binary_remote_addr zone=pluma_sfu_relay:1m;
+
+	# The SFU's own ports; wgstat.sh checks the TCP one.
+	upstream pluma_sfu_udp {
+		server @@SFU_ADDR@@:20600;
+	}
+	upstream pluma_sfu_tcp {
+		server @@SFU_ADDR@@:20601;
+	}
+
+	# UDP: one session per client address and port, with an upstream port
+	# of its own, so that the SFU sees each client as a peer of its own.
+	# reuseport keeps the packets of a client in one worker, and so in one
+	# session (ngx_stream_core_module, listen: "In order to handle packets
+	# from the same address and port in the same session, the reuseport
+	# parameter should also be specified"). The SFU checks its pair every
+	# 2 s (ICE.KeepaliveInterval of sfu.yaml), so a session of a call that
+	# runs never idles 30 s; one that does is over (the SFU fails a pair
+	# after 25 s, ICE.FailedTimeout). proxy_responses is left unset: any
+	# number of answers per datagram.
+	server {
+		listen @@RELAY_ADDR@@:20600 udp reuseport;
+		proxy_pass pluma_sfu_udp;
+		proxy_timeout 30s;
+		limit_conn pluma_sfu_relay 32;
+	}
+
+	# ICE-TCP (RFC 4571 frames, passed through): the way in where UDP is
+	# blocked.
+	server {
+		listen @@RELAY_ADDR@@:20601;
+		proxy_pass pluma_sfu_tcp;
+		proxy_connect_timeout 5s;
+		proxy_timeout 60s;
+		limit_conn pluma_sfu_relay 32;
+	}
+}

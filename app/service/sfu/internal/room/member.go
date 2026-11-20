@@ -60,6 +60,9 @@ type Member struct {
 	joinedAt    time.Time
 	ep          *transport.Endpoint
 	answer      []byte
+	// route is the set of addresses the connection was answered with
+	// (task 116), a label of its metrics.
+	route string
 
 	audioSSRC uint32
 	layers    []tgcallsjson.VideoLayer
@@ -261,17 +264,17 @@ func (m *Member) writeRTCP(pkts []rtcp.Packet) {
 // OnConnected implements transport.Handler.
 func (m *Member) OnConnected(*transport.Endpoint) {
 	m.connected.Store(true)
-	metrics.Connections.WithLabelValues(m.kind.String(), "connecting").Dec()
-	metrics.Connections.WithLabelValues(m.kind.String(), "connected").Inc()
+	metrics.Connections.WithLabelValues(m.kind.String(), "connecting", m.route).Dec()
+	metrics.Connections.WithLabelValues(m.kind.String(), "connected", m.route).Inc()
 	m.room.onConnected(m)
 }
 
 // OnClosed implements transport.Handler.
 func (m *Member) OnClosed(_ *transport.Endpoint, reason error) {
 	if m.connected.Swap(false) {
-		metrics.Connections.WithLabelValues(m.kind.String(), "connected").Dec()
+		metrics.Connections.WithLabelValues(m.kind.String(), "connected", m.route).Dec()
 	} else {
-		metrics.Connections.WithLabelValues(m.kind.String(), "connecting").Dec()
+		metrics.Connections.WithLabelValues(m.kind.String(), "connecting", m.route).Dec()
 	}
 	m.room.onClosed(m, reason)
 }

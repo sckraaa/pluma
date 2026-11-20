@@ -111,6 +111,12 @@ func newTestManager(t *testing.T, mutate func(*Config)) (*Manager, *recorder) {
 // joinPeer joins a new peer as participant and connects it.
 func joinPeer(t *testing.T, m *Manager, participant int64, kind Kind, cfg groupcallpeer.Config) (*groupcallpeer.Peer, *JoinResult) {
 	t.Helper()
+	return joinPeerRoutes(t, m, participant, kind, cfg, nil)
+}
+
+// joinPeerRoutes is joinPeer with the routes of the join.
+func joinPeerRoutes(t *testing.T, m *Manager, participant int64, kind Kind, cfg groupcallpeer.Config, routes []string) (*groupcallpeer.Peer, *JoinResult) {
+	t.Helper()
 	p, err := groupcallpeer.New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +126,7 @@ func joinPeer(t *testing.T, m *Manager, participant int64, kind Kind, cfg groupc
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := m.Join(callID, participant, kind, params, false, "")
+	res, err := m.Join(callID, participant, kind, params, false, "", routes)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -793,13 +799,13 @@ func TestJoinRules(t *testing.T) {
 
 	// Another participant with a source of the first one.
 	params := []byte(`{"ssrc":` + itoa(first.Sources[0]) + `,"ufrag":"abcd","pwd":"abcdefghijklmnopqrstuvwx","fingerprints":[{"hash":"sha-256","setup":"passive","fingerprint":"` + fakeFingerprint() + `"}]}`)
-	if _, err := m.Join(callID, 2, KindMain, params, false, ""); !errors.Is(err, ErrSSRCInUse) {
+	if _, err := m.Join(callID, 2, KindMain, params, false, "", nil); !errors.Is(err, ErrSSRCInUse) {
 		t.Errorf("duplicate source: %v", err)
 	}
-	if _, err := m.Join(callID, 2, KindMain, []byte(`{"ssrc":1}`), false, ""); !errors.Is(err, ErrBadParams) {
+	if _, err := m.Join(callID, 2, KindMain, []byte(`{"ssrc":1}`), false, "", nil); !errors.Is(err, ErrBadParams) {
 		t.Errorf("bad params: %v", err)
 	}
-	if _, err := m.Join(7, 2, KindMain, params, false, ""); !errors.Is(err, ErrRoomNotFound) {
+	if _, err := m.Join(7, 2, KindMain, params, false, "", nil); !errors.Is(err, ErrRoomNotFound) {
 		t.Errorf("no room: %v", err)
 	}
 
@@ -812,7 +818,7 @@ func TestJoinRules(t *testing.T) {
 	_ = res
 
 	joinPeer(t, m, 2, KindMain, groupcallpeer.Config{})
-	if _, err := m.Join(callID, 3, KindMain, mustParams(t), false, ""); !errors.Is(err, ErrRoomFull) {
+	if _, err := m.Join(callID, 3, KindMain, mustParams(t), false, "", nil); !errors.Is(err, ErrRoomFull) {
 		t.Errorf("third participant: %v", err)
 	}
 	// A screen of a participant in the call does not count.
@@ -855,7 +861,7 @@ func TestRoomRestart(t *testing.T) {
 
 func TestClientThatNeverComes(t *testing.T) {
 	m, rec := newTestManager(t, func(c *Config) { c.Transport.StartTimeout = 300 * time.Millisecond })
-	if _, err := m.Join(callID, 5, KindMain, mustParams(t), false, ""); err != nil {
+	if _, err := m.Join(callID, 5, KindMain, mustParams(t), false, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	ev := rec.wait(t, 5*time.Second, func(ev Event) bool { return ev.Type == EventDisconnected })

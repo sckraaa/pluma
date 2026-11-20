@@ -339,6 +339,9 @@ var optionalVars = map[string]bool{
 	// The control API of the SFU of group calls (task 093): group calls
 	// are off when empty.
 	"GROUPCALLS_SFU_ENDPOINT": true,
+	// The SFU's addresses by country (task 116): the node's own for
+	// everyone when empty.
+	"GROUPCALLS_ROUTES": true,
 	// The speech engine of voice transcription (task 090): transcription
 	// is off when the URL is empty.
 	"STT_URL":      true,

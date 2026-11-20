@@ -41,6 +41,31 @@ groups:
           summary: "Most connections to the SFU of group calls fail"
           description: "By reason: sum by (reason) (increase(sfu_connect_failures_total[15m])). no_check: nothing reaches the SFU (SFU_PUBLIC_IPV4, published ports, firewall). docs/ops/group-calls.md"
 
+      # Joins through a relay of the node (SFU_RELAYS, task 116) never reach
+      # the SFU: two connections or more by the route failed for want of a
+      # first check in 15 minutes, and none by it came up. The relay
+      # (the nginx of the Russian node), its path to the SFU or a firewall
+      # in between: its users cannot join group calls.
+      - alert: GroupCallsRelayNoCheck
+        expr: |
+          sum by (route) (increase(sfu_connect_failures_total{reason="no_check", route!="direct"}[15m])) >= 2
+          unless on(route)
+          sum by (route) (increase(sfu_ice_pairs_total{route!="direct"}[15m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Nothing reaches the SFU through the relay {{ $labels.route }}"
+          description: "The users routed to {{ $labels.route }} by GROUPCALLS_ROUTES cannot join group calls. On the node: systemctl status pluma-ru-nginx, the alert RuSfuRelayDown, the hoster's firewall for 20600/udp and 20601/tcp. To send them direct again: GROUPCALLS_ROUTES without their countries. docs/ops/group-calls.md, «Неполадки»"
+
+      # bff names a route the node does not have (GROUPCALLS_ROUTES at home
+      # against SFU_RELAYS on the node): the joins get the other routes or
+      # the direct addresses, which from Russia may not work.
+      - alert: GroupCallsRouteUnknown
+        expr: sum by (route) (increase(sfu_route_unknown_total[15m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "bff asks the SFU for the route {{ $labels.route }}, which the node does not have"
+          description: "SFU_RELAYS of the node's .env and GROUPCALLS_ROUTES of the home's .env disagree; docker compose logs sfu | grep route. docs/ops/group-calls.md"
+
       # The node sends close to its configured upload limit: the videos go
       # down in quality.
       - alert: GroupCallsUplinkSaturated
