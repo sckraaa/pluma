@@ -47,12 +47,18 @@ const (
 	MaxDocuments = 4096     // stickers or emoji in a set
 	MaxFile      = 10 << 20 // one file
 	MaxSet       = 64 << 20 // all files of a set
-	parallel     = 16
+	parallel     = 8
 	invalidFor   = time.Hour
 	// fetchFor bounds a whole fetch: the set, then every file (about 4000
 	// files of a set of every emoji, parallel).
 	fetchFor = 5 * time.Minute
+	// fileTries is how many times one file is tried (fileFor).
+	fileTries = 3
 )
+
+// fileFor bounds one try of one file: a download that stalls fails alone
+// and is tried again, instead of holding the whole fetch until fetchFor.
+var fileFor = 30 * time.Second
 
 // A short name of a set: letters, digits and underscores (Telegram's
 // stickers.checkShortName rule).
@@ -202,7 +208,7 @@ func (f *Fetcher) files(ctx context.Context, docs []*mtproto.Document) (map[file
 		for _, thumb := range append([]string{""}, thumbTypes(d)...) {
 			d, thumb := d, thumb
 			g.Go(func() error {
-				b, err := f.src.File(gctx, d, thumb, MaxFile)
+				b, err := f.file(gctx, d, thumb)
 				if err != nil {
 					return err
 				}
@@ -221,6 +227,24 @@ func (f *Fetcher) files(ctx context.Context, docs []*mtproto.Document) (map[file
 		return nil, err
 	}
 	return out, nil
+}
+
+// file fetches one file of a document, each try bounded by fileFor.
+func (f *Fetcher) file(ctx context.Context, d *mtproto.Document, thumb string) ([]byte, error) {
+	var err error
+	for try := 0; try < fileTries; try++ {
+		fctx, cancel := context.WithTimeout(ctx, fileFor)
+		var b []byte
+		b, err = f.src.File(fctx, d, thumb, MaxFile)
+		cancel()
+		if err == nil {
+			return b, nil
+		}
+		if ctx.Err() != nil || !errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
+	}
+	return nil, err
 }
 
 // thumbTypes are a document's thumbnails that are files.
