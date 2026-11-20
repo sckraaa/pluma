@@ -48,6 +48,10 @@ const (
 	ReasonDisconnect Reason = 2
 	ReasonHangup     Reason = 3
 	ReasonBusy       Reason = 4
+	// ReasonMigrate: the call moved to a conference
+	// (phoneCallDiscardReasonMigrateConferenceCall); Call.DiscardSlug is the
+	// slug of its link (task 117).
+	ReasonMigrate Reason = 5
 )
 
 // The timeouts of the clients (call_receive_timeout_ms, call_ring_timeout_ms
@@ -175,8 +179,10 @@ type Call struct {
 	EndDate              int32
 	Deadline             int32
 	Reason               Reason
-	Duration             int32
-	MessagePosted        bool
+	// DiscardSlug is the slug of the conference of ReasonMigrate.
+	DiscardSlug   string
+	Duration      int32
+	MessagePosted bool
 }
 
 // Role is who looks at a call.
@@ -198,8 +204,9 @@ func (c *Call) RoleOf(userId int64) Role {
 	return 0
 }
 
-// ReasonOf reads a discard reason a client sent; anything else, the reason
-// that moves a call to a group call among them, is a plain hang-up.
+// ReasonOf reads a discard reason a client sent; anything else is a plain
+// hang-up, the move to a conference among them until the caller checked
+// its slug (MigrateSlug).
 func ReasonOf(r *mtproto.PhoneCallDiscardReason) Reason {
 	switch r.GetPredicateName() {
 	case mtproto.Predicate_phoneCallDiscardReasonMissed:
@@ -212,7 +219,29 @@ func ReasonOf(r *mtproto.PhoneCallDiscardReason) Reason {
 	return ReasonHangup
 }
 
-// TLReason returns the reason as the clients read it, nil for none.
+// MigrateSlug is the slug of a phoneCallDiscardReasonMigrateConferenceCall,
+// "" for any other reason.
+func MigrateSlug(r *mtproto.PhoneCallDiscardReason) string {
+	if r.GetPredicateName() != mtproto.Predicate_phoneCallDiscardReasonMigrateConferenceCall {
+		return ""
+	}
+	return r.GetSlug()
+}
+
+// DiscardReason is the reason of the call as the clients read it: the
+// move to a conference with its slug, which the other side joins by
+// (Android VoIPService.java:1807-1819, iOS CallSessionManager.swift:
+// 1160-1162, tdesktop calls_call.cpp:950-975, Web K callsController.ts:
+// 716-738); nil for none.
+func (c *Call) DiscardReason() *mtproto.PhoneCallDiscardReason {
+	if c.Reason == ReasonMigrate {
+		return mtproto.MakeTLPhoneCallDiscardReasonMigrateConferenceCall(&mtproto.PhoneCallDiscardReason{Slug: c.DiscardSlug}).To_PhoneCallDiscardReason()
+	}
+	return TLReason(c.Reason)
+}
+
+// TLReason returns the reason as the clients read it, nil for none (and
+// for ReasonMigrate, whose slug is the call's: Call.DiscardReason).
 func TLReason(r Reason) *mtproto.PhoneCallDiscardReason {
 	switch r {
 	case ReasonMissed:
@@ -240,18 +269,23 @@ type Media struct {
 // admin's request and then waits, the admin waits and then sees the answer,
 // each gets the key material of the other (core.telegram.org/api/end-to-end/
 // voice-calls). m is the media of an active call; both sides get the same.
+// conference_supported is always set: every client of Pluma takes a call
+// to a conference, and the clients offer it only with the flag (Android
+// VoIPFragment.java:2054, iOS CallSessionManager.swift:1204, tdesktop
+// calls_call.cpp:1106; decision 4 of task 117).
 func (c *Call) TL(role Role, m *Media) *mtproto.PhoneCall {
 	p := &mtproto.PhoneCall{
-		Id:            c.Id,
-		Video:         c.Video,
-		AccessHash:    c.AccessHash,
-		Date:          c.Date,
-		AdminId:       c.AdminId,
-		ParticipantId: c.ParticipantId,
+		ConferenceSupported: true,
+		Id:                  c.Id,
+		Video:               c.Video,
+		AccessHash:          c.AccessHash,
+		Date:                c.Date,
+		AdminId:             c.AdminId,
+		ParticipantId:       c.ParticipantId,
 	}
 	switch c.State {
 	case StateDiscarded:
-		d := &mtproto.PhoneCall{Id: c.Id, Video: c.Video, Reason: TLReason(c.Reason)}
+		d := &mtproto.PhoneCall{Id: c.Id, Video: c.Video, Reason: c.DiscardReason()}
 		if c.Duration > 0 {
 			d.Duration = &wrapperspb.Int32Value{Value: c.Duration}
 		}

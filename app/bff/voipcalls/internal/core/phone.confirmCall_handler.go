@@ -63,7 +63,7 @@ func (c *VoipCallsCore) PhoneConfirmCall(in *mtproto.TLPhoneConfirmCall) (*mtpro
 	m := c.media(call)
 	if len(m.Connections) == 0 {
 		c.Logger.Errorf("phone.confirmCall - no ICE server of call %d resolves", call.Id)
-		if ended, won, err := c.svcCtx.Dao.Store.Discard(c.ctx, call.Id, phonecalls.ReasonDisconnect, false); err != nil {
+		if ended, won, err := c.svcCtx.Dao.Store.Discard(c.ctx, call.Id, phonecalls.ReasonDisconnect, "", false); err != nil {
 			c.Logger.Errorf("phone.confirmCall - error: %v", err)
 		} else if won {
 			c.finish(ended, false, phonecalls.Admin, c.MD.PermAuthKeyId)

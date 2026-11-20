@@ -67,11 +67,12 @@ type row struct {
 	EndDate              int32  `db:"end_date"`
 	Deadline             int32  `db:"deadline"`
 	DiscardReason        int8   `db:"discard_reason"`
+	DiscardSlug          string `db:"discard_slug"`
 	Duration             int32  `db:"duration"`
 	MessagePosted        bool   `db:"message_posted"`
 }
 
-const columns = "id, access_hash, admin_id, participant_id, admin_auth_key_id, participant_auth_key_id, random_id, video, p2p_allowed, state, g_a_hash, g_b, g_a, key_fingerprint, admin_protocol, accept_protocol, confirm_protocol, `date`, receive_date, start_date, end_date, deadline, discard_reason, duration, message_posted"
+const columns = "id, access_hash, admin_id, participant_id, admin_auth_key_id, participant_auth_key_id, random_id, video, p2p_allowed, state, g_a_hash, g_b, g_a, key_fingerprint, admin_protocol, accept_protocol, confirm_protocol, `date`, receive_date, start_date, end_date, deadline, discard_reason, discard_slug, duration, message_posted"
 
 func (r *row) call() (*Call, error) {
 	c := &Call{
@@ -79,7 +80,7 @@ func (r *row) call() (*Call, error) {
 		AdminAuthKeyId: r.AdminAuthKeyId, ParticipantAuthKeyId: r.ParticipantAuthKeyId, RandomId: r.RandomId,
 		Video: r.Video, P2PAllowed: r.P2PAllowed, State: State(r.State), GAHash: r.GAHash, GB: r.GB, GA: r.GA,
 		KeyFingerprint: r.KeyFingerprint, Date: r.Date, ReceiveDate: r.ReceiveDate, StartDate: r.StartDate,
-		EndDate: r.EndDate, Deadline: r.Deadline, Reason: Reason(r.DiscardReason), Duration: r.Duration,
+		EndDate: r.EndDate, Deadline: r.Deadline, Reason: Reason(r.DiscardReason), DiscardSlug: r.DiscardSlug, Duration: r.Duration,
 		MessagePosted: r.MessagePosted,
 	}
 	var err error
@@ -218,29 +219,30 @@ func (s *Store) Confirm(ctx context.Context, id int64, gA []byte, fingerprint in
 // from the moment the keys were exchanged: the message in the history must
 // not depend on what a client reports. video tells that the call ended with
 // a camera on: phone.discardCall carries the state at the end (tdesktop
-// calls_call.cpp:1563), a voice call may have become a video one.
-func (s *Store) Discard(ctx context.Context, id int64, reason Reason, video bool) (*Call, bool, error) {
-	return s.discard(ctx, id, reason, video, "")
+// calls_call.cpp:1563), a voice call may have become a video one. slug is
+// that of the conference of ReasonMigrate, "" otherwise.
+func (s *Store) Discard(ctx context.Context, id int64, reason Reason, slug string, video bool) (*Call, bool, error) {
+	return s.discard(ctx, id, reason, slug, video, "")
 }
 
 // DiscardAsParticipant is Discard from the device authKeyId of the
 // participant: it has no effect once another device accepted, so of a device
 // that accepts and one that declines the first one wins.
-func (s *Store) DiscardAsParticipant(ctx context.Context, id, authKeyId int64, reason Reason, video bool) (*Call, bool, error) {
-	return s.discard(ctx, id, reason, video, " and participant_auth_key_id in (0, ?)", authKeyId)
+func (s *Store) DiscardAsParticipant(ctx context.Context, id, authKeyId int64, reason Reason, slug string, video bool) (*Call, bool, error) {
+	return s.discard(ctx, id, reason, slug, video, " and participant_auth_key_id in (0, ?)", authKeyId)
 }
 
 // Expire ends a call Due returned, if it is still in state and its deadline
 // is still past: a step that committed after Due renewed it.
 func (s *Store) Expire(ctx context.Context, id int64, state State, reason Reason) (*Call, bool, error) {
-	return s.discard(ctx, id, reason, false, " and state = ? and deadline > 0 and deadline <= ?", state, int32(s.now().Unix()))
+	return s.discard(ctx, id, reason, "", false, " and state = ? and deadline > 0 and deadline <= ?", state, int32(s.now().Unix()))
 }
 
-func (s *Store) discard(ctx context.Context, id int64, reason Reason, video bool, cond string, condArgs ...any) (*Call, bool, error) {
+func (s *Store) discard(ctx context.Context, id int64, reason Reason, slug string, video bool, cond string, condArgs ...any) (*Call, bool, error) {
 	now := int32(s.now().Unix())
-	args := append([]any{StateDiscarded, reason, now, video, now, id, StateRequested, StateAccepted, StateActive}, condArgs...)
+	args := append([]any{StateDiscarded, reason, slug, now, video, now, id, StateRequested, StateAccepted, StateActive}, condArgs...)
 	return s.transition(ctx, id,
-		"update phone_calls set state = ?, discard_reason = ?, end_date = ?, deadline = 0, video = video or ?, duration = if(start_date > 0, ? - start_date, 0) where id = ? and state in (?, ?, ?)"+cond,
+		"update phone_calls set state = ?, discard_reason = ?, discard_slug = ?, end_date = ?, deadline = 0, video = video or ?, duration = if(start_date > 0, ? - start_date, 0) where id = ? and state in (?, ?, ?)"+cond,
 		args...)
 }
 

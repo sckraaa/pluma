@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 )
 
@@ -114,10 +115,10 @@ func TestFlowAndDuration(t *testing.T) {
 	if c, won, err := s.Confirm(ctx, created.Id, []byte("ga"), 9, created.AdminProtocol); err != nil || !won || c.State != StateActive {
 		t.Fatalf("confirm: %v %v", won, err)
 	}
-	if c, won, err := s.Discard(ctx, created.Id, ReasonHangup, false); err != nil || !won || c.Duration < 0 || c.EndDate == 0 {
+	if c, won, err := s.Discard(ctx, created.Id, ReasonHangup, "", false); err != nil || !won || c.Duration < 0 || c.EndDate == 0 {
 		t.Fatalf("discard: %v %v", won, err)
 	}
-	if _, won, err := s.Discard(ctx, created.Id, ReasonMissed, false); err != nil || won {
+	if _, won, err := s.Discard(ctx, created.Id, ReasonMissed, "", false); err != nil || won {
 		t.Fatalf("second discard won: %v", err)
 	}
 }
@@ -170,7 +171,7 @@ func TestDueAndUnposted(t *testing.T) {
 	if !found {
 		t.Fatal("expired call not due")
 	}
-	if _, _, err := s.Discard(ctx, created.Id, ReasonMissed, false); err != nil {
+	if _, _, err := s.Discard(ctx, created.Id, ReasonMissed, "", false); err != nil {
 		t.Fatal(err)
 	}
 	list, err := s.Unposted(ctx, time.Now().Add(time.Minute), 100)
@@ -233,7 +234,7 @@ func TestClaimRinging(t *testing.T) {
 		t.Fatalf("confirmed device: %v %v", got, err)
 	}
 	s.now = time.Now
-	if _, _, err := s.Discard(ctx, created.Id, ReasonHangup, false); err != nil {
+	if _, _, err := s.Discard(ctx, created.Id, ReasonHangup, "", false); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := s.ClaimRinging(ctx, b, 7); err != nil || len(got) != 0 {
@@ -251,7 +252,7 @@ func TestPurge(t *testing.T) {
 	if err := s.MarkOffered(ctx, created.Id, 5); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Discard(ctx, created.Id, ReasonMissed, false); err != nil {
+	if _, _, err := s.Discard(ctx, created.Id, ReasonMissed, "", false); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.MarkPosted(ctx, created.Id); err != nil {
@@ -276,11 +277,11 @@ func TestDeviceThatDeclinesLosesToTheOneThatAccepted(t *testing.T) {
 	if _, won, err := s.Accept(ctx, created.Id, 21, []byte{1}, created.AdminProtocol); err != nil || !won {
 		t.Fatalf("accept: %v %v", won, err)
 	}
-	got, won, err := s.DiscardAsParticipant(ctx, created.Id, 22, ReasonHangup, false)
+	got, won, err := s.DiscardAsParticipant(ctx, created.Id, 22, ReasonHangup, "", false)
 	if err != nil || won || got.State != StateAccepted {
 		t.Fatalf("the other device: %+v %v %v", got, won, err)
 	}
-	if got, won, err = s.DiscardAsParticipant(ctx, created.Id, 21, ReasonHangup, false); err != nil || !won || got.State != StateDiscarded {
+	if got, won, err = s.DiscardAsParticipant(ctx, created.Id, 21, ReasonHangup, "", false); err != nil || !won || got.State != StateDiscarded {
 		t.Fatalf("the device that accepted: %+v %v %v", got, won, err)
 	}
 }
@@ -292,7 +293,7 @@ func TestDiscardKeepsVideo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, won, err := s.Discard(ctx, created.Id, ReasonHangup, true); err != nil || !won || !got.Video {
+	if got, won, err := s.Discard(ctx, created.Id, ReasonHangup, "", true); err != nil || !won || !got.Video {
 		t.Fatalf("voice call that ended with a camera on: %+v %v %v", got, won, err)
 	}
 }
@@ -440,7 +441,7 @@ func TestMissed(t *testing.T) {
 	if err := s.MarkMissed(ctx, created.Id, dev.AuthKeyId); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Discard(ctx, created.Id, ReasonHangup, false); err != nil {
+	if _, _, err := s.Discard(ctx, created.Id, ReasonHangup, "", false); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.DropMissed(ctx, time.Now().Add(-MissedKeep)); err != nil {
@@ -474,5 +475,27 @@ func TestRecentCalls(t *testing.T) {
 	}
 	if total, _, err := s.RecentCalls(ctx, a, b, time.Now().Add(time.Hour)); err != nil || total != 0 {
 		t.Fatalf("outside the window: %d %v", total, err)
+	}
+}
+
+// A call moved to a conference keeps the slug with its reason, and the
+// other side reads both in phoneCallDiscarded (task 117).
+func TestDiscardMigrateKeepsSlug(t *testing.T) {
+	s, ctx := itStore(), context.Background()
+	a, b := itUserIDs()
+	created, _, err := s.Create(ctx, newCall(a, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, won, err := s.Discard(ctx, created.Id, ReasonMigrate, "AbCdEfGhIjKlMnOpQrStUv", false)
+	if err != nil || !won {
+		t.Fatalf("discard: %v %v", won, err)
+	}
+	if again, _ := s.Get(ctx, got.Id); again.Reason != ReasonMigrate || again.DiscardSlug != "AbCdEfGhIjKlMnOpQrStUv" {
+		t.Fatalf("stored: %+v", again)
+	}
+	r := got.TL(Participant, nil).GetReason()
+	if r.GetPredicateName() != mtproto.Predicate_phoneCallDiscardReasonMigrateConferenceCall || r.GetSlug() != "AbCdEfGhIjKlMnOpQrStUv" {
+		t.Fatalf("the reason the other side reads: %v", r)
 	}
 }
