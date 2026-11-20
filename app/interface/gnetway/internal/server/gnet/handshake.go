@@ -64,9 +64,14 @@ func LoadRSAKeys(cList []config.RSAKey) ([]*serverkey.Key, error) {
 }
 
 const (
-	// maxConnHandshakes bounds the handshakes in progress on one connection
-	// (a client runs perm, temp and media temp key handshakes).
-	maxConnHandshakes = 3
+	// maxConnHandshakes bounds the handshakes in progress over the TCP and
+	// WebSocket entries, kept for the whole gateway: a client may go on with
+	// a key exchange on another connection than the one req_pq came on (an
+	// app that moves to another path to the server meanwhile), so a step is
+	// found by its nonce, not by its connection, as over HTTP.
+	maxConnHandshakes = 16384
+	// connHandshakeTTL is how long (seconds) such a handshake may take.
+	connHandshakeTTL = 60
 	// maxHttpHandshakes bounds the handshakes in progress over the HTTP
 	// transport, whose requests may arrive on different connections.
 	maxHttpHandshakes = 4096

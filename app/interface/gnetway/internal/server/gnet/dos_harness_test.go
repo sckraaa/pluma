@@ -160,6 +160,7 @@ func newTestHarness(t testing.TB) *testHarness {
 		authSessionMgr: NewAuthSessionManager(),
 		timeoutWheel:   newTimeoutWheel(),
 		httpHandshakes: handshake.NewStore(maxHttpHandshakes, httpHandshakeTTL),
+		connHandshakes: handshake.NewStore(maxConnHandshakes, connHandshakeTTL),
 		pingWheel:      newPingWheel(),
 		pingInterval:   20,
 		edgeVias:       map[string]bool{"gcore": true, "ru": true},

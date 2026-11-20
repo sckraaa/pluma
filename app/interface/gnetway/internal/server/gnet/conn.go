@@ -23,7 +23,8 @@ type connContext struct {
 	codec     codec.Codec
 	authKey   *authKeyUtil
 	sessionId int64
-	// handshakes in progress on this connection; see handshakeIO.
+	// handshakes answers the key exchange messages of this connection; the
+	// state lives in the gateway's connHandshakes (handshakeIO).
 	handshakes *handshakeIO
 	clientIp   string
 	// limitSubject is the address the connection counts against
