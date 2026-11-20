@@ -16,12 +16,21 @@
 package core
 
 import (
+	"context"
 	"errors"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
 	"github.com/teamgram/teamgram-server/pkg/catalog/demand"
 	"google.golang.org/protobuf/proto"
+)
+
+// demandWait is how long a request waits for a set fetched from Telegram;
+// demandRetryAfter is the FLOOD_WAIT it gets past that.
+const (
+	demandWait       = 3 * time.Second
+	demandRetryAfter = 10
 )
 
 // findSet finds the set ask names in the catalog: by id and access hash,
@@ -50,9 +59,17 @@ func (c *CatalogCore) findSet(method string, ask *mtproto.InputStickerSet) (*cat
 		return nil, err
 	}
 	if set == nil && ask.GetPredicateName() == mtproto.Predicate_inputStickerSetShortName && c.svcCtx.Demand != nil {
-		set, err = c.svcCtx.Demand.ByShortName(c.ctx, ask.GetShortName())
+		// The client's other requests wait behind this one, so it does not
+		// wait for a whole fetch: past demandWait it is asked to come back,
+		// and the fetch goes on to store the set for that ask.
+		wctx, cancel := context.WithTimeout(c.ctx, demandWait)
+		set, err = c.svcCtx.Demand.ByShortName(wctx, ask.GetShortName())
+		cancel()
 		if errors.Is(err, demand.ErrNoSet) {
 			return nil, mtproto.ErrStickersetInvalid
+		}
+		if errors.Is(err, context.DeadlineExceeded) && c.ctx.Err() == nil {
+			return nil, mtproto.NewErrFloodWaitX(demandRetryAfter)
 		}
 		if err != nil {
 			// Not fetched now: the client asks again, the fetch goes on.

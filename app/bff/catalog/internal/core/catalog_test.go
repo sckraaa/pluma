@@ -18,7 +18,10 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
@@ -274,10 +277,16 @@ type fakeDemand struct {
 	asked []string
 	set   *catalog.Set
 	err   error
+	// slow: the fetch outlasts whatever the request waits.
+	slow bool
 }
 
-func (f *fakeDemand) ByShortName(_ context.Context, name string) (*catalog.Set, error) {
+func (f *fakeDemand) ByShortName(ctx context.Context, name string) (*catalog.Set, error) {
 	f.asked = append(f.asked, name)
+	if f.slow {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	return f.set, f.err
 }
 
@@ -300,6 +309,16 @@ func TestStickerSetOnDemand(t *testing.T) {
 	if _, err := c.MessagesGetStickerSet(&mtproto.TLMessagesGetStickerSet{Stickerset: byName}); !errors.Is(err, mtproto.ErrStickersetInvalid) {
 		t.Fatalf("a set Telegram has not: %v", err)
 	}
+	// A fetch that takes long: the request is answered FLOOD_WAIT within
+	// demandWait, not held while the client's other requests wait behind it.
+	d.slow = true
+	start := time.Now()
+	_, err = c.MessagesGetStickerSet(&mtproto.TLMessagesGetStickerSet{Stickerset: byName})
+	if took := time.Since(start); took > demandWait+time.Second || !strings.Contains(fmt.Sprint(err), "FLOOD_WAIT_10") {
+		t.Fatalf("a slow fetch: %v after %s", err, took)
+	}
+	d.slow = false
+	d.asked = d.asked[:2]
 	for _, in := range []*mtproto.InputStickerSet{
 		mtproto.MakeTLInputStickerSetID(&mtproto.InputStickerSet{Id: 1, AccessHash: 2}).To_InputStickerSet(),
 		mtproto.MakeTLInputStickerSetAnimatedEmoji(nil).To_InputStickerSet(),

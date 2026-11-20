@@ -18,6 +18,7 @@ package demand
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -192,4 +193,41 @@ func (countingImporter) ImportSet(ctx context.Context, set *mtproto.Messages_Sti
 		}
 	}
 	return &catalog.Set{ID: 101, ShortName: set.GetSet().GetShortName()}, nil
+}
+
+// A file whose download stalls is tried again after fileFor, alone: the
+// fetch does not wait for fetchFor.
+func TestStalledFileTriedAgain(t *testing.T) {
+	defer func(d time.Duration) { fileFor = d }(fileFor)
+	fileFor = 50 * time.Millisecond
+	src := &stallOnce{fakeTelegram: &fakeTelegram{}, stalled: map[string]bool{}}
+	f := New(src, &fakeImporter{})
+	if _, err := f.file(context.Background(), mtproto.MakeTLDocument(&mtproto.Document{Id: 9}).To_Document(), ""); err != nil {
+		t.Fatalf("a stalled file: %v", err)
+	}
+	if src.tries != 2 {
+		t.Fatalf("%d tries, want 2", src.tries)
+	}
+}
+
+// stallOnce stalls the first download of each file until its try ends.
+type stallOnce struct {
+	*fakeTelegram
+	mu      sync.Mutex
+	stalled map[string]bool
+	tries   int
+}
+
+func (s *stallOnce) File(ctx context.Context, doc *mtproto.Document, thumb string, max int) ([]byte, error) {
+	s.mu.Lock()
+	s.tries++
+	key := fmt.Sprint(doc.GetId(), thumb)
+	first := !s.stalled[key]
+	s.stalled[key] = true
+	s.mu.Unlock()
+	if first {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	return s.fakeTelegram.File(ctx, doc, thumb, max)
 }
