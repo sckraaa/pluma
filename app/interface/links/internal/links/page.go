@@ -225,6 +225,9 @@ func (b *Builder) Build(ctx context.Context, l Link, v Visitor) (*Page, error) {
 		// oauth links), so the page offers the app alone.
 		p.Title, p.OgTitle, p.Icon, p.NoIndex = v.text("oauth_link_title"), v.text("oauth_link_title"), "user", true
 		p.Desc, p.Button, p.WebURL = v.html("oauth_link_desc"), v.text("oauth_link_button"), ""
+	case KindConferenceCall:
+		p.Title, p.OgTitle, p.Icon, p.NoIndex = v.text("call_title"), v.text("call_title"), "group", true
+		p.Desc, p.Button = v.html("call_desc"), v.text("call_button")
 	case KindContact:
 		p.Title, p.OgTitle, p.Icon, p.NoIndex = v.text("private_title"), v.text("private_title"), "user", true
 		p.Desc, p.Button = v.html("contact_link"), v.text("open_contact")
