@@ -53,14 +53,14 @@ func newBoxFixture(t *testing.T) *boxFixture {
 type rowOpts struct {
 	text, media string
 	// action makes the row a service message with this action.
-	action string
-	kind        int32
-	from        int64
-	date        int32
-	mentioned   bool
-	peerType    int32
-	peerId      int64
-	saved       int64
+	action    string
+	kind      int32
+	from      int64
+	date      int32
+	mentioned bool
+	peerType  int32
+	peerId    int64
+	saved     int64
 }
 
 func (f *boxFixture) add(o rowOpts) int32 {
