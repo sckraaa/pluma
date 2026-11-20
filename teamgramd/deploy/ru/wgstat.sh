@@ -54,6 +54,7 @@ if [ -r "$stream" ]; then
 	sfu=$(sed -n '/^[[:space:]]*upstream pluma_sfu_tcp {/,/}/s/^[[:space:]]*server \([0-9.]*:[0-9]*\);.*/\1/p' "$stream" | head -n 1)
 fi
 sfu_up=0
+# shellcheck disable=SC2016 # $1 and $2 belong to the inner bash: the address comes as arguments
 if [ -n "$sfu" ] && timeout 5 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "${sfu%:*}" "${sfu##*:}" 2>/dev/null; then
 	sfu_up=1
 fi
