@@ -113,7 +113,10 @@ func (c Columns) Kind(w *Where, kind int32) {
 	case mtproto.MEDIA_PHONE_CALL, KindMissedCalls:
 		w.And(c.col("message_filter_type")+" = ?", mtproto.MEDIA_PHONE_CALL)
 		if kind == KindMissedCalls {
-			w.And("JSON_UNQUOTE(JSON_EXTRACT("+c.col("message_data")+", '$.action.reason.predicate_name')) = ?",
+			// A one-to-one call by its reason, an invitation to a
+			// conference by its missed flag (task 117; Android lists it so,
+			// CallLogActivity.java:291-300).
+			w.And("(JSON_UNQUOTE(JSON_EXTRACT("+c.col("message_data")+", '$.action.reason.predicate_name')) = ? or JSON_UNQUOTE(JSON_EXTRACT("+c.col("message_data")+", '$.action.missed')) = 'true')",
 				mtproto.Predicate_phoneCallDiscardReasonMissed)
 		}
 		return
