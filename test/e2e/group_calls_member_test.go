@@ -127,6 +127,8 @@ type member struct {
 	key     ed25519.PrivateKey
 	row     *mtproto.GroupCallParticipant
 	version int32
+	// answer is the params of updateGroupCallConnection of the last join.
+	answer  string
 	heal    bool
 	rejoins groupcallpeer.Rejoins
 	// healed are the reasons of the rejoins the rule made; failures what
@@ -387,6 +389,7 @@ func (m *member) join(ctx context.Context, key ed25519.PrivateKey, wrongKey bool
 	p.StartReports(ctx)
 	m.mu.Lock()
 	m.p, m.e, m.key, m.row, m.version = p, e, key, me, v
+	m.answer = conn.GetParams().GetData()
 	m.mu.Unlock()
 	m.room.add(p, m.id())
 	if old != nil {
