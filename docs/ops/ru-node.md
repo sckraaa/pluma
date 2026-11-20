@@ -87,7 +87,7 @@ grep -E '^CALLS_TURN_SECRETS=' .env | sed -nE 's/^CALLS_TURN_SECRETS=(.*,)?(ru=[
    ```bash
    ssh root@194.87.226.185 'NEW=<sha> bash -s' < teamgramd/deploy/ru/deploy.sh
    ```
-   Первый запуск ставит недостающие пакеты (`coturn`, `prometheus-node-exporter`, `certbot`, `wireguard-tools`, `nginx` — только те, которых нет: `apt-get install` установленного пакета обновил бы и nginx владельца), создаёт пользователя `pluma-ru` и каталоги, пишет файлы, запускает TURN, node-exporter и таймеры. nginx Pluma без сертификата не запускается (`no certificate for … yet`); конфигурация при этом всё равно проверяется `nginx -t` с временным самоподписанным сертификатом, который никогда не отдаётся.
+   Первый запуск ставит недостающие пакеты (`coturn`, `prometheus-node-exporter`, `certbot`, `wireguard-tools`, `nginx`, `libnginx-mod-stream` (модуль, который грузит `nginx.conf` для трубы групповых звонков; пакет nginx Ubuntu его не тянет) — только те, которых нет: `apt-get install` установленного пакета обновил бы и nginx владельца), создаёт пользователя `pluma-ru` и каталоги, пишет файлы, запускает TURN, node-exporter и таймеры. nginx Pluma без сертификата не запускается (`no certificate for … yet`); конфигурация при этом всё равно проверяется `nginx -t` с временным самоподписанным сертификатом, который никогда не отдаётся.
 3. **nginx владельца.** На amf:
    ```bash
    /opt/pluma-ru/src/teamgramd/deploy/ru/owner-nginx.sh check     # все строки ok, state not installed

@@ -34,7 +34,9 @@ LE_DIR=$ETC/letsencrypt
 CERTBOT_DIRS=(--config-dir "$LE_DIR" --work-dir /var/lib/pluma-ru/certbot --logs-dir /var/log/pluma-ru/certbot)
 # The packages of the node. wireguard-tools carries the tunnel (tunnel.sh
 # --link ru), nginx and certbot are usually the owner's already.
-PACKAGES=(nginx coturn prometheus-node-exporter certbot wireguard-tools)
+# libnginx-mod-stream is the module nginx.conf loads (the relay of group
+# calls); Ubuntu's nginx neither depends on nor recommends it.
+PACKAGES=(nginx libnginx-mod-stream coturn prometheus-node-exporter certbot wireguard-tools)
 # Units of the packages that must not run: their ports are ours, and the
 # package's coturn would start with the default configuration.
 PACKAGE_UNITS=(coturn.service prometheus-node-exporter.service)

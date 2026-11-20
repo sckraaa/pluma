@@ -30,6 +30,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -328,6 +329,29 @@ func TestRenderRelay(t *testing.T) {
 	}
 	if regexp.MustCompile(`(?m)^\s*proxy_responses\s`).MatchString(stream) {
 		t.Error("stream.conf limits the answers of a datagram")
+	}
+}
+
+// TestPackagesHaveModules: every dynamic module nginx.conf loads comes from
+// a package deploy.sh installs. Ubuntu's nginx neither depends on nor
+// recommends libnginx-mod-stream (apt-cache show nginx, Ubuntu 26.04), and
+// nginx does not start when a load_module path is missing.
+func TestPackagesHaveModules(t *testing.T) {
+	m := regexp.MustCompile(`(?m)^PACKAGES=\(([^)]*)\)`).FindStringSubmatch(readFile(t, filepath.Join(ruDir, "deploy.sh")))
+	if m == nil {
+		t.Fatal("deploy.sh: no PACKAGES=(...)")
+	}
+	packages := strings.Fields(m[1])
+	mods := regexp.MustCompile(`(?m)^load_module /usr/lib/nginx/modules/ngx_([a-z0-9_]+)_module\.so;`).
+		FindAllStringSubmatch(readFile(t, filepath.Join(ruDir, "nginx.conf")), -1)
+	if len(mods) == 0 {
+		t.Fatal("nginx.conf loads no module: the test reads nothing")
+	}
+	for _, mod := range mods {
+		pkg := "libnginx-mod-" + strings.ReplaceAll(mod[1], "_", "-")
+		if !slices.Contains(packages, pkg) {
+			t.Errorf("nginx.conf loads ngx_%s_module, but deploy.sh does not install %s (PACKAGES: %v)", mod[1], pkg, packages)
+		}
 	}
 }
 
