@@ -206,6 +206,7 @@ func TestServicePhotoConfig(t *testing.T) {
 	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
 	t.Setenv("KLIPY_API_KEY", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")
+	t.Setenv("GROUPCALLS_ROUTES", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c photoConfig

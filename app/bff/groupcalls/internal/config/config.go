@@ -64,6 +64,12 @@ type GroupCalls struct {
 	// ChainKeep: the blocks of the encryption of a call that is over are
 	// deleted this long after its end (ADR 0060 §2).
 	ChainKeep time.Duration `json:",default=1h"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Routes choose by the country of a client's address the addresses of
+	// the SFU its join answer carries (GROUPCALLS_ROUTES, task 116,
+	// ADR 0074, ParseRoutes), e.g. "RU,BY:ru;*:direct": the clients in
+	// Russia reach the SFU through the relay on the Russian node. Empty:
+	// everyone the node's own addresses.
+	Routes string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 type Config struct {
@@ -75,4 +81,7 @@ type Config struct {
 	ChannelClient zrpc.RpcClientConf
 	MsgClient     zrpc.RpcClientConf
 	SyncClient    sync_client.OutboxConf
+	// AuthsessionClient tells the country of a client's address
+	// (GroupCalls.Routes).
+	AuthsessionClient zrpc.RpcClientConf
 }

@@ -87,6 +87,8 @@ func (c *GroupCallsCore) PhoneJoinGroupCall(in *mtproto.TLPhoneJoinGroupCall) (*
 	if err != nil {
 		return nil, err
 	}
+	// Before the join's transaction: the lookup may wait on authsession.
+	routes := c.routes()
 	manage := a.canManage(c.MD.UserId)
 	speaker := call.SpeakerHash != "" && in.GetInviteHash().GetValue() == call.SpeakerHash
 	wasMember := call.ChainHeight >= 0
@@ -119,7 +121,7 @@ func (c *GroupCallsCore) PhoneJoinGroupCall(in *mtproto.TLPhoneJoinGroupCall) (*
 	}
 	resp, err := c.connectJoined(res.Call, &pb.JoinRequest{
 		CallId: call.Id, Participant: c.MD.UserId, Kind: pb.ConnectionKind_CONNECTION_KIND_MAIN,
-		Params: params, Muted: !res.Self.CanSelfUnmute, Endpoint: endpoint,
+		Params: params, Muted: !res.Self.CanSelfUnmute, Endpoint: endpoint, Routes: routes,
 	})
 	if err != nil {
 		// The block stands: the others apply it and, as the joiner is not

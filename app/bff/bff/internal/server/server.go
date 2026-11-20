@@ -166,6 +166,8 @@ func (s *Server) Initialize() error {
 			ChannelClient: c.BizServiceClient,
 			MsgClient:     c.MsgClient,
 			SyncClient:    syncClient,
+			// GroupCalls.Routes by the country of the address.
+			AuthsessionClient: c.AuthSessionClient,
 		})
 		mtproto.RegisterRPCGroupCallsServer(grpcServer, s.groupCalls)
 		mtproto.RegisterRPCConferenceCallsServer(grpcServer, s.groupCalls)
