@@ -181,7 +181,7 @@ func (c *Core) Handle(ctx context.Context, ev *Event) {
 	if len(ns) == 0 {
 		return
 	}
-	forCall := ns[0].Kind == notify.KindCall
+	forCall := ns[0].IsCall()
 	targets := c.targets(ctx, ev, forCall)
 	if len(targets) == 0 {
 		return
@@ -321,7 +321,7 @@ func (c *Core) notify(ctx context.Context, n *notify.Notification, d *pushdevice
 	// A call rings whatever the settings of the chat: no client consults
 	// them for updatePhoneCall (Android MessagesController.java:20328-20420,
 	// tdesktop Calls::Instance).
-	if n.Kind == notify.KindReadHistory || n.Kind == notify.KindCall {
+	if n.Kind == notify.KindReadHistory || n.IsCall() || n.Kind == notify.KindConferenceMissed {
 		c.deliver(ctx, n, d, false)
 		return
 	}
@@ -531,6 +531,20 @@ func (c *Core) sendAPNs(ctx context.Context, n *notify.Notification, d *pushdevi
 	if d.LockedPeriod > 0 && c.lockedOut(ctx, d) {
 		hide = notify.HideAll
 	}
+	if n.Kind == notify.KindConferenceInvite && d.TokenType == pushdevices.TokenVoIP {
+		payload, err := notify.IOSConferenceVoIP(n)
+		if err != nil {
+			return pushprovider.OutcomeRejected, err
+		}
+		p, err := pushcrypt.EncodeP(d.Secret, payload)
+		if err != nil {
+			return pushprovider.OutcomeRejected, err
+		}
+		return c.APNs.Send(ctx, &pushprovider.APNsPush{
+			Token: d.Token, Sandbox: d.AppSandbox, Type: pushprovider.APNsVoIP,
+			Expiration: c.now().Add(callExpiration), Body: apnsVoIPBody(p),
+		})
+	}
 	push, err := notify.IOS(n, d.LangCode, hide)
 	if err != nil {
 		return pushprovider.OutcomeRejected, err
@@ -543,7 +557,7 @@ func (c *Core) sendAPNs(ctx context.Context, n *notify.Notification, d *pushdevi
 		return pushprovider.OutcomeRejected, err
 	}
 	req := &pushprovider.APNsPush{Token: d.Token, Sandbox: d.AppSandbox}
-	if n.Kind == notify.KindCall {
+	if n.IsCall() {
 		req.Expiration = c.now().Add(callExpiration)
 		if d.TokenType == pushdevices.TokenVoIP {
 			// PushKit: the payload alone (AppDelegate.swift pushRegistryImpl

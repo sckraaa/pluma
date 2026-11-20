@@ -40,7 +40,21 @@ const (
 	KindSessionRevoke                 // the authorization was terminated: log out
 	KindEncrypted                     // a message of a secret chat: PeerId is the chat, the text is unknown
 	KindCall                          // an incoming call: wake the device, it fetches or carries the call
+	// KindConferenceInvite: an invitation to a conference rings (task 117):
+	// its message is new in the private chat with the inviter.
+	KindConferenceInvite
+	// KindConferenceMissed: an invitation to a conference was not answered
+	// (its message edited to missed): Android stops the ringing and shows
+	// a missed call.
+	KindConferenceMissed
 )
+
+// IsCall tells whether n rings or ends a ringing: it goes whatever the
+// settings of the chat, and to an iPhone by PushKit when it has a VoIP
+// token.
+func (n *Notification) IsCall() bool {
+	return n.Kind == KindCall || n.Kind == KindConferenceInvite
+}
 
 // Content is what a message carries, as the loc_key suffix names it.
 type Content string
@@ -123,6 +137,13 @@ type Notification struct {
 	CallId         int64
 	CallAccessHash int64
 	CallUpdates    string
+	// An invitation to a conference (KindConferenceInvite,
+	// KindConferenceMissed): CallId is the conference, CallVideo the
+	// video flag, CallOthers the names of the other participants it
+	// names, CallOthersCount their number.
+	CallVideo       bool
+	CallOthers      []string
+	CallOthersCount int
 
 	Mention bool
 	Silent  bool
@@ -215,6 +236,10 @@ func FromUpdates(userId int64, ups *mtproto.Updates) []*Notification {
 				continue
 			}
 			out = append(out, n)
+		case mtproto.Predicate_updateEditMessage:
+			if n := conferenceMissed(userId, u.GetMessage_MESSAGE(), names); n != nil {
+				out = append(out, n)
+			}
 		case mtproto.Predicate_updatePhoneCall:
 			// Only a call that starts ringing is a push; the rest reaches the
 			// live sessions.
@@ -256,6 +281,47 @@ func callNotification(userId int64, u *mtproto.Update, call *mtproto.PhoneCall, 
 		n.CallUpdates = base64.RawURLEncoding.EncodeToString(x.GetBuf())
 	}
 	return n
+}
+
+// conferenceInvite makes n, of an incoming service message
+// messageActionConferenceCall, the push of an invitation that rings: one
+// in a private chat without active, missed or a duration (tdesktop
+// data_media_types.cpp:513-533); nil for any other.
+func conferenceInvite(n *Notification, m *mtproto.Message, names map[int64]string) *Notification {
+	a := m.GetAction()
+	if n.Chat || n.Channel || a.GetActive() || a.GetMissed() || a.GetDuration() != nil {
+		return nil
+	}
+	n.Kind = KindConferenceInvite
+	n.CallId, n.CallVideo = a.GetCallId(), a.GetVideo()
+	n.CallOthersCount = len(a.GetOtherParticipants())
+	for _, p := range a.GetOtherParticipants() {
+		if name := names[p.GetUserId()]; name != "" {
+			n.CallOthers = append(n.CallOthers, name)
+		}
+	}
+	return n
+}
+
+// conferenceMissed is the push of an invitation to a conference that was
+// not answered: an edit of the incoming message to missed. nil for any
+// other edit.
+func conferenceMissed(userId int64, m *mtproto.Message, names map[int64]string) *Notification {
+	if m.GetOut() || m.GetPredicateName() != mtproto.Predicate_messageService || m.GetPeerId().GetPredicateName() != mtproto.Predicate_peerUser {
+		return nil
+	}
+	a := m.GetAction()
+	if a.GetPredicateName() != mtproto.Predicate_messageActionConferenceCall || !a.GetMissed() {
+		return nil
+	}
+	from := m.GetPeerId().GetUserId()
+	if from == userId {
+		return nil
+	}
+	return &Notification{
+		Kind: KindConferenceMissed, UserId: userId, PeerId: from, FromId: from, FromName: names[from], MsgId: m.GetId(),
+		CallId: a.GetCallId(), CallVideo: a.GetVideo(), CallOthersCount: len(a.GetOtherParticipants()),
+	}
 }
 
 func lastOf(ns []*Notification) *Notification {
@@ -340,6 +406,9 @@ func fromMessage(userId int64, m *mtproto.Message, names, titles map[int64]strin
 	}
 
 	if m.GetPredicateName() == mtproto.Predicate_messageService {
+		if m.GetAction().GetPredicateName() == mtproto.Predicate_messageActionConferenceCall {
+			return conferenceInvite(n, m, names)
+		}
 		n = withAction(n, userId, m.GetAction(), names)
 		if n != nil && n.Kind == KindPinned && !n.Channel {
 			// A channel's pinned message is in the channel's box, which

@@ -16,9 +16,15 @@
 package core
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/pushdevices"
+	"github.com/teamgram/teamgram-server/pkg/pushprovider"
+
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestOneChannelPerDevice(t *testing.T) {
@@ -47,5 +53,32 @@ func TestPushable(t *testing.T) {
 	}
 	if pushable(pushdevices.TokenWebPush, true) {
 		t.Fatal("web push is not sent")
+	}
+}
+
+// An invitation to a conference rings as a call: on an iPhone with a VoIP
+// token by PushKit alone, whatever the chat is muted, and it expires as a
+// call does.
+func TestConferenceInviteRouting(t *testing.T) {
+	e := newEnv(t)
+	e.register(t, keyIOS, pushdevices.TokenVoIP, "voip-token", "ru", true)
+	e.settings[settingsKey{peerType: mtproto.PEER_USER, peerId: anna}] = &mtproto.PeerNotifySettings{MuteUntil: wrapperspb.Int32(int32(time.Now().Add(time.Hour).Unix()))}
+	m := mtproto.MakeTLMessageService(&mtproto.Message{
+		Id: 41, FromId: mtproto.MakePeerUser(anna), PeerId: mtproto.MakePeerUser(anna),
+		Action: mtproto.MakeTLMessageActionConferenceCall(&mtproto.MessageAction{CallId: 555}).To_MessageAction(),
+	}).To_Message()
+	e.core.Handle(context.Background(), &Event{UserId: me, Updates: mtproto.MakeTLUpdates(&mtproto.Updates{
+		Updates: []*mtproto.Update{mtproto.MakeTLUpdateNewMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update()},
+		Users:   []*mtproto.User{mtproto.MakeTLUser(&mtproto.User{Id: anna, FirstName: wrapperspb.String("Анна")}).To_User()},
+	}).To_Updates()})
+	got := e.take(t)
+	if len(got) != 2 || got["apns-token"] != nil {
+		t.Fatalf("pushes to %v, want fcm-token and voip-token", keys(got))
+	}
+	if got["voip-token"]["group_call_id"] != "555" || got["fcm-token"]["loc_key"] != "CONF_CALL_REQUEST" {
+		t.Fatalf("pushes: %v", got)
+	}
+	if p := e.lastAPNs(); p.Type != pushprovider.APNsVoIP || p.Expiration.After(time.Now().Add(callExpiration+time.Second)) {
+		t.Fatalf("APNs request: %+v", p)
 	}
 }
