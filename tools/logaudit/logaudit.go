@@ -128,6 +128,9 @@ var secretNames = set(
 	// the slug of a business chat link (task 105, ADR 0067): the only
 	// secret of the link
 	"slug", "getslug",
+	// the link of a conference and the slug a one-to-one call moved to
+	// (task 117, ADR 0075): whoever has it joins the call
+	"invitelink", "getinvitelink", "discardslug", "migrateslug",
 	// the connection of a connected business bot (task 105, ADR 0067):
 	// whoever has it acts for the account through the bot
 	"connectionid", "getconnectionid", "businessconnectionid", "getbusinessconnectionid",
