@@ -37,3 +37,18 @@ func TestGetMediaTypeGeo(t *testing.T) {
 		}
 	}
 }
+
+// pluma: TestGetMediaTypeCalls: an invitation to a conference is a call as a
+// one-to-one call is: inputMessagesFilterPhoneCalls finds both, as the tab
+// of calls of Android lists them (CallLogActivity.java:1207-1210, :291-300).
+func TestGetMediaTypeCalls(t *testing.T) {
+	for _, a := range []*MessageAction{
+		MakeTLMessageActionPhoneCall(&MessageAction{CallId: 1}).To_MessageAction(),
+		MakeTLMessageActionConferenceCall(&MessageAction{CallId: 1, Missed: true}).To_MessageAction(),
+	} {
+		m := MakeTLMessageService(&Message{Id: 1, Action: a}).To_Message()
+		if got := GetMediaType(m); got != MEDIA_PHONE_CALL {
+			t.Errorf("%s: media type %d, want %d", a.GetPredicateName(), got, MEDIA_PHONE_CALL)
+		}
+	}
+}
