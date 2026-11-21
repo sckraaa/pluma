@@ -870,3 +870,33 @@
 - **Проверено** (2026-11-18, Mac): `python3 -I ci/patch_test.py` со `./upstream` — 77 тестов, OK (после `b9a5112`); селектор после правки проверен `tsc --noEmit` на синтаксис. Сборка Vite и браузер против шлюза с пробой — нет.
 - **Не проверено.** Сборка и браузер; `changeUrl` у клиентского (не файлового) соединения без сбоев; несколько аккаунтов в одном воркере.
 - **Решения к подтверждению.** Ключ памяти — только страна; пауза после «не поддерживается» — `failed_ttl_s`.
+
+### W-088. Звонки и последние места палитры Telegram (задача 118)
+- **Статус.** Ветка `task/118-web-colors-l10n` pluma-web от `origin/main` (`9899991`), коммит `efe1426`; не влито, не выпущено (2026-11-21). Апстрим tweb `aa74832e`.
+- **Что и зачем.** Жалоба владельца 2026-11-21 на цвета Telegram в меню звонка. Синих Telegram в UI звонков Web K не осталось (`CALL_COLOR_EDITS`, окна звонков с классом `night` берут ночную тему Pluma), но оставались тёмные серые Telegram:
+  - фон панели группового звонка `--gc-background-color: #181818` (`scss/base.scss:285`) → `#0C0E0C` (ночной `background-color`): секция участников (`--surface-color` #131513) была темнее панели, контраст перевёрнут относительно Telegram;
+  - вторичный текст `--gc-secondary-text-color: #aaaaaa` (:299) → `#9AA29A` (он же цвет lottie `secondary`);
+  - плитка без видео `--gc-tile-background: #2c2c2e` (:305) → `#232623` (ночной `message-background-color`) — на подтверждение владельца, точного аналога в палитре нет.
+  - вне звонков: ссылки в тостах (`base.scss:857` #60a5e9) и в подписях просмотрщика (`mediaViewer.scss:155`) → `#9DBB9F`; значок функций историй (`featureDetailsIconSticker.module.scss:28`) → переменные кольца историй W-033; «Все» в аудитории истории (`base.scss:2029` #50ABFF/#007AFF) → `#7FA082/#5B7A5E` (синяя идентичность `IDENTITY_COLORS`, как W-039); «Отменить» платного сообщения (`_reactions.scss:67`) и подсказка цены (`priceChangedTooltip.module.scss:26-28`) → `#9DBB9F`; рамка поиска светлой темы (`base.scss:256` #dfe1e5) → `#dfe2df`.
+- **Где.** `ci/patch.py`: `_NIGHT` (:3802), `CALL_COLOR_EDITS` (:3824), `TELEGRAM_CALL_COLORS_SHARED` (+`181818`, `aaaaaa`, `2c2c2e`); `PALETTE_EDITS` (:7055), `palette` (:7098), `verify_palette` (:7103).
+- **Апстрим без правки.** `_markup.scss:115` (вставки diff) — только из ИИ-редактора, убранного W-073; значок RTMP, таблицы подарков, кошелёк, экраны распродаж Premium, песочницы виджетов, пользовательские пресеты и идентичности, Lottie — недостижимы или оставлены решениями W-038, W-039, W-068, W-072.
+- **Как проверяется.** `verify_call_colors` отвергает `181818`, `aaaaaa`, `2c2c2e` в файлах UI звонков и строках `--gc-*`; `verify_palette` — правки на месте и ни одного из 60a5e9, 8edeff, 50abff, 34c76f, 3da1fd, `rgb(142, 222, 255` во всех исходниках.
+- **Проверено / не проверено.** См. W-090.
+
+### W-089. Неподдерживаемое сообщение или видео ведёт на сайт Pluma (задача 118)
+- **Статус.** Та же ветка, коммит `81004f6`; не влито, не выпущено (2026-11-21).
+- **Что и зачем.** «Try getdesktop.telegram.org» и «telegram.org/dl» в `Message.Unsupported.Desktop/Mobile` (`lang.ts:496-497`) и `Video.Unsupported.Desktop/Mobile` (:623-624) отправляли к приложениям Telegram. Теперь `TELEGRAM_SITE_EDITS` (:1687) ведут на `https://pluma.chat/`, где приложения Pluma (как Android `telegram.org/dl` → `pluma.chat/`, и `clientLinks` сервера); правки идут до rebrand, «Telegram Web» становится «Pluma Web». Пакет сервера переписывает те же четыре ключа webk во всех языках (`appLinks` в `pkg/langpack/rebrand.go`, задача 118). `SITE_KEEP` для `lang.ts`: 23 → 17.
+- **Проверено / не проверено.** См. W-090.
+
+### W-090. Английский на экранах — строки пакета (задача 118)
+- **Статус.** Та же ветка, коммиты `f0c281f` и `1948f0e` (ключ `Pluma.Scheduled.SendNow.Many` — простая строка, после сверки с сервером); не влито, не выпущено (2026-11-21).
+- **Что и зачем.** Тексты, которые апстрим пишет по-английски на любом языке:
+  - подтверждение «Отправить сейчас» отложенного сообщения (`popups/sendNow.ts:6-7`; вызовы `chat/contextMenu.ts:2428`, `chat/selection.ts:1293`): заголовок — ключ апстрима `MessageScheduleSend` («Send Now»), вопрос — новые `Pluma.Scheduled.SendNow.One` («Send message now?») и `Pluma.Scheduled.SendNow.Many` («Send %d messages now?»). Свои строки сервер отдаёт только простыми (`own.json`), поэтому `Many` — простая строка, а не множественная: она нужна только для двух сообщений и больше; в языках, где у 2+ несколько форм, перевод даёт число в скобках;
+  - подсказка полноэкранной кнопки плеера (`lib/mediaPlayer/index.ts:712,715`) → `Call.Fullscreen.Enter/Exit`; вкладка каталога мини-приложений (`components/browser.tsx:1001`) → `MiniApps.OpenApp`; вкладка Instant View без заголовка (:1210) → новый `Pluma.InstantView`; подсказка акцента по умолчанию (`generalSettings.tsx:244`) → `CallSettings.DeviceDefault`;
+  - новая группа с местом (`newGroup.tsx:76,85,87`): адрес на языке приложения вместо `accept-language=en`, ошибки → новый `Pluma.Location.PermissionDenied` и ключ апстрима `Error.AnError`.
+  Новые ключи — английский в `lang.ts` (`PLUMA_STRINGS`), переводы — пакет сервера (`own.json`, 42 языка, `patchkeys.json`).
+- **Где.** `ci/patch.py`: `STRING_EDITS` (:7123), `STRING_RELIES_ON`, `PLUMA_STRINGS` (:7179), `strings` (:7198), `verify_strings` (:7207).
+- **Апстрим без правки.** `TOPIC_TITLE_DEFAULT` «New Chat» (`appMessagesManager.ts:138,5055`) и «Saved Messages» в поисковом индексе (`appUsersManager.ts:557`) — в общем воркере, где нет пакета языка (апстрим сам закомментировал I18n в :556); нужна передача строки из UI, отложено. Подписи «богатых» сообщений слоя 233 (`lib/richMessage.ts:257-307`, `richBlockSerialization.ts:26`, `math.ts`, `parseMarkdownToPage.ts:571`, `instantView.tsx:1180`) — целый английский набор, часть общая с воркером; отложено.
+- **Как проверяется.** `verify_strings`: правки на месте, ключи апстрима с прежним английским (`STRING_RELIES_ON`), старых английских литералов на этих экранах нет (`_ENGLISH_LEFT`); тест `test_strings`.
+- **Проверено** (2026-11-21, Mac): `python3 -I ci/patch_test.py` с `./upstream` — 79 тестов, OK (после `1948f0e`). Сборка Vite и браузер — нет.
+- **Не проверено.** Вид в браузере: панель группового звонка, тосты, «Отправить сейчас» на русском.
