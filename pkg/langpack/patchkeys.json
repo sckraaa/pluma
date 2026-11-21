@@ -1,6 +1,10 @@
 {
   "android": [
+    "PlumaCallAudioError",
     "PlumaCallEncryptionFailed",
+    "PlumaContactProfile",
+    "PlumaContactVideoCall",
+    "PlumaContactVoiceCall",
     "PlumaLoginAdminText",
     "PlumaLoginAdminTitle",
     "PlumaLoginDidNotGetCode",
@@ -15,6 +19,7 @@
     "PlumaLoginTelegramTitle"
   ],
   "ios": [
+    "Pluma.Chat.EphemeralMessageInfo",
     "Pluma.GroupCall.EncryptionFailed",
     "Pluma.Login.AskAdministratorText",
     "Pluma.Login.AskAdministratorTitle",
@@ -29,6 +34,10 @@
     "Pluma.Login.SendAgainIn"
   ],
   "tdesktop": [
+    "lng_pluma_autostart_error",
+    "lng_pluma_call_error_incompatible",
+    "lng_pluma_call_failed",
+    "lng_pluma_clear_path_failed",
     "lng_pluma_code_admin_text",
     "lng_pluma_code_admin_title",
     "lng_pluma_code_failed_about",
@@ -41,7 +50,26 @@
     "lng_pluma_code_telegram_about",
     "lng_pluma_code_telegram_button",
     "lng_pluma_code_telegram_title",
-    "lng_pluma_group_call_e2e_failed"
+    "lng_pluma_email_confirmation_expired",
+    "lng_pluma_faved_set_title",
+    "lng_pluma_group_call_create_failed",
+    "lng_pluma_group_call_e2e_failed",
+    "lng_pluma_group_call_join_failed",
+    "lng_pluma_group_call_message_failed",
+    "lng_pluma_group_call_window_title",
+    "lng_pluma_no_authorization_bot",
+    "lng_pluma_opengl_crash_text",
+    "lng_pluma_opengl_keep_disabled",
+    "lng_pluma_passport_corrupted",
+    "lng_pluma_passport_corrupted_change",
+    "lng_pluma_passport_corrupted_reset",
+    "lng_pluma_passport_corrupted_reset_sure",
+    "lng_pluma_proxy_config_error",
+    "lng_pluma_secure_accept_error",
+    "lng_pluma_secure_save_error",
+    "lng_pluma_server_error",
+    "lng_pluma_unknown_error",
+    "lng_pluma_unknown_scan_error"
   ],
   "webk": [
     "Pluma.Code.AskAdministrator",
@@ -54,6 +82,10 @@
     "Pluma.Code.SendAgainIn",
     "Pluma.Code.Sending",
     "Pluma.Code.SentTelegram",
+    "Pluma.InstantView",
+    "Pluma.Location.PermissionDenied",
+    "Pluma.Scheduled.SendNow.Many",
+    "Pluma.Scheduled.SendNow.One",
     "Pluma.Update.Required.Subtitle",
     "Pluma.Update.Required.Title",
     "PlumaCall.EncryptionFailed"
