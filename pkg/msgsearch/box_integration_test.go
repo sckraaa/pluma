@@ -52,13 +52,15 @@ func newBoxFixture(t *testing.T) *boxFixture {
 
 type rowOpts struct {
 	text, media string
-	kind        int32
-	from        int64
-	date        int32
-	mentioned   bool
-	peerType    int32
-	peerId      int64
-	saved       int64
+	// action makes the row a service message with this action.
+	action    string
+	kind      int32
+	from      int64
+	date      int32
+	mentioned bool
+	peerType  int32
+	peerId    int64
+	saved     int64
 }
 
 func (f *boxFixture) add(o rowOpts) int32 {
@@ -82,6 +84,13 @@ func (f *boxFixture) add(o rowOpts) int32 {
 			f.t.Fatal(err)
 		}
 		data["media"] = media
+	}
+	if o.action != "" {
+		var action any
+		if err := json.Unmarshal([]byte(o.action), &action); err != nil {
+			f.t.Fatal(err)
+		}
+		data["predicate_name"], data["action"] = mtproto.Predicate_messageService, action
 	}
 	body, _ := json.Marshal(data)
 	mentioned := 0
@@ -217,6 +226,26 @@ func TestSearchFilters(t *testing.T) {
 		if got := f.ids(q); !slices.Equal(got, c.want) {
 			t.Errorf("%s: %v, want %v", name, got, c.want)
 		}
+	}
+}
+
+// The calls and the missed ones: a one-to-one call by its reason, an
+// invitation to a conference by its missed flag (task 117).
+func TestSearchCalls(t *testing.T) {
+	f := newBoxFixture(t)
+	answered := f.add(rowOpts{kind: mtproto.MEDIA_PHONE_CALL, action: `{"predicate_name":"messageActionPhoneCall","reason":{"predicate_name":"phoneCallDiscardReasonHangup"}}`})
+	missed := f.add(rowOpts{kind: mtproto.MEDIA_PHONE_CALL, action: `{"predicate_name":"messageActionPhoneCall","reason":{"predicate_name":"phoneCallDiscardReasonMissed"}}`})
+	joined := f.add(rowOpts{kind: mtproto.MEDIA_PHONE_CALL, action: `{"predicate_name":"messageActionConferenceCall","active":true}`})
+	unanswered := f.add(rowOpts{kind: mtproto.MEDIA_PHONE_CALL, action: `{"predicate_name":"messageActionConferenceCall","missed":true}`})
+	f.add(rowOpts{text: "missed"})
+	q := f.query()
+	q.Kind = mtproto.MEDIA_PHONE_CALL
+	if got, want := f.ids(q), []int32{unanswered, joined, missed, answered}; !slices.Equal(got, want) {
+		t.Errorf("calls: %v, want %v", got, want)
+	}
+	q.Kind = KindMissedCalls
+	if got, want := f.ids(q), []int32{unanswered, missed}; !slices.Equal(got, want) {
+		t.Errorf("missed calls: %v, want %v", got, want)
 	}
 }
 

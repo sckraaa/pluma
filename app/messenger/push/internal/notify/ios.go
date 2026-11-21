@@ -84,6 +84,26 @@ func IOS(n *Notification, lang string, hide Hide) (*IOSPush, error) {
 		return background(map[string]any{"loc-key": "SESSION_REVOKE"})
 	case KindMuted:
 		return nil, nil // iOS registers with no_muted
+	case KindConferenceMissed:
+		return nil, nil // the edit of the message ends the ringing on iOS
+	case KindConferenceInvite:
+		// The notification extension reports it to CallKit
+		// (NotificationService.swift:1095-1113): the ids as strings.
+		ids["loc-key"] = "CONF_CALL_REQUEST"
+		if n.CallVideo {
+			ids["loc-key"] = "CONF_VIDEOCALL_REQUEST"
+		}
+		ids["call_id"] = strconv.FormatInt(n.CallId, 10)
+		ids["msg_id"] = strconv.FormatInt(int64(n.MsgId), 10)
+		ids["call_conference_from"] = n.FromName
+		if n.CallOthersCount > 0 {
+			ids["call_participants_cnt"] = strconv.Itoa(n.CallOthersCount)
+		}
+		payload, err := json.Marshal(ids)
+		if err != nil {
+			return nil, err
+		}
+		return &IOSPush{Payload: payload, Alert: true, ThreadId: threadId(n), Placeholder: t.newMessage}, nil
 	case KindCall:
 		// All NotificationService.swift:1053 and PushKit read: the ids as
 		// strings, and the update to ring on.
@@ -204,4 +224,26 @@ func iosEncrypted(n *Notification, t *texts) (*IOSPush, error) {
 		return nil, err
 	}
 	return &IOSPush{Payload: payload, Alert: true, Sound: true, Placeholder: t.newMessage}, nil
+}
+
+// IOSConferenceVoIP is the PushKit payload of an invitation to a
+// conference for an iPhone with a VoIP token: AppDelegate.swift:2345-2410
+// reports it to CallKit at once with from_id, group_call_id, msg_id and
+// from_title, and video and member_count when there, all strings. The
+// number of the caller is not carried: iOS reads it from its own base.
+func IOSConferenceVoIP(n *Notification) ([]byte, error) {
+	p := map[string]string{
+		"from_id":       strconv.FormatInt(n.FromId, 10),
+		"group_call_id": strconv.FormatInt(n.CallId, 10),
+		"msg_id":        strconv.FormatInt(int64(n.MsgId), 10),
+		"from_title":    n.FromName,
+		"video":         "0",
+	}
+	if n.CallVideo {
+		p["video"] = "1"
+	}
+	if n.CallOthersCount > 0 {
+		p["member_count"] = strconv.Itoa(n.CallOthersCount)
+	}
+	return json.Marshal(p)
 }

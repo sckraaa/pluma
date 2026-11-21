@@ -14,8 +14,9 @@
 // limitations under the License.
 
 // Package core is the phone.* methods of group calls of chats and channels
-// (task 093, ADR 0059) and of their end-to-end encryption (task 094, ADR
-// 0060; chain.go). The state is pkg/groupcalls; the media are the SFU's
+// (task 093, ADR 0059), of their end-to-end encryption (task 094, ADR
+// 0060; chain.go) and of the conferences, the calls without a chat (task
+// 117, ADR 0075; conference.go, invites.go). The state is pkg/groupcalls; the media are the SFU's
 // (app/service/sfu), reached through sfuclient. What the clients expect of
 // each step is cited at the step.
 //
@@ -60,6 +61,9 @@ type GroupCallsCore struct {
 	svcCtx *svc.ServiceContext
 	logx.Logger
 	MD *metadata.RpcMetadata
+	// granted is the conference the reference of this request lets the
+	// account see: a slug of its link or an invitation of his (load).
+	granted int64
 }
 
 func New(ctx context.Context, svcCtx *svc.ServiceContext) *GroupCallsCore {
@@ -77,10 +81,22 @@ func background(ctx context.Context, svcCtx *svc.ServiceContext) *GroupCallsCore
 	return &GroupCallsCore{ctx: ctx, svcCtx: svcCtx, Logger: logx.WithContext(ctx), MD: &metadata.RpcMetadata{}}
 }
 
-// load returns the call in names, GROUPCALL_INVALID for anything else. A
-// slug or an invite message names a conference (not served in stage 1).
+// load returns the call in names, GROUPCALL_INVALID for anything else.
+// A conference may be named by the slug of its link or by an invitation
+// message of the account, as the clients learned of it (tdesktop
+// calls_group_call.cpp:4246-4253, Android ChatObject.java:1289-1300, iOS
+// GroupCalls.swift:180-196, Web K appGroupCallsManager.ts:676-685); such a
+// reference lets the account see it (granted). The answers name the call
+// by inputGroupCall always (Call.Input): iOS drops updates of the other
+// forms (UpdateInterpreter+Calls.swift:18-40).
 func (c *GroupCallsCore) load(in *mtproto.InputGroupCall) (*groupcalls.Call, error) {
-	if in.GetPredicateName() != mtproto.Predicate_inputGroupCall {
+	switch in.GetPredicateName() {
+	case mtproto.Predicate_inputGroupCallSlug:
+		return c.loadBySlug(in.GetSlug())
+	case mtproto.Predicate_inputGroupCallInviteMessage:
+		return c.loadByInvite(in.GetMsgId())
+	case mtproto.Predicate_inputGroupCall:
+	default:
 		return nil, mtproto.ErrGroupcallInvalid
 	}
 	call, err := c.svcCtx.Dao.Store.Get(c.ctx, in.GetId())
@@ -138,6 +154,8 @@ func storeError(err error) error {
 		return mtproto.ErrGroupcallSsrcDuplicateMuch
 	case errors.Is(err, groupcalls.ErrFull):
 		return errParticipantsTooMuch
+	case errors.Is(err, groupcalls.ErrConferenceLimit):
+		return errConferenceLimit
 	case errors.Is(err, groupcalls.ErrBadOffset):
 		return mtproto.ErrGroupcallInvalid
 	}

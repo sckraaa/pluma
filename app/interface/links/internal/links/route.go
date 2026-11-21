@@ -67,6 +67,12 @@ const (
 	// ui/LinkManager.java:313-314, tdesktop core/local_url_handlers.cpp:707-717,
 	// iOS TelegramUI/Sources/OpenUrl.swift:45-67).
 	KindOAuth
+	// KindConferenceCall is the link of a conference, call/<slug> (task
+	// 117, ADR 0075 §2): the app joins it by the slug, call?slug=<slug>
+	// (Android LaunchActivity.java:2681-2687, iOS OpenUrl.swift:699-701,
+	// tdesktop local_url_handlers.cpp:2220-2222, Web K
+	// internalLinkProcessor.ts:334, 352).
+	KindConferenceCall
 )
 
 // Link is a parsed link: its kind, what it names (a username, a hash, a set
@@ -169,6 +175,8 @@ func Parse(path string, q url.Values) Link {
 		return Link{Kind: KindLogin, Subject: parts[1], App: "login?code=" + parts[1]}
 	case head == "contact" && len(parts) > 1 && slugRe.MatchString(parts[1]):
 		return Link{Kind: KindContact, Subject: parts[1], App: "contact?token=" + parts[1]}
+	case head == "call" && len(parts) > 1 && hashRe.MatchString(parts[1]):
+		return Link{Kind: KindConferenceCall, Subject: parts[1], App: "call?slug=" + parts[1]}
 	case head == "m" && len(parts) > 1 && slugRe.MatchString(parts[1]):
 		return Link{Kind: KindBusinessChat, Subject: parts[1], App: "message?slug=" + parts[1]}
 	case head == urlauth.OAuthPath && len(parts) == 1:

@@ -29,6 +29,9 @@ func (c *GroupCallsCore) PhoneToggleGroupCallStartSubscription(in *mtproto.TLPho
 	if err != nil {
 		return nil, err
 	}
+	if err = conferenceOnly(call); err != nil {
+		return nil, err
+	}
 	if !call.Scheduled() {
 		return nil, mtproto.ErrGroupcallAlreadyStarted
 	}

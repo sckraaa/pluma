@@ -18,6 +18,7 @@ package notify
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 )
 
 // androidPayload is what PushListenerController reads after decryption.
@@ -102,6 +103,18 @@ func LocKey(n *Notification, hideText bool) (string, []string) {
 		return "SESSION_REVOKE", nil
 	case KindCall:
 		return "PHONE_CALL_REQUEST", []string{n.FromName}
+	case KindConferenceInvite:
+		// PushListenerController.java:367-384 rings with the names of
+		// loc_args[2].
+		key := "CONF_CALL_REQUEST"
+		if n.CallVideo {
+			key = "CONF_VIDEOCALL_REQUEST"
+		}
+		return key, []string{n.FromName, n.FromName, strings.Join(append([]string{n.FromName}, n.CallOthers...), ", ")}
+	case KindConferenceMissed:
+		// The name and the number of the others
+		// (PushListenerController.java:1407-1415).
+		return "CONF_CALL_MISSED", []string{n.FromName, strconv.Itoa(n.CallOthersCount)}
 	}
 	return "", nil
 }
@@ -145,6 +158,10 @@ func custom(n *Notification) map[string]any {
 		}
 	default:
 		c["from_id"] = n.PeerId
+	}
+	if n.Kind == KindConferenceInvite || n.Kind == KindConferenceMissed {
+		// PushListenerController.java:368, 1408.
+		c["call_id"] = n.CallId
 	}
 	if n.Kind == KindCall {
 		// core.telegram.org/api/push-updates, PHONE_CALL_REQUEST.

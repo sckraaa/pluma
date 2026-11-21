@@ -118,8 +118,11 @@ type memberOptions struct {
 type member struct {
 	u    *user
 	call *mtproto.InputGroupCall
-	opts memberOptions
-	room *callRoom
+	// callId is the id of the call: call may name a conference by its slug
+	// or an invitation (task 117), the answers name it by its id.
+	callId int64
+	opts   memberOptions
+	room   *callRoom
 
 	mu      sync.Mutex
 	p       *groupcallpeer.Peer
@@ -177,7 +180,8 @@ func (m *member) fail(format string, args ...any) {
 // in the background until the test ends or the member leaves.
 func joinMember(ctx context.Context, t *testing.T, u *user, call *mtproto.InputGroupCall, opts memberOptions) *member {
 	t.Helper()
-	m := &member{u: u, call: call, opts: opts, room: roomOf(call.GetId()), heal: !opts.noHeal}
+	callId := canonicalCallId(ctx, t, u, call)
+	m := &member{u: u, call: call, callId: callId, opts: opts, room: roomOf(callId), heal: !opts.noHeal}
 	key, err := peer.GenerateKey()
 	if err != nil {
 		t.Fatal(err)
@@ -203,6 +207,23 @@ func joinMember(ctx context.Context, t *testing.T, u *user, call *mtproto.InputG
 	})
 	go m.run(bctx)
 	return m
+}
+
+// canonicalCallId is the id of the call call names: the id itself, or of
+// the conference its slug or invitation names, as phone.getGroupCall
+// answers it.
+func canonicalCallId(ctx context.Context, t *testing.T, u *user, call *mtproto.InputGroupCall) int64 {
+	t.Helper()
+	if call.GetPredicateName() == mtproto.Predicate_inputGroupCall || call.GetPredicateName() == "" && call.GetSlug() == "" && call.GetMsgId() == 0 {
+		return call.GetId()
+	}
+	o, err := u.c.Invoke(ctx, &mtproto.TLPhoneGetGroupCall{Constructor: u.c.Constructor(mtproto.Predicate_phone_getGroupCall), Call: call, Limit: 1})
+	if err != nil {
+		t.Fatalf("phone.getGroupCall: %v", err)
+	}
+	return o.(interface {
+		To_Phone_GroupCall() *mtproto.Phone_GroupCall
+	}).To_Phone_GroupCall().GetCall().GetId()
 }
 
 // lastServerBlock is the last block of sub-chain 0 in the server form, nil
@@ -342,8 +363,8 @@ func (m *member) join(ctx context.Context, key ed25519.PrivateKey, wrongKey bool
 		return fmt.Errorf("the chain in the answer of the join: %v", ups.GetUpdates())
 	}
 	gc := groupCallIn(ups)
-	me, v := rowIn(ups, m.call.GetId(), m.id())
-	if conn == nil || conn.GetPresentation() || gc.GetId() != m.call.GetId() || me == nil {
+	me, v := rowIn(ups, m.callId, m.id())
+	if conn == nil || conn.GetPresentation() || gc.GetId() != m.callId || me == nil {
 		p.Close()
 		return fmt.Errorf("phone.joinGroupCall answered %v", ups.GetUpdates())
 	}

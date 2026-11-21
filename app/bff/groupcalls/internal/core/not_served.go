@@ -22,9 +22,9 @@ import (
 // The methods of group calls that are not served: the recording, which an
 // end-to-end encrypted call cannot have on the server, and the RTMP
 // streams, never (ADR 0060 §4); the messages of a call and their stars
-// (a later stage); the conferences as a product (createConferenceCall,
-// their invitations) and the encrypted messages of a call (ADR 0060, «Что
-// не делается»). They answer ErrEnterpriseIsBlocked, a 400 the clients do
+// (a later stage); the encrypted messages of a call (ADR 0060, «Что не
+// делается»); the old form of createConferenceCall (= phone.PhoneCall),
+// which the clients of layer 233 do not send (task 117). They answer ErrEnterpriseIsBlocked, a 400 the clients do
 // not retry, rather than gRPC Unimplemented, a 500 tgnet retries.
 
 func (c *GroupCallsCore) PhoneToggleGroupCallRecord(*mtproto.TLPhoneToggleGroupCallRecord) (*mtproto.Updates, error) {
@@ -63,19 +63,7 @@ func (c *GroupCallsCore) PhoneSaveDefaultSendAs(*mtproto.TLPhoneSaveDefaultSendA
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-func (c *GroupCallsCore) PhoneCreateConferenceCall7D0444BB(*mtproto.TLPhoneCreateConferenceCall7D0444BB) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 func (c *GroupCallsCore) PhoneCreateConferenceCallDFC909AB(*mtproto.TLPhoneCreateConferenceCallDFC909AB) (*mtproto.Phone_PhoneCall, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (c *GroupCallsCore) PhoneInviteConferenceCallParticipant(*mtproto.TLPhoneInviteConferenceCallParticipant) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (c *GroupCallsCore) PhoneDeclineConferenceCallInvite(*mtproto.TLPhoneDeclineConferenceCallInvite) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 

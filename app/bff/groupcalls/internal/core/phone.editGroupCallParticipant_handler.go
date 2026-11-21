@@ -53,7 +53,7 @@ func (c *GroupCallsCore) PhoneEditGroupCallParticipant(in *mtproto.TLPhoneEditGr
 	case err != nil:
 		return nil, err
 	}
-	a, err := c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId, row.UserId)
+	a, err := c.accessOf(call, c.MD.UserId, row.UserId)
 	if err != nil {
 		return nil, err
 	}

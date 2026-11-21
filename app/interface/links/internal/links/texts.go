@@ -99,6 +99,9 @@ var texts = map[string]map[string]string{
 		"chatlink_title":    "Pluma: Chat with {0}",
 		"chatlink_none":     "Pluma: Chat",
 		"chatlink_desc":     "If you have <strong>Pluma</strong>, you can open this chat right away.",
+		"call_title":        "Pluma: Join Call",
+		"call_desc":         "You are invited to a call on <strong>Pluma</strong>.",
+		"call_button":       "Join Call",
 
 		// The login on a site through oauth.pluma.chat (task 106): the card of
 		// the link that opens a request in the app, and the page of the
@@ -216,6 +219,9 @@ var texts = map[string]map[string]string{
 		"chatlink_title":    "Pluma: чат — {0}",
 		"chatlink_none":     "Pluma: чат",
 		"chatlink_desc":     "Если у вас есть <strong>Pluma</strong>, вы можете открыть этот чат прямо сейчас.",
+		"call_title":        "Pluma: звонок",
+		"call_desc":         "Вас приглашают в звонок в <strong>Pluma</strong>.",
+		"call_button":       "Присоединиться к звонку",
 
 		"oauth_link_title":        "Pluma: вход",
 		"oauth_link_desc":         "Сайт просит войти с помощью <strong>Pluma</strong>. Откройте приложение, чтобы подтвердить или отказаться.",

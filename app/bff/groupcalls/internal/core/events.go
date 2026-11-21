@@ -122,7 +122,7 @@ func (c *GroupCallsCore) gone(node string, ev *pb.Event) {
 		if err != nil || !changed {
 			return
 		}
-		if a, err := c.loadPeer(call.PeerType, call.PeerId); err == nil {
+		if a, err := c.accessOf(call); err == nil {
 			c.deliver(a, after, fanOut{changes: []groupcalls.Change{{Participant: row}}})
 		}
 		return
@@ -156,7 +156,7 @@ func (c *GroupCallsCore) leaveGone(call *groupcalls.Call, p *groupcalls.Particip
 	metricLeaves.Inc(reason)
 	c.svcCtx.E2E.Left(call.Id, p.UserId)
 	c.disconnect(after, p.UserId)
-	a, err := c.loadPeer(call.PeerType, call.PeerId)
+	a, err := c.accessOf(call)
 	if err != nil {
 		c.Logger.Errorf("groupcalls: the chat of call %d: %v", call.Id, err)
 		return

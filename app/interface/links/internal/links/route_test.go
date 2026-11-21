@@ -61,6 +61,7 @@ func TestParse(t *testing.T) {
 		{"/contact/abcdef", KindContact, "contact?token=abcdef"},
 		{"/s/telegram", KindChannelPreview, "resolve?domain=telegram"},
 		{"/m/AbCdEfGh12345678", KindBusinessChat, "message?slug=AbCdEfGh12345678"},
+		{"/call/AbCdEfGh-_12345678IjKl", KindConferenceCall, "call?slug=AbCdEfGh-_12345678IjKl"},
 		{"/m/AbCdEfGh12345678/", KindBusinessChat, "message?slug=AbCdEfGh12345678"},
 		{"/oauth?startapp=AbCdEfGhIjKlMnOp_-123456", KindOAuth, "resolve?domain=oauth&startapp=AbCdEfGhIjKlMnOp_-123456"},
 	} {
@@ -75,7 +76,7 @@ func TestParse(t *testing.T) {
 	}
 	// What t.me sends to telegram.org: here, the site's home.
 	for _, link := range []string{
-		"/", "/abc", "/abc!def", "/c/1234", "/addstickers/", "/proxy?server=1.2.3.4&port=443&secret=00",
+		"/", "/abc", "/abc!def", "/c/1234", "/call/a.b", "/call/", "/addstickers/", "/proxy?server=1.2.3.4&port=443&secret=00",
 		"/share/zzz?url=x", "/setlanguage", "/msg/url?url=x", "/giftcode/aaaa", "/$aaaa",
 		"/m", "/m/", "/m/a!b",
 		"/oauth", "/oauth?startapp=short", "/oauth?startapp=AbCdEfGhIjKlMnOp%21123456", "/oauth/x?startapp=AbCdEfGhIjKlMnOp_-123456",

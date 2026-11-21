@@ -33,7 +33,9 @@ import (
 // the group state before it, the removed included: his tde2e then fails
 // with InvalidCallGroupState_NotParticipant and he joins again with a new
 // key (§5). A writer not in the group state is GROUPCALL_FORBIDDEN, on
-// which tdesktop joins again (calls_group_call.cpp:848-853).
+// which tdesktop joins again (calls_group_call.cpp:848-853). Of a
+// conference only its creator kicks (Android GroupCallActivity.java:7645,
+// 8131), and the kicked stay out until he invites them (ADR 0075 §7).
 func (c *GroupCallsCore) PhoneDeleteConferenceCallParticipants(in *mtproto.TLPhoneDeleteConferenceCallParticipants) (*mtproto.Updates, error) {
 	if in.GetOnlyLeft() == in.GetKick() {
 		// tdesktop sends exactly one of them (calls_group_call.cpp:842).
@@ -45,15 +47,16 @@ func (c *GroupCallsCore) PhoneDeleteConferenceCallParticipants(in *mtproto.TLPho
 	}
 	var a *access
 	if in.GetKick() {
-		if a, err = c.loadPeer(call.PeerType, call.PeerId, c.MD.UserId); err != nil {
+		if a, err = c.accessOf(call, c.MD.UserId); err != nil {
 			return nil, err
 		}
 		if !a.canManage(c.MD.UserId) {
 			return nil, mtproto.ErrGroupcallForbidden
 		}
 	}
+	markKicked := in.GetKick() && call.Conference
 	w, err := c.svcCtx.Dao.Store.RemoveFromChain(c.ctx, groupcalls.RemoveParams{
-		CallId: call.Id, CallerId: c.MD.UserId, Ids: in.GetIds(), Block: in.GetBlock(), Kick: in.GetKick(),
+		CallId: call.Id, CallerId: c.MD.UserId, Ids: in.GetIds(), Block: in.GetBlock(), Kick: in.GetKick(), MarkKicked: markKicked,
 		Check: func(_ *groupcalls.Call, rows []*groupcalls.Participant) error {
 			if in.GetKick() {
 				return nil

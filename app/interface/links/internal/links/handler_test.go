@@ -249,6 +249,14 @@ func TestPages(t *testing.T) {
 	}
 	_, body = get(t, h, "/oauth?startapp=AbCdEfGhIjKlMnOp_-123456", ru)
 	mustContain(t, "oauth, Russian", body, "Pluma: вход", "Открыть в Pluma")
+
+	// The link of a conference (task 117): the app joins by the slug, the
+	// web client too.
+	_, body = get(t, h, "/call/AbCdEfGh-_12345678IjKl", en)
+	mustContain(t, "call", body, "Pluma: Join Call", "Join Call", "noindex",
+		`href="plm://call?slug=AbCdEfGh-_12345678IjKl"`, `tgaddr=plm%3A%2F%2Fcall%3Fslug%3DAbCdEfGh-_12345678IjKl`)
+	_, body = get(t, h, "/call/AbCdEfGh-_12345678IjKl", ru)
+	mustContain(t, "call, Russian", body, "Pluma: звонок", "Присоединиться к звонку")
 }
 
 // TestOAuthHost: the provider's host goes to the provider but for the

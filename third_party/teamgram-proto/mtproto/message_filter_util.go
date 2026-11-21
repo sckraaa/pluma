@@ -62,6 +62,8 @@ func GetMediaType(message *Message) int32 {
 		switch message.GetAction().GetPredicateName() {
 		case Predicate_messageActionPhoneCall:
 			return MEDIA_PHONE_CALL
+		case Predicate_messageActionConferenceCall: // pluma: invitations to conferences are calls (task 117)
+			return MEDIA_PHONE_CALL
 		case Predicate_messageActionChatEditPhoto:
 			return MEDIA_CHAT_PHOTO
 		}

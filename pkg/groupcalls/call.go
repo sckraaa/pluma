@@ -14,10 +14,11 @@
 // limitations under the License.
 
 // Package groupcalls is the state of the group calls of chats and channels
-// (task 093, ADR 0059): the calls, their participants with the version the
-// clients follow, what each viewer set for himself and the subscriptions
-// to scheduled calls. The media are the SFU's; nothing of them is stored
-// here.
+// (task 093, ADR 0059) and of the conferences, group calls without a chat
+// (task 117, ADR 0075): the calls, their participants with the version the
+// clients follow, what each viewer set for himself, the subscriptions to
+// scheduled calls and the invitations to conferences. The media are the
+// SFU's; nothing of them is stored here.
 package groupcalls
 
 import (
@@ -55,12 +56,18 @@ const (
 	PostedEnd
 )
 
-// Call is one group call of a chat or a channel.
+// Call is one group call of a chat or a channel, or a conference.
 type Call struct {
 	Id         int64
 	AccessHash int64
-	PeerType   int32
-	PeerId     int64
+	// PeerType and PeerId are the chat or channel of the call; a
+	// conference has none: 0 and the id of the call.
+	PeerType int32
+	PeerId   int64
+	// Conference: a call without a chat (ADR 0075); Slug is the last part
+	// of its link, "" for a call of a chat.
+	Conference bool
+	Slug       string
 	CreatorId  int64
 	RandomId   int32
 	Title      string
@@ -111,8 +118,11 @@ func (c *Call) Input() *mtproto.InputGroupCall {
 
 // CallView is what the groupCall object says of its viewer.
 type CallView struct {
-	// CanManage: the viewer may change the settings (can_change_join_muted).
+	// CanManage: the viewer may change the settings (can_change_join_muted);
+	// of a conference, the viewer is its creator (groupCall.creator).
 	CanManage bool
+	// InviteLink is the link of a conference (groupCall.invite_link).
+	InviteLink string
 	// Subscribed: the viewer waits for the scheduled call.
 	Subscribed bool
 	// VideoLimit is unmuted_video_limit.
@@ -121,7 +131,11 @@ type CallView struct {
 
 // TL is the call as the viewer of v sees it: groupCallDiscarded once it is
 // over. rtmp_stream, record_video_active and messages_enabled are never set
-// (task 093, stage 1).
+// (task 093, stage 1). A conference has conference, creator for its
+// creator and invite_link, and no title, join_muted or schedule: the
+// clients take the link from it (tdesktop data_group_call.cpp:550, Web K
+// groupCallUpdates.ts:59) and show the creator's controls by creator
+// (Android GroupCallActivity.java:1767, tdesktop data_group_call.cpp:147).
 func (c *Call) TL(v CallView) *mtproto.GroupCall {
 	if c.Discarded {
 		return mtproto.MakeTLGroupCallDiscarded(&mtproto.GroupCall{
@@ -144,6 +158,14 @@ func (c *Call) TL(v CallView) *mtproto.GroupCall {
 		UnmutedVideoCount: wrapperspb.Int32(c.VideoCount),
 		UnmutedVideoLimit: limit,
 		Version:           c.Version,
+	}
+	if c.Conference {
+		g.JoinMuted, g.CanChangeJoinMuted = false, false
+		g.Conference, g.Creator = true, v.CanManage
+		if v.InviteLink != "" {
+			g.InviteLink = wrapperspb.String(v.InviteLink)
+		}
+		return mtproto.MakeTLGroupCall(g).To_GroupCall()
 	}
 	if c.Title != "" {
 		g.Title = wrapperspb.String(c.Title)
@@ -212,8 +234,11 @@ type Participant struct {
 	Presentation *Media
 	// PresentationPaused: the screen is paused.
 	PresentationPaused bool
-	Date               int32
-	ActiveDate         int32
+	// Kicked: the creator of a conference took the participant out; he
+	// does not join again until the creator invites him (ADR 0075 §7).
+	Kicked     bool
+	Date       int32
+	ActiveDate int32
 	// SeenAt is when the SFU last held the connection (unix ms).
 	SeenAt int64
 }

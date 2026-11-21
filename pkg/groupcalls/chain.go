@@ -226,6 +226,9 @@ type RemoveParams struct {
 	// Kick takes those of ids who are in the call out of it with the
 	// block.
 	Kick bool
+	// MarkKicked keeps those of ids out of a conference after a kick
+	// (Participant.Kicked).
+	MarkKicked bool
 }
 
 // RemoveFromChain appends a block that takes ids out of the group state of
@@ -282,6 +285,11 @@ func (s *Store) RemoveFromChain(ctx context.Context, r RemoveParams) (*ChainWrit
 			return err
 		}
 		res = &ChainWrite{Block: block, Next: a.Block.Height + 1, Members: before}
+		if r.MarkKicked {
+			if _, err = tx.Exec("update group_call_participants set kicked = 1 where call_id = ? and user_id in ("+placeholders(len(r.Ids))+")", args...); err != nil {
+				return err
+			}
+		}
 		if r.Kick {
 			for _, p := range rows {
 				if !p.InCall {
@@ -409,6 +417,7 @@ type ChainHead struct {
 	AccessHash int64
 	PeerType   int32
 	PeerId     int64
+	Conference bool
 	Discarded  bool
 	// Height and Hash are the call's chain state; Broadcasts the count of
 	// sub-chain 1.
@@ -424,12 +433,13 @@ func (s *Store) Head(ctx context.Context, callId int64) (*ChainHead, error) {
 		AccessHash     int64        `db:"access_hash"`
 		PeerType       int32        `db:"peer_type"`
 		PeerId         int64        `db:"peer_id"`
+		Conference     bool         `db:"conference"`
 		Live           sql.NullBool `db:"live"`
 		ChainHeight    int32        `db:"chain_height"`
 		ChainHash      []byte       `db:"chain_hash"`
 		BroadcastCount int32        `db:"broadcast_count"`
 	}
-	err := s.db.QueryRowPartial(ctx, &r, "select id, access_hash, peer_type, peer_id, live, chain_height, chain_hash, broadcast_count from group_calls where id = ?", callId)
+	err := s.db.QueryRowPartial(ctx, &r, "select id, access_hash, peer_type, peer_id, conference, live, chain_height, chain_hash, broadcast_count from group_calls where id = ?", callId)
 	if errors.Is(err, sqlx.ErrNotFound) {
 		return nil, ErrNotFound
 	}
@@ -437,7 +447,7 @@ func (s *Store) Head(ctx context.Context, callId int64) (*ChainHead, error) {
 		return nil, err
 	}
 	h := &ChainHead{
-		Id: r.Id, AccessHash: r.AccessHash, PeerType: r.PeerType, PeerId: r.PeerId, Discarded: !r.Live.Valid,
+		Id: r.Id, AccessHash: r.AccessHash, PeerType: r.PeerType, PeerId: r.PeerId, Conference: r.Conference, Discarded: !r.Live.Valid,
 		Height: r.ChainHeight, Broadcasts: r.BroadcastCount,
 	}
 	copy(h.Hash[:], r.ChainHash)

@@ -34,7 +34,9 @@ import (
 // sub-chain 1: so a participant removed from the chain finds out, and one
 // who may see the call can join on top of its last block. Every client
 // polls this every 1 to 5 s (ADR 0060 §2, «Опрос»): the call's chain state
-// is read by its primary key and the group state is cached by height.
+// is read by its primary key and the group state is cached by height. A
+// conference may be named by its slug or an invitation; the answer names
+// it by inputGroupCall (Web K groupCallUpdates.ts:22-36).
 func (c *GroupCallsCore) PhoneGetGroupCallChainBlocks(in *mtproto.TLPhoneGetGroupCallChainBlocks) (*mtproto.Updates, error) {
 	sub := in.GetSubChainId()
 	if sub != groupcalls.SubChainMain && sub != groupcalls.SubChainBroadcast {
@@ -45,7 +47,13 @@ func (c *GroupCallsCore) PhoneGetGroupCallChainBlocks(in *mtproto.TLPhoneGetGrou
 	}
 	input := in.GetCall()
 	if input.GetPredicateName() != mtproto.Predicate_inputGroupCall {
-		return nil, mtproto.ErrGroupcallInvalid
+		// A conference by its slug or an invitation: tdesktop reads the
+		// last block so before it joins (calls_group_call.cpp:1644-1730).
+		call, err := c.load(input)
+		if err != nil {
+			return nil, err
+		}
+		input = call.Input()
 	}
 	head, err := c.svcCtx.Dao.Store.Head(c.ctx, input.GetId())
 	if err != nil {
@@ -62,8 +70,17 @@ func (c *GroupCallsCore) PhoneGetGroupCallChainBlocks(in *mtproto.TLPhoneGetGrou
 		return nil, err
 	}
 	if !member {
-		a, err := c.loadPeer(head.PeerType, head.PeerId, c.MD.UserId)
-		if err != nil {
+		var a *access
+		if head.Conference {
+			call, err := c.svcCtx.Dao.Store.Get(c.ctx, head.Id)
+			if err != nil {
+				return nil, storeError(err)
+			}
+			a, err = c.conferenceAccess(call, c.MD.UserId)
+			if err != nil {
+				return nil, err
+			}
+		} else if a, err = c.loadPeer(head.PeerType, head.PeerId, c.MD.UserId); err != nil {
 			return nil, err
 		}
 		if !a.canView(c.MD.UserId) {

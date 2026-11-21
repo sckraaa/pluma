@@ -16,9 +16,11 @@
 package core
 
 import (
+	"errors"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/groupcalls"
 	"github.com/teamgram/teamgram-server/pkg/phonecalls"
 )
 
@@ -75,11 +77,45 @@ func (c *VoipCallsCore) PhoneDiscardCall(in *mtproto.TLPhoneDiscardCall) (*mtpro
 // discard ends the call for the side that asked: a device of the participant
 // loses to one that accepted meanwhile.
 func (c *VoipCallsCore) discard(id int64, role phonecalls.Role, in *mtproto.TLPhoneDiscardCall) (*phonecalls.Call, bool, error) {
-	reason := phonecalls.ReasonOf(in.GetReason())
+	reason, slug := c.reasonOf(in.GetReason())
 	if role == phonecalls.Participant {
-		return c.svcCtx.Dao.Store.DiscardAsParticipant(c.ctx, id, c.MD.PermAuthKeyId, reason, in.GetVideo())
+		return c.svcCtx.Dao.Store.DiscardAsParticipant(c.ctx, id, c.MD.PermAuthKeyId, reason, slug, in.GetVideo())
 	}
-	return c.svcCtx.Dao.Store.Discard(c.ctx, id, reason, in.GetVideo())
+	return c.svcCtx.Dao.Store.Discard(c.ctx, id, reason, slug, in.GetVideo())
+}
+
+// reasonOf is the reason of a discard and the slug of the conference it
+// moves the call to (task 117, ADR 0075 §6). The clients make the
+// conference, join it, take its link and then end the call with the reason
+// (Android VoIPService.java:2480-2600, iOS PresentationCall.swift:
+// 1721-1736, tdesktop calls_panel.cpp:497-525); the other side joins by the
+// slug at once. The move is taken when the slug is of a conference that is
+// not over whose creator or participant ends the call; anything else, an
+// empty slug among them (Android sends one on a path,
+// VoIPService.java:4540-4542), is a hang-up.
+func (c *VoipCallsCore) reasonOf(r *mtproto.PhoneCallDiscardReason) (phonecalls.Reason, string) {
+	reason := phonecalls.ReasonOf(r)
+	slug := phonecalls.MigrateSlug(r)
+	if slug == "" {
+		return reason, ""
+	}
+	call, err := c.svcCtx.Dao.Conferences.BySlug(c.ctx, slug)
+	if err != nil {
+		if !errors.Is(err, groupcalls.ErrNotFound) {
+			c.Logger.Errorf("phone.discardCall - the conference of a move: %v", err)
+		}
+		return reason, ""
+	}
+	if call.Discarded {
+		return reason, ""
+	}
+	if call.CreatorId != c.MD.UserId {
+		p, err := c.svcCtx.Dao.Conferences.ParticipantOf(c.ctx, call.Id, c.MD.UserId)
+		if err != nil || !p.InCall {
+			return reason, ""
+		}
+	}
+	return phonecalls.ReasonMigrate, slug
 }
 
 // busyOfThisCall tells whether a Busy from this device of the participant is

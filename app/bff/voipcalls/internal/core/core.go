@@ -249,7 +249,7 @@ func (c *VoipCallsCore) syncAll(userId int64, updates *mtproto.Updates) {
 // (dao.SentBefore). The two updates go to every device of both users, the
 // device of the discard among them.
 func (c *VoipCallsCore) postMessage(call *phonecalls.Call) {
-	reason := phonecalls.TLReason(call.Reason)
+	reason := call.DiscardReason()
 	out := msg.MakeTLOutboxMessage(&msg.OutboxMessage{
 		NoWebpage: true,
 		RandomId:  call.Id,

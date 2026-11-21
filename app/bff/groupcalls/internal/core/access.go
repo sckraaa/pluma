@@ -25,13 +25,25 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/groupcalls"
 )
 
-// access is the chat or channel of a call with the rows of the accounts a
-// step needs: who may see the call, who manages it (ADR 0059 §6).
+// access is the policy of a call: who may see it, who manages it. Of a
+// call of a chat it is the chat or channel with the rows of the accounts a
+// step needs (ADR 0059 §6); of a conference, which has no chat, conf
+// (ADR 0075 §1, conference.go). The steps ask it the same questions
+// either way.
 type access struct {
 	peerType int32
 	peerId   int64
 	chat     *mtproto.MutableChat
 	channel  *channelpb.MutableChannel
+	conf     *conferenceAccess
+}
+
+// accessOf is the policy of call with the rows of users.
+func (c *GroupCallsCore) accessOf(call *groupcalls.Call, users ...int64) (*access, error) {
+	if call.Conference {
+		return c.conferenceAccess(call, users...)
+	}
+	return c.loadPeer(call.PeerType, call.PeerId, users...)
 }
 
 // loadPeer loads the chat or channel with the rows of users.
@@ -81,6 +93,9 @@ func (c *GroupCallsCore) loadInputPeer(in *mtproto.InputPeer, users ...int64) (*
 // the discussion group through its channel), as channels.getFullChannel
 // lets it.
 func (a *access) canView(userId int64) bool {
+	if a.conf != nil {
+		return a.conf.viewers[userId]
+	}
 	if a.chat != nil {
 		p, ok := a.chat.GetImmutableChatParticipant(userId)
 		return ok && p.IsChatMemberStateNormal() && !a.chat.Deactivated()
@@ -96,6 +111,9 @@ func (a *access) canView(userId int64) bool {
 
 // isMember: the account is in the chat itself.
 func (a *access) isMember(userId int64) bool {
+	if a.conf != nil {
+		return a.conf.viewers[userId]
+	}
 	if a.chat != nil {
 		p, ok := a.chat.GetImmutableChatParticipant(userId)
 		return ok && p.IsChatMemberStateNormal()
@@ -107,6 +125,9 @@ func (a *access) isMember(userId int64) bool {
 // canManage: the creator, or an admin with manage_call (an admin of a
 // basic group has every right).
 func (a *access) canManage(userId int64) bool {
+	if a.conf != nil {
+		return userId == a.conf.creatorId
+	}
 	if a.chat != nil {
 		p, ok := a.chat.GetImmutableChatParticipant(userId)
 		return ok && p.IsChatMemberStateNormal() && (p.IsChatMemberCreator() || p.IsChatMemberAdmin())
@@ -115,8 +136,11 @@ func (a *access) canManage(userId int64) bool {
 	return ok && a.channel.GetChannel().Can(p, channelperm.ManageCall, now()) == nil
 }
 
-// chatFor is the chat or channel as userId sees it.
+// chatFor is the chat or channel as userId sees it; nil for a conference.
 func (a *access) chatFor(userId int64) *mtproto.Chat {
+	if a.conf != nil {
+		return nil
+	}
 	if a.chat != nil {
 		return a.chat.ToUnsafeChat(userId)
 	}
@@ -125,6 +149,9 @@ func (a *access) chatFor(userId int64) *mtproto.Chat {
 
 // username is the public username of the chat, "" for a private one.
 func (a *access) username() string {
+	if a.conf != nil {
+		return ""
+	}
 	if a.channel != nil && a.channel.GetChannel().Public() {
 		return a.channel.GetChannel().GetUsername()
 	}
@@ -133,7 +160,7 @@ func (a *access) username() string {
 
 // callView is how userId sees call.
 func (c *GroupCallsCore) callView(a *access, call *groupcalls.Call, userId int64) groupcalls.CallView {
-	v := groupcalls.CallView{VideoLimit: c.svcCtx.VideoLimit}
+	v := groupcalls.CallView{VideoLimit: c.svcCtx.VideoLimit, InviteLink: inviteLink(call)}
 	if a != nil {
 		v.CanManage = a.canManage(userId)
 	}
@@ -148,8 +175,12 @@ func (c *GroupCallsCore) callView(a *access, call *groupcalls.Call, userId int64
 	return v
 }
 
-// members are the accounts in the chat or channel.
+// members are the accounts in the chat or channel; a conference has no
+// members besides its participants.
 func (c *GroupCallsCore) members(a *access) ([]int64, error) {
+	if a.conf != nil {
+		return nil, nil
+	}
 	if a.chat != nil {
 		return a.chat.ParticipantIdList(), nil
 	}

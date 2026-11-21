@@ -890,9 +890,10 @@ func TestGroupCallChain(t *testing.T) {
 		t.Fatalf("only_left and kick at once: %v", err)
 	}
 
-	// The conferences as a product are not served.
-	if _, err = w.as(1).PhoneCreateConferenceCall7D0444BB(&mtproto.TLPhoneCreateConferenceCall7D0444BB{RandomId: 1}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
-		t.Fatalf("createConferenceCall: %v", err)
+	// The old form of createConferenceCall (= phone.PhoneCall) is not
+	// served; the conferences are (conference_integration_test.go).
+	if _, err = w.as(1).PhoneCreateConferenceCallDFC909AB(&mtproto.TLPhoneCreateConferenceCallDFC909AB{}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
+		t.Fatalf("createConferenceCall#dfc909ab: %v", err)
 	}
 
 	// After the end the chain is read no more, and the collector deletes it

@@ -166,3 +166,19 @@ func TestViewOf(t *testing.T) {
 		t.Fatalf("a call nobody accepted keeps its reason: %+v", v)
 	}
 }
+
+// Every phoneCall carries conference_supported (task 117), and a reason a
+// client sends to move the call keeps its slug only through MigrateSlug.
+func TestConferenceSupportedAndMigrateReason(t *testing.T) {
+	c := &Call{Id: 1, AccessHash: 2, AdminId: 3, ParticipantId: 4, State: StateActive}
+	if !c.TL(Admin, nil).GetConferenceSupported() {
+		t.Fatal("phoneCall without conference_supported")
+	}
+	r := mtproto.MakeTLPhoneCallDiscardReasonMigrateConferenceCall(&mtproto.PhoneCallDiscardReason{Slug: "s"}).To_PhoneCallDiscardReason()
+	if ReasonOf(r) != ReasonHangup || MigrateSlug(r) != "s" {
+		t.Fatalf("migrate: %v %q", ReasonOf(r), MigrateSlug(r))
+	}
+	if MigrateSlug(mtproto.MakeTLPhoneCallDiscardReasonHangup(nil).To_PhoneCallDiscardReason()) != "" {
+		t.Fatal("a slug of a hang-up")
+	}
+}
