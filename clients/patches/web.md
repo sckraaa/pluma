@@ -368,6 +368,12 @@
 - **При обновлении:** новая ссылка `t.me` или изменившееся их число роняет `verify` с именем файла. Нужно решить, делает ли эту ссылку клиент для пользователя (тогда `LINK_BUILDERS`) или она внутренняя либо Telegram (тогда `LINK_KEEP`). Если апстрим начнёт читать `me_url_prefix`, исходящие замены можно убрать.
 - **Коммиты:** `fc49343`, влито в `main` (`4109bc2`, PR #2), выкачено на web.pluma.chat 2026-11-06, задача 026.
 
+### Ссылки на конференции (задача 117): правок нет
+- **Ссылка `https://pluma.chat/call/<slug>`** открывается внутри по W-066: точный хост `pluma.chat` даёт `{prefix: undefined}`, `call` нет в `PLUMA_SITE_PATHS`, а `wrapUrl` отдаёт `onclick = 'call'` для пути из двух сегментов (`src/lib/richTextProcessor/wrapUrl.ts:94`). Обработчик `call` (`src/lib/internalLinkProcessor.ts:334-348`) ведёт в `processConferenceCallLink` (`:1565-1577`): slug по `CONFERENCE_CALL_SLUG_REGEXP` `/^[A-Za-z0-9_-]{1,64}$/` (`src/lib/calls/constants.ts:54`) — 22 знака base64url сервера подходят, — затем `appImManager.joinConference` с `inputGroupCallSlug`. Slug ссылки из `exportGroupCallInvite` берётся по `/call/` независимо от хоста (`src/components/call/callLinkPopup.tsx:29-32`). Литералы `t.me/call/` в апстриме только в песочнице попапов (`LINK_KEEP`).
+- **Зеркало `pluma.sckra.dev`** веб-клиент своим хостом не считает: страница службы `links` ведёт в веб-клиент сама (решение 2 брифа 117: сервер строит ссылки только на `pluma.chat`).
+- **Конференции.** Путь конференции у апстрима целиком (`lib/calls/e2e`, `conferenceInvitesController`), включён (`src/environment/conferenceCallSupport.ts:18`) там, где есть `RTCRtpScriptTransform`. Правка задачи 094 делит `isConference` на `isE2e` и `isConference = isE2e && (!chatId || chatId === NULL_PEER_ID)`; конференция входит с `chatId: opts.chatId ?? NULL_PEER_ID` (`src/lib/calls/groupCallsController.ts:1036`), поэтому её интерфейс (приглашения, ссылка, «только создатель управляет») остаётся как у апстрима.
+- **Сверено** по `ci/patch.py` `origin/main` `9899991` и апстриму `aa74832e`, 2026-11-21. Не проверено в браузере.
+
 ### Цвета: тема «графит и шалфей»
 
 Палитра выбрана владельцем 2026-10-29 (бриф 017). Пресеты *Day*, *Dark Blue* и акценты, которые пользователь выбирает сам, остаются как у апстрима, кроме цветов-идентичностей (W-039). Исходящие пузыри сплошные: Web K не рисует градиентные пузыри, владелец согласился (бриф 017).
