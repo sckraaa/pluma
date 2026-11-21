@@ -1,6 +1,6 @@
 # STATUS
 
-_Обновлено: 2026-11-19. Держать коротким._
+_Обновлено: 2026-11-21. Держать коротким._
 
 ## Где мы
 Этап 0 — фундамент. Аудит завершён, вердикт: ядро teamgram оставляем и глубоко чиним (`docs/audit/00-summary.md`). План этапа 0 — задачи 001–010 (`docs/tasks/README.md`), две параллельные линии: сервер и клиенты.
@@ -10,6 +10,11 @@ _Обновлено: 2026-11-19. Держать коротким._
 - Сравнительных тестов: 6 сценариев с эталонами Telegram, все проходят в CI (`test/conformance`, 9 методов API). Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
 
 ## В работе
+- **Выкачено 2026-11-20/21:**
+  - 117 — конференц-звонки (групповой звонок без группы: создание, приглашения звонком на всех устройствах, ссылки `pluma.chat/call/…` и зеркало, перевод звонка 1:1 в групповой; сквозное шифрование, как у групповых звонков; Россия через amf), `0ae25dcef`, PR sckraaa/pluma#66; ADR 0075 proposed — решения 1–12 к подтверждению; правок клиентов не понадобилось.
+  - 116 — групповые звонки из России через узел amf (`GROUPCALLS_ROUTES=RU,BY:ru;*:direct`, `SFU_RELAYS`, `PLUMA_RU_SFU_ADDR`), `a9e666b80`, PR #65; с живым клиентом из России не проверено.
+  - Исправления: обмен ключами может продолжаться в другом соединении (#63; из-за этого новый iOS из Казахстана не мог войти); запрос набора стикеров не держит остальные запросы клиента дольше 3 с (#64; «Обновление…» и звонки на Android); большие системные наборы эмодзи (`StaticEmoji`) грузятся целиком (#62; тревога bff 5xx); `owner-nginx.sh` читает `nginx -T` целиком.
+  - Известные мигающие тесты CI: `TestAudioBothWays`, `TestNewLogin`, `TestChannelEdit`, `TestGroupCallE2EKickAndReconnect`, `TestEventDeliveredFiveTimes` (Kafka).
 - **Партия `batch/20261119` — задачи 114 и 115, выкачено 2026-11-19 (`ef2f0af6d`, PR sckraaa/pluma#60).** Итоги — «Результат» брифов 114, 115; проверки владельца — `TESTING-BACKLOG.md`, разделы 114, 115.
   - 114: свои строки во всех пакетах и 42 языках, ссылки по пакетам, `suggested_lang_code` по языку системы (так же отвечает Telegram), `updateLangPackTooLong` после `langpack import`, `pluma-admin langpack coverage`. Push-тексты на всех языках — отдельная задача (ключи `PUSH_*` не ложатся один к одному). Android A-130 (встроенные строки девяти языков до загрузки пакета) выпущен в Android 81. `langpack import` 2026-11-19: 129 языков обновлены, 24 сессии получили `updateLangPackTooLong`, строк без перевода — 0.
   - 115: обновления Desktop и кнопки сайта — через Gcore (`gk8qyyfx`), из России — кэш nginx на `r1.sckra.dev`; iPhone без изменений. Включено на проде: `PLUMA_RELEASES_FILES_URL=https://gk8qyyfx.gcorecdn.com`, `PLUMA_RELEASES_FILES_ROUTES=RU,BY=https://r1.sckra.dev`; `/dl/` через Gcore и через amf отвечают.
