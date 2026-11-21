@@ -1408,6 +1408,361 @@
    ]
   }
  },
+ "tdesktop": {
+  "lng_factcheck_links": {
+   "af": [
+    "Slegs **t.me/**-skakels word toegelaat."
+   ],
+   "az": [
+    "Yalnız **t.me/** keçidlərinə icazə verilir."
+   ],
+   "be": [
+    "Дазволены толькі спасылкі, якія пачынаюцца з **t.me/**."
+   ],
+   "bg": [
+    "Разрешени са само връзки **t.me/**."
+   ],
+   "ca": [
+    "Només es permeten enllaços **t.me/**."
+   ],
+   "cs": [
+    "Jsou povoleny pouze odkazy **t.me/**."
+   ],
+   "de": [
+    "Nur **t.me/** Links sind erlaubt."
+   ],
+   "el": [
+    "Επιτρέπονται μόνο σύνδεσμοι **t.me/**."
+   ],
+   "en": [
+    "Only **t.me/** links are allowed."
+   ],
+   "es": [
+    "Sólo están permitidos los enlaces **t.me/**."
+   ],
+   "et": [
+    "Lubatud on ainult **t.me/**-lingid."
+   ],
+   "fi": [
+    "Vain **t.me/**-linkit sallittuja"
+   ],
+   "fr": [
+    "Seuls les liens **t.me/** sont autorisés."
+   ],
+   "hr": [
+    "Dopušteni su samo **t.me/** linkovi."
+   ],
+   "it": [
+    "Sono ammessi solo i link **t.me/**."
+   ],
+   "kk": [
+    "Тек **t.me/** сілтемесі рұқсат етілген."
+   ],
+   "ko": [
+    "**t.me/** 링크만 허용됩니다."
+   ],
+   "lt": [
+    "Leidžiamos tik **t.me/** nuorodos."
+   ],
+   "lv": [
+    "Atļautas tikai **t.me/** saites."
+   ],
+   "ms": [
+    "Hanya link **t.me/** dibenarkan."
+   ],
+   "nb": [
+    "Kun **t.me/** lenker er tillatt."
+   ],
+   "nl": [
+    "Alleen **t.me/**-links zijn toegestaan."
+   ],
+   "pt-br": [
+    "Somente links **t.me/** são permitidos."
+   ],
+   "ro": [
+    "Doar linkurile **t.me/** sunt permise."
+   ],
+   "ru": [
+    "Разрешены только ссылки **t.me/**"
+   ],
+   "sl": [
+    "Dovoljene so samo povezave **t.me/**."
+   ],
+   "sq": [
+    "Lejohen vetëm lidhjet **t.me/**."
+   ],
+   "sr": [
+    "Дозвољене су само везе **t.me/**."
+   ],
+   "tr": [
+    "Yalnızca **t.me/** bağlantılarına izin verilir."
+   ],
+   "uk": [
+    "Дозволено лише посилання вигляду **t.me/**"
+   ],
+   "zh-hans": [
+    "仅允许 **t.me/** 链接。"
+   ],
+   "zh-hant": [
+    "僅允許 **t.me/** 連結。"
+   ]
+  },
+  "lng_group_about3": {
+   "af": [
+    "Openbare skakels soos t.me/title"
+   ],
+   "az": [
+    "t.me/title kimi ictimai keçidlər"
+   ],
+   "be": [
+    "Публічныя спасылкі, такія як t.me/title"
+   ],
+   "bg": [
+    "Публични връзки като t.me/title"
+   ],
+   "ca": [
+    "Enllaços públics, com ara t.me/títol"
+   ],
+   "cs": [
+    "Veřejné odkazy jako t.me/text"
+   ],
+   "de": [
+    "Öffentliche Links, wie t.me/title"
+   ],
+   "el": [
+    "Δημόσιους συνδέσμους, όπως t.me/title"
+   ],
+   "en": [
+    "Public links such as t.me/title"
+   ],
+   "es": [
+    "Enlaces públicos como t.me/title"
+   ],
+   "et": [
+    "Avalikud lingid, nt t.me/title"
+   ],
+   "fi": [
+    "Julkiset linkit, kuten t.me/nimi"
+   ],
+   "fr": [
+    "Des liens publics comme t.me/titre"
+   ],
+   "hr": [
+    "Javne linkove kao t.me/naziv"
+   ],
+   "id": [
+    "Tautan publik seperti t.me/judul"
+   ],
+   "it": [
+    "Link pubblici come t.me/title"
+   ],
+   "kk": [
+    "t.me/silteme секілді сілтеме жасай аласыз"
+   ],
+   "ko": [
+    "공개 링크를 t.me/제목으로 둘 수 있습니다"
+   ],
+   "lt": [
+    "Viešosios nuorodos, pvz., t.me/title"
+   ],
+   "lv": [
+    "Publiskas saites, piemēram, t.me/title"
+   ],
+   "ms": [
+    "Link awam seperti t.me/tajuk"
+   ],
+   "nb": [
+    "Offentlige lenker som t.me/title"
+   ],
+   "nl": [
+    "Openbare links zoals t.me/titel"
+   ],
+   "pl": [
+    "Linki publiczne, takie jak t.me/title"
+   ],
+   "pt-br": [
+    "Links públicos, como t.me/nome"
+   ],
+   "ro": [
+    "Linkuri publice ca t.me/titlu"
+   ],
+   "ru": [
+    "Публичные ссылки вида t.me/title"
+   ],
+   "sl": [
+    "Javne povezave, kot je t.me/title"
+   ],
+   "sq": [
+    "Lidhje publike si t.me/title"
+   ],
+   "sr": [
+    "Јавне везе као t.me/naziv"
+   ],
+   "tr": [
+    "t.me/title gibi herkese açık bağlantılar"
+   ],
+   "uk": [
+    "Публічні посилання вигляду t.me"
+   ],
+   "zh-hans": [
+    "公开链接，例如：t.me/title"
+   ],
+   "zh-hant": [
+    "公開連結，例如：t.me/title"
+   ]
+  },
+  "lng_premium_double_limits_about_links": {
+   "af": [
+    "Reserveer tot {count} t.me/username-skakel",
+    "Reserveer tot {count} t.me/username-skakels"
+   ],
+   "az": [
+    "{count} t.me/username keçidinə qədər rezerv edin",
+    "{count} t.me/username keçidinə qədər rezerv edin"
+   ],
+   "be": [
+    "Рэзервуйце да {count} спасылкі t.me/username",
+    "Рэзервуйце да {count} спасылак t.me/username",
+    "Рэзервуйце да {count} спасылак t.me/username",
+    "Рэзервуйце да {count} спасылкі t.me/username"
+   ],
+   "bg": [
+    "Запазете до {count} връзка t.me/username",
+    "Запазете до {count} връзки t.me/username"
+   ],
+   "ca": [
+    "Reserveu fins a {count} enllaç t.me/nom",
+    "Reserveu fins a {count} enllaços t.me/nom"
+   ],
+   "cs": [
+    "Zarezervujte si až {count} odkaz t.me/name",
+    "Zarezervujte si až {count} odkazy t.me/name",
+    "Zarezervujte si až {count} odkazů t.me/name",
+    "Zarezervujte si až {count} odkazů t.me/name"
+   ],
+   "de": [
+    "Bis zu {count} t.me/username Link",
+    "Bis zu {count} t.me/username Links"
+   ],
+   "el": [
+    "Δεσμεύστε έως {count} σύνδεσμο t.me/username",
+    "Δεσμεύστε έως {count} συνδέσμους t.me/username"
+   ],
+   "en": [
+    "Reserve up to {count} t.me/username link",
+    "Reserve up to {count} t.me/username links"
+   ],
+   "es": [
+    "Reserva hasta {count} enlace t.me/username",
+    "Reserva hasta {count} enlaces t.me/username"
+   ],
+   "et": [
+    "Reserveerige kuni {count} link kujul t.me/username",
+    "Reserveerige kuni {count} linki kujul t.me/username"
+   ],
+   "fi": [
+    "Varaa jopa {count} t.me/nimimerkki-linkki",
+    "Varaa jopa {count} t.me/nimimerkki-linkkiä"
+   ],
+   "fr": [
+    "Réserver jusqu'à {count} lien t.me/nom",
+    "Réserver jusqu'à {count} liens t.me/nom"
+   ],
+   "hr": [
+    "Rezervirajte do {count} t.me/korisničkoimelink",
+    "Rezervirajte do {count} t.me/korisničkoime linka",
+    "Rezervirajte do {count} t.me/korisničkoime linkova"
+   ],
+   "id": [
+    "Miliki hingga {count} tautan t.me/username"
+   ],
+   "it": [
+    "Riserva fino a {count} link t.me/username",
+    "Riserva fino a {count} link t.me/username"
+   ],
+   "kk": [
+    "{count} t.me/username секілді сілтеме жасай алыңыз.",
+    "{count} t.me/username секілді сілтеме жасай алыңыз."
+   ],
+   "ko": [
+    "최대 {count}개의 t.me/username 링크를 마련할 수 있어요"
+   ],
+   "lt": [
+    "Rezervuokite iki {count} t.me/username nuorodos",
+    "Rezervuokite iki {count} t.me/username nuorodų",
+    "Rezervuokite iki {count} t.me/username nuorodos",
+    "Rezervuokite iki {count} t.me/username nuorodų"
+   ],
+   "lv": [
+    "Rezervējiet līdz {count} t.me/username saitēm",
+    "Rezervējiet līdz {count} t.me/username saitei",
+    "Rezervējiet līdz {count} t.me/username saitēm"
+   ],
+   "ms": [
+    "Tersedia hingga {count} link t.me/namasamaran"
+   ],
+   "nb": [
+    "Reserver inntil {count} t.me/brukernavn lenke",
+    "Reserver inntil {count} t.me/brukernavn lenker"
+   ],
+   "nl": [
+    "Reserveer maximaal {count} t.me/gebruikersnaam-link",
+    "Reserveer maximaal {count} t.me/gebruikersnaam-links"
+   ],
+   "pl": [
+    "Zarezerwuj do {count} linku [t.me/nazwa_uzytkownika",
+    "Zarezerwuj do {count} linków t.me/nazwa_uzytkownika",
+    "Zarezerwuj do {count} linków t.me/nazwa_uzytkownika",
+    "Zarezerwuj do {count} linków t.me/nazwa_uzytkownika"
+   ],
+   "pt-br": [
+    "Reserve até {count} link t.me/usuario",
+    "Reserve até {count} links t.me/usuario"
+   ],
+   "ro": [
+    "Rezervă până la {count} link t.me/username",
+    "Rezervă până la {count} linkuri t.me/username",
+    "Rezervă până la {count} de linkuri t.me/username"
+   ],
+   "ru": [
+    "Использование до {count} ссылки вида t.me/username",
+    "Использование до {count} ссылок вида t.me/username",
+    "Использование до {count} ссылок вида t.me/username",
+    "Использование до {count} ссылки вида t.me/username"
+   ],
+   "sl": [
+    "Rezervirajte največ {count} povezavo t.me/username",
+    "Rezervirajte največ {count} povezavi t.me/username",
+    "Rezervirajte največ {count} povezave t.me/username",
+    "Rezervirajte največ {count} povezav t.me/username"
+   ],
+   "sq": [
+    "Rezervoni deri në {count} lidhje t.me/username",
+    "Rezervoni deri në {count} lidhje t.me/username"
+   ],
+   "sr": [
+    "Резервишите до {count} везу t.me/korisnickoime",
+    "Резервишите до {count} везе t.me/korisnickoime",
+    "Резервишите до {count} веза t.me/korisnickoime"
+   ],
+   "tr": [
+    "{count} kadar t.me/username bağlantısını rezerve edin",
+    "{count} kadar t.me/username bağlantısını rezerve edin"
+   ],
+   "uk": [
+    "До {count} зайнятого посилання виду t.me/username",
+    "До {count} зайнятих посилань виду t.me/username",
+    "До {count} зайнятих посилань виду t.me/username",
+    "До {count} зайнятих посилань виду t.me/username"
+   ],
+   "zh-hans": [
+    "保留高达 {count} 个 t.me/name 链接"
+   ],
+   "zh-hant": [
+    "最多可擁有 {count} 個 t.me/username 連結"
+   ]
+  }
+ },
  "webk": {
   "ChatAutomation.HeroDescription": {
    "ar": [
@@ -1640,6 +1995,154 @@
     "公開連結，例如：t.me/title"
    ]
   },
+  "Message.Unsupported.Desktop": {
+   "be": [
+    "__ Гэта паведамленне пакуль не падтрымліваецца ў Telegram Web. Паспрабуйце [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "ca": [
+    "__Aquest missatge encara no és compatible amb el Telegram Web. Proveu [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "cs": [
+    "__Tato zpráva není v současné době na webu Telegramu podporována. Zkuste [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "en": [
+    "__This message is currently not supported on Telegram Web. Try [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "es": [
+    "__Este mensaje actualmente no es compatible con Telegram Web. Prueba [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "fa": [
+    "__این پیام در حال حاضر توسط تلگرام وب پشتیبانی نمی‌شود. [getdesktop.telegram.org](https://getdesktop.telegram.org/) را امتحان کنید__"
+   ],
+   "fi": [
+    "__Tätä viestiä ei tällä hetkellä tueta Telegramin verkkoversiossa. Kokeile [Telegramin työpöytäsovellusta](https://getdesktop.telegram.org/).__"
+   ],
+   "fr": [
+    "__Ce message n'est actuellement pas pris en charge par Telegram Web. Essayez [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "hr": [
+    "__Ova poruka trenutno nije podržana na Telegram Webu. Pokušajte preko [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "hu": [
+    "__Ez az üzenet jelenleg nem támogatott a Telegram Web-en. Próbáld meg [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "it": [
+    "__Questo messaggio non è al momento supportato su Telegram Web. Prova [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "kk": [
+    "__Telegram Web-те бұл хат ашылмайды. [getdesktop.telegram.org](https://getdesktop.telegram.org/) қолданып көріңіз.__"
+   ],
+   "ko": [
+    "__이 메시지는 현재 텔레그램 웹에서 지원되지 않습니다. [getdesktop.telegram.org](https://getdesktop.telegram.org/)를 사용해 보세요.__"
+   ],
+   "ms": [
+    "__Mesej ini masih belum disokong oleh Telegram Web. Cuba [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "nb": [
+    "__Denne meldingen er for tiden ikke støttet av Telegram Web. Prøv [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "nl": [
+    "__Dit bericht wordt momenteel niet ondersteund op Telegram Web. Probeer [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "pl": [
+    "__Ta wiadomość nie jest obecnie obsługiwana w Telegram Web. Wypróbuj [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "pt-br": [
+    "__Esta mensagem atualmente não é suportada no Telegram Web. Experimente o [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "ro": [
+    "__Acest mesaj nu este suportat momentan de Telegram Web. Încearcă [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "ru": [
+    "__Сообщение пока не поддерживается в Telegram для браузера. Попробуйте [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "sr": [
+    "__Ова порука тренутно није подржана у апликацији Telegram Web. Покушајте преко [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "uk": [
+    "__Наразі це повідомлення не підтримується в Telegram Web. Спробуйте [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ],
+   "zh-hans": [
+    "__Telegram Web 目前不支持此消息。请尝试 [Telegram Desktop](https://getdesktop.telegram.org/)__"
+   ],
+   "zh-hant": [
+    "__Telegram Web 目前不支持此訊息。嘗試 [getdesktop.telegram.org](https://getdesktop.telegram.org/)__"
+   ]
+  },
+  "Message.Unsupported.Mobile": {
+   "be": [
+    "__ Гэта паведамленне пакуль не падтрымліваецца ў Telegram Web. Паспрабуйце [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "ca": [
+    "__Aquest missatge encara no és compatible amb el Telegram Web. Proveu [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "cs": [
+    "__Tato zpráva není v současné době na webu Telegramu podporována. Zkuste [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "en": [
+    "__This message is currently not supported on Telegram Web. Try [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "es": [
+    "__Este mensaje actualmente no es compatible con Telegram Web. Prueba [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "fa": [
+    "__این پیام در حال حاضر توسط تلگرام وب پشتیبانی نمی‌شود. [telegram.org/dl](https://telegram.org/dl/) را امتحان کنید__"
+   ],
+   "fi": [
+    "__Tätä viestiä ei tällä hetkellä tueta Telegramin verkkoversiossa. Kokeile [Telegramin mobiilisovellusta](https://telegram.org/dl/).__"
+   ],
+   "fr": [
+    "__Ce message n'est actuellement pas pris en charge par Telegram Web. Essayez [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "hr": [
+    "__Ova poruka trenutno nije podržana na Telegram Webu. Pokušajte preko [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "hu": [
+    "__Ez az üzenet jelenleg nem támogatott a Telegram Web-en. Próbáld meg [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "it": [
+    "__Questo messaggio non è al momento supportato su Telegram Web. Prova [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "kk": [
+    "__Telegram Web-те бұл хат ашылмайды. [telegram.org/dl](https://telegram.org/dl/) қолданып көріңіз.__"
+   ],
+   "ko": [
+    "__이 메시지는 현재 텔레그램 웹에서 지원되지 않습니다. [telegram.org/dl](https://telegram.org/dl/)을 사용해 보세요.__"
+   ],
+   "ms": [
+    "__Mesej ini masih belum disokong oleh Telegram Web. Cuba [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "nb": [
+    "__Denne meldingen er for tiden ikke støttet av Telegram Web. Prøv [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "nl": [
+    "__Dit bericht wordt momenteel niet ondersteund op Telegram Web. Probeer [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "pl": [
+    "__Ta wiadomość nie jest obecnie obsługiwana w Telegram Web. Wypróbuj [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "pt-br": [
+    "__Esta mensagem atualmente não é suportada no Telegram Web. Experimente o [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "ro": [
+    "__Acest mesaj nu este suportat momentan de Telegram Web. Încearcă [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "ru": [
+    "__Сообщение пока не поддерживается в Telegram для браузера. Попробуйте [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "sr": [
+    "__Ова порука тренутно није подржана у апликацији Telegram Web. Покушајте преко [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "uk": [
+    "__Наразі це повідомлення не підтримується в Telegram Web. Спробуйте [telegram.org/dl](https://telegram.org/dl/)__"
+   ],
+   "zh-hans": [
+    "__Telegram Web 目前不支持此消息。请尝试 [Telegram Desktop](https://telegram.org/dl/)__"
+   ],
+   "zh-hant": [
+    "__Telegram Web 目前不支持此訊息。嘗試 [telegram.org/dl](https://telegram.org/dl/)__"
+   ]
+  },
   "PublicLinksLimitSubtitle": {
    "ar": [
     "حجز ما يصل إلى ⁨%d⁩ رابط t.me/username"
@@ -1727,6 +2230,154 @@
    ],
    "zh-hant": [
     "最多可擁有 %d 個 t.me/username 連結"
+   ]
+  },
+  "Video.Unsupported.Desktop": {
+   "be": [
+    "__На жаль, гэта відэа нельга прайграць у Telegram Web. Паспрабуйце адкрыць яго з дапамогай нашай [праграмы для Desktop](https://getdesktop.telegram.org/).__"
+   ],
+   "ca": [
+    "__Malauradament, aquest vídeo no es pot reproduir al Telegram Web. Proveu d'obrir-lo amb l'[aplicació d'escriptori](https://getdesktop.telegram.org/).__"
+   ],
+   "cs": [
+    "__Toto video nelze přehrát na webu Telegramu. Zkuste ho místo toho otevřít pomocí naší [desktopové aplikace](https://getdesktop.telegram.org/).__"
+   ],
+   "en": [
+    "__Unfortunately, this video can't be played on Telegram Web. Try opening it with our [desktop app](https://getdesktop.telegram.org/) instead.__"
+   ],
+   "es": [
+    "__Lamentablemente, este video no puede ser reproducido en Telegram Web. Intenta abrirlo en nuestra [app para computadora ](https://getdesktop.telegram.org/) en su lugar.__"
+   ],
+   "fa": [
+    "__متأسفانه این ویدیو نمی‌تواند در تلگرام وب پخش شود. در عوض، سعی کنید آن را با [برنامه دسکتاپ](https://getdesktop.telegram.org/) ما باز کنید.__"
+   ],
+   "fi": [
+    "__Tätä videota ei valitettavasti voi toistaa Telegramin verkkoversiossa. Kokeile katsoa se [Telegramin työpöytäsovelluksella](https://getdesktop.telegram.org/).__"
+   ],
+   "fr": [
+    "__Malheureusement, cette vidéo ne peut pas être lue sur Telegram Web. Essayez de l'ouvrir avec notre [application de bureau](https://getdesktop.telegram.org/) à la place.__"
+   ],
+   "hr": [
+    "__Nažalost, ovaj videozapis se ne može reproducirati preko Telegram Weba. Pokušajte ga otvoriti pomoću [aplikacije za računala](https://getdesktop.telegram.org/).__"
+   ],
+   "hu": [
+    "__Ez a videó sajnos nem játszható le a Telegram Web-en. Próbáld meg inkább az [asztali alkalmazásunkkal](https://getdesktop.telegram.org/) megnyitni.__"
+   ],
+   "it": [
+    "__Sfortunatamente questo video non può essere riprodotto su Telegram Web. Prova aprendo una delle nostre [app desktop](https://getdesktop.telegram.org/).__"
+   ],
+   "kk": [
+    "__Telegram Web-те бұл бейне ойнатылмайды. [Ұялы қолданбасын](https://telegram.org/dl/) қолданып, ашып көріңіз.__"
+   ],
+   "ko": [
+    "__안타깝게도 해당 영상은 텔레그램 웹에서 재생이 불가능합니다. 대신 [데스크톱 앱](https://getdesktop.telegram.org/)으로 열어보세요.__"
+   ],
+   "ms": [
+    "__Malangnya, video ini tak boleh dimain di Telegram Web. Cuba membukannya dengan [ap desktop](https://getdesktop.telegram.org/) kami.__"
+   ],
+   "nb": [
+    "Beklager, denne videoen kan ikke spilles av på Telegram Web. Prøv å åpne den med vår [skrivebordsapp](https://getdesktop.telegram.org/) i stedet.__"
+   ],
+   "nl": [
+    "__Deze video kan helaas niet op Telegram Web worden afgespeeld. Probeer het via onze [desktopapplicatie](https://getdesktop.telegram.org/) te openen.__"
+   ],
+   "pl": [
+    "__Niestety, tego filmu nie można odtworzyć w Telegram Web. Zamiast tego spróbuj otworzyć go za pomocą naszej [aplikacji na komputer](https://getdesktop.telegram.org/).__"
+   ],
+   "pt-br": [
+    "__Infelizmente, este vídeo não pode ser reproduzido no Telegram Web. Tente abri-lo com nosso [aplicativo para desktop](https://getdesktop.telegram.org/).__"
+   ],
+   "ro": [
+    "__Din păcate, acest video nu poate fi redat pe Telegram Web. Încearcă să îl deschizi cu [aplicația noastră desktop](https://getdesktop.telegram.org/) în loc.__"
+   ],
+   "ru": [
+    "__К сожалению, просмотр этого видеофайла в Telegram для браузера недоступен. Попробуйте открыть его в [приложении для компьютера](https://getdesktop.telegram.org/).__"
+   ],
+   "sr": [
+    "__Овај видео се не може репродуковати у апликацији Telegram Web. Покушајте отворити помоћу наше [апликације за рачунар](https://getdesktop.telegram.org/)__"
+   ],
+   "uk": [
+    "__На жаль, це відео не можна відтворити в Telegram Web. Спробуйте відкрити його в [Telegram Desktop](https://getdesktop.telegram.org/).__"
+   ],
+   "zh-hans": [
+    "__很遗憾，此视频无法在 Telegram Web 上播放。请尝试使用 [Telegram 桌面应用程序](https://getdesktop.telegram.org/) 打开。__"
+   ],
+   "zh-hant": [
+    "__很抱歉，這部影片無法在 Telegram Web 上播放。嘗試使用我們的[桌面應用程式](https://getdesktop.telegram.org/) 開啟它。__"
+   ]
+  },
+  "Video.Unsupported.Mobile": {
+   "be": [
+    "__На жаль, гэта відэа нельга прайграць у Telegram Web. Паспрабуйце адкрыць яго з дапамогай нашай [мабільнай праграмы](https://telegram.org/dl/).__"
+   ],
+   "ca": [
+    "__Malauradament, aquest vídeo no es pot reproduir al Telegram Web. Proveu d'obrir-lo amb l'[aplicació mòbil](https://telegram.org/dl/).__"
+   ],
+   "cs": [
+    "__Toto video nelze přehrát na webu Telegramu. Zkuste ho místo toho otevřít pomocí naší [mobilní aplikace](https://telegram.org/dl/).__"
+   ],
+   "en": [
+    "__Unfortunately, this video can't be played on Telegram Web. Try opening it with our [mobile app](https://telegram.org/dl/) instead.__"
+   ],
+   "es": [
+    "__Lamentablemente, este video no puede ser reproducido en Telegram Web. Intenta abrirlo en nuestra [app para móvil](https://telegram.org/dl/) en su lugar.__"
+   ],
+   "fa": [
+    "__متأسفانه این ویدیو نمی‌تواند در تلگرام وب پخش شود. در عوض، سعی کنید آن را با [برنامه تلفن همراه](https://telegram.org/dl/) ما باز کنید.__"
+   ],
+   "fi": [
+    "__Tätä videota ei valitettavasti voi toistaa Telegramin verkkoversiossa. Kokeile katsoa se [Telegramin mobiilisovelluksella](https://telegram.org/dl/).__"
+   ],
+   "fr": [
+    "__Malheureusement, cette vidéo ne peut pas être lue sur Telegram Web. Essayez plutôt de l'ouvrir avec notre [application mobile](https://telegram.org/dl/).__"
+   ],
+   "hr": [
+    "__Nažalost, ovaj videozapis se ne može reproducirati preko Telegram Weba. Pokušajte ga otvoriti pomoću [mobilne aplikacije](https://telegram.org/dl/).__"
+   ],
+   "hu": [
+    "__Ez a videó sajnos nem játszható le a Telegram Web-en. Próbáld meg inkább a [mobilalkalmazásunkkal](https://telegram.org/dl/) megnyitni.__"
+   ],
+   "it": [
+    "__Sfortunatamente questo video non può essere riprodotto su Telegram Web. Prova aprendo una delle nostre [app mobile](https://telegram.org/dl/).__"
+   ],
+   "kk": [
+    "__Telegram Web-те бұл бейне ойнатылмайды. [Ұялы қолданбасын](https://telegram.org/dl/) қолданып, ашып көріңіз.__"
+   ],
+   "ko": [
+    "__안타깝게도 해당 영상은 텔레그램 웹에서 재생이 불가능합니다. 대신 [모바일 앱](https://telegram.org/dl/)으로 열어보세요.__"
+   ],
+   "ms": [
+    "__Malangnya, video ini tak boleh dimain pada Telegram Web. Cuba membukanya dengan [ap mobil](https://telegram.org/dl/) kami.__"
+   ],
+   "nb": [
+    "__Beklager, denne videoen kan ikke spilles av på Telegram Web. Prøv å åpne den med vår [mobilapp](https://telegram.org/dl/) i stedet.__"
+   ],
+   "nl": [
+    "__Deze video kan helaas niet op Telegram Web worden afgespeeld. Probeer het via onze [mobiele app](https://telegram.org/dl/) te openen.__"
+   ],
+   "pl": [
+    "__Niestety, tego filmu nie można odtworzyć w Telegram Web. Zamiast tego spróbuj otworzyć go za pomocą naszej [aplikacji mobilnej](https://telegram.org/dl/).__"
+   ],
+   "pt-br": [
+    "__Infelizmente, este vídeo não pode ser reproduzido no Telegram Web. Tente abri-lo com nossos [aplicativos móveis](https://telegram.org/dl/).__"
+   ],
+   "ro": [
+    "__Din păcate, acest video nu poate fi redat pe Telegram Web. Încearcă să îl deschizi cu [aplicația noastră mobilă](https://telegram.org/dl/) în loc.__"
+   ],
+   "ru": [
+    "__К сожалению, просмотр этого видеофайла в Telegram для браузера недоступен. Попробуйте открыть его в [мобильном приложении](https://telegram.org/dl/).__"
+   ],
+   "sr": [
+    "__Овај видео се не може репродуковати у апликацији Telegram Web. Покушајте отворити помоћу наше [апликације за мобилне уређаје](https://telegram.org/dl/).__"
+   ],
+   "uk": [
+    "__На жаль, це відео не можна відтворити в Telegram Web. Спробуйте відкрити його в [мобільному застосунку](https://telegram.org/dl/).__"
+   ],
+   "zh-hans": [
+    "__很遗憾，此视频无法在 Telegram Web 上播放。请尝试使用 [Telegram 桌面应用程序](https://telegram.org/dl/) 打开。__"
+   ],
+   "zh-hant": [
+    "__很抱歉，這部影片無法在 Telegram Web 上播放。嘗試使用我們的[移動應用程式](https://telegram.org/dl/) 開啟它。__"
    ]
   }
  }

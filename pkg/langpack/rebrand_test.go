@@ -167,7 +167,19 @@ func TestLinkRules(t *testing.T) {
 		{"webk", "ChatAutomation.HeroDescription",
 			"Add a bot to your account to help you automatically process and respond to the messages you receive. [Learn More >]()",
 			"Add a bot to your account to help you automatically process and respond to the messages you receive."},
+		{"webk", "Message.Unsupported.Mobile",
+			"__This message is currently not supported on Telegram Web. Try [telegram.org/dl](https://telegram.org/dl/)__",
+			"__This message is currently not supported on Pluma Web. Try [pluma.chat](https://pluma.chat/)__"},
+		{"webk", "Message.Unsupported.Desktop",
+			"__This message is currently not supported on Telegram Web. Try [getdesktop.telegram.org](https://getdesktop.telegram.org/)__",
+			"__This message is currently not supported on Pluma Web. Try [pluma.chat](https://pluma.chat/)__"},
+		{"webk", "Video.Unsupported.Mobile", "our [mobile app](https://telegram.org/dl/) instead", "our [mobile app](https://pluma.chat/) instead"},
+		{"webk", "Video.Unsupported.Desktop", "our [desktop app](https://getdesktop.telegram.org) instead", "our [desktop app](https://pluma.chat/) instead"},
 		{"tdesktop", "lng_settings_section_privacy", "t.me/x telegram.org", "t.me/x telegram.org"},
+		{"tdesktop", "lng_group_about3", "Public links such as t.me/title", "Public links such as pluma.chat/title"},
+		{"tdesktop", "lng_premium_double_limits_about_links", "Reserve up to {count} t.me/username links",
+			"Reserve up to {count} pluma.chat/username links"},
+		{"tdesktop", "lng_factcheck_links", "Only **t.me/** links are allowed.", "Only **pluma.chat/** links are allowed."},
 	} {
 		if got := RebrandValue(c.pack, "en", c.key, c.in); got != c.want {
 			t.Errorf("%s/%s: %q, want %q", c.pack, c.key, got, c.want)
@@ -176,7 +188,8 @@ func TestLinkRules(t *testing.T) {
 }
 
 // In every language of Telegram's packs (testdata/links.json: the strings of
-// linkRules on 2026-11-18), no string of the table keeps a link to Telegram's
+// linkRules on 2026-11-18; those of tdesktop and the webk texts of task 118
+// as translations.telegram.org applied them on 2026-11-21), no string of the table keeps a link to Telegram's
 // sites, a t.me link or an empty link after the replacement.
 func TestLinkRulesInEveryLanguage(t *testing.T) {
 	data, err := os.ReadFile("testdata/links.json")

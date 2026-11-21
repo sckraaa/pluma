@@ -69,9 +69,10 @@ func isKept(key string) bool { return keepKeys[key] }
 //     (LINK_BUILDERS of lang.ts), and the two texts whose links to
 //     Telegram's site the patch took away (TELEGRAM_SITE_EDITS): the links
 //     to Telegram's apps keep their words, the "Learn More" link with no
-//     address goes.
-//
-// tdesktop changes no link of its strings.
+//     address goes; the texts of a message or a video the browser cannot
+//     show, whose links to Telegram's apps lead to Pluma's site (task 118);
+//   - tdesktop: the public links of a group, of the Premium limits and of a
+//     fact check (UI_POLISH_EDITS of the Desktop patch, task 118).
 var linkRules = map[string]map[string]func(string) string{
 	"android": {
 		"AuthAnotherClientDownloadClientUrl": clientLinks,
@@ -96,6 +97,15 @@ var linkRules = map[string]map[string]func(string) string{
 		"GroupDescription3":                                 replaceLinkHost,
 		"ChatList.Main.EmptyPlaceholder.SubtitleNoContacts": unlinkTelegramSite,
 		"ChatAutomation.HeroDescription":                    dropEmptyLink,
+		"Message.Unsupported.Desktop":                       appLinks,
+		"Message.Unsupported.Mobile":                        appLinks,
+		"Video.Unsupported.Desktop":                         appLinks,
+		"Video.Unsupported.Mobile":                          appLinks,
+	},
+	"tdesktop": {
+		"lng_group_about3":                      replaceLinkHost,
+		"lng_premium_double_limits_about_links": replaceLinkHost,
+		"lng_factcheck_links":                   replaceLinkHost,
 	},
 }
 
@@ -118,6 +128,24 @@ func clientLinks(value string) string {
 			slash = "/"
 		}
 		return p[1] + host + slash
+	})
+}
+
+// appsPage is the address of Telegram's page of its apps, telegram.org/dl,
+// in any case, with its scheme or without.
+var appsPage = regexp.MustCompile(`(?i)(https://)?telegram\.org/dl\b/?`)
+
+// appLinks sends the links to Telegram's apps to Pluma's site, where Pluma's
+// apps are, as the Web K patch does (TELEGRAM_SITE_EDITS of
+// Message.Unsupported.* and Video.Unsupported.*): the desktop client's
+// address as clientLinks has it, telegram.org/dl as pluma.chat, an address
+// with its scheme ending in a slash.
+func appLinks(value string) string {
+	return appsPage.ReplaceAllStringFunc(clientLinks(value), func(m string) string {
+		if len(m) >= len("https://") && strings.EqualFold(m[:len("https://")], "https://") {
+			return m[:len("https://")] + linkHost + "/"
+		}
+		return linkHost
 	})
 }
 
