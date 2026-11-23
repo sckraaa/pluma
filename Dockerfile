@@ -2,7 +2,7 @@
 # version must match the toolchain directive in go.mod (the image sets
 # GOTOOLCHAIN=local, so a mismatch fails the build instead of downloading).
 # The runtime glibc must not be older than the builder's: dfs links webp via cgo.
-FROM golang:1.27.4-trixie@sha256:b54b2639de8c1bfe538ec5ffc45f29b1932235ac5f6d63c059853646677112d9 AS builder
+FROM golang:1.27.4-trixie@sha256:f18c3d73a184fb0582828510722e723b63a93f7188d11dd223d9be6f6880e65d AS builder
 # The generated github.com/teamgram/proto/mtproto package is huge: with the
 # default backend concurrency its compile peaks at ~5.3 GB RSS (Go 1.27.3),
 # with -c=1 at ~4.3 GB, which keeps the image build within a 6 GB build VM.
